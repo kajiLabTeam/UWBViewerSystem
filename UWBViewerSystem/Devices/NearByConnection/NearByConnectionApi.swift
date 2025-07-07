@@ -18,50 +18,50 @@ class NearbyRepository: NSObject {
     private let nickName: String
     private let serviceId: String
     private var remoteEndpointIds: Set<String> = []
-    
+
     private var advertiser: Advertiser?
     private var discoverer: Discoverer?
     private var connectionManager: ConnectionManager?
-    
+
     init(nickName: String = "harutiro",
          serviceId: String = "net.harutiro.nearbyconnectionsapitest") {
         self.nickName = nickName
         self.serviceId = serviceId
         super.init()
-        
-        self.connectionManager = ConnectionManager(
+
+        connectionManager = ConnectionManager(
             serviceID: serviceId,
             strategy: .star
         )
-        
+
         setupDelegates()
     }
-    
+
     private func setupDelegates() {
-        guard let connectionManager = connectionManager else { return }
-        
+        guard let connectionManager else { return }
+
         // Advertiser初期化
         advertiser = Advertiser(connectionManager: connectionManager)
         advertiser?.delegate = self
-        
+
         // Discoverer初期化
         discoverer = Discoverer(connectionManager: connectionManager)
         discoverer?.delegate = self
-        
+
         // ConnectionManager デリゲート設定
         connectionManager.delegate = self
     }
-    
+
     func startAdvertise() {
-        guard let advertiser = advertiser else {
+        guard let advertiser else {
             callback?.onConnectionStateChanged(state: "Advertiser未初期化")
             return
         }
-        
+
         let context = Data(nickName.utf8)
         advertiser.startAdvertising(using: context) { [weak self] error in
             DispatchQueue.main.async {
-                if let error = error {
+                if let error {
                     self?.callback?.onConnectionStateChanged(state: "広告開始エラー: \(error.localizedDescription)")
                 } else {
                     self?.callback?.onConnectionStateChanged(state: "広告開始成功")
@@ -69,16 +69,16 @@ class NearbyRepository: NSObject {
             }
         }
     }
-    
+
     func startDiscovery() {
-        guard let discoverer = discoverer else {
+        guard let discoverer else {
             callback?.onConnectionStateChanged(state: "Discoverer未初期化")
             return
         }
-        
+
         discoverer.startDiscovery { [weak self] error in
             DispatchQueue.main.async {
-                if let error = error {
+                if let error {
                     self?.callback?.onConnectionStateChanged(state: "発見開始エラー: \(error.localizedDescription)")
                 } else {
                     self?.callback?.onConnectionStateChanged(state: "発見開始成功")
@@ -86,24 +86,24 @@ class NearbyRepository: NSObject {
             }
         }
     }
-    
+
     func sendData(text: String) {
-        guard let connectionManager = connectionManager else {
+        guard let connectionManager else {
             callback?.onConnectionStateChanged(state: "ConnectionManager未初期化")
             return
         }
-        
+
         guard !remoteEndpointIds.isEmpty else {
             callback?.onConnectionStateChanged(state: "送信先なし")
             return
         }
-        
+
         let data = Data(text.utf8)
         let endpointIds = Array(remoteEndpointIds)
-        
+
         _ = connectionManager.send(data, to: endpointIds) { [weak self] error in
             DispatchQueue.main.async {
-                if let error = error {
+                if let error {
                     self?.callback?.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
                 } else {
                     self?.callback?.onConnectionStateChanged(state: "データ送信完了: \(text)")
@@ -111,7 +111,7 @@ class NearbyRepository: NSObject {
             }
         }
     }
-    
+
     func disconnectAll() {
         for endpointId in remoteEndpointIds {
             connectionManager?.disconnect(from: endpointId)
@@ -119,18 +119,19 @@ class NearbyRepository: NSObject {
         remoteEndpointIds.removeAll()
         callback?.onConnectionStateChanged(state: "全接続切断完了")
     }
-    
+
     func resetAll() {
         disconnectAll()
-        
+
         advertiser?.stopAdvertising()
         discoverer?.stopDiscovery()
-        
+
         callback?.onConnectionStateChanged(state: "リセット完了")
     }
 }
 
 // MARK: - AdvertiserDelegate
+
 extension NearbyRepository: AdvertiserDelegate {
     func advertiser(
         _ advertiser: Advertiser,
@@ -145,6 +146,7 @@ extension NearbyRepository: AdvertiserDelegate {
 }
 
 // MARK: - DiscovererDelegate
+
 extension NearbyRepository: DiscovererDelegate {
     func discoverer(
         _ discoverer: Discoverer,
@@ -156,13 +158,14 @@ extension NearbyRepository: DiscovererDelegate {
         discoverer.requestConnection(to: endpointID, using: connectionContext)
         callback?.onConnectionStateChanged(state: "エンドポイント発見: \(endpointID)")
     }
-    
+
     func discoverer(_ discoverer: Discoverer, didLose endpointID: String) {
         callback?.onConnectionStateChanged(state: "エンドポイント消失: \(endpointID)")
     }
 }
 
 // MARK: - ConnectionManagerDelegate
+
 extension NearbyRepository: ConnectionManagerDelegate {
     func connectionManager(
         _ connectionManager: ConnectionManager,
@@ -175,7 +178,7 @@ extension NearbyRepository: ConnectionManagerDelegate {
         remoteEndpointIds.insert(endpointID)
         callback?.onConnectionStateChanged(state: "接続成功: \(endpointID)")
     }
-    
+
     func connectionManager(
         _ connectionManager: ConnectionManager,
         didReceive data: Data,
@@ -185,7 +188,7 @@ extension NearbyRepository: ConnectionManagerDelegate {
         let receivedText = String(data: data, encoding: .utf8) ?? ""
         callback?.onDataReceived(data: receivedText, fromEndpointId: endpointID)
     }
-    
+
     func connectionManager(
         _ connectionManager: ConnectionManager,
         didReceive stream: InputStream,
@@ -195,7 +198,7 @@ extension NearbyRepository: ConnectionManagerDelegate {
     ) {
         // ストリーム受信の処理（今回は使用しない）
     }
-    
+
     func connectionManager(
         _ connectionManager: ConnectionManager,
         didStartReceivingResourceWithID payloadID: PayloadID,
@@ -206,7 +209,7 @@ extension NearbyRepository: ConnectionManagerDelegate {
     ) {
         // ファイル受信の処理（今回は使用しない）
     }
-    
+
     func connectionManager(
         _ connectionManager: ConnectionManager,
         didReceiveTransferUpdate update: TransferUpdate,
@@ -217,7 +220,7 @@ extension NearbyRepository: ConnectionManagerDelegate {
         // TransferUpdateの詳細処理は実際のAPIに合わせて後で実装
         callback?.onConnectionStateChanged(state: "データ転送更新: \(endpointID)")
     }
-    
+
     func connectionManager(
         _ connectionManager: ConnectionManager,
         didChangeTo state: ConnectionState,

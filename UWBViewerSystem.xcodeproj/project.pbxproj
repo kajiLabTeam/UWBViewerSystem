@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5C9EDDFE2E1C514F00572D26 /* NearbyConnections in Frameworks */ = {isa = PBXBuildFile; productRef = 5C9EDDFD2E1C514F00572D26 /* NearbyConnections */; };
-		5C9EDE002E1C514F00572D26 /* NearbyConnectionsDynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5C9EDDFF2E1C514F00572D26 /* NearbyConnectionsDynamic */; };
+		5C9EDE002E1C514F00572D26 /* (null) in Frameworks */ = {isa = PBXBuildFile; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,7 +71,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5C9EDDFE2E1C514F00572D26 /* NearbyConnections in Frameworks */,
-				5C9EDE002E1C514F00572D26 /* NearbyConnectionsDynamic in Frameworks */,
+				5C9EDE002E1C514F00572D26 /* (null) in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -133,7 +133,6 @@
 			name = UWBViewerSystem;
 			packageProductDependencies = (
 				5C9EDDFD2E1C514F00572D26 /* NearbyConnections */,
-				5C9EDDFF2E1C514F00572D26 /* NearbyConnectionsDynamic */,
 			);
 			productName = UWBViewerSystem;
 			productReference = 5C9EDD672E1C419A00572D26 /* UWBViewerSystem.app */;
@@ -438,8 +437,11 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.harutiro.UWBViewerSystem;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
 			};
 			name = Debug;
 		};
@@ -467,8 +469,11 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.harutiro.UWBViewerSystem;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
 			};
 			name = Release;
 		};
@@ -597,11 +602,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5C9EDDFC2E1C514F00572D26 /* XCRemoteSwiftPackageReference "nearby" */;
 			productName = NearbyConnections;
-		};
-		5C9EDDFF2E1C514F00572D26 /* NearbyConnectionsDynamic */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 5C9EDDFC2E1C514F00572D26 /* XCRemoteSwiftPackageReference "nearby" */;
-			productName = NearbyConnectionsDynamic;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

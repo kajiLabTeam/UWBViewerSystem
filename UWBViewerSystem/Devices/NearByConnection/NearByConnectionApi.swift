@@ -24,7 +24,7 @@ class NearbyRepository: NSObject {
     private var connectionManager: ConnectionManager?
 
     init(nickName: String = "harutiro",
-         serviceId: String = "net.harutiro.nearbyconnectionsapitest") {
+         serviceId: String = "net.harutiro.UWBSystem") {
         self.nickName = nickName
         self.serviceId = serviceId
         super.init()

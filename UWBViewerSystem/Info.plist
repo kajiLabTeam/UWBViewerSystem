@@ -2,9 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>BLEを用いるのに使用します</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>通信を用いるために使用します</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>通信を用いるために使用します</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict/>
+	</array>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_D33B052930BB._tcp</string>
 	</array>
 </dict>
 </plist>

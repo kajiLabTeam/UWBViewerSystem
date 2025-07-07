@@ -1,0 +1,558 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		5C9EDD782E1C419C00572D26 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5C9EDD5F2E1C419A00572D26 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5C9EDD662E1C419A00572D26;
+			remoteInfo = UWBViewerSystem;
+		};
+		5C9EDD822E1C419C00572D26 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5C9EDD5F2E1C419A00572D26 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5C9EDD662E1C419A00572D26;
+			remoteInfo = UWBViewerSystem;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		5C9EDD672E1C419A00572D26 /* UWBViewerSystem.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UWBViewerSystem.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5C9EDD772E1C419C00572D26 /* UWBViewerSystemTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UWBViewerSystemTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5C9EDD812E1C419C00572D26 /* UWBViewerSystemUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UWBViewerSystemUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		5C9EDD692E1C419A00572D26 /* UWBViewerSystem */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UWBViewerSystem;
+			sourceTree = "<group>";
+		};
+		5C9EDD7A2E1C419C00572D26 /* UWBViewerSystemTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UWBViewerSystemTests;
+			sourceTree = "<group>";
+		};
+		5C9EDD842E1C419C00572D26 /* UWBViewerSystemUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = UWBViewerSystemUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5C9EDD642E1C419A00572D26 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5C9EDD742E1C419C00572D26 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5C9EDD7E2E1C419C00572D26 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5C9EDD5E2E1C419A00572D26 = {
+			isa = PBXGroup;
+			children = (
+				5C9EDD692E1C419A00572D26 /* UWBViewerSystem */,
+				5C9EDD7A2E1C419C00572D26 /* UWBViewerSystemTests */,
+				5C9EDD842E1C419C00572D26 /* UWBViewerSystemUITests */,
+				5C9EDD682E1C419A00572D26 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5C9EDD682E1C419A00572D26 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5C9EDD672E1C419A00572D26 /* UWBViewerSystem.app */,
+				5C9EDD772E1C419C00572D26 /* UWBViewerSystemTests.xctest */,
+				5C9EDD812E1C419C00572D26 /* UWBViewerSystemUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5C9EDD662E1C419A00572D26 /* UWBViewerSystem */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5C9EDD8B2E1C419C00572D26 /* Build configuration list for PBXNativeTarget "UWBViewerSystem" */;
+			buildPhases = (
+				5C9EDD632E1C419A00572D26 /* Sources */,
+				5C9EDD642E1C419A00572D26 /* Frameworks */,
+				5C9EDD652E1C419A00572D26 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5C9EDD692E1C419A00572D26 /* UWBViewerSystem */,
+			);
+			name = UWBViewerSystem;
+			packageProductDependencies = (
+			);
+			productName = UWBViewerSystem;
+			productReference = 5C9EDD672E1C419A00572D26 /* UWBViewerSystem.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5C9EDD762E1C419C00572D26 /* UWBViewerSystemTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5C9EDD8E2E1C419C00572D26 /* Build configuration list for PBXNativeTarget "UWBViewerSystemTests" */;
+			buildPhases = (
+				5C9EDD732E1C419C00572D26 /* Sources */,
+				5C9EDD742E1C419C00572D26 /* Frameworks */,
+				5C9EDD752E1C419C00572D26 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5C9EDD792E1C419C00572D26 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5C9EDD7A2E1C419C00572D26 /* UWBViewerSystemTests */,
+			);
+			name = UWBViewerSystemTests;
+			packageProductDependencies = (
+			);
+			productName = UWBViewerSystemTests;
+			productReference = 5C9EDD772E1C419C00572D26 /* UWBViewerSystemTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		5C9EDD802E1C419C00572D26 /* UWBViewerSystemUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5C9EDD912E1C419C00572D26 /* Build configuration list for PBXNativeTarget "UWBViewerSystemUITests" */;
+			buildPhases = (
+				5C9EDD7D2E1C419C00572D26 /* Sources */,
+				5C9EDD7E2E1C419C00572D26 /* Frameworks */,
+				5C9EDD7F2E1C419C00572D26 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5C9EDD832E1C419C00572D26 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5C9EDD842E1C419C00572D26 /* UWBViewerSystemUITests */,
+			);
+			name = UWBViewerSystemUITests;
+			packageProductDependencies = (
+			);
+			productName = UWBViewerSystemUITests;
+			productReference = 5C9EDD812E1C419C00572D26 /* UWBViewerSystemUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5C9EDD5F2E1C419A00572D26 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1630;
+				LastUpgradeCheck = 1630;
+				TargetAttributes = {
+					5C9EDD662E1C419A00572D26 = {
+						CreatedOnToolsVersion = 16.3;
+					};
+					5C9EDD762E1C419C00572D26 = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 5C9EDD662E1C419A00572D26;
+					};
+					5C9EDD802E1C419C00572D26 = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 5C9EDD662E1C419A00572D26;
+					};
+				};
+			};
+			buildConfigurationList = 5C9EDD622E1C419A00572D26 /* Build configuration list for PBXProject "UWBViewerSystem" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5C9EDD5E2E1C419A00572D26;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5C9EDD682E1C419A00572D26 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5C9EDD662E1C419A00572D26 /* UWBViewerSystem */,
+				5C9EDD762E1C419C00572D26 /* UWBViewerSystemTests */,
+				5C9EDD802E1C419C00572D26 /* UWBViewerSystemUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5C9EDD652E1C419A00572D26 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5C9EDD752E1C419C00572D26 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5C9EDD7F2E1C419C00572D26 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5C9EDD632E1C419A00572D26 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5C9EDD732E1C419C00572D26 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5C9EDD7D2E1C419C00572D26 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5C9EDD792E1C419C00572D26 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5C9EDD662E1C419A00572D26 /* UWBViewerSystem */;
+			targetProxy = 5C9EDD782E1C419C00572D26 /* PBXContainerItemProxy */;
+		};
+		5C9EDD832E1C419C00572D26 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5C9EDD662E1C419A00572D26 /* UWBViewerSystem */;
+			targetProxy = 5C9EDD822E1C419C00572D26 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		5C9EDD892E1C419C00572D26 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = HK6A3CR45M;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.4;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		5C9EDD8A2E1C419C00572D26 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = HK6A3CR45M;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.4;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		5C9EDD8C2E1C419C00572D26 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = UWBViewerSystem/UWBViewerSystem.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HK6A3CR45M;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.harutiro.UWBViewerSystem;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		5C9EDD8D2E1C419C00572D26 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = UWBViewerSystem/UWBViewerSystem.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HK6A3CR45M;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.harutiro.UWBViewerSystem;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		5C9EDD8F2E1C419C00572D26 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HK6A3CR45M;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.harutiro.UWBViewerSystemTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UWBViewerSystem.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/UWBViewerSystem";
+			};
+			name = Debug;
+		};
+		5C9EDD902E1C419C00572D26 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HK6A3CR45M;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.harutiro.UWBViewerSystemTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UWBViewerSystem.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/UWBViewerSystem";
+			};
+			name = Release;
+		};
+		5C9EDD922E1C419C00572D26 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HK6A3CR45M;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.harutiro.UWBViewerSystemUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = UWBViewerSystem;
+			};
+			name = Debug;
+		};
+		5C9EDD932E1C419C00572D26 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HK6A3CR45M;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.harutiro.UWBViewerSystemUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = UWBViewerSystem;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5C9EDD622E1C419A00572D26 /* Build configuration list for PBXProject "UWBViewerSystem" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5C9EDD892E1C419C00572D26 /* Debug */,
+				5C9EDD8A2E1C419C00572D26 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5C9EDD8B2E1C419C00572D26 /* Build configuration list for PBXNativeTarget "UWBViewerSystem" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5C9EDD8C2E1C419C00572D26 /* Debug */,
+				5C9EDD8D2E1C419C00572D26 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5C9EDD8E2E1C419C00572D26 /* Build configuration list for PBXNativeTarget "UWBViewerSystemTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5C9EDD8F2E1C419C00572D26 /* Debug */,
+				5C9EDD902E1C419C00572D26 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5C9EDD912E1C419C00572D26 /* Build configuration list for PBXNativeTarget "UWBViewerSystemUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5C9EDD922E1C419C00572D26 /* Debug */,
+				5C9EDD932E1C419C00572D26 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5C9EDD5F2E1C419A00572D26 /* Project object */;
+}

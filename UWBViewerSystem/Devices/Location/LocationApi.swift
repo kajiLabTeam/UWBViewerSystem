@@ -14,7 +14,7 @@ protocol LocationPermissionDelegate: AnyObject {
 class LocationApi: NSObject {
     private let locationManager = CLLocationManager()
     weak var delegate: LocationPermissionDelegate?
-    
+
     var isLocationPermissionGranted: Bool {
         switch locationManager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
@@ -23,16 +23,16 @@ class LocationApi: NSObject {
             return false
         }
     }
-    
+
     override init() {
         super.init()
         setupLocationManager()
     }
-    
+
     private func setupLocationManager() {
         locationManager.delegate = self
     }
-    
+
     func requestLocationPermission() {
         switch locationManager.authorizationStatus {
         case .notDetermined:
@@ -45,7 +45,7 @@ class LocationApi: NSObject {
             delegate?.locationPermissionChanged(isGranted: false, message: "位置情報の権限状態が不明です")
         }
     }
-    
+
     func checkLocationPermission() -> (isGranted: Bool, message: String) {
         switch locationManager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
@@ -73,4 +73,4 @@ extension LocationApi: CLLocationManagerDelegate {
             delegate?.locationPermissionChanged(isGranted: false, message: "位置情報の権限状態が不明です")
         }
     }
-} 
+}

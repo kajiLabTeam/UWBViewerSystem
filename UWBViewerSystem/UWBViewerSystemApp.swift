@@ -10,23 +10,14 @@ import SwiftUI
 
 @main
 struct UWBViewerSystemApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    /// アプリ全体で使用するルーター
+    /// - Note: NavigationRouterModelはObservableObjectを継承しているため、@StateObjectで使用することができる
+    @StateObject var router = NavigationRouterModel()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            NavigationRouter()
+                .environmentObject(router)
         }
-        .modelContainer(sharedModelContainer)
     }
 }

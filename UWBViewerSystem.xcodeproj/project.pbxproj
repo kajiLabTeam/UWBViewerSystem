@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5C9EDDFE2E1C514F00572D26 /* NearbyConnections in Frameworks */ = {isa = PBXBuildFile; productRef = 5C9EDDFD2E1C514F00572D26 /* NearbyConnections */; };
+		5C9EDE002E1C514F00572D26 /* NearbyConnectionsDynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5C9EDDFF2E1C514F00572D26 /* NearbyConnectionsDynamic */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		5C9EDD782E1C419C00572D26 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +57,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5C9EDDFE2E1C514F00572D26 /* NearbyConnections in Frameworks */,
+				5C9EDE002E1C514F00572D26 /* NearbyConnectionsDynamic in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +119,8 @@
 			);
 			name = UWBViewerSystem;
 			packageProductDependencies = (
+				5C9EDDFD2E1C514F00572D26 /* NearbyConnections */,
+				5C9EDDFF2E1C514F00572D26 /* NearbyConnectionsDynamic */,
 			);
 			productName = UWBViewerSystem;
 			productReference = 5C9EDD672E1C419A00572D26 /* UWBViewerSystem.app */;
@@ -195,6 +204,9 @@
 			);
 			mainGroup = 5C9EDD5E2E1C419A00572D26;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5C9EDDFC2E1C514F00572D26 /* XCRemoteSwiftPackageReference "nearby" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5C9EDD682E1C419A00572D26 /* Products */;
 			projectDirPath = "";
@@ -553,6 +565,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5C9EDDFC2E1C514F00572D26 /* XCRemoteSwiftPackageReference "nearby" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/nearby";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5C9EDDFD2E1C514F00572D26 /* NearbyConnections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5C9EDDFC2E1C514F00572D26 /* XCRemoteSwiftPackageReference "nearby" */;
+			productName = NearbyConnections;
+		};
+		5C9EDDFF2E1C514F00572D26 /* NearbyConnectionsDynamic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5C9EDDFC2E1C514F00572D26 /* XCRemoteSwiftPackageReference "nearby" */;
+			productName = NearbyConnectionsDynamic;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5C9EDD5F2E1C419A00572D26 /* Project object */;
 }

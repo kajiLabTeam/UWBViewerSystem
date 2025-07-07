@@ -1,0 +1,23 @@
+echo "SwiftFormatを実行中..."
+
+# SwiftFormatを実行するディレクトリを指定 ここは人によって調整するといいです。
+DIRECTORIES_TO_FORMAT=(
+    "../"
+)
+
+# SwiftFormatを実行
+cd BuildTools
+swift run -c release swiftformat "${DIRECTORIES_TO_FORMAT[@]}" 2>&1| tee tmp_swiftformat_output.txt
+SWIFTFORMAT_OUTPUT=$(cat tmp_swiftformat_output.txt)
+rm tmp_swiftformat_output.txt
+
+# SwiftFormatが実行されたファイル数を取得
+FORMATTED_COUNT=$(echo "$SWIFTFORMAT_OUTPUT" | grep -oE '([0-9]+)/[0-9]+ files formatted' | cut -d'/' -f1)
+
+#　SwiftFormatが実行されたファイル数が0より大きい場合はエラーを出力
+if [ "$FORMATTED_COUNT" -gt 0 ]; then
+	echo "$(tput setaf 4) お願い: SwiftFormatにより自動で整形されました。整形結果を確認して再度コミットしてください。"
+	exit 1
+fi
+
+exit 0

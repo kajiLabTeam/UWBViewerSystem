@@ -353,6 +353,14 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
                 }
                 
                 print("デバイスデータ更新完了: 履歴数=\(deviceData.dataHistory.count)")
+                
+                // UIの更新を強制的にトリガー
+                deviceData.objectWillChange.send()
+                objectWillChange.send()
+                
+                // 配列を明示的に更新してUIの再描画を確実にする
+                let updatedList = deviceRealtimeDataList
+                deviceRealtimeDataList = updatedList
             } else {
                 // 新しいデバイスのデータ追加
                 print("新デバイス追加: \(realtimeMessage.deviceName)")
@@ -365,11 +373,26 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
                 )
                 deviceRealtimeDataList.append(newDeviceData)
                 print("デバイス追加完了: 総デバイス数=\(deviceRealtimeDataList.count)")
+                
+                // UIの更新を強制的にトリガー
+                objectWillChange.send()
             }
             
             isReceivingRealtimeData = true
             connectState = "リアルタイムデータ受信中 (\(deviceRealtimeDataList.count)台)"
             print("UI状態更新完了: isReceivingRealtimeData=\(isReceivingRealtimeData)")
+            
+            // 全デバイスの状況をログ出力
+            print("=== 全デバイス状況 ===")
+            for (index, device) in deviceRealtimeDataList.enumerated() {
+                print("[\(index)] \(device.deviceName):")
+                print("  - latestData: \(device.latestData != nil ? "あり" : "なし")")
+                print("  - elevation: \(device.latestData?.elevation ?? 0.0)")
+                print("  - azimuth: \(device.latestData?.azimuth ?? 0.0)")
+                print("  - isActive: \(device.isActive)")
+                print("  - lastUpdateTime: \(device.lastUpdateTime)")
+            }
+            print("=== 全デバイス状況終了 ===")
             
         } catch {
             print("リアルタイムデータ処理エラー: \(error)")
@@ -514,9 +537,12 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
                     isActive: true
                 )
                 self.deviceRealtimeDataList.append(newDeviceData)
+                print("接続端末をリアルタイムデータリストに追加: \(device.deviceName)")
             }
             
-            self.isReceivingRealtimeData = true
+            // 接続端末があればリアルタイムデータセクションを表示
+            self.isReceivingRealtimeData = !self.deviceRealtimeDataList.isEmpty
+            print("リアルタイムデータセクション表示状態: \(self.isReceivingRealtimeData)")
         }
     }
     

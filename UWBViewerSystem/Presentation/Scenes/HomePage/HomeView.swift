@@ -148,9 +148,23 @@ struct HomeView: View {
                 // リアルタイムデータ表示セクション
                 if viewModel.isReceivingRealtimeData {
                     VStack(spacing: 16) {
-                        Text("リアルタイムセンシングデータ")
-                            .font(.title3)
-                            .fontWeight(.semibold)
+                        HStack {
+                            Text("リアルタイムセンシングデータ")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                            
+                            // デバッグ情報表示
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text("端末数: \(viewModel.deviceRealtimeDataList.count)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("接続中: \(viewModel.connectedDeviceNames.count)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                         
                         // グリッド表示用のレイアウト設定
                         let columns = [
@@ -383,7 +397,7 @@ struct HomeView: View {
 
 // 端末別リアルタイムデータ表示コンポーネント
 struct DeviceRealtimeCard: View {
-    let deviceData: DeviceRealtimeData
+    @ObservedObject var deviceData: DeviceRealtimeData
     let isSensingActive: Bool
     
     // 状態判定
@@ -449,6 +463,10 @@ struct DeviceRealtimeCard: View {
                         .stroke(backgroundColors.stroke, lineWidth: 1)
                 )
         )
+        .onReceive(deviceData.objectWillChange) { _ in
+            // データ変更時の追加処理（必要に応じて）
+            print("DeviceRealtimeCard: データが更新されました - \(deviceData.deviceName)")
+        }
     }
 }
 

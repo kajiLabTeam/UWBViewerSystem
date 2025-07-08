@@ -53,6 +53,8 @@ struct NavigationRouter: View {
             HomeView()
         case .editPage:
             EditView()
+        case .advertiserPage:
+            AdvertiserView()
         }
     }
 }

@@ -13,6 +13,7 @@ enum Route: Hashable {
     case welcomePage
     case homePage
     case editPage
+    case advertiserPage
 }
 
 /// アプリの初期状態を管理

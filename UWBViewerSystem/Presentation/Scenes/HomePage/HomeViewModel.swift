@@ -32,9 +32,18 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     private func requestLocationPermission() {
         switch locationManager.authorizationStatus {
         case .notDetermined:
+            #if os(macOS)
+            locationManager.requestAlwaysAuthorization()
+            #else
             locationManager.requestWhenInUseAuthorization()
+            #endif
+        #if os(macOS)
+        case .authorizedAlways:
+            isLocationPermissionGranted = true
+        #else
         case .authorizedWhenInUse, .authorizedAlways:
             isLocationPermissionGranted = true
+        #endif
         case .denied, .restricted:
             connectState = "位置情報の権限が必要です"
         @unknown default:
@@ -83,15 +92,48 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             self.receivedDataList.append((fromEndpointId, data))
         }
     }
+    
+    // 新しく追加されたコールバックメソッド
+    func onConnectionRequestReceived(request: ConnectionRequest) {
+        DispatchQueue.main.async {
+            // HomeViewModelでは自動承認（基本画面なので）
+            request.responseHandler(true)
+            self.connectState = "接続要求を自動承認: \(request.deviceName)"
+        }
+    }
+    
+    func onDeviceConnected(device: ConnectedDevice) {
+        DispatchQueue.main.async {
+            self.connectState = "端末接続: \(device.deviceName)"
+        }
+    }
+    
+    func onDeviceDisconnected(endpointId: String) {
+        DispatchQueue.main.async {
+            self.connectState = "端末切断: \(endpointId)"
+        }
+    }
+    
+    func onMessageReceived(message: Message) {
+        DispatchQueue.main.async {
+            self.receivedDataList.append((message.fromDeviceName, message.content))
+        }
+    }
 }
 
 // MARK: - CLLocationManagerDelegate
 extension HomeViewModel: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         switch status {
+        #if os(macOS)
+        case .authorizedAlways:
+            isLocationPermissionGranted = true
+            connectState = "権限許可完了"
+        #else
         case .authorizedWhenInUse, .authorizedAlways:
             isLocationPermissionGranted = true
             connectState = "権限許可完了"
+        #endif
         case .denied, .restricted:
             isLocationPermissionGranted = false
             connectState = "位置情報の権限が拒否されました"

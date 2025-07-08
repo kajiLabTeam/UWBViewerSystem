@@ -8,9 +8,110 @@
 import Foundation
 import NearbyConnections
 
+// MARK: - Data Models
+
+/// 接続要求の情報
+struct ConnectionRequest: Identifiable, Equatable {
+    let id = UUID()
+    let endpointId: String
+    let deviceName: String
+    let requestTime: Date
+    let context: Data
+    let responseHandler: (Bool) -> Void
+    
+    static func == (lhs: ConnectionRequest, rhs: ConnectionRequest) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.endpointId == rhs.endpointId &&
+               lhs.deviceName == rhs.deviceName &&
+               lhs.requestTime == rhs.requestTime &&
+               lhs.context == rhs.context
+        // responseHandlerは比較から除外（関数は比較できないため）
+    }
+}
+
+/// 接続済み端末の情報
+struct ConnectedDevice: Identifiable, Equatable {
+    let id = UUID()
+    let endpointId: String
+    let deviceName: String
+    let connectTime: Date
+    var lastMessageTime: Date?
+    var isActive: Bool = true
+    
+    static func == (lhs: ConnectedDevice, rhs: ConnectedDevice) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.endpointId == rhs.endpointId &&
+               lhs.deviceName == rhs.deviceName &&
+               lhs.connectTime == rhs.connectTime &&
+               lhs.lastMessageTime == rhs.lastMessageTime &&
+               lhs.isActive == rhs.isActive
+    }
+}
+
+/// メッセージの情報
+struct Message: Identifiable, Equatable {
+    let id = UUID()
+    let content: String
+    let fromEndpointId: String?
+    let fromDeviceName: String
+    let timestamp: Date
+    let isOutgoing: Bool
+    
+    static func == (lhs: Message, rhs: Message) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.content == rhs.content &&
+               lhs.fromEndpointId == rhs.fromEndpointId &&
+               lhs.fromDeviceName == rhs.fromDeviceName &&
+               lhs.timestamp == rhs.timestamp &&
+               lhs.isOutgoing == rhs.isOutgoing
+    }
+}
+
 protocol NearbyRepositoryCallback: AnyObject {
+    // 古いコールバック（HomeViewModelとの互換性のため）
     func onConnectionStateChanged(state: String)
     func onDataReceived(data: String, fromEndpointId: String)
+    
+    // 新しいコールバック（AdvertiserViewModelでの詳細な制御用）
+    func onConnectionInitiated(_ endpointId: String, _ deviceName: String, _ context: Data, _ responseHandler: @escaping (Bool) -> Void)
+    func onConnectionResult(_ endpointId: String, _ isSuccess: Bool)
+    func onDisconnected(_ endpointId: String)
+    func onPayloadReceived(_ endpointId: String, _ payload: Data)
+    
+    // 従来のコールバック（デフォルト実装で互換性を保つ）
+    func onConnectionRequestReceived(request: ConnectionRequest)
+    func onDeviceConnected(device: ConnectedDevice)
+    func onDeviceDisconnected(endpointId: String)
+    func onMessageReceived(message: Message)
+}
+
+// デフォルト実装を提供（既存のViewModelとの互換性のため）
+extension NearbyRepositoryCallback {
+    func onConnectionInitiated(_ endpointId: String, _ deviceName: String, _ context: Data, _ responseHandler: @escaping (Bool) -> Void) {
+        // HomeViewModelでは古い形式を使用
+        let request = ConnectionRequest(
+            endpointId: endpointId,
+            deviceName: deviceName,
+            requestTime: Date(),
+            context: context,
+            responseHandler: responseHandler
+        )
+        onConnectionRequestReceived(request: request)
+    }
+    
+    func onConnectionResult(_ endpointId: String, _ isSuccess: Bool) {
+        // デフォルトでは何もしない
+    }
+    
+    func onDisconnected(_ endpointId: String) {
+        onDeviceDisconnected(endpointId: endpointId)
+    }
+    
+    func onPayloadReceived(_ endpointId: String, _ payload: Data) {
+        if let text = String(data: payload, encoding: .utf8) {
+            onDataReceived(data: text, fromEndpointId: endpointId)
+        }
+    }
 }
 
 class NearbyRepository: NSObject {
@@ -22,6 +123,11 @@ class NearbyRepository: NSObject {
     private var advertiser: Advertiser?
     private var discoverer: Discoverer?
     private var connectionManager: ConnectionManager?
+    
+    // 新しいプロパティ
+    private var connectedDevices: [String: ConnectedDevice] = [:]
+    private var messages: [Message] = []
+    private var deviceNames: [String: String] = [:] // endpointId -> deviceName
 
     init(nickName: String = "harutiro",
          serviceId: String = "net.harutiro.UWBSystem") {
@@ -107,9 +213,65 @@ class NearbyRepository: NSObject {
                     self?.callback?.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
                 } else {
                     self?.callback?.onConnectionStateChanged(state: "データ送信完了: \(text)")
+                    
+                    // メッセージ履歴に追加
+                    let message = Message(
+                        content: text,
+                        fromEndpointId: nil,
+                        fromDeviceName: self?.nickName ?? "自分",
+                        timestamp: Date(),
+                        isOutgoing: true
+                    )
+                    self?.messages.append(message)
+                    self?.callback?.onMessageReceived(message: message)
                 }
             }
         }
+    }
+    
+    // 新しいメソッド
+    func sendDataToDevice(text: String, toEndpointId: String) {
+        guard let connectionManager else {
+            callback?.onConnectionStateChanged(state: "ConnectionManager未初期化")
+            return
+        }
+        
+        guard remoteEndpointIds.contains(toEndpointId) else {
+            callback?.onConnectionStateChanged(state: "指定された端末は接続されていません")
+            return
+        }
+        
+        let data = Data(text.utf8)
+        
+        _ = connectionManager.send(data, to: [toEndpointId]) { [weak self] error in
+            DispatchQueue.main.async {
+                if let error {
+                    self?.callback?.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
+                } else {
+                    let deviceName = self?.deviceNames[toEndpointId] ?? toEndpointId
+                    self?.callback?.onConnectionStateChanged(state: "\(deviceName)にデータ送信完了: \(text)")
+                    
+                    // メッセージ履歴に追加
+                    let message = Message(
+                        content: text,
+                        fromEndpointId: nil,
+                        fromDeviceName: self?.nickName ?? "自分",
+                        timestamp: Date(),
+                        isOutgoing: true
+                    )
+                    self?.messages.append(message)
+                    self?.callback?.onMessageReceived(message: message)
+                }
+            }
+        }
+    }
+    
+    func disconnectFromDevice(endpointId: String) {
+        connectionManager?.disconnect(from: endpointId)
+        remoteEndpointIds.remove(endpointId)
+        connectedDevices.removeValue(forKey: endpointId)
+        deviceNames.removeValue(forKey: endpointId)
+        callback?.onDeviceDisconnected(endpointId: endpointId)
     }
 
     func disconnectAll() {
@@ -117,6 +279,8 @@ class NearbyRepository: NSObject {
             connectionManager?.disconnect(from: endpointId)
         }
         remoteEndpointIds.removeAll()
+        connectedDevices.removeAll()
+        deviceNames.removeAll()
         callback?.onConnectionStateChanged(state: "全接続切断完了")
     }
 
@@ -125,8 +289,37 @@ class NearbyRepository: NSObject {
 
         advertiser?.stopAdvertising()
         discoverer?.stopDiscovery()
+        
+        messages.removeAll()
 
         callback?.onConnectionStateChanged(state: "リセット完了")
+    }
+    
+    // 新しいメソッド（AdvertiserViewModel用）
+    func stopAdvertise() {
+        advertiser?.stopAdvertising()
+        callback?.onConnectionStateChanged(state: "広告停止")
+    }
+    
+    func disconnect(_ endpointId: String) {
+        disconnectFromDevice(endpointId: endpointId)
+    }
+    
+    func sendMessage(_ content: String, to endpointId: String) {
+        sendDataToDevice(text: content, toEndpointId: endpointId)
+    }
+    
+    // 新しいメソッド
+    func getConnectedDevices() -> [ConnectedDevice] {
+        return Array(connectedDevices.values)
+    }
+    
+    func getMessages() -> [Message] {
+        return messages
+    }
+    
+    func getCurrentDeviceName() -> String {
+        return nickName
     }
 }
 
@@ -139,9 +332,15 @@ extension NearbyRepository: AdvertiserDelegate {
         with context: Data,
         connectionRequestHandler: @escaping (Bool) -> Void
     ) {
-        // 自動で接続要求を受け入れ
-        connectionRequestHandler(true)
-        callback?.onConnectionStateChanged(state: "接続要求受信: \(endpointID)")
+        // 手動承認のためにコールバックに通知
+        let deviceName = String(data: context, encoding: .utf8) ?? endpointID
+        
+        // デバイス名を保存
+        deviceNames[endpointID] = deviceName
+        
+        // 新しいコールバック形式を呼び出し
+        callback?.onConnectionInitiated(endpointID, deviceName, context, connectionRequestHandler)
+        callback?.onConnectionStateChanged(state: "接続要求受信: \(deviceName) (\(endpointID))")
     }
 }
 
@@ -176,7 +375,19 @@ extension NearbyRepository: ConnectionManagerDelegate {
         // 自動で認証を承認
         verificationHandler(true)
         remoteEndpointIds.insert(endpointID)
-        callback?.onConnectionStateChanged(state: "接続成功: \(endpointID)")
+        
+        // 接続済み端末として追加
+        let deviceName = deviceNames[endpointID] ?? endpointID
+        let device = ConnectedDevice(
+            endpointId: endpointID,
+            deviceName: deviceName,
+            connectTime: Date()
+        )
+        connectedDevices[endpointID] = device
+        
+        callback?.onConnectionStateChanged(state: "接続成功: \(deviceName)")
+        callback?.onConnectionResult(endpointID, true)
+        callback?.onDeviceConnected(device: device)
     }
 
     func connectionManager(
@@ -186,7 +397,30 @@ extension NearbyRepository: ConnectionManagerDelegate {
         from endpointID: String
     ) {
         let receivedText = String(data: data, encoding: .utf8) ?? ""
+        let deviceName = deviceNames[endpointID] ?? endpointID
+        
+        // 最終受信時刻を更新
+        if var device = connectedDevices[endpointID] {
+            device.lastMessageTime = Date()
+            connectedDevices[endpointID] = device
+        }
+        
+        // メッセージ履歴に追加
+        let message = Message(
+            content: receivedText,
+            fromEndpointId: endpointID,
+            fromDeviceName: deviceName,
+            timestamp: Date(),
+            isOutgoing: false
+        )
+        messages.append(message)
+        
+        // 新しいコールバック形式を呼び出し
+        callback?.onPayloadReceived(endpointID, data)
+        
+        // 古いコールバック形式も維持（互換性のため）
         callback?.onDataReceived(data: receivedText, fromEndpointId: endpointID)
+        callback?.onMessageReceived(message: message)
     }
 
     func connectionManager(
@@ -230,12 +464,22 @@ extension NearbyRepository: ConnectionManagerDelegate {
         case .connecting:
             callback?.onConnectionStateChanged(state: "接続中: \(endpointID)")
         case .connected:
-            callback?.onConnectionStateChanged(state: "接続完了: \(endpointID)")
+            let deviceName = deviceNames[endpointID] ?? endpointID
+            callback?.onConnectionStateChanged(state: "接続完了: \(deviceName)")
         case .disconnected:
             remoteEndpointIds.remove(endpointID)
+            connectedDevices.removeValue(forKey: endpointID)
+            deviceNames.removeValue(forKey: endpointID)
+            
+            // 新しいコールバック形式を呼び出し
+            callback?.onDisconnected(endpointID)
+            
+            // 古いコールバック形式も維持（互換性のため）
             callback?.onConnectionStateChanged(state: "切断: \(endpointID)")
+            callback?.onDeviceDisconnected(endpointId: endpointID)
         case .rejected:
             callback?.onConnectionStateChanged(state: "接続拒否: \(endpointID)")
+            callback?.onConnectionResult(endpointID, false)
         @unknown default:
             break
         }

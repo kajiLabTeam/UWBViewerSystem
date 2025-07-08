@@ -493,14 +493,35 @@ extension NearbyRepository: ConnectionManagerDelegate {
             }
         }
         
-        // ファイル名にタイムスタンプとデバイス名を追加
-        let timestamp = DateFormatter().string(from: Date())
+        // タイムスタンプを作成
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
         let timeString = dateFormatter.string(from: Date())
         
-        let fileName = "\(timeString)_\(fromDevice)_\(originalName)"
-        let destinationURL = uwbFilesDirectory.appendingPathComponent(fileName)
+        // 元のファイル名から拡張子を分離
+        let originalNameWithoutExtension = (originalName as NSString).deletingPathExtension
+        let originalExtension = (originalName as NSString).pathExtension
+        
+        // 最終的なファイル名を構成: タイムスタンプ_デバイス名_Mac側ファイル名.csv
+        // originalNameWithoutExtensionには既にMac側で入力したファイル名が含まれている
+        let finalFileName: String
+        if originalExtension.lowercased() == "csv" || originalExtension.isEmpty {
+            // CSVファイルまたは拡張子なしの場合、CSV拡張子を確実に追加
+            finalFileName = "\(timeString)_\(fromDevice)_\(originalNameWithoutExtension).csv"
+        } else {
+            // 他の拡張子の場合も、CSVとして保存
+            finalFileName = "\(timeString)_\(fromDevice)_\(originalName).csv"
+        }
+        
+        let destinationURL = uwbFilesDirectory.appendingPathComponent(finalFileName)
+        
+        print("ファイル保存処理:")
+        print("- 受信した元ファイル名: \(originalName)")
+        print("- 拡張子なしファイル名: \(originalNameWithoutExtension)")
+        print("- 元拡張子: \(originalExtension)")
+        print("- 送信デバイス名: \(fromDevice)")
+        print("- 最終ファイル名: \(finalFileName)")
+        print("- 保存先: \(destinationURL.path)")
         
         do {
             // 既存ファイルがある場合は削除
@@ -511,8 +532,8 @@ extension NearbyRepository: ConnectionManagerDelegate {
             // ファイルを移動
             try fileManager.moveItem(at: tempURL, to: destinationURL)
             
-            callback?.onConnectionStateChanged(state: "ファイル保存完了: \(fileName)")
-            callback?.onFileReceived(endpointID, destinationURL, fileName)
+            callback?.onConnectionStateChanged(state: "ファイル保存完了: \(finalFileName)")
+            callback?.onFileReceived(endpointID, destinationURL, finalFileName)
             
         } catch {
             callback?.onConnectionStateChanged(state: "ファイル保存エラー: \(error.localizedDescription)")

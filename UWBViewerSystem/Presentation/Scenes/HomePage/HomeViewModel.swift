@@ -130,6 +130,9 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     @Published var isSensingControlActive = false
     @Published var sensingFileName: String = ""
     
+    // センシング制御で使用するファイル名を保持
+    @Published var currentSensingFileName: String = ""
+    
     // リアルタイムデータ表示関連の状態
     @Published var deviceRealtimeDataList: [DeviceRealtimeData] = []
     @Published var isReceivingRealtimeData = false
@@ -215,6 +218,9 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         isSensingControlActive = true
         sensingFileName = fileName
         
+        // 現在のセンシングファイル名を保存
+        currentSensingFileName = fileName
+        
         // 接続状態も更新
         connectState = "センシング開始コマンド送信完了"
     }
@@ -230,6 +236,8 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         sensingStatus = "センシング終了コマンド送信"
         isSensingControlActive = false
         sensingFileName = ""
+        
+        // センシングファイル名はファイル受信まで保持（後でクリア）
         
         // リアルタイムデータをクリア（接続は維持）
         for deviceData in deviceRealtimeDataList {
@@ -590,6 +598,9 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             
             // 進捗を削除
             self.fileTransferProgress.removeValue(forKey: endpointId)
+            
+            // センシングファイル名をクリア（ファイル受信完了後）
+            self.currentSensingFileName = ""
         }
     }
     

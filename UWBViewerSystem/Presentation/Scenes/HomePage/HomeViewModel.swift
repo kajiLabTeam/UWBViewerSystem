@@ -17,6 +17,11 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     @Published var receivedDataList: [(String, String)] = []
     @Published var isLocationPermissionGranted = false
     
+    // センシング制御関連の状態
+    @Published var sensingStatus: String = "停止中"
+    @Published var isSensingControlActive = false
+    @Published var sensingFileName: String = ""
+    
     override init() {
         self.repository = NearbyRepository()
         super.init()
@@ -69,6 +74,44 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     
     func sendData(text: String) {
         repository.sendData(text: text)
+    }
+    
+    // センシング制御コマンド送信機能
+    func startRemoteSensing(fileName: String) {
+        guard !fileName.isEmpty else {
+            sensingStatus = "ファイル名を入力してください"
+            return
+        }
+        
+        guard repository.hasConnectedDevices() else {
+            sensingStatus = "接続された端末がありません"
+            return
+        }
+        
+        let command = "SENSING_START:\(fileName)"
+        repository.sendData(text: command)
+        sensingStatus = "センシング開始コマンド送信: \(fileName)"
+        isSensingControlActive = true
+        sensingFileName = fileName
+        
+        // 接続状態も更新
+        connectState = "センシング開始コマンド送信完了"
+    }
+    
+    func stopRemoteSensing() {
+        guard repository.hasConnectedDevices() else {
+            sensingStatus = "接続された端末がありません"
+            return
+        }
+        
+        let command = "SENSING_STOP"
+        repository.sendData(text: command)
+        sensingStatus = "センシング終了コマンド送信"
+        isSensingControlActive = false
+        sensingFileName = ""
+        
+        // 接続状態も更新
+        connectState = "センシング終了コマンド送信完了"
     }
     
     func disconnectAll() {

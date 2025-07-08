@@ -321,6 +321,10 @@ class NearbyRepository: NSObject {
     func getCurrentDeviceName() -> String {
         return nickName
     }
+    
+    func hasConnectedDevices() -> Bool {
+        return !connectedDevices.isEmpty
+    }
 }
 
 // MARK: - AdvertiserDelegate

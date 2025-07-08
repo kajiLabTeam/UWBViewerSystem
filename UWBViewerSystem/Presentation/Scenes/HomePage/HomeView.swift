@@ -151,9 +151,21 @@ struct HomeView: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                     
-                    // 端末ごとのデータ表示
-                    ForEach(viewModel.deviceRealtimeDataList) { deviceData in
-                        DeviceRealtimeCard(deviceData: deviceData)
+                    // グリッド表示用のレイアウト設定
+                    let columns = [
+                        GridItem(.flexible(), spacing: 16),
+                        GridItem(.flexible(), spacing: 16),
+                        GridItem(.flexible(), spacing: 16)
+                    ]
+                    
+                    // 端末ごとのデータをグリッド表示
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        ForEach(viewModel.deviceRealtimeDataList) { deviceData in
+                            DeviceRealtimeCard(
+                                deviceData: deviceData, 
+                                isSensingActive: viewModel.isSensingControlActive
+                            )
+                        }
                     }
                 }
                 .padding()
@@ -200,91 +212,344 @@ struct HomeView: View {
 // 端末別リアルタイムデータ表示コンポーネント
 struct DeviceRealtimeCard: View {
     let deviceData: DeviceRealtimeData
+    let isSensingActive: Bool
+    
+    // 状態判定
+    private var deviceStatus: (text: String, color: Color) {
+        if !isSensingActive {
+            return ("停止", .gray)
+        } else if deviceData.hasIssue {
+            return ("問題あり", .red)
+        } else {
+            return ("正常", .green)
+        }
+    }
+    
+    private var backgroundColors: (fill: Color, stroke: Color) {
+        if !isSensingActive {
+            return (Color.gray.opacity(0.05), Color.gray.opacity(0.2))
+        } else if deviceData.hasIssue {
+            return (Color.red.opacity(0.1), Color.red.opacity(0.4))
+        } else {
+            return (Color.gray.opacity(0.05), Color.green.opacity(0.3))
+        }
+    }
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             // 端末名とステータス
             HStack {
                 Text(deviceData.deviceName)
-                    .font(.headline)
+                    .font(.subheadline)
                     .fontWeight(.semibold)
+                    .lineLimit(1)
                 
                 Spacer()
                 
-                // 接続状態インジケーター
-                HStack(spacing: 4) {
+                // 状態インジケーター
+                HStack(spacing: 3) {
                     Circle()
-                        .fill(deviceData.isRecentlyUpdated ? Color.green : Color.red)
+                        .fill(deviceStatus.color)
                         .frame(width: 8, height: 8)
-                    Text(deviceData.isRecentlyUpdated ? "接続中" : "未接続")
+                    Text(deviceStatus.text)
                         .font(.caption)
-                        .foregroundColor(deviceData.isRecentlyUpdated ? .green : .red)
+                        .fontWeight(.medium)
+                        .foregroundColor(deviceStatus.color)
                 }
             }
             
             // データ表示部分
-            if let latestData = deviceData.latestData {
-                RealtimeDataDisplay(data: latestData)
-                
-                // 履歴データ
-                if deviceData.dataHistory.count > 1 {
-                    HistoryDataDisplay(dataHistory: deviceData.dataHistory)
-                }
+            if let latestData = deviceData.latestData, isSensingActive {
+                EnhancedRealtimeDataDisplay(data: latestData, isConnected: !deviceData.hasIssue)
+            } else if isSensingActive {
+                NoDataDisplay(deviceName: deviceData.deviceName, isConnected: deviceData.isActive)
             } else {
-                Text("データ待機中...")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding()
+                StoppedDisplay()
             }
         }
-        .padding()
+        .padding(12)
+        .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.gray.opacity(0.05))
+            RoundedRectangle(cornerRadius: 10)
+                .fill(backgroundColors.fill)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(backgroundColors.stroke, lineWidth: 1)
                 )
         )
     }
 }
 
-// リアルタイムデータ表示コンポーネント
-struct RealtimeDataDisplay: View {
-    let data: RealtimeData
+// データがない場合の表示コンポーネント
+struct NoDataDisplay: View {
+    let deviceName: String
+    let isConnected: Bool
     
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 16) {
-                DataValueView(title: "Elevation", value: String(format: "%.2f°", data.elevation), color: .blue)
-                DataValueView(title: "Azimuth", value: String(format: "%.2f°", data.azimuth), color: .green)
-                DataValueView(title: "Distance", value: String(format: "%.2fm", data.distance), color: .orange)
-                DataValueView(title: "RSSI", value: String(format: "%.1f", data.rssi), color: .purple)
-            }
-            
-            HStack {
-                Text("NLOS: \(data.nlos)")
+        VStack(spacing: 10) {
+            if isConnected {
+                Text("接続中 - データ待機")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .fontWeight(.medium)
+                
+                VStack(spacing: 8) {
+                    HStack(spacing: 12) {
+                        EnhancedDataValueView(title: "Elevation", value: "--", color: .gray)
+                        EnhancedDataValueView(title: "Azimuth", value: "--", color: .gray)
+                    }
+                    HStack(spacing: 12) {
+                        EnhancedDataValueView(title: "Distance", value: "--", color: .gray)
+                        EnhancedDataValueView(title: "RSSI", value: "--", color: .gray)
+                    }
+                }
+                
+                Text("センサーデータが送信されていません")
+                    .font(.caption2)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+            } else {
+                Text("接続なし")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .fontWeight(.medium)
+                
+                Text("端末が切断されています")
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                Spacer()
-                Text("Seq: \(data.seqCount)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                Spacer()
-                Text("更新: \(data.formattedTime)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
             }
         }
-        .padding()
+        .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
-                )
+                .fill(Color.red.opacity(0.1))
         )
+    }
+}
+
+// センシング停止状態の表示コンポーネント
+struct StoppedDisplay: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("センシング停止中")
+                .font(.caption)
+                .foregroundColor(.gray)
+                .fontWeight(.medium)
+            
+            VStack(spacing: 8) {
+                HStack(spacing: 12) {
+                    EnhancedDataValueView(title: "Elevation", value: "--", color: .gray)
+                    EnhancedDataValueView(title: "Azimuth", value: "--", color: .gray)
+                }
+                HStack(spacing: 12) {
+                    EnhancedDataValueView(title: "Distance", value: "--", color: .gray)
+                    EnhancedDataValueView(title: "RSSI", value: "--", color: .gray)
+                }
+            }
+            
+            Text("センシング開始ボタンを押してください")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 4)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.gray.opacity(0.05))
+        )
+    }
+}
+
+// 強化されたリアルタイムデータ表示コンポーネント（グリッド用・数値大きく・正式名称）
+struct EnhancedRealtimeDataDisplay: View {
+    let data: RealtimeData
+    let isConnected: Bool
+    
+    var body: some View {
+        VStack(spacing: 10) {
+            // メインデータ（2x2レイアウト・大きな数値）
+            VStack(spacing: 8) {
+                HStack(spacing: 12) {
+                    EnhancedDataValueView(title: "Elevation", value: String(format: "%.1f°", data.elevation), color: .blue)
+                    EnhancedDataValueView(title: "Azimuth", value: String(format: "%.1f°", data.azimuth), color: .green)
+                }
+                HStack(spacing: 12) {
+                    EnhancedDataValueView(title: "Distance", value: String(format: "%.2fm", data.distance), color: .orange)
+                    EnhancedDataValueView(title: "RSSI", value: String(format: "%.0f", data.rssi), color: .purple)
+                }
+            }
+            
+            // サブ情報（小さく）
+            HStack {
+                VStack(spacing: 2) {
+                    Text("NLOS")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text("\(data.nlos)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 2) {
+                    Text("Sequence")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text("\(data.seqCount)")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 2) {
+                    Text("Updated")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text(data.formattedTime)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isConnected ? Color.gray.opacity(0.1) : Color.red.opacity(0.1))
+        )
+    }
+}
+
+// 強化されたデータ値表示コンポーネント（大きな数値・正式名称）
+struct EnhancedDataValueView: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            Text(value)
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// コンパクトなリアルタイムデータ表示コンポーネント（グリッド用）
+struct CompactRealtimeDataDisplay: View {
+    let data: RealtimeData
+    let isConnected: Bool
+    
+    var body: some View {
+        VStack(spacing: 6) {
+            // メインデータ（2行レイアウト）
+            VStack(spacing: 4) {
+                HStack(spacing: 8) {
+                    CompactDataValueView(title: "E", value: String(format: "%.1f°", data.elevation), color: .blue)
+                    CompactDataValueView(title: "A", value: String(format: "%.1f°", data.azimuth), color: .green)
+                }
+                HStack(spacing: 8) {
+                    CompactDataValueView(title: "D", value: String(format: "%.1fm", data.distance), color: .orange)
+                    CompactDataValueView(title: "R", value: String(format: "%.0f", data.rssi), color: .purple)
+                }
+            }
+            
+            // サブ情報
+            HStack {
+                Text("N:\(data.nlos)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("S:\(data.seqCount)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(data.formattedTime)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isConnected ? Color.gray.opacity(0.1) : Color.red.opacity(0.1))
+        )
+    }
+}
+
+// コンパクトなデータ値表示コンポーネント（グリッド用）
+struct CompactDataValueView: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 1) {
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// コンパクトな履歴データ表示コンポーネント（グリッド用）
+struct CompactHistoryDataDisplay: View {
+    let dataHistory: [RealtimeData]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text("履歴")
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+            
+            ForEach(Array(dataHistory.suffix(2).reversed().enumerated()), id: \.element.id) { index, data in
+                HStack(spacing: 4) {
+                    Text("\(String(format: "%.0f", data.elevation))°")
+                        .font(.caption2)
+                        .frame(width: 25, alignment: .trailing)
+                        .foregroundColor(.blue)
+                    Text("\(String(format: "%.0f", data.azimuth))°")
+                        .font(.caption2)
+                        .frame(width: 25, alignment: .trailing)
+                        .foregroundColor(.green)
+                    Text("\(String(format: "%.1f", data.distance))m")
+                        .font(.caption2)
+                        .frame(width: 25, alignment: .trailing)
+                        .foregroundColor(.orange)
+                    Spacer()
+                    Text(data.formattedTime.suffix(8))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                .opacity(1.0 - Double(index) * 0.4)
+            }
+        }
+        .padding(4)
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(4)
     }
 }
 

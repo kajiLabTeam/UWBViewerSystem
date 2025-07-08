@@ -41,6 +41,23 @@ struct DeviceRealtimeData: Identifiable {
     var isRecentlyUpdated: Bool {
         Date().timeIntervalSince(lastUpdateTime) < 5.0 // 5秒以内の更新
     }
+    
+    // データがあるかどうかの判定
+    var hasData: Bool {
+        latestData != nil
+    }
+    
+    // データが古いかどうかの判定（10秒以上前）
+    var isDataStale: Bool {
+        guard let latestData = latestData else { return true }
+        let dataTime = Date(timeIntervalSince1970: latestData.timestamp / 1000)
+        return Date().timeIntervalSince(dataTime) > 10.0
+    }
+    
+    // 問題があるかどうかの総合判定
+    var hasIssue: Bool {
+        !hasData || isDataStale || !isRecentlyUpdated
+    }
 }
 
 // JSONパース用の構造体
@@ -72,6 +89,9 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     // リアルタイムデータ表示関連の状態
     @Published var deviceRealtimeDataList: [DeviceRealtimeData] = []
     @Published var isReceivingRealtimeData = false
+    
+    // 接続された端末の管理
+    @Published var connectedDeviceNames: Set<String> = []
     
     override init() {
         self.repository = NearbyRepository()
@@ -161,9 +181,15 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         isSensingControlActive = false
         sensingFileName = ""
         
-        // リアルタイムデータをクリア
-        deviceRealtimeDataList.removeAll()
-        isReceivingRealtimeData = false
+        // リアルタイムデータをクリア（接続は維持）
+        for index in deviceRealtimeDataList.indices {
+            deviceRealtimeDataList[index].latestData = nil
+            deviceRealtimeDataList[index].dataHistory.removeAll()
+            deviceRealtimeDataList[index].lastUpdateTime = Date.distantPast
+        }
+        
+        // データ受信状態を維持（接続された端末は表示）
+        isReceivingRealtimeData = !deviceRealtimeDataList.isEmpty
         
         // 接続状態も更新
         connectState = "センシング終了コマンド送信完了"
@@ -234,6 +260,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         
         // リアルタイムデータをクリア
         deviceRealtimeDataList.removeAll()
+        connectedDeviceNames.removeAll()
         isReceivingRealtimeData = false
     }
     
@@ -243,6 +270,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         
         // リアルタイムデータをクリア
         deviceRealtimeDataList.removeAll()
+        connectedDeviceNames.removeAll()
         isReceivingRealtimeData = false
         
         // センシング制御状態もリセット
@@ -279,18 +307,74 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     func onDeviceConnected(device: ConnectedDevice) {
         DispatchQueue.main.async {
             self.connectState = "端末接続: \(device.deviceName)"
+            
+            // 接続された端末を追跡
+            self.connectedDeviceNames.insert(device.deviceName)
+            
+            // データがない場合でも端末を表示リストに追加
+            if !self.deviceRealtimeDataList.contains(where: { $0.deviceName == device.deviceName }) {
+                let newDeviceData = DeviceRealtimeData(
+                    deviceName: device.deviceName,
+                    latestData: nil,
+                    dataHistory: [],
+                    lastUpdateTime: Date(),
+                    isActive: true
+                )
+                self.deviceRealtimeDataList.append(newDeviceData)
+            }
+            
+            self.isReceivingRealtimeData = true
         }
     }
     
     func onDeviceDisconnected(endpointId: String) {
         DispatchQueue.main.async {
             self.connectState = "端末切断: \(endpointId)"
+            
+            // 切断された端末を接続リストから削除
+            // endpointIdから端末名を特定するのが難しいため、既存のロジックを活用
+            if let deviceData = self.deviceRealtimeDataList.first(where: { $0.deviceName.contains(endpointId) || endpointId.contains($0.deviceName) }) {
+                self.connectedDeviceNames.remove(deviceData.deviceName)
+                
+                // 切断されたデバイスはリストから削除するか、無効状態にする
+                if let index = self.deviceRealtimeDataList.firstIndex(where: { $0.deviceName == deviceData.deviceName }) {
+                    self.deviceRealtimeDataList[index].isActive = false
+                    self.deviceRealtimeDataList[index].lastUpdateTime = Date.distantPast
+                }
+            }
         }
     }
     
     func onMessageReceived(message: Message) {
         DispatchQueue.main.async {
             self.receivedDataList.append((message.fromDeviceName, message.content))
+        }
+    }
+    
+    // 新しいコールバック（AdvertiserViewModelでの詳細な制御用）
+    func onConnectionInitiated(_ endpointId: String, _ deviceName: String, _ context: Data, _ responseHandler: @escaping (Bool) -> Void) {
+        // HomeViewModelでは古い形式を使用
+        let request = ConnectionRequest(
+            endpointId: endpointId,
+            deviceName: deviceName,
+            requestTime: Date(),
+            context: context,
+            responseHandler: responseHandler
+        )
+        onConnectionRequestReceived(request: request)
+    }
+    
+    func onConnectionResult(_ endpointId: String, _ isSuccess: Bool) {
+        // デフォルトでは何もしない
+    }
+    
+    func onDisconnected(_ endpointId: String) {
+        onDeviceDisconnected(endpointId: endpointId)
+    }
+    
+    func onPayloadReceived(_ endpointId: String, _ payload: Data) {
+        if let text = String(data: payload, encoding: .utf8) {
+            onDataReceived(data: text, fromEndpointId: endpointId)
         }
     }
 }

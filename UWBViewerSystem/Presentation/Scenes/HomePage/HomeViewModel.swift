@@ -250,49 +250,78 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     
     // リアルタイムデータ処理（デバッグ強化版）
     private func processRealtimeData(_ data: String, fromEndpointId: String = "") {
-        print("Processing data from endpoint \(fromEndpointId): \(data)")
+        print("=== processRealtimeData開始 ===")
+        print("処理対象データ: \(data)")
         
         // JSONデータかどうかチェック
         if data.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{") &&
            data.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("}") {
             
+            print("JSONフォーマット確認: OK")
+            
             // JSONタイプを判定
             guard let jsonData = data.data(using: .utf8) else { 
-                print("Failed to convert data to UTF8")
+                print("UTF8変換失敗")
                 return 
             }
             
+            print("UTF8データ変換: OK, サイズ: \(jsonData.count) bytes")
+            
             do {
-                if let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                   let type = json["type"] as? String {
+                if let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                    print("JSON解析成功")
                     
-                    switch type {
-                    case "REALTIME_DATA":
-                        processRealtimeDataJSON(json, fromEndpointId: fromEndpointId)
-                    case "PING":
-                        processPingMessage(json, fromEndpointId: fromEndpointId)
-                    case "FILE_TRANSFER_START":
-                        processFileTransferStart(json, fromEndpointId: fromEndpointId)
-                    default:
-                        print("Unknown JSON message type: \(type)")
-                        connectState = "受信: \(type) メッセージ"
+                    if let type = json["type"] as? String {
+                        print("JSONタイプ: \(type)")
+                        
+                        switch type {
+                        case "REALTIME_DATA":
+                            print("リアルタイムデータ処理開始")
+                            processRealtimeDataJSON(json, fromEndpointId: fromEndpointId)
+                        case "PING":
+                            print("Ping処理開始")
+                            processPingMessage(json, fromEndpointId: fromEndpointId)
+                        case "FILE_TRANSFER_START":
+                            print("ファイル転送開始処理")
+                            processFileTransferStart(json, fromEndpointId: fromEndpointId)
+                        default:
+                            print("未知のJSONタイプ: \(type)")
+                            connectState = "受信: \(type) メッセージ"
+                        }
+                    } else {
+                        print("JSONタイプフィールドが見つからない")
+                        print("JSON内容: \(json)")
                     }
+                } else {
+                    print("JSONオブジェクトキャスト失敗")
                 }
             } catch {
-                print("JSON parsing error: \(error)")
+                print("JSON解析エラー: \(error)")
+                print("生データ: \(data)")
             }
         } else {
             // 非JSONデータ（コマンドレスポンスなど）
-            print("Non-JSON data received: \(data)")
+            print("非JSONデータ: \(data)")
             connectState = "コマンドレスポンス: \(data)"
         }
+        
+        print("=== processRealtimeData終了 ===")
     }
     
     private func processRealtimeDataJSON(_ json: [String: Any], fromEndpointId: String) {
+        print("=== processRealtimeDataJSON開始 ===")
+        
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: json)
+            print("JSON再シリアライズ成功: \(jsonData.count) bytes")
+            
             let realtimeMessage = try JSONDecoder().decode(RealtimeDataMessage.self, from: jsonData)
-            print("Successfully parsed realtime data for device: \(realtimeMessage.deviceName)")
+            print("RealtimeDataMessage デコード成功")
+            print("デバイス名: \(realtimeMessage.deviceName)")
+            print("Elevation: \(realtimeMessage.elevation)")
+            print("Azimuth: \(realtimeMessage.azimuth)")
+            print("Distance: \(realtimeMessage.distance)")
+            print("SeqCount: \(realtimeMessage.seqCount)")
             
             // リアルタイムデータリストに追加
             let realtimeData = RealtimeData(
@@ -306,10 +335,12 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
                 seqCount: realtimeMessage.seqCount
             )
             
+            print("RealtimeData オブジェクト作成成功")
+            
             // デバイス別データ管理
             if let index = deviceRealtimeDataList.firstIndex(where: { $0.deviceName == realtimeMessage.deviceName }) {
                 // 既存デバイスのデータ更新
-                print("Updating existing device: \(realtimeMessage.deviceName)")
+                print("既存デバイス更新: \(realtimeMessage.deviceName) (インデックス: \(index))")
                 let deviceData = deviceRealtimeDataList[index]
                 deviceData.latestData = realtimeData
                 deviceData.dataHistory.append(realtimeData)
@@ -320,9 +351,11 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
                 if deviceData.dataHistory.count > 20 {
                     deviceData.dataHistory.removeFirst()
                 }
+                
+                print("デバイスデータ更新完了: 履歴数=\(deviceData.dataHistory.count)")
             } else {
                 // 新しいデバイスのデータ追加
-                print("Adding new device: \(realtimeMessage.deviceName)")
+                print("新デバイス追加: \(realtimeMessage.deviceName)")
                 let newDeviceData = DeviceRealtimeData(
                     deviceName: realtimeMessage.deviceName,
                     latestData: realtimeData,
@@ -331,14 +364,22 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
                     isActive: true
                 )
                 deviceRealtimeDataList.append(newDeviceData)
+                print("デバイス追加完了: 総デバイス数=\(deviceRealtimeDataList.count)")
             }
             
             isReceivingRealtimeData = true
             connectState = "リアルタイムデータ受信中 (\(deviceRealtimeDataList.count)台)"
+            print("UI状態更新完了: isReceivingRealtimeData=\(isReceivingRealtimeData)")
             
         } catch {
-            print("Realtime data JSON parsing error: \(error)")
+            print("リアルタイムデータ処理エラー: \(error)")
+            if let decodingError = error as? DecodingError {
+                print("デコードエラー詳細: \(decodingError)")
+            }
+            print("問題のあるJSON: \(json)")
         }
+        
+        print("=== processRealtimeDataJSON終了 ===")
     }
     
     private func processPingMessage(_ json: [String: Any], fromEndpointId: String) {
@@ -410,10 +451,40 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     
     func onDataReceived(data: String, fromEndpointId: String) {
         DispatchQueue.main.async {
+            print("=== Mac側データ受信開始 ===")
+            print("EndpointID: \(fromEndpointId)")
+            print("データ長: \(data.count) bytes")
+            print("受信データ: \(data)")
+            
             self.receivedDataList.append((fromEndpointId, data))
+            
+            // データ種別を判定
+            let dataType = self.getDataType(data)
+            print("データ種別: \(dataType)")
             
             // リアルタイムデータの処理（デバッグ出力追加）
             self.processRealtimeData(data, fromEndpointId: fromEndpointId)
+            
+            print("=== Mac側データ受信終了 ===")
+        }
+    }
+    
+    // データ種別を判定
+    private func getDataType(_ data: String) -> String {
+        if data.contains("\"type\":\"REALTIME_DATA\"") {
+            return "リアルタイムデータ"
+        } else if data.contains("\"type\":\"PING\"") {
+            return "Ping"
+        } else if data.contains("\"type\":\"PONG\"") {
+            return "Pong"
+        } else if data.contains("\"type\":\"FILE_TRANSFER_START\"") {
+            return "ファイル転送開始"
+        } else if data.hasPrefix("SENSING_START:") {
+            return "センシング開始コマンド"
+        } else if data == "SENSING_STOP" {
+            return "センシング終了コマンド"
+        } else {
+            return "その他 (\(String(data.prefix(20)))...)"
         }
     }
     

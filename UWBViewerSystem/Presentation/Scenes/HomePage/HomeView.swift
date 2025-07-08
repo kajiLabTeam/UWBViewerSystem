@@ -13,230 +13,316 @@ struct HomeView: View {
     @State private var sensingFileName = ""
     
     var body: some View {
-        VStack(spacing: 20) {
-            // センシング制御セクション
-            VStack(spacing: 16) {
-                Text("一斉センシング制御")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                
-                // ファイル名入力
-                HStack {
-                    Text("ファイル名:")
-                        .frame(width: 80, alignment: .leading)
-                    TextField("ファイル名を入力", text: $sensingFileName)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-                
-                // センシング制御ボタン
-                HStack(spacing: 12) {
-                    Button(action: {
-                        viewModel.startRemoteSensing(fileName: sensingFileName)
-                    }) {
-                        HStack {
-                            Image(systemName: "play.circle.fill")
-                            Text("センシング開始")
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color.green, Color.blue]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(12)
-                    }
-                    .disabled(viewModel.isSensingControlActive || sensingFileName.isEmpty)
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(spacing: 20) {
+                // センシング制御セクション
+                VStack(spacing: 16) {
+                    Text("一斉センシング制御")
+                        .font(.title2)
+                        .fontWeight(.bold)
                     
-                    Button(action: {
-                        viewModel.stopRemoteSensing()
-                    }) {
-                        HStack {
-                            Image(systemName: "stop.circle.fill")
-                            Text("センシング終了")
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color.red, Color.orange]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(12)
-                    }
-                    .disabled(!viewModel.isSensingControlActive)
-                }
-                
-                // センシング状態表示
-                HStack {
-                    Image(systemName: viewModel.isSensingControlActive ? "circle.fill" : "circle")
-                        .foregroundColor(viewModel.isSensingControlActive ? .green : .gray)
-                    Text(viewModel.sensingStatus)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(8)
-            }
-            .padding()
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(16)
-            
-            Divider()
-            
-            // 接続管理セクション
-            VStack(spacing: 12) {
-                Text("接続管理")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                
-                HStack(spacing: 12) {
-                    Button(action: {
-                        viewModel.startAdvertise()
-                    }) {
-                        HStack {
-                            Image(systemName: "antenna.radiowaves.left.and.right")
-                            Text("広告開始")
-                        }
-                        .font(.subheadline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(Color.blue)
-                        .cornerRadius(8)
+                    // ファイル名入力
+                    HStack {
+                        Text("ファイル名:")
+                            .frame(width: 80, alignment: .leading)
+                        TextField("ファイル名を入力", text: $sensingFileName)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
                     }
                     
-                    Button(action: {
-                        viewModel.startDiscovery()
-                    }) {
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                            Text("発見開始")
+                    // センシング制御ボタン
+                    HStack(spacing: 12) {
+                        Button(action: {
+                            viewModel.startRemoteSensing(fileName: sensingFileName)
+                        }) {
+                            HStack {
+                                Image(systemName: "play.circle.fill")
+                                Text("センシング開始")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.green, Color.blue]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(12)
                         }
-                        .font(.subheadline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(Color.purple)
-                        .cornerRadius(8)
+                        .disabled(viewModel.isSensingControlActive || sensingFileName.isEmpty)
+                        
+                        Button(action: {
+                            viewModel.stopRemoteSensing()
+                        }) {
+                            HStack {
+                                Image(systemName: "stop.circle.fill")
+                                Text("センシング終了")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [Color.red, Color.orange]),
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(12)
+                        }
+                        .disabled(!viewModel.isSensingControlActive)
                     }
-                }
-                
-                // 接続状態表示
-                Text(viewModel.connectState)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    
+                    // センシング状態表示
+                    HStack {
+                        Image(systemName: viewModel.isSensingControlActive ? "circle.fill" : "circle")
+                            .foregroundColor(viewModel.isSensingControlActive ? .green : .gray)
+                        Text(viewModel.sensingStatus)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
-            }
-            .padding()
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(16)
-            
-            // リアルタイムデータ表示セクション
-            if viewModel.isReceivingRealtimeData {
-                VStack(spacing: 16) {
-                    Text("リアルタイムセンシングデータ")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    
-                    // グリッド表示用のレイアウト設定
-                    let columns = [
-                        GridItem(.flexible(), spacing: 16),
-                        GridItem(.flexible(), spacing: 16),
-                        GridItem(.flexible(), spacing: 16)
-                    ]
-                    
-                    // 端末ごとのデータをグリッド表示
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(viewModel.deviceRealtimeDataList) { deviceData in
-                            DeviceRealtimeCard(
-                                deviceData: deviceData, 
-                                isSensingActive: viewModel.isSensingControlActive
-                            )
-                        }
-                    }
+                    .padding(.vertical, 8)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
                 }
                 .padding()
                 .background(Color.gray.opacity(0.05))
                 .cornerRadius(16)
-            }
-            
-            Divider()
-            
-            // 専用広告画面への遷移
-            VStack(spacing: 12) {
-                Button(action: {
-                    router.push(.advertiserPage)
-                }) {
-                    HStack {
-                        Image(systemName: "antenna.radiowaves.left.and.right")
-                        Text("広告専用画面を開く")
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.blue, Color.purple]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .cornerRadius(12)
-                }
                 
-                Text("端末確認機能付きの広告専用画面")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            // ファイル転送進捗表示
-            if !viewModel.fileTransferProgress.isEmpty {
+                Divider()
+                
+                // 接続管理セクション
                 VStack(spacing: 12) {
-                    Text("ファイル転送中")
+                    Text("接続管理")
                         .font(.title3)
                         .fontWeight(.semibold)
                     
-                    ForEach(Array(viewModel.fileTransferProgress.keys), id: \.self) { endpointId in
-                        if let progress = viewModel.fileTransferProgress[endpointId] {
-                            VStack(spacing: 4) {
-                                HStack {
-                                    Text("デバイス: \(endpointId)")
-                                        .font(.caption)
-                                    Spacer()
-                                    Text("\(progress)%")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                }
-                                ProgressView(value: Double(progress), total: 100)
-                                    .progressViewStyle(LinearProgressViewStyle())
+                    HStack(spacing: 12) {
+                        Button(action: {
+                            viewModel.startAdvertise()
+                        }) {
+                            HStack {
+                                Image(systemName: "antenna.radiowaves.left.and.right")
+                                Text("広告開始")
+                            }
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.blue)
+                            .cornerRadius(8)
+                        }
+                        
+                        Button(action: {
+                            viewModel.startDiscovery()
+                        }) {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                Text("発見開始")
+                            }
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.purple)
+                            .cornerRadius(8)
+                        }
+                    }
+                    
+                    // 接続状態表示
+                    Text(viewModel.connectState)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(16)
+                
+                // リアルタイムデータ表示セクション
+                if viewModel.isReceivingRealtimeData {
+                    VStack(spacing: 16) {
+                        Text("リアルタイムセンシングデータ")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                        
+                        // グリッド表示用のレイアウト設定
+                        let columns = [
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16)
+                        ]
+                        
+                        // 端末ごとのデータをグリッド表示
+                        LazyVGrid(columns: columns, spacing: 16) {
+                            ForEach(viewModel.deviceRealtimeDataList) { deviceData in
+                                DeviceRealtimeCard(
+                                    deviceData: deviceData, 
+                                    isSensingActive: viewModel.isSensingControlActive
+                                )
                             }
                         }
                     }
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(16)
                 }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(16)
-            }
-            
-            // 受信ファイル一覧
-            if !viewModel.receivedFiles.isEmpty {
+                
+                Divider()
+                
+                // 専用広告画面への遷移
+                VStack(spacing: 12) {
+                    Button(action: {
+                        router.push(.advertiserPage)
+                    }) {
+                        HStack {
+                            Image(systemName: "antenna.radiowaves.left.and.right")
+                            Text("広告専用画面を開く")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.blue, Color.purple]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(12)
+                    }
+                    
+                    Text("端末確認機能付きの広告専用画面")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                // ファイル転送進捗表示
+                if !viewModel.fileTransferProgress.isEmpty {
+                    VStack(spacing: 12) {
+                        Text("ファイル転送中")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                        
+                        ForEach(Array(viewModel.fileTransferProgress.keys), id: \.self) { endpointId in
+                            if let progress = viewModel.fileTransferProgress[endpointId] {
+                                VStack(spacing: 4) {
+                                    HStack {
+                                        Text("デバイス: \(endpointId)")
+                                            .font(.caption)
+                                        Spacer()
+                                        Text("\(progress)%")
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                    }
+                                    ProgressView(value: Double(progress), total: 100)
+                                        .progressViewStyle(LinearProgressViewStyle())
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(16)
+                }
+                
+                // 受信ファイル一覧
+                if !viewModel.receivedFiles.isEmpty {
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("受信ファイル")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                viewModel.openFileStorageFolder()
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "folder")
+                                    Text("フォルダーを開く")
+                                }
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.blue.opacity(0.1))
+                                .foregroundColor(.blue)
+                                .cornerRadius(6)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        
+                        // 保存場所の表示
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("保存場所:")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                Text(viewModel.fileStoragePath)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.gray.opacity(0.05))
+                        .cornerRadius(6)
+                        
+                        ForEach(viewModel.receivedFiles.prefix(5)) { file in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(file.fileName)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    Text("デバイス: \(file.deviceName)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("\(file.formattedSize) • \(file.formattedDate)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    NSWorkspace.shared.selectFile(file.fileURL.path, inFileViewerRootedAtPath: "")
+                                }) {
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundColor(.blue)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .help("Finderで表示")
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.05))
+                            .cornerRadius(8)
+                        }
+                        
+                        if viewModel.receivedFiles.count > 5 {
+                            Text("他 \(viewModel.receivedFiles.count - 5) 件")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .background(Color.green.opacity(0.05))
+                    .cornerRadius(16)
+                }
+                
+                // ファイル保存場所の表示（常時表示）
                 VStack(spacing: 12) {
                     HStack {
-                        Text("受信ファイル")
+                        Text("ファイル保存設定")
                             .font(.title3)
                             .fontWeight(.semibold)
                         
@@ -247,7 +333,7 @@ struct HomeView: View {
                         }) {
                             HStack(spacing: 4) {
                                 Image(systemName: "folder")
-                                Text("フォルダーを開く")
+                                Text("保存フォルダーを開く")
                             }
                             .font(.caption)
                             .padding(.horizontal, 8)
@@ -259,125 +345,39 @@ struct HomeView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     
-                    // 保存場所の表示
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("保存場所:")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            Text(viewModel.fileStoragePath)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                                .textSelection(.enabled)
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(6)
-                    
-                    ForEach(viewModel.receivedFiles.prefix(5)) { file in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("センシング終了後、CSVファイルが以下の場所に自動保存されます：")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(file.fileName)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                Text("デバイス: \(file.deviceName)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text("\(file.formattedSize) • \(file.formattedDate)")
+                                Text("保存場所:")
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
+                                Text(viewModel.fileStoragePath.isEmpty ? "Documents/UWBFiles/" : viewModel.fileStoragePath)
+                                    .font(.caption2)
+                                    .foregroundColor(.primary)
+                                    .textSelection(.enabled)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(4)
                             }
-                            
                             Spacer()
-                            
-                            Button(action: {
-                                NSWorkspace.shared.selectFile(file.fileURL.path, inFileViewerRootedAtPath: "")
-                            }) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundColor(.blue)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .help("Finderで表示")
                         }
-                        .padding()
-                        .background(Color.gray.opacity(0.05))
-                        .cornerRadius(8)
-                    }
-                    
-                    if viewModel.receivedFiles.count > 5 {
-                        Text("他 \(viewModel.receivedFiles.count - 5) 件")
-                            .font(.caption)
+                        
+                        Text("ファイル名形式: yyyyMMdd_HHmmss_[端末名]_[元ファイル名].csv")
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                 }
                 .padding()
-                .background(Color.green.opacity(0.05))
+                .background(Color.blue.opacity(0.05))
                 .cornerRadius(16)
             }
-            
-            // ファイル保存場所の表示（常時表示）
-            VStack(spacing: 12) {
-                HStack {
-                    Text("ファイル保存設定")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        viewModel.openFileStorageFolder()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "folder")
-                            Text("保存フォルダーを開く")
-                        }
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.blue.opacity(0.1))
-                        .foregroundColor(.blue)
-                        .cornerRadius(6)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("センシング終了後、CSVファイルが以下の場所に自動保存されます：")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("保存場所:")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            Text(viewModel.fileStoragePath.isEmpty ? "Documents/UWBFiles/" : viewModel.fileStoragePath)
-                                .font(.caption2)
-                                .foregroundColor(.primary)
-                                .textSelection(.enabled)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(4)
-                        }
-                        Spacer()
-                    }
-                    
-                    Text("ファイル名形式: yyyyMMdd_HHmmss_[端末名]_[元ファイル名].csv")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
             .padding()
-            .background(Color.blue.opacity(0.05))
-            .cornerRadius(16)
-            
-            Spacer()
         }
-        .padding()
     }
 }
 

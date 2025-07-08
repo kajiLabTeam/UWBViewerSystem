@@ -203,6 +203,178 @@ struct HomeView: View {
                     .foregroundColor(.secondary)
             }
             
+            // ファイル転送進捗表示
+            if !viewModel.fileTransferProgress.isEmpty {
+                VStack(spacing: 12) {
+                    Text("ファイル転送中")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    
+                    ForEach(Array(viewModel.fileTransferProgress.keys), id: \.self) { endpointId in
+                        if let progress = viewModel.fileTransferProgress[endpointId] {
+                            VStack(spacing: 4) {
+                                HStack {
+                                    Text("デバイス: \(endpointId)")
+                                        .font(.caption)
+                                    Spacer()
+                                    Text("\(progress)%")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                }
+                                ProgressView(value: Double(progress), total: 100)
+                                    .progressViewStyle(LinearProgressViewStyle())
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.blue.opacity(0.05))
+                .cornerRadius(16)
+            }
+            
+            // 受信ファイル一覧
+            if !viewModel.receivedFiles.isEmpty {
+                VStack(spacing: 12) {
+                    HStack {
+                        Text("受信ファイル")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            viewModel.openFileStorageFolder()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "folder")
+                                Text("フォルダーを開く")
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.1))
+                            .foregroundColor(.blue)
+                            .cornerRadius(6)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    
+                    // 保存場所の表示
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("保存場所:")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text(viewModel.fileStoragePath)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .textSelection(.enabled)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(6)
+                    
+                    ForEach(viewModel.receivedFiles.prefix(5)) { file in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(file.fileName)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Text("デバイス: \(file.deviceName)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("\(file.formattedSize) • \(file.formattedDate)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                NSWorkspace.shared.selectFile(file.fileURL.path, inFileViewerRootedAtPath: "")
+                            }) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(.blue)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .help("Finderで表示")
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.05))
+                        .cornerRadius(8)
+                    }
+                    
+                    if viewModel.receivedFiles.count > 5 {
+                        Text("他 \(viewModel.receivedFiles.count - 5) 件")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .background(Color.green.opacity(0.05))
+                .cornerRadius(16)
+            }
+            
+            // ファイル保存場所の表示（常時表示）
+            VStack(spacing: 12) {
+                HStack {
+                    Text("ファイル保存設定")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        viewModel.openFileStorageFolder()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "folder")
+                            Text("保存フォルダーを開く")
+                        }
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("センシング終了後、CSVファイルが以下の場所に自動保存されます：")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("保存場所:")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text(viewModel.fileStoragePath.isEmpty ? "Documents/UWBFiles/" : viewModel.fileStoragePath)
+                                .font(.caption2)
+                                .foregroundColor(.primary)
+                                .textSelection(.enabled)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(4)
+                        }
+                        Spacer()
+                    }
+                    
+                    Text("ファイル名形式: yyyyMMdd_HHmmss_[端末名]_[元ファイル名].csv")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .background(Color.blue.opacity(0.05))
+            .cornerRadius(16)
+            
             Spacer()
         }
         .padding()

@@ -78,6 +78,10 @@ protocol NearbyRepositoryCallback: AnyObject {
     func onDisconnected(_ endpointId: String)
     func onPayloadReceived(_ endpointId: String, _ payload: Data)
     
+    // ファイル受信のコールバック
+    func onFileReceived(_ endpointId: String, _ fileURL: URL, _ fileName: String)
+    func onFileTransferProgress(_ endpointId: String, _ progress: Int)
+    
     // 従来のコールバック（デフォルト実装で互換性を保つ）
     func onConnectionRequestReceived(request: ConnectionRequest)
     func onDeviceConnected(device: ConnectedDevice)
@@ -111,6 +115,17 @@ extension NearbyRepositoryCallback {
         if let text = String(data: payload, encoding: .utf8) {
             onDataReceived(data: text, fromEndpointId: endpointId)
         }
+    }
+    
+    // ファイル受信のデフォルト実装
+    func onFileReceived(_ endpointId: String, _ fileURL: URL, _ fileName: String) {
+        // デフォルトではconnectionStateChangedに通知
+        onConnectionStateChanged(state: "ファイル受信完了: \(fileName)")
+    }
+    
+    func onFileTransferProgress(_ endpointId: String, _ progress: Int) {
+        // デフォルトではconnectionStateChangedに通知
+        onConnectionStateChanged(state: "ファイル転送中: \(progress)%")
     }
 }
 
@@ -445,7 +460,63 @@ extension NearbyRepository: ConnectionManagerDelegate {
         withName name: String,
         cancellationToken token: CancellationToken
     ) {
-        // ファイル受信の処理（今回は使用しない）
+        // ファイル受信開始の処理
+        callback?.onConnectionStateChanged(state: "ファイル受信開始: \(name) from \(endpointID)")
+        
+        // ファイル受信完了時の処理は別途実装
+        // localURLにファイルが保存される
+        let deviceName = deviceNames[endpointID] ?? endpointID
+        
+        // ファイルを適切な場所に移動・保存
+        saveReceivedFile(from: localURL, originalName: name, fromDevice: deviceName, endpointID: endpointID)
+    }
+    
+    // 受信したファイルを保存する処理
+    private func saveReceivedFile(from tempURL: URL, originalName: String, fromDevice: String, endpointID: String) {
+        let fileManager = FileManager.default
+        
+        // Documentsディレクトリ内にUWBFilesフォルダを作成
+        guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            callback?.onConnectionStateChanged(state: "ファイル保存エラー: Documentsフォルダにアクセスできません")
+            return
+        }
+        
+        let uwbFilesDirectory = documentsDirectory.appendingPathComponent("UWBFiles")
+        
+        // ディレクトリが存在しない場合は作成
+        if !fileManager.fileExists(atPath: uwbFilesDirectory.path) {
+            do {
+                try fileManager.createDirectory(at: uwbFilesDirectory, withIntermediateDirectories: true)
+            } catch {
+                callback?.onConnectionStateChanged(state: "ファイル保存エラー: フォルダ作成に失敗 - \(error.localizedDescription)")
+                return
+            }
+        }
+        
+        // ファイル名にタイムスタンプとデバイス名を追加
+        let timestamp = DateFormatter().string(from: Date())
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd_HHmmss"
+        let timeString = dateFormatter.string(from: Date())
+        
+        let fileName = "\(timeString)_\(fromDevice)_\(originalName)"
+        let destinationURL = uwbFilesDirectory.appendingPathComponent(fileName)
+        
+        do {
+            // 既存ファイルがある場合は削除
+            if fileManager.fileExists(atPath: destinationURL.path) {
+                try fileManager.removeItem(at: destinationURL)
+            }
+            
+            // ファイルを移動
+            try fileManager.moveItem(at: tempURL, to: destinationURL)
+            
+            callback?.onConnectionStateChanged(state: "ファイル保存完了: \(fileName)")
+            callback?.onFileReceived(endpointID, destinationURL, fileName)
+            
+        } catch {
+            callback?.onConnectionStateChanged(state: "ファイル保存エラー: \(error.localizedDescription)")
+        }
     }
 
     func connectionManager(
@@ -455,8 +526,13 @@ extension NearbyRepository: ConnectionManagerDelegate {
         forPayload payloadID: PayloadID
     ) {
         // 転送状況の更新処理
-        // TransferUpdateの詳細処理は実際のAPIに合わせて後で実装
-        callback?.onConnectionStateChanged(state: "データ転送更新: \(endpointID)")
+        // 実際のTransferUpdateの構造に合わせて修正が必要
+        // 現在は基本的な通知のみ実装
+        callback?.onConnectionStateChanged(state: "ファイル転送更新: \(endpointID)")
+        
+        // 進捗については後で実装
+        // 一旦50%として固定値で通知
+        callback?.onFileTransferProgress(endpointID, 50)
     }
 
     func connectionManager(

@@ -30,13 +30,13 @@ struct RealtimeData: Identifiable, Codable {
 }
 
 // デバイス別リアルタイムデータ
-struct DeviceRealtimeData: Identifiable {
+class DeviceRealtimeData: Identifiable, ObservableObject {
     let id = UUID()
     let deviceName: String
-    var latestData: RealtimeData?
-    var dataHistory: [RealtimeData] = []
-    var lastUpdateTime: Date = Date()
-    var isActive: Bool = true
+    @Published var latestData: RealtimeData?
+    @Published var dataHistory: [RealtimeData] = []
+    @Published var lastUpdateTime: Date = Date()
+    @Published var isActive: Bool = true
     
     var isRecentlyUpdated: Bool {
         Date().timeIntervalSince(lastUpdateTime) < 5.0 // 5秒以内の更新
@@ -58,6 +58,26 @@ struct DeviceRealtimeData: Identifiable {
     var hasIssue: Bool {
         !hasData || isDataStale || !isRecentlyUpdated
     }
+    
+    init(deviceName: String, latestData: RealtimeData? = nil, dataHistory: [RealtimeData] = [], lastUpdateTime: Date = Date(), isActive: Bool = true) {
+        self.deviceName = deviceName
+        self.latestData = latestData
+        self.dataHistory = dataHistory
+        self.lastUpdateTime = lastUpdateTime
+        self.isActive = isActive
+    }
+    
+    func addData(_ data: RealtimeData) {
+        latestData = data
+        dataHistory.append(data)
+        lastUpdateTime = Date()
+        isActive = true
+        
+        // 最新20件のデータのみ保持
+        if dataHistory.count > 20 {
+            dataHistory.removeFirst()
+        }
+    }
 }
 
 // JSONパース用の構造体
@@ -71,6 +91,30 @@ struct RealtimeDataMessage: Codable {
     let nlos: Int
     let rssi: Double
     let seqCount: Int
+}
+
+// 受信ファイルの構造体
+struct ReceivedFile: Identifiable {
+    let id = UUID()
+    let fileName: String
+    let fileURL: URL
+    let deviceName: String
+    let receivedAt: Date
+    let fileSize: Int64
+    
+    var formattedSize: String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: fileSize)
+    }
+    
+    var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .medium
+        return formatter.string(from: receivedAt)
+    }
 }
 
 class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
@@ -93,12 +137,18 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     // 接続された端末の管理
     @Published var connectedDeviceNames: Set<String> = []
     
+    // ファイル受信関連の状態
+    @Published var receivedFiles: [ReceivedFile] = []
+    @Published var fileTransferProgress: [String: Int] = [:] // endpointId: progress
+    @Published var fileStoragePath: String = ""
+    
     override init() {
         self.repository = NearbyRepository()
         super.init()
         self.repository.callback = self
         setupLocationManager()
         requestLocationPermission()
+        setupFileStoragePath()
     }
     
     private func setupLocationManager() {
@@ -182,31 +232,67 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         sensingFileName = ""
         
         // リアルタイムデータをクリア（接続は維持）
-        for index in deviceRealtimeDataList.indices {
-            deviceRealtimeDataList[index].latestData = nil
-            deviceRealtimeDataList[index].dataHistory.removeAll()
-            deviceRealtimeDataList[index].lastUpdateTime = Date.distantPast
+        for deviceData in deviceRealtimeDataList {
+            deviceData.latestData = nil
+            deviceData.dataHistory.removeAll()
+            deviceData.lastUpdateTime = Date.distantPast
         }
         
         // データ受信状態を維持（接続された端末は表示）
         isReceivingRealtimeData = !deviceRealtimeDataList.isEmpty
         
+        // ファイル転送進捗もクリア
+        fileTransferProgress.removeAll()
+        
         // 接続状態も更新
         connectState = "センシング終了コマンド送信完了"
     }
     
-    // リアルタイムデータ処理
-    private func processRealtimeData(_ data: String) {
+    // リアルタイムデータ処理（デバッグ強化版）
+    private func processRealtimeData(_ data: String, fromEndpointId: String = "") {
+        print("Processing data from endpoint \(fromEndpointId): \(data)")
+        
         // JSONデータかどうかチェック
-        guard data.contains("\"type\"") && data.contains("\"REALTIME_DATA\"") else {
-            return
+        if data.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{") &&
+           data.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("}") {
+            
+            // JSONタイプを判定
+            guard let jsonData = data.data(using: .utf8) else { 
+                print("Failed to convert data to UTF8")
+                return 
+            }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                   let type = json["type"] as? String {
+                    
+                    switch type {
+                    case "REALTIME_DATA":
+                        processRealtimeDataJSON(json, fromEndpointId: fromEndpointId)
+                    case "PING":
+                        processPingMessage(json, fromEndpointId: fromEndpointId)
+                    case "FILE_TRANSFER_START":
+                        processFileTransferStart(json, fromEndpointId: fromEndpointId)
+                    default:
+                        print("Unknown JSON message type: \(type)")
+                        connectState = "受信: \(type) メッセージ"
+                    }
+                }
+            } catch {
+                print("JSON parsing error: \(error)")
+            }
+        } else {
+            // 非JSONデータ（コマンドレスポンスなど）
+            print("Non-JSON data received: \(data)")
+            connectState = "コマンドレスポンス: \(data)"
         }
-        
-        // JSONパース
-        guard let jsonData = data.data(using: .utf8) else { return }
-        
+    }
+    
+    private func processRealtimeDataJSON(_ json: [String: Any], fromEndpointId: String) {
         do {
+            let jsonData = try JSONSerialization.data(withJSONObject: json)
             let realtimeMessage = try JSONDecoder().decode(RealtimeDataMessage.self, from: jsonData)
+            print("Successfully parsed realtime data for device: \(realtimeMessage.deviceName)")
             
             // リアルタイムデータリストに追加
             let realtimeData = RealtimeData(
@@ -223,7 +309,8 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             // デバイス別データ管理
             if let index = deviceRealtimeDataList.firstIndex(where: { $0.deviceName == realtimeMessage.deviceName }) {
                 // 既存デバイスのデータ更新
-                var deviceData = deviceRealtimeDataList[index]
+                print("Updating existing device: \(realtimeMessage.deviceName)")
+                let deviceData = deviceRealtimeDataList[index]
                 deviceData.latestData = realtimeData
                 deviceData.dataHistory.append(realtimeData)
                 deviceData.lastUpdateTime = Date()
@@ -233,11 +320,10 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
                 if deviceData.dataHistory.count > 20 {
                     deviceData.dataHistory.removeFirst()
                 }
-                
-                deviceRealtimeDataList[index] = deviceData
             } else {
                 // 新しいデバイスのデータ追加
-                var newDeviceData = DeviceRealtimeData(
+                print("Adding new device: \(realtimeMessage.deviceName)")
+                let newDeviceData = DeviceRealtimeData(
                     deviceName: realtimeMessage.deviceName,
                     latestData: realtimeData,
                     dataHistory: [realtimeData],
@@ -248,11 +334,40 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             }
             
             isReceivingRealtimeData = true
+            connectState = "リアルタイムデータ受信中 (\(deviceRealtimeDataList.count)台)"
             
         } catch {
-            // JSONパースエラーは無視（通常のメッセージの可能性）
-            print("JSON parse error (ignored): \(error)")
+            print("Realtime data JSON parsing error: \(error)")
         }
+    }
+    
+    private func processPingMessage(_ json: [String: Any], fromEndpointId: String) {
+        let fromDevice = json["from"] as? String ?? "Unknown"
+        let timestamp = json["timestamp"] as? Int64 ?? 0
+        
+        print("Ping received from: \(fromDevice)")
+        connectState = "Ping受信: \(fromDevice) at \(Date(timeIntervalSince1970: Double(timestamp) / 1000))"
+        
+        // Pingに対するPong応答を送信
+        let pongMessage = """
+        {
+            "type": "PONG",
+            "timestamp": \(Int64(Date().timeIntervalSince1970 * 1000)),
+            "from": "Mac",
+            "responseTo": "\(fromDevice)"
+        }
+        """
+        
+        repository.sendData(text: pongMessage)
+        print("Pong response sent to: \(fromDevice)")
+    }
+    
+    private func processFileTransferStart(_ json: [String: Any], fromEndpointId: String) {
+        let fileName = json["fileName"] as? String ?? "Unknown"
+        let fileSize = json["fileSize"] as? Int64 ?? 0
+        
+        print("File transfer starting: \(fileName), size: \(fileSize)")
+        connectState = "ファイル転送開始: \(fileName)"
     }
     
     func disconnectAll() {
@@ -262,6 +377,9 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         deviceRealtimeDataList.removeAll()
         connectedDeviceNames.removeAll()
         isReceivingRealtimeData = false
+        
+        // ファイル関連もクリア
+        fileTransferProgress.removeAll()
     }
     
     func resetAll() {
@@ -272,6 +390,10 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         deviceRealtimeDataList.removeAll()
         connectedDeviceNames.removeAll()
         isReceivingRealtimeData = false
+        
+        // ファイル関連をクリア
+        receivedFiles.removeAll()
+        fileTransferProgress.removeAll()
         
         // センシング制御状態もリセット
         isSensingControlActive = false
@@ -290,8 +412,8 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         DispatchQueue.main.async {
             self.receivedDataList.append((fromEndpointId, data))
             
-            // リアルタイムデータの処理
-            self.processRealtimeData(data)
+            // リアルタイムデータの処理（デバッグ出力追加）
+            self.processRealtimeData(data, fromEndpointId: fromEndpointId)
         }
     }
     
@@ -336,11 +458,9 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             if let deviceData = self.deviceRealtimeDataList.first(where: { $0.deviceName.contains(endpointId) || endpointId.contains($0.deviceName) }) {
                 self.connectedDeviceNames.remove(deviceData.deviceName)
                 
-                // 切断されたデバイスはリストから削除するか、無効状態にする
-                if let index = self.deviceRealtimeDataList.firstIndex(where: { $0.deviceName == deviceData.deviceName }) {
-                    self.deviceRealtimeDataList[index].isActive = false
-                    self.deviceRealtimeDataList[index].lastUpdateTime = Date.distantPast
-                }
+                // 切断されたデバイスは無効状態にする
+                deviceData.isActive = false
+                deviceData.lastUpdateTime = Date.distantPast
             }
         }
     }
@@ -348,6 +468,37 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     func onMessageReceived(message: Message) {
         DispatchQueue.main.async {
             self.receivedDataList.append((message.fromDeviceName, message.content))
+        }
+    }
+    
+    // ファイル受信のコールバック実装
+    func onFileReceived(_ endpointId: String, _ fileURL: URL, _ fileName: String) {
+        DispatchQueue.main.async {
+            // ファイルサイズを取得
+            let fileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
+            
+            // デバイス名を取得（endpointIdから推定）
+            let deviceName = self.connectedDeviceNames.first { $0.contains(endpointId) } ?? endpointId
+            
+            let receivedFile = ReceivedFile(
+                fileName: fileName,
+                fileURL: fileURL,
+                deviceName: deviceName,
+                receivedAt: Date(),
+                fileSize: fileSize
+            )
+            
+            self.receivedFiles.append(receivedFile)
+            self.connectState = "ファイル受信完了: \(fileName) (\(receivedFile.formattedSize))"
+            
+            // 進捗を削除
+            self.fileTransferProgress.removeValue(forKey: endpointId)
+        }
+    }
+    
+    func onFileTransferProgress(_ endpointId: String, _ progress: Int) {
+        DispatchQueue.main.async {
+            self.fileTransferProgress[endpointId] = progress
         }
     }
     
@@ -376,6 +527,33 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         if let text = String(data: payload, encoding: .utf8) {
             onDataReceived(data: text, fromEndpointId: endpointId)
         }
+    }
+    
+    // ファイル保存場所の設定
+    private func setupFileStoragePath() {
+        if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let uwbFilesDirectory = documentsDirectory.appendingPathComponent("UWBFiles")
+            fileStoragePath = uwbFilesDirectory.path
+        }
+    }
+    
+    // ファイル保存フォルダーを開く
+    func openFileStorageFolder() {
+        guard !fileStoragePath.isEmpty else { return }
+        
+        let url = URL(fileURLWithPath: fileStoragePath)
+        
+        // フォルダーが存在しない場合は作成
+        if !FileManager.default.fileExists(atPath: fileStoragePath) {
+            do {
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            } catch {
+                connectState = "フォルダー作成エラー: \(error.localizedDescription)"
+                return
+            }
+        }
+        
+        NSWorkspace.shared.open(url)
     }
 }
 

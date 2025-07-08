@@ -144,6 +144,23 @@ struct HomeView: View {
             .background(Color.gray.opacity(0.05))
             .cornerRadius(16)
             
+            // リアルタイムデータ表示セクション
+            if viewModel.isReceivingRealtimeData {
+                VStack(spacing: 16) {
+                    Text("リアルタイムセンシングデータ")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    
+                    // 端末ごとのデータ表示
+                    ForEach(viewModel.deviceRealtimeDataList) { deviceData in
+                        DeviceRealtimeCard(deviceData: deviceData)
+                    }
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(16)
+            }
+            
             Divider()
             
             // 専用広告画面への遷移
@@ -177,6 +194,156 @@ struct HomeView: View {
             Spacer()
         }
         .padding()
+    }
+}
+
+// 端末別リアルタイムデータ表示コンポーネント
+struct DeviceRealtimeCard: View {
+    let deviceData: DeviceRealtimeData
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            // 端末名とステータス
+            HStack {
+                Text(deviceData.deviceName)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                // 接続状態インジケーター
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(deviceData.isRecentlyUpdated ? Color.green : Color.red)
+                        .frame(width: 8, height: 8)
+                    Text(deviceData.isRecentlyUpdated ? "接続中" : "未接続")
+                        .font(.caption)
+                        .foregroundColor(deviceData.isRecentlyUpdated ? .green : .red)
+                }
+            }
+            
+            // データ表示部分
+            if let latestData = deviceData.latestData {
+                RealtimeDataDisplay(data: latestData)
+                
+                // 履歴データ
+                if deviceData.dataHistory.count > 1 {
+                    HistoryDataDisplay(dataHistory: deviceData.dataHistory)
+                }
+            } else {
+                Text("データ待機中...")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding()
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.gray.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+}
+
+// リアルタイムデータ表示コンポーネント
+struct RealtimeDataDisplay: View {
+    let data: RealtimeData
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 16) {
+                DataValueView(title: "Elevation", value: String(format: "%.2f°", data.elevation), color: .blue)
+                DataValueView(title: "Azimuth", value: String(format: "%.2f°", data.azimuth), color: .green)
+                DataValueView(title: "Distance", value: String(format: "%.2fm", data.distance), color: .orange)
+                DataValueView(title: "RSSI", value: String(format: "%.1f", data.rssi), color: .purple)
+            }
+            
+            HStack {
+                Text("NLOS: \(data.nlos)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("Seq: \(data.seqCount)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("更新: \(data.formattedTime)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.gray.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+}
+
+// データ値表示コンポーネント
+struct DataValueView: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack {
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+        }
+    }
+}
+
+// 履歴データ表示コンポーネント
+struct HistoryDataDisplay: View {
+    let dataHistory: [RealtimeData]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("履歴（最新3件）")
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+            
+            ForEach(Array(dataHistory.suffix(3).reversed().enumerated()), id: \.element.id) { index, data in
+                HStack {
+                    Text("E: \(String(format: "%.1f", data.elevation))°")
+                        .font(.caption2)
+                        .frame(width: 45, alignment: .leading)
+                        .foregroundColor(.blue)
+                    Text("A: \(String(format: "%.1f", data.azimuth))°")
+                        .font(.caption2)
+                        .frame(width: 45, alignment: .leading)
+                        .foregroundColor(.green)
+                    Text("D: \(String(format: "%.1f", data.distance))m")
+                        .font(.caption2)
+                        .frame(width: 40, alignment: .leading)
+                        .foregroundColor(.orange)
+                    Spacer()
+                    Text(data.formattedTime)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                .opacity(1.0 - Double(index) * 0.3)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(6)
     }
 }
 

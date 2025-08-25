@@ -172,30 +172,28 @@ class PairingSettingViewModel: ObservableObject {
             availableDevices.append(device)
         }
         
-        // NearBy Connectionを使用して実際にデバイスに接続要求を送信
+        // アンテナ紐付け時に実際のペアリング（接続）を実行
         if device.isNearbyDevice {
-            // NearByConnectionで発見されたデバイスの場合
-            // ペアリングを作成
+            // まずペアリング情報を作成・保存
             let pairing = AntennaPairing(antenna: antenna, device: device)
             antennaPairings.append(pairing)
             savePairingData()
             
             // 接続済みの場合の処理
             if device.isConnected {
-                alertMessage = "\(antenna.name) と \(device.name) のペアリングを作成しました（接続済み端末）"
+                alertMessage = "\(antenna.name) と \(device.name) の紐付けが完了しました（既に接続済み）"
                 // 接続済みデバイスには即座にペアリング情報を送信
                 let pairingInfo = "PAIRING:\(antenna.id):\(antenna.name)"
                 nearbyRepository.sendDataToDevice(text: pairingInfo, toEndpointId: device.id)
             } else {
-                // 保存されている接続要求ハンドラーがあれば接続を承認
+                // 未接続の場合は、保存された接続要求ハンドラーでペアリング（接続）を実行
                 if let handler = connectionRequestHandlers[device.id] {
-                    handler(true) // 接続を承認
+                    handler(true) // 接続を承認してペアリング完了
                     connectionRequestHandlers.removeValue(forKey: device.id)
-                    alertMessage = "\(antenna.name) と \(device.name) のペアリングを作成し、接続を承認しました"
+                    alertMessage = "\(antenna.name) と \(device.name) の紐付け・接続を開始しました"
                 } else {
-                    // ハンドラーがない場合は、discovererから接続要求を送信
-                    nearbyRepository.startDiscovery()
-                    alertMessage = "\(antenna.name) と \(device.name) のペアリングを作成しました。デバイスからの接続を待機中..."
+                    // ハンドラーがない場合は、端末が再接続を試みるまで待機
+                    alertMessage = "\(antenna.name) と \(device.name) の紐付けを作成しました。端末からの接続をお待ちください..."
                 }
             }
             showingConnectionAlert = true
@@ -341,24 +339,24 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
                 isNearbyDevice: true
             )
             
-            // 既存のデバイスリストに追加（重複チェック）
-            if !availableDevices.contains(where: { $0.id == endpointId }) {
+            // 既存のデバイスリストに追加または更新（端末名の更新のため）
+            if let index = availableDevices.firstIndex(where: { $0.id == endpointId }) {
+                // 既存デバイスの情報を更新（端末名が変更されている可能性があるため）
+                availableDevices[index] = device
+            } else {
+                // 新しいデバイスを追加
                 availableDevices.append(device)
                 
-                alertMessage = "NearBy Connection デバイス発見: \(deviceName)"
+                alertMessage = "端末を保存しました: \(deviceName)"
                 showingConnectionAlert = true
             }
             
-            // 接続要求ハンドラーを保存して後で使用
+            // 接続要求ハンドラーを保存して後で使用（アンテナ紐付け時に使用）
             connectionRequestHandlers[endpointId] = responseHandler
             
-            // すでにペアリング済みの場合は自動で接続を承認
-            if antennaPairings.contains(where: { $0.device.id == endpointId }) {
-                alertMessage = "\(deviceName) からの接続要求を自動承認しました"
-                showingConnectionAlert = true
-                responseHandler(true)
-                connectionRequestHandlers.removeValue(forKey: endpointId)
-            }
+            // 検索時は接続しない - ハンドラーを保存するのみで接続は承認しない
+            // アンテナ紐付け時に接続を実行する仕様に変更
+            print("端末発見・保存完了: \(deviceName) (ID: \(endpointId))")
         }
     }
     
@@ -367,7 +365,10 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
             if isSuccess {
                 // 接続成功時の処理
                 if let index = availableDevices.firstIndex(where: { $0.id == endpointId }) {
-                    availableDevices[index].isConnected = true
+                    // デバイス情報を保持しつつ接続状態のみ更新
+                    var updatedDevice = availableDevices[index]
+                    updatedDevice.isConnected = true
+                    availableDevices[index] = updatedDevice
                 } else {
                     // デバイスが一覧にない場合は、デバイス名を不明として追加
                     let unknownDevice = AndroidDevice(
@@ -392,7 +393,10 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
     nonisolated func onDisconnected(_ endpointId: String) {
         Task { @MainActor in
             if let index = availableDevices.firstIndex(where: { $0.id == endpointId }) {
-                availableDevices[index].isConnected = false
+                // デバイス情報を保持しつつ接続状態のみ更新
+                var updatedDevice = availableDevices[index]
+                updatedDevice.isConnected = false
+                availableDevices[index] = updatedDevice
             }
             
             // ペアリング情報からも削除

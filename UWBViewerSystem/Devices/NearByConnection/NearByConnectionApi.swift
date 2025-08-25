@@ -351,7 +351,7 @@ extension NearbyRepository: AdvertiserDelegate {
         with context: Data,
         connectionRequestHandler: @escaping (Bool) -> Void
     ) {
-        // 手動承認のためにコールバックに通知
+        // 接続要求のcontextからデバイス名を取得（送信側が名前を送信）
         let deviceName = String(data: context, encoding: .utf8) ?? endpointID
         
         // デバイス名を保存
@@ -371,10 +371,16 @@ extension NearbyRepository: DiscovererDelegate {
         didFind endpointID: String,
         with context: Data
     ) {
+        // Android側から送信されたAdvertising情報（端末名を含む）を取得
+        let deviceName = String(data: context, encoding: .utf8) ?? endpointID
+        
+        // デバイス名を保存
+        deviceNames[endpointID] = deviceName
+        
         // 発見したエンドポイントに自動で接続要求を送信
         let connectionContext = Data(nickName.utf8)
         discoverer.requestConnection(to: endpointID, using: connectionContext)
-        callback?.onConnectionStateChanged(state: "エンドポイント発見: \(endpointID)")
+        callback?.onConnectionStateChanged(state: "エンドポイント発見: \(deviceName) (\(endpointID))")
     }
 
     func discoverer(_ discoverer: Discoverer, didLose endpointID: String) {

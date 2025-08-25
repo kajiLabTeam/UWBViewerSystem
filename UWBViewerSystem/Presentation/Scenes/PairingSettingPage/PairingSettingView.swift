@@ -312,8 +312,8 @@ struct DeviceListItem: View {
                     .background(Color.green.opacity(0.1))
                     .cornerRadius(4)
             } else if !availableAntennas.isEmpty {
-                // 未接続で利用可能なアンテナがある場合のみペアリングボタンを表示
-                Button("ペアリング") {
+                // 未接続で利用可能なアンテナがある場合のみアンテナ紐付けボタンを表示
+                Button("アンテナ紐付け") {
                     if availableAntennas.count == 1 {
                         onPair(availableAntennas.first!)
                     } else {
@@ -322,9 +322,9 @@ struct DeviceListItem: View {
                 }
                 .font(.caption)
                 .foregroundColor(.white)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.blue)
+                .background(Color.orange)
                 .cornerRadius(8)
             } else {
                 // 利用可能なアンテナがない場合
@@ -348,7 +348,7 @@ struct DeviceListItem: View {
             }
             Button("キャンセル", role: .cancel) { }
         } message: {
-            Text("ペアリングするアンテナを選択してください")
+            Text("この端末と紐付けるアンテナを選択してください")
         }
     }
     

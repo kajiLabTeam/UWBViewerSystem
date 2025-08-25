@@ -11,7 +11,7 @@ import CoreLocation
 
 // リアルタイムデータの構造体
 struct RealtimeData: Identifiable, Codable {
-    let id = UUID()
+    let id: UUID
     let deviceName: String
     let timestamp: TimeInterval
     let elevation: Double
@@ -118,8 +118,19 @@ struct ReceivedFile: Identifiable {
 }
 
 class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
-    private let repository: NearbyRepository
+    static let shared = HomeViewModel()
+    
+    private let nearByRepository: NearbyRepository
     private let locationManager = CLLocationManager()
+    
+    private override init() {
+        nearByRepository = NearbyRepository()
+        super.init()
+        nearByRepository.callback = self
+        setupLocationManager()
+        requestLocationPermission()
+        setupFileStoragePath()
+    }
     
     @Published var connectState: String = ""
     @Published var receivedDataList: [(String, String)] = []
@@ -139,20 +150,16 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     
     // 接続された端末の管理
     @Published var connectedDeviceNames: Set<String> = []
+    @Published var connectedEndpoints: Set<String> = []
+    
+    // 接続制御の状態
+    @Published var isAdvertising = false
     
     // ファイル受信関連の状態
     @Published var receivedFiles: [ReceivedFile] = []
     @Published var fileTransferProgress: [String: Int] = [:] // endpointId: progress
     @Published var fileStoragePath: String = ""
     
-    override init() {
-        self.repository = NearbyRepository()
-        super.init()
-        self.repository.callback = self
-        setupLocationManager()
-        requestLocationPermission()
-        setupFileStoragePath()
-    }
     
     private func setupLocationManager() {
         locationManager.delegate = self
@@ -185,7 +192,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             connectState = "位置情報の権限を許可してください"
             return
         }
-        repository.startAdvertise()
+        nearByRepository.startAdvertise()
     }
     
     func startDiscovery() {
@@ -193,11 +200,11 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             connectState = "位置情報の権限を許可してください"
             return
         }
-        repository.startDiscovery()
+        nearByRepository.startDiscovery()
     }
     
     func sendData(text: String) {
-        repository.sendData(text: text)
+        nearByRepository.sendData(text: text)
     }
     
     // センシング制御コマンド送信機能
@@ -207,13 +214,13 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             return
         }
         
-        guard repository.hasConnectedDevices() else {
+        guard nearByRepository.hasConnectedDevices() else {
             sensingStatus = "接続された端末がありません"
             return
         }
         
         let command = "SENSING_START:\(fileName)"
-        repository.sendData(text: command)
+        nearByRepository.sendData(text: command)
         sensingStatus = "センシング開始コマンド送信: \(fileName)"
         isSensingControlActive = true
         sensingFileName = fileName
@@ -226,13 +233,13 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     }
     
     func stopRemoteSensing() {
-        guard repository.hasConnectedDevices() else {
+        guard nearByRepository.hasConnectedDevices() else {
             sensingStatus = "接続された端末がありません"
             return
         }
         
         let command = "SENSING_STOP"
-        repository.sendData(text: command)
+        nearByRepository.sendData(text: command)
         sensingStatus = "センシング終了コマンド送信"
         isSensingControlActive = false
         sensingFileName = ""
@@ -240,6 +247,29 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         // センシングファイル名はファイル受信まで保持（後でクリア）
         
         // リアルタイムデータをクリア（接続は維持）
+    }
+    
+    func pauseRemoteSensing() {
+        guard nearByRepository.hasConnectedDevices() else {
+            sensingStatus = "接続された端末がありません"
+            return
+        }
+        
+        let command = "SENSING_PAUSE"
+        nearByRepository.sendData(text: command)
+        sensingStatus = "センシング一時停止中"
+    }
+    
+    func resumeRemoteSensing() {
+        guard nearByRepository.hasConnectedDevices() else {
+            sensingStatus = "接続された端末がありません"
+            return
+        }
+        
+        let command = "SENSING_RESUME"
+        nearByRepository.sendData(text: command)
+        sensingStatus = "センシング実行中"
+        isSensingControlActive = true
         for deviceData in deviceRealtimeDataList {
             deviceData.latestData = nil
             deviceData.dataHistory.removeAll()
@@ -333,6 +363,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             
             // リアルタイムデータリストに追加
             let realtimeData = RealtimeData(
+                id: UUID(),
                 deviceName: realtimeMessage.deviceName,
                 timestamp: realtimeMessage.timestamp,
                 elevation: realtimeMessage.elevation,
@@ -430,7 +461,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         }
         """
         
-        repository.sendData(text: pongMessage)
+        nearByRepository.sendData(text: pongMessage)
         print("Pong response sent to: \(fromDevice)")
     }
     
@@ -443,7 +474,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     }
     
     func disconnectAll() {
-        repository.disconnectAll()
+        nearByRepository.disconnectAll()
         
         // リアルタイムデータをクリア
         deviceRealtimeDataList.removeAll()
@@ -455,7 +486,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     }
     
     func resetAll() {
-        repository.resetAll()
+        nearByRepository.resetAll()
         receivedDataList = []
         
         // リアルタイムデータをクリア
@@ -534,6 +565,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             
             // 接続された端末を追跡
             self.connectedDeviceNames.insert(device.deviceName)
+            self.connectedEndpoints.insert(device.endpointId)
             
             // データがない場合でも端末を表示リストに追加
             if !self.deviceRealtimeDataList.contains(where: { $0.deviceName == device.deviceName }) {
@@ -559,6 +591,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             self.connectState = "端末切断: \(endpointId)"
             
             // 切断された端末を接続リストから削除
+            self.connectedEndpoints.remove(endpointId)
             // endpointIdから端末名を特定するのが難しいため、既存のロジックを活用
             if let deviceData = self.deviceRealtimeDataList.first(where: { $0.deviceName.contains(endpointId) || endpointId.contains($0.deviceName) }) {
                 self.connectedDeviceNames.remove(deviceData.deviceName)
@@ -662,6 +695,29 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         }
         
         NSWorkspace.shared.open(url)
+    }
+    
+    // MARK: - ConnectionManagementViewModel用のメソッド
+    
+    func startAdvertising() {
+        nearByRepository.startAdvertise()
+        isAdvertising = true
+    }
+    
+    func stopAdvertising() {
+        nearByRepository.stopAdvertise()
+        isAdvertising = false
+    }
+    
+    
+    func disconnectEndpoint(_ endpointId: String) {
+        nearByRepository.disconnectFromDevice(endpointId: endpointId)
+        connectedEndpoints.remove(endpointId)
+        connectedDeviceNames = connectedDeviceNames.filter { $0 != endpointId }
+    }
+    
+    func sendMessage(_ content: String, to endpointId: String) {
+        nearByRepository.sendMessage(content, to: endpointId)
     }
 }
 

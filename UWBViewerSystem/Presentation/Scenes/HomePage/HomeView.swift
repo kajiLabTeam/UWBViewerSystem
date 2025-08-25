@@ -7,14 +7,60 @@
 import SwiftUI
 
 struct HomeView: View {
-    @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var viewModel = HomeViewModel.shared
     @State private var messageToSend = ""
     @EnvironmentObject var router: NavigationRouterModel
     @State private var sensingFileName = ""
+    @State private var showSettingsMenu = false
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(spacing: 20) {
+                // ヘッダーセクション with 設定メニュー
+                HStack {
+                    Text("UWB制御センター")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    
+                    Spacer()
+                    
+                    // 設定メニューボタン
+                    Menu {
+                        Button(action: {
+                            router.push(.fieldSettingPage)
+                        }) {
+                            Label("アンテナ配置設定", systemImage: "antenna.radiowaves.left.and.right")
+                        }
+                        
+                        Button(action: {
+                            router.push(.pairingSettingPage)
+                        }) {
+                            Label("端末紐付け設定", systemImage: "link.circle")
+                        }
+                        
+                        Divider()
+                        
+                        Button(action: {
+                            router.push(.advertiserPage)
+                        }) {
+                            Label("広告専用画面", systemImage: "megaphone")
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "gearshape.fill")
+                            Text("設定")
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
+                
+                Divider()
+                
                 // センシング制御セクション
                 VStack(spacing: 16) {
                     Text("一斉センシング制御")

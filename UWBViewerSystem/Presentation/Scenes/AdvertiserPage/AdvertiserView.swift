@@ -121,7 +121,7 @@ struct AdvertiserView: View {
                 )
             } else {
                 List(viewModel.connectedDevices) { device in
-                    DeviceRow(device: device, onDisconnect: {
+                    ConnectedDeviceRow(device: device, onDisconnect: {
                         viewModel.disconnectDevice(device)
                     })
                 }
@@ -171,8 +171,8 @@ struct AdvertiserView: View {
     }
 }
 
-// MARK: - Device Row
-struct DeviceRow: View {
+// MARK: - Connected Device Row
+struct ConnectedDeviceRow: View {
     let device: ConnectedDevice
     let onDisconnect: () -> Void
     

@@ -19,7 +19,11 @@ struct NavigationRouter: View {
             NavigationStack(path: $router.path) {
                 rootView
                     .navigationDestination(for: Route.self) { route in
-                        destinationView(for: route)
+                        print("🎯 NavigationStack destinationView called for route: \(route)")
+                        return destinationView(for: route)
+                    }
+                    .onChange(of: router.path) { _, newPath in
+                        print("🎯 NavigationStack path changed, count: \(newPath.count)")
                     }
             }
         }
@@ -38,7 +42,7 @@ struct NavigationRouter: View {
         case .initializing:
             WelcomeView()
         case .authenticated:
-            HomeView()
+            MainTabView()
         case .unauthenticated:
             WelcomeView()
         }
@@ -47,14 +51,41 @@ struct NavigationRouter: View {
     @ViewBuilder
     private func destinationView(for route: Route) -> some View {
         switch route {
+        // 新しい画面遷移フロー
         case .welcomePage:
             WelcomeView()
+        case .indoorMapRegistration:
+            IndoorMapRegistrationView()
+        case .deviceSelection:
+            DeviceSelectionView()
+        case .antennaPositioning:
+            AntennaPositioningView()
+        case .calibration:
+            CalibrationView()
+        case .sensingManagement:
+            SensingManagementView()
+        case .trajectoryView:
+            TrajectoryView()
+            
+        // 既存の画面
+        case .fieldSettingPage:
+            FieldSettingView()
+        case .pairingSettingPage:
+            PairingSettingView()
         case .homePage:
-            HomeView()
+            NewHomeView()
+        case .dataCollectionPage:
+            DataCollectionView()
+        case .dataDisplayPage:
+            DataDisplayView()
+        case .connectionManagementPage:
+            ConnectionManagementView()
         case .editPage:
             EditView()
         case .advertiserPage:
             AdvertiserView()
+        case .mainTabView:
+            MainTabView()
         }
     }
 }

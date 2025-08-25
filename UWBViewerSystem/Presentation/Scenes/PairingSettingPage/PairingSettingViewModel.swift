@@ -1,0 +1,452 @@
+import SwiftUI
+import Combine
+
+// MARK: - Data Models
+
+struct AndroidDevice: Identifiable, Codable {
+    let id: String // endpointId
+    var name: String
+    var isConnected: Bool
+    var lastSeen: Date
+    let isNearbyDevice: Bool // NearBy Connectionで発見されたデバイスかどうか
+    
+    init(id: String = UUID().uuidString, name: String, isConnected: Bool = false, isNearbyDevice: Bool = true) {
+        self.id = id
+        self.name = name
+        self.isConnected = isConnected
+        self.lastSeen = Date()
+        self.isNearbyDevice = isNearbyDevice
+    }
+}
+
+struct AntennaPairing: Identifiable, Codable {
+    let id: String
+    let antenna: AntennaInfo
+    let device: AndroidDevice
+    let pairedAt: Date
+    
+    init(antenna: AntennaInfo, device: AndroidDevice) {
+        self.id = UUID().uuidString
+        self.antenna = antenna
+        self.device = device
+        self.pairedAt = Date()
+    }
+}
+
+// MARK: - ViewModel
+
+@MainActor
+class PairingSettingViewModel: ObservableObject {
+    @Published var selectedAntennas: [AntennaInfo] = []
+    @Published var availableDevices: [AndroidDevice] = []
+    @Published var antennaPairings: [AntennaPairing] = []
+    @Published var isScanning = false
+    @Published var showingConnectionAlert = false
+    @Published var alertMessage = ""
+    @Published var isConnected = false
+    
+    private let navigationModel = NavigationRouterModel.shared
+    private var cancellables = Set<AnyCancellable>()
+    private let nearbyRepository: NearbyRepository
+    
+    // 接続要求ハンドラーを保存
+    private var connectionRequestHandlers: [String: (Bool) -> Void] = [:]
+    
+    // アンテナペアリングの状態
+    var hasCompletePairing: Bool {
+        return !antennaPairings.isEmpty && antennaPairings.count >= min(selectedAntennas.count, 2)
+    }
+    
+    var canProceedToNextStep: Bool {
+        return hasCompletePairing && isConnected
+    }
+    
+    init() {
+        nearbyRepository = NearbyRepository(nickName: "UWBViewer_\(UUID().uuidString.prefix(8))", 
+                                          serviceId: "net.harutiro.UWBSystem")
+        nearbyRepository.callback = self
+        
+        loadSampleAntennas()
+        loadPairingData()
+    }
+    
+    // MARK: - Data Management
+    
+    private func loadSampleAntennas() {
+        // FieldSettingViewModelから保存されたアンテナ設定を読み込み
+        if let data = UserDefaults.standard.data(forKey: "FieldAntennaConfiguration") {
+            let decoder = JSONDecoder()
+            if let decoded = try? decoder.decode([AntennaInfo].self, from: data) {
+                selectedAntennas = decoded
+                return
+            }
+        }
+        
+        // 保存データがない場合はデフォルトのアンテナを作成
+        selectedAntennas = [
+            AntennaInfo(id: "antenna_1", name: "アンテナ 1", coordinates: Point3D(x: 50, y: 100, z: 0)),
+            AntennaInfo(id: "antenna_2", name: "アンテナ 2", coordinates: Point3D(x: 200, y: 100, z: 0)),
+            AntennaInfo(id: "antenna_3", name: "アンテナ 3", coordinates: Point3D(x: 125, y: 200, z: 0))
+        ]
+    }
+    
+    private func loadPairingData() {
+        // UserDefaultsからペアリングデータを読み込み
+        if let data = UserDefaults.standard.data(forKey: "AntennaPairings"),
+           let pairings = try? JSONDecoder().decode([AntennaPairing].self, from: data) {
+            antennaPairings = pairings
+            
+            // ペアリング済みデバイスをavailableDevicesに追加
+            for pairing in pairings {
+                if !availableDevices.contains(where: { $0.id == pairing.device.id }) {
+                    var restoredDevice = pairing.device
+                    // 復元されたデバイスは一旦未接続状態として表示
+                    restoredDevice.isConnected = false
+                    availableDevices.append(restoredDevice)
+                }
+            }
+        }
+        
+        // 接続状態を復元
+        isConnected = UserDefaults.standard.bool(forKey: "hasDeviceConnected")
+    }
+    
+    private func savePairingData() {
+        // ペアリングデータを保存
+        if let data = try? JSONEncoder().encode(antennaPairings) {
+            UserDefaults.standard.set(data, forKey: "AntennaPairings")
+        }
+        
+        // 接続状態を保存
+        UserDefaults.standard.set(isConnected, forKey: "hasDeviceConnected")
+    }
+    
+    // MARK: - Device Discovery
+    
+    func startDeviceDiscovery() {
+        isScanning = true
+        
+        // 接続されていない（未接続）デバイスのみ削除し、接続済みデバイスは保持
+        availableDevices.removeAll { !$0.isConnected }
+        
+        // NearBy Connectionでデバイス検索を開始
+        nearbyRepository.startDiscovery()
+        
+        // 10秒後に自動で検索を停止
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            self?.stopDeviceDiscovery()
+        }
+    }
+    
+    func stopDeviceDiscovery() {
+        isScanning = false
+        // discovererを直接操作せず、NearbyRepositoryのメソッドを使用
+        nearbyRepository.resetAll() // これにより検索も停止される
+    }
+    
+    // MARK: - Antenna Pairing
+    
+    func pairAntennaWithDevice(antenna: AntennaInfo, device: AndroidDevice) {
+        // 既存のペアリングをチェック
+        if antennaPairings.contains(where: { $0.antenna.id == antenna.id }) {
+            alertMessage = "このアンテナは既にペアリング済みです"
+            showingConnectionAlert = true
+            return
+        }
+        
+        // 1対1対応: 同じアンテナまたは同じ端末が既にペアリングされているかチェック
+        if antennaPairings.contains(where: { $0.antenna.id == antenna.id }) {
+            alertMessage = "\(antenna.name)は既に他の端末とペアリング済みです"
+            showingConnectionAlert = true
+            return
+        }
+        
+        if antennaPairings.contains(where: { $0.device.id == device.id }) {
+            alertMessage = "\(device.name)は既に他のアンテナとペアリング済みです"
+            showingConnectionAlert = true
+            return
+        }
+        
+        // デバイスがリストにあることを確認し、なければ追加
+        if !availableDevices.contains(where: { $0.id == device.id }) {
+            availableDevices.append(device)
+        }
+        
+        // NearBy Connectionを使用して実際にデバイスに接続要求を送信
+        if device.isNearbyDevice {
+            // NearByConnectionで発見されたデバイスの場合
+            // ペアリングを作成
+            let pairing = AntennaPairing(antenna: antenna, device: device)
+            antennaPairings.append(pairing)
+            savePairingData()
+            
+            // 接続済みの場合の処理
+            if device.isConnected {
+                alertMessage = "\(antenna.name) と \(device.name) のペアリングを作成しました（接続済み端末）"
+                // 接続済みデバイスには即座にペアリング情報を送信
+                let pairingInfo = "PAIRING:\(antenna.id):\(antenna.name)"
+                nearbyRepository.sendDataToDevice(text: pairingInfo, toEndpointId: device.id)
+            } else {
+                // 保存されている接続要求ハンドラーがあれば接続を承認
+                if let handler = connectionRequestHandlers[device.id] {
+                    handler(true) // 接続を承認
+                    connectionRequestHandlers.removeValue(forKey: device.id)
+                    alertMessage = "\(antenna.name) と \(device.name) のペアリングを作成し、接続を承認しました"
+                } else {
+                    // ハンドラーがない場合は、discovererから接続要求を送信
+                    nearbyRepository.startDiscovery()
+                    alertMessage = "\(antenna.name) と \(device.name) のペアリングを作成しました。デバイスからの接続を待機中..."
+                }
+            }
+            showingConnectionAlert = true
+        } else {
+            // 従来のロジック（互換性のため）
+            let pairing = AntennaPairing(antenna: antenna, device: device)
+            antennaPairings.append(pairing)
+            
+            if let index = availableDevices.firstIndex(where: { $0.id == device.id }) {
+                availableDevices[index].isConnected = true
+            }
+            
+            isConnected = true
+            savePairingData()
+            
+            alertMessage = "\(antenna.name) と \(device.name) のペアリングが完了しました"
+            showingConnectionAlert = true
+        }
+    }
+    
+    func removePairing(_ pairing: AntennaPairing) {
+        antennaPairings.removeAll { $0.id == pairing.id }
+        
+        // 1対1対応なので、ペアリング削除時は必ず接続を切断
+        // デバイスの接続状態を更新
+        if let index = availableDevices.firstIndex(where: { $0.id == pairing.device.id }) {
+            availableDevices[index].isConnected = false
+        }
+        
+        // NearBy Connection経由の場合は実際に切断
+        if pairing.device.isNearbyDevice {
+            nearbyRepository.disconnectFromDevice(endpointId: pairing.device.id)
+        }
+        
+        // 保存されているハンドラーもクリーンアップ
+        connectionRequestHandlers.removeValue(forKey: pairing.device.id)
+        
+        // 接続状態を更新
+        isConnected = !antennaPairings.isEmpty
+        savePairingData()
+    }
+    
+    func removeAllPairings() {
+        // NearBy Connection経由のデバイスは実際に切断
+        for pairing in antennaPairings {
+            if pairing.device.isNearbyDevice {
+                nearbyRepository.disconnectFromDevice(endpointId: pairing.device.id)
+            }
+        }
+        
+        antennaPairings.removeAll()
+        
+        // すべてのデバイスの接続状態をリセット
+        for i in availableDevices.indices {
+            availableDevices[i].isConnected = false
+        }
+        
+        // すべてのハンドラーをクリーンアップ
+        connectionRequestHandlers.removeAll()
+        
+        isConnected = false
+        savePairingData()
+    }
+    
+    // MARK: - Navigation
+    
+    func proceedToNextStep() {
+        guard canProceedToNextStep else {
+            alertMessage = "少なくとも1つのアンテナをAndroid端末とペアリングしてください"
+            showingConnectionAlert = true
+            return
+        }
+        
+        navigationModel.push(.dataCollectionPage)
+    }
+    
+    func skipPairing() {
+        navigationModel.push(.dataCollectionPage)
+    }
+    
+    // MARK: - Connection Testing
+    
+    func testConnection(for pairing: AntennaPairing) {
+        alertMessage = "\(pairing.antenna.name) と \(pairing.device.name) の接続をテスト中..."
+        showingConnectionAlert = true
+        
+        if pairing.device.isNearbyDevice {
+            // 実際のNearBy Connectionでテストメッセージを送信
+            let testMessage = "UWB_TEST_\(Date().timeIntervalSince1970)"
+            nearbyRepository.sendDataToDevice(text: testMessage, toEndpointId: pairing.device.id)
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                self?.alertMessage = "接続テスト完了：テストメッセージを送信しました"
+                self?.showingConnectionAlert = true
+            }
+        } else {
+            // シミュレート（従来の動作）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                let isSuccess = Bool.random() // ランダムに成功/失敗を決定
+                self?.alertMessage = isSuccess ? 
+                    "接続テスト成功：正常に通信できています" : 
+                    "接続テスト失敗：デバイスとの通信に問題があります"
+                self?.showingConnectionAlert = true
+            }
+        }
+    }
+}
+
+// MARK: - NearbyRepositoryCallback
+
+extension PairingSettingViewModel: NearbyRepositoryCallback {
+    nonisolated func onConnectionStateChanged(state: String) {
+        Task { @MainActor in
+            print("PairingSettingViewModel - Connection State: \(state)")
+            
+            // 重要な状態変更をアラートで表示
+            if state.contains("接続成功") || state.contains("接続完了") {
+                alertMessage = "接続状況: \(state)"
+                showingConnectionAlert = true
+            } else if state.contains("接続拒否") || state.contains("切断") {
+                alertMessage = "接続状況: \(state)"
+                showingConnectionAlert = true
+            } else if state.contains("エラー") {
+                alertMessage = "エラー: \(state)"
+                showingConnectionAlert = true
+            }
+        }
+    }
+    
+    nonisolated func onDataReceived(data: String, fromEndpointId: String) {
+        Task { @MainActor in
+            print("PairingSettingViewModel - Data Received: \(data) from \(fromEndpointId)")
+        }
+    }
+    
+    nonisolated func onConnectionInitiated(_ endpointId: String, _ deviceName: String, _ context: Data, _ responseHandler: @escaping (Bool) -> Void) {
+        Task { @MainActor in
+            // 広告中のデバイスが発見された場合
+            let device = AndroidDevice(
+                id: endpointId,
+                name: deviceName,
+                isConnected: false,
+                isNearbyDevice: true
+            )
+            
+            // 既存のデバイスリストに追加（重複チェック）
+            if !availableDevices.contains(where: { $0.id == endpointId }) {
+                availableDevices.append(device)
+                
+                alertMessage = "NearBy Connection デバイス発見: \(deviceName)"
+                showingConnectionAlert = true
+            }
+            
+            // 接続要求ハンドラーを保存して後で使用
+            connectionRequestHandlers[endpointId] = responseHandler
+            
+            // すでにペアリング済みの場合は自動で接続を承認
+            if antennaPairings.contains(where: { $0.device.id == endpointId }) {
+                alertMessage = "\(deviceName) からの接続要求を自動承認しました"
+                showingConnectionAlert = true
+                responseHandler(true)
+                connectionRequestHandlers.removeValue(forKey: endpointId)
+            }
+        }
+    }
+    
+    nonisolated func onConnectionResult(_ endpointId: String, _ isSuccess: Bool) {
+        Task { @MainActor in
+            if isSuccess {
+                // 接続成功時の処理
+                if let index = availableDevices.firstIndex(where: { $0.id == endpointId }) {
+                    availableDevices[index].isConnected = true
+                } else {
+                    // デバイスが一覧にない場合は、デバイス名を不明として追加
+                    let unknownDevice = AndroidDevice(
+                        id: endpointId,
+                        name: "接続済み端末 (\(endpointId.prefix(8))...)",
+                        isConnected: true,
+                        isNearbyDevice: true
+                    )
+                    availableDevices.append(unknownDevice)
+                    print("接続成功したがデバイスが一覧にないため追加: \(endpointId)")
+                }
+                isConnected = true
+            } else {
+                // 接続失敗時の処理
+                print("接続失敗: \(endpointId)")
+                // 接続要求ハンドラーをクリーンアップ
+                connectionRequestHandlers.removeValue(forKey: endpointId)
+            }
+        }
+    }
+    
+    nonisolated func onDisconnected(_ endpointId: String) {
+        Task { @MainActor in
+            if let index = availableDevices.firstIndex(where: { $0.id == endpointId }) {
+                availableDevices[index].isConnected = false
+            }
+            
+            // ペアリング情報からも削除
+            antennaPairings.removeAll { $0.device.id == endpointId }
+            isConnected = !antennaPairings.isEmpty
+            savePairingData()
+        }
+    }
+    
+    nonisolated func onPayloadReceived(_ endpointId: String, _ payload: Data) {
+        Task { @MainActor in
+            // ペイロード受信時の処理
+            if let text = String(data: payload, encoding: .utf8) {
+                print("PairingSettingViewModel - Payload Received: \(text) from \(endpointId)")
+            }
+        }
+    }
+    
+    nonisolated func onConnectionRequestReceived(request: ConnectionRequest) {
+        // デフォルト実装で呼ばれる
+    }
+    
+    nonisolated func onDeviceConnected(device: ConnectedDevice) {
+        Task { @MainActor in
+            // デバイスが接続された時の処理
+            let androidDevice = AndroidDevice(
+                id: device.endpointId,
+                name: device.deviceName,
+                isConnected: true,
+                isNearbyDevice: true
+            )
+            
+            if let index = availableDevices.firstIndex(where: { $0.id == device.endpointId }) {
+                // 既存のデバイスを更新
+                availableDevices[index] = androidDevice
+            } else {
+                // デバイスが一覧にない場合は追加
+                availableDevices.append(androidDevice)
+                alertMessage = "接続完了: \(device.deviceName) が一覧に追加されました"
+                showingConnectionAlert = true
+            }
+            
+            isConnected = true
+        }
+    }
+    
+    nonisolated func onDeviceDisconnected(endpointId: String) {
+        onDisconnected(endpointId)
+    }
+    
+    nonisolated func onMessageReceived(message: Message) {
+        Task { @MainActor in
+            // メッセージ受信時の処理
+            print("PairingSettingViewModel - Message Received: \(message.content)")
+        }
+    }
+}

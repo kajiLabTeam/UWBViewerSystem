@@ -12,7 +12,7 @@ import SwiftUI
 struct UWBViewerSystemApp: App {
     /// アプリ全体で使用するルーター
     /// - Note: NavigationRouterModelはObservableObjectを継承しているため、@StateObjectで使用することができる
-    @StateObject var router = NavigationRouterModel()
+    @StateObject var router = NavigationRouterModel.shared
 
     var body: some Scene {
         WindowGroup {

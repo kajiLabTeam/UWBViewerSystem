@@ -126,8 +126,19 @@ class PairingSettingViewModel: ObservableObject {
     func startDeviceDiscovery() {
         isScanning = true
         
-        // 接続されていない（未接続）デバイスのみ削除し、接続済みデバイスは保持
-        availableDevices.removeAll { !$0.isConnected }
+        // 接続済みデバイスとペアリング済みデバイスのみ保持し、それ以外を削除
+        availableDevices.removeAll { device in
+            // 接続済みの場合は保持
+            if device.isConnected {
+                return false
+            }
+            // ペアリング済み（アンテナと紐付け済み）の場合も保持
+            if antennaPairings.contains(where: { $0.device.id == device.id }) {
+                return false
+            }
+            // それ以外（未接続かつ未ペアリング）は削除
+            return true
+        }
         
         // NearBy Connectionでデバイス検索を開始
         nearbyRepository.startDiscovery()
@@ -140,8 +151,8 @@ class PairingSettingViewModel: ObservableObject {
     
     func stopDeviceDiscovery() {
         isScanning = false
-        // discovererを直接操作せず、NearbyRepositoryのメソッドを使用
-        nearbyRepository.resetAll() // これにより検索も停止される
+        // 検索のみを停止し、既存の接続は維持する
+        nearbyRepository.stopDiscoveryOnly()
     }
     
     // MARK: - Antenna Pairing
@@ -192,8 +203,25 @@ class PairingSettingViewModel: ObservableObject {
                     connectionRequestHandlers.removeValue(forKey: device.id)
                     alertMessage = "\(antenna.name) と \(device.name) の紐付け・接続を開始しました"
                 } else {
-                    // ハンドラーがない場合は、端末が再接続を試みるまで待機
-                    alertMessage = "\(antenna.name) と \(device.name) の紐付けを作成しました。端末からの接続をお待ちください..."
+                    // ハンドラーがない場合は、Mac側から能動的にペアリングを開始
+                    
+                    // 1. まずDiscoveryを開始（Android側の再接続を促す）
+                    if !isScanning {
+                        nearbyRepository.startDiscovery()
+                        isScanning = true
+                        
+                        // 10秒後に自動停止
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) { [weak self] in
+                            self?.stopDeviceDiscovery()
+                        }
+                    }
+                    
+                    // 2. Android側に再接続指示メッセージを送信（もし既に何らかの接続がある場合）
+                    let reconnectCommand = "RECONNECT_REQUEST:\(device.id)"
+                    // 他のAndroid端末経由で再接続指示を送る可能性もある
+                    nearbyRepository.sendData(text: reconnectCommand)
+                    
+                    alertMessage = "\(antenna.name) と \(device.name) の紐付けを作成し、接続を開始中..."
                 }
             }
             showingConnectionAlert = true
@@ -354,9 +382,13 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
             // 接続要求ハンドラーを保存して後で使用（アンテナ紐付け時に使用）
             connectionRequestHandlers[endpointId] = responseHandler
             
-            // 検索時は接続しない - ハンドラーを保存するのみで接続は承認しない
-            // アンテナ紐付け時に接続を実行する仕様に変更
-            print("端末発見・保存完了: \(deviceName) (ID: \(endpointId))")
+            // 検索時も接続を承認するように変更
+            alertMessage = "\(deviceName) からの接続要求を承認しました"
+            showingConnectionAlert = true
+            responseHandler(true) // 接続を承認
+            connectionRequestHandlers.removeValue(forKey: endpointId)
+            
+            print("端末発見・接続完了: \(deviceName) (ID: \(endpointId))")
         }
     }
     
@@ -381,6 +413,15 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
                     print("接続成功したがデバイスが一覧にないため追加: \(endpointId)")
                 }
                 isConnected = true
+                
+                // 接続成功時、既にアンテナ紐付け済みの場合はペアリング情報を送信
+                if let pairing = antennaPairings.first(where: { $0.device.id == endpointId }) {
+                    let pairingInfo = "PAIRING:\(pairing.antenna.id):\(pairing.antenna.name)"
+                    nearbyRepository.sendDataToDevice(text: pairingInfo, toEndpointId: endpointId)
+                    
+                    alertMessage = "接続完了: \(pairing.device.name) にペアリング情報を送信しました"
+                    showingConnectionAlert = true
+                }
             } else {
                 // 接続失敗時の処理
                 print("接続失敗: \(endpointId)")

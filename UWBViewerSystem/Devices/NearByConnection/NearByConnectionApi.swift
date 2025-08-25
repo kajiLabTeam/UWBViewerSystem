@@ -143,6 +143,7 @@ class NearbyRepository: NSObject {
     private var connectedDevices: [String: ConnectedDevice] = [:]
     private var messages: [Message] = []
     private var deviceNames: [String: String] = [:] // endpointId -> deviceName
+    private var isDiscovering = false // Discovery状態を管理
 
     init(nickName: String = "harutiro",
          serviceId: String = "net.harutiro.UWBSystem") {
@@ -196,16 +197,30 @@ class NearbyRepository: NSObject {
             callback?.onConnectionStateChanged(state: "Discoverer未初期化")
             return
         }
+        
+        // 既にDiscovery中の場合は何もしない
+        if isDiscovering {
+            callback?.onConnectionStateChanged(state: "既に検索中です")
+            return
+        }
 
         discoverer.startDiscovery { [weak self] error in
             DispatchQueue.main.async {
                 if let error {
+                    self?.isDiscovering = false
                     self?.callback?.onConnectionStateChanged(state: "発見開始エラー: \(error.localizedDescription)")
                 } else {
+                    self?.isDiscovering = true
                     self?.callback?.onConnectionStateChanged(state: "発見開始成功")
                 }
             }
         }
+    }
+    
+    func stopDiscoveryOnly() {
+        discoverer?.stopDiscovery()
+        isDiscovering = false
+        callback?.onConnectionStateChanged(state: "検索停止（接続は維持）")
     }
 
     func sendData(text: String) {
@@ -304,6 +319,7 @@ class NearbyRepository: NSObject {
 
         advertiser?.stopAdvertising()
         discoverer?.stopDiscovery()
+        isDiscovering = false // Discovery状態もリセット
         
         messages.removeAll()
 
@@ -315,6 +331,7 @@ class NearbyRepository: NSObject {
         advertiser?.stopAdvertising()
         callback?.onConnectionStateChanged(state: "広告停止")
     }
+    
     
     func disconnect(_ endpointId: String) {
         disconnectFromDevice(endpointId: endpointId)

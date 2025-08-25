@@ -128,6 +128,7 @@ struct PairingSettingView: View {
                             antennas: viewModel.selectedAntennas.filter { antenna in
                                 !viewModel.antennaPairings.contains { $0.antenna.id == antenna.id }
                             },
+                            antennaPairings: viewModel.antennaPairings,
                             onPair: { antenna in
                                 viewModel.pairAntennaWithDevice(antenna: antenna, device: device)
                             }
@@ -257,6 +258,7 @@ struct PairingAntennaListItem: View {
 struct DeviceListItem: View {
     let device: AndroidDevice
     let antennas: [AntennaInfo]
+    let antennaPairings: [AntennaPairing]
     let onPair: (AntennaInfo) -> Void
     
     @State private var selectedAntenna: AntennaInfo?
@@ -302,8 +304,11 @@ struct DeviceListItem: View {
             
             Spacer()
             
-            if device.isConnected {
-                // 1対1対応: 接続済みデバイスには「ペア済み」を表示（ペアリングボタンなし）
+            // アンテナと紐付け済みかチェック
+            let isAntennaLinked = antennaPairings.contains(where: { $0.device.id == device.id })
+            
+            if isAntennaLinked {
+                // アンテナと紐付け済みの場合は「ペア済み」を表示
                 Text("ペア済み")
                     .font(.caption)
                     .foregroundColor(.green)
@@ -327,8 +332,8 @@ struct DeviceListItem: View {
                 .background(Color.orange)
                 .cornerRadius(8)
             } else {
-                // 利用可能なアンテナがない場合
-                Text("ペア済み")
+                // 利用可能なアンテナがない場合（すべてのアンテナが他の端末と紐付け済み）
+                Text("アンテナなし")
                     .font(.caption)
                     .foregroundColor(.gray)
                     .padding(.horizontal, 8)

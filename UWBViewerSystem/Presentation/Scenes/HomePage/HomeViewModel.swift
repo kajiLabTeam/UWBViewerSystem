@@ -80,17 +80,24 @@ class DeviceRealtimeData: Identifiable, ObservableObject {
     }
 }
 
-// JSONパース用の構造体
+// JSONパース用の構造体（Android側のデータ構造に合わせる）
 struct RealtimeDataMessage: Codable {
     let type: String
     let deviceName: String
     let timestamp: TimeInterval
-    let elevation: Double
-    let azimuth: Double
-    let distance: Double
-    let nlos: Int
-    let rssi: Double
-    let seqCount: Int
+    let data: RealtimeDataPayload
+    
+    struct RealtimeDataPayload: Codable {
+        let elevation: Double
+        let azimuth: Double
+        let distance: Int  // Androidから整数で送られる
+        let nlos: Int
+        let rssi: Double
+        let seqCount: Int
+        let elevationFom: Int?
+        let pDoA1: Double?  // Androidから数値で送られる
+        let pDoA2: Double?  // Androidから数値で送られる
+    }
 }
 
 // 受信ファイルの構造体
@@ -120,8 +127,9 @@ struct ReceivedFile: Identifiable {
 class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     static let shared = HomeViewModel()
     
-    private let nearByRepository: NearbyRepository
+    let nearByRepository: NearbyRepository
     private let locationManager = CLLocationManager()
+    private var realtimeUpdateTimer: Timer?
     
     private override init() {
         nearByRepository = NearbyRepository()
@@ -209,17 +217,36 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     
     // センシング制御コマンド送信機能
     func startRemoteSensing(fileName: String) {
+        print("=== センシング開始処理開始 ===")
+        print("ファイル名: \(fileName)")
+        
         guard !fileName.isEmpty else {
             sensingStatus = "ファイル名を入力してください"
+            print("エラー: ファイル名が空です")
             return
         }
         
-        guard nearByRepository.hasConnectedDevices() else {
-            sensingStatus = "接続された端末がありません"
+        let hasConnected = nearByRepository.hasConnectedDevices()
+        let connectedCount = connectedEndpoints.count
+        let deviceNamesCount = connectedDeviceNames.count
+        
+        print("接続状態チェック:")
+        print("- hasConnectedDevices: \(hasConnected)")
+        print("- connectedEndpoints.count: \(connectedCount)")
+        print("- connectedDeviceNames.count: \(deviceNamesCount)")
+        print("- connectedEndpoints: \(connectedEndpoints)")
+        print("- connectedDeviceNames: \(connectedDeviceNames)")
+        
+        guard hasConnected else {
+            sensingStatus = "接続された端末がありません（\(connectedCount)台接続中）"
+            print("エラー: 接続された端末がありません")
             return
         }
         
         let command = "SENSING_START:\(fileName)"
+        print("送信するコマンド: \(command)")
+        print("送信対象端末数: \(connectedCount)")
+        
         nearByRepository.sendData(text: command)
         sensingStatus = "センシング開始コマンド送信: \(fileName)"
         isSensingControlActive = true
@@ -229,7 +256,15 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         currentSensingFileName = fileName
         
         // 接続状態も更新
-        connectState = "センシング開始コマンド送信完了"
+        connectState = "センシング開始コマンド送信完了（\(connectedCount)台に送信）"
+        
+        // 送信確認のため、少し遅らせてテストメッセージも送信
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            print("=== フォローアップテストメッセージ送信 ===")
+            self.nearByRepository.sendData(text: "SENSING_TEST_FOLLOW_UP")
+        }
+        
+        print("=== センシング開始処理完了 ===")
     }
     
     func stopRemoteSensing() {
@@ -347,74 +382,82 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     }
     
     private func processRealtimeDataJSON(_ json: [String: Any], fromEndpointId: String) {
-        print("=== processRealtimeDataJSON開始 ===")
+        print("=== 🔄 processRealtimeDataJSON開始 ===")
+        print("🔄 受信エンドポイントID: \(fromEndpointId)")
+        print("🔄 JSONキー: \(json.keys.sorted())")
         
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: json)
-            print("JSON再シリアライズ成功: \(jsonData.count) bytes")
+            print("✅ JSON再シリアライズ成功: \(jsonData.count) bytes")
             
             let realtimeMessage = try JSONDecoder().decode(RealtimeDataMessage.self, from: jsonData)
-            print("RealtimeDataMessage デコード成功")
-            print("デバイス名: \(realtimeMessage.deviceName)")
-            print("Elevation: \(realtimeMessage.elevation)")
-            print("Azimuth: \(realtimeMessage.azimuth)")
-            print("Distance: \(realtimeMessage.distance)")
-            print("SeqCount: \(realtimeMessage.seqCount)")
+            print("✅ RealtimeDataMessage デコード成功")
+            print("📱 デバイス名: \(realtimeMessage.deviceName)")
+            print("📐 Elevation: \(realtimeMessage.data.elevation)°")
+            print("🧭 Azimuth: \(realtimeMessage.data.azimuth)°")
+            print("📏 Distance: \(realtimeMessage.data.distance)m")
+            print("📊 SeqCount: \(realtimeMessage.data.seqCount)")
+            print("📡 RSSI: \(realtimeMessage.data.rssi)dBm")
+            print("🚧 NLOS: \(realtimeMessage.data.nlos)")
             
             // リアルタイムデータリストに追加
             let realtimeData = RealtimeData(
                 id: UUID(),
                 deviceName: realtimeMessage.deviceName,
                 timestamp: realtimeMessage.timestamp,
-                elevation: realtimeMessage.elevation,
-                azimuth: realtimeMessage.azimuth,
-                distance: realtimeMessage.distance,
-                nlos: realtimeMessage.nlos,
-                rssi: realtimeMessage.rssi,
-                seqCount: realtimeMessage.seqCount
+                elevation: realtimeMessage.data.elevation,
+                azimuth: realtimeMessage.data.azimuth,
+                distance: Double(realtimeMessage.data.distance), // IntからDoubleに変換
+                nlos: realtimeMessage.data.nlos,
+                rssi: realtimeMessage.data.rssi,
+                seqCount: realtimeMessage.data.seqCount
             )
             
             print("RealtimeData オブジェクト作成成功")
             
-            // デバイス別データ管理
-            if let index = deviceRealtimeDataList.firstIndex(where: { $0.deviceName == realtimeMessage.deviceName }) {
-                // 既存デバイスのデータ更新
-                print("既存デバイス更新: \(realtimeMessage.deviceName) (インデックス: \(index))")
-                let deviceData = deviceRealtimeDataList[index]
-                deviceData.latestData = realtimeData
-                deviceData.dataHistory.append(realtimeData)
-                deviceData.lastUpdateTime = Date()
-                deviceData.isActive = true
-                
-                // 最新20件のデータのみ保持
-                if deviceData.dataHistory.count > 20 {
-                    deviceData.dataHistory.removeFirst()
+            // デバイス別データ管理 - メインスレッドで確実にUI更新
+            DispatchQueue.main.async {
+                if let index = self.deviceRealtimeDataList.firstIndex(where: { $0.deviceName == realtimeMessage.deviceName }) {
+                    // 既存デバイスのデータ更新
+                    print("🟡 既存デバイス更新: \(realtimeMessage.deviceName) (インデックス: \(index))")
+                    
+                    // 配列の要素を直接更新してUI変更をトリガー
+                    var updatedDevice = self.deviceRealtimeDataList[index]
+                    updatedDevice.latestData = realtimeData
+                    updatedDevice.dataHistory.append(realtimeData)
+                    updatedDevice.lastUpdateTime = Date()
+                    updatedDevice.isActive = true
+                    
+                    // 最新20件のデータのみ保持
+                    if updatedDevice.dataHistory.count > 20 {
+                        updatedDevice.dataHistory.removeFirst()
+                    }
+                    
+                    // 配列を完全に再構築してUI更新をトリガー
+                    var newList = self.deviceRealtimeDataList
+                    newList[index] = updatedDevice
+                    self.deviceRealtimeDataList = newList
+                    
+                    print("🟢 デバイスデータ更新完了: 履歴数=\(updatedDevice.dataHistory.count)")
+                    print("🟢 最新データ: 距離=\(realtimeData.distance)m, 仰角=\(realtimeData.elevation)°, 方位=\(realtimeData.azimuth)°")
+                    
+                } else {
+                    // 新しいデバイスのデータ追加
+                    print("🆕 新デバイス追加: \(realtimeMessage.deviceName)")
+                    let newDeviceData = DeviceRealtimeData(
+                        deviceName: realtimeMessage.deviceName,
+                        latestData: realtimeData,
+                        dataHistory: [realtimeData],
+                        lastUpdateTime: Date(),
+                        isActive: true
+                    )
+                    self.deviceRealtimeDataList.append(newDeviceData)
+                    print("🟢 デバイス追加完了: 総デバイス数=\(self.deviceRealtimeDataList.count)")
                 }
                 
-                print("デバイスデータ更新完了: 履歴数=\(deviceData.dataHistory.count)")
-                
-                // UIの更新を強制的にトリガー
-                deviceData.objectWillChange.send()
-                objectWillChange.send()
-                
-                // 配列を明示的に更新してUIの再描画を確実にする
-                let updatedList = deviceRealtimeDataList
-                deviceRealtimeDataList = updatedList
-            } else {
-                // 新しいデバイスのデータ追加
-                print("新デバイス追加: \(realtimeMessage.deviceName)")
-                let newDeviceData = DeviceRealtimeData(
-                    deviceName: realtimeMessage.deviceName,
-                    latestData: realtimeData,
-                    dataHistory: [realtimeData],
-                    lastUpdateTime: Date(),
-                    isActive: true
-                )
-                deviceRealtimeDataList.append(newDeviceData)
-                print("デバイス追加完了: 総デバイス数=\(deviceRealtimeDataList.count)")
-                
-                // UIの更新を強制的にトリガー
-                objectWillChange.send()
+                // 強制的に全体UI更新
+                self.objectWillChange.send()
+                print("🔄 UI更新通知送信完了")
             }
             
             isReceivingRealtimeData = true
@@ -545,6 +588,12 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             return "センシング開始コマンド"
         } else if data == "SENSING_STOP" {
             return "センシング終了コマンド"
+        } else if data == "SENSING_STARTED_OK" {
+            return "センシング開始確認"
+        } else if data == "SENSING_STOPPED_OK" {
+            return "センシング停止確認"
+        } else if data.hasPrefix("COMMAND_RECEIVED:") {
+            return "コマンド受信確認"
         } else {
             return "その他 (\(String(data.prefix(20)))...)"
         }
@@ -605,6 +654,44 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     
     func onMessageReceived(message: Message) {
         DispatchQueue.main.async {
+            print("🔵 Mac HomeViewModel: onMessageReceived")
+            print("🔵 エンドポイント: \(String(describing: message.fromEndpointId))")
+            print("🔵 デバイス名: \(message.fromDeviceName)")
+            print("🔵 メッセージ長: \(message.content.count) 文字")
+            print("🔵 メッセージ先頭: \(String(message.content.prefix(100)))")
+            
+            if message.content.contains("REALTIME_DATA") {
+                print("🟢 REALTIME_DATAを検出 - 直接処理開始")
+                // JSONデータを解析
+                if let data = message.content.data(using: .utf8) {
+                    do {
+                        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                            print("🟢 JSON解析成功 - processRealtimeDataJSON呼び出し")
+                            self.processRealtimeDataJSON(json, fromEndpointId: message.fromEndpointId ?? "unknown")
+                        }
+                    } catch {
+                        print("🔴 JSON解析エラー: \(error)")
+                    }
+                }
+            } else {
+                print("🔴 非REALTIME_DATAメッセージ: \(message.content)")
+                
+                // メッセージの詳細分析
+                if message.content.contains("SENSING") {
+                    print("📡 センシング関連メッセージを受信")
+                    if message.content.contains("START") {
+                        print("🚀 Android側でセンシング開始 - REALTIME_DATA待機中...")
+                    } else if message.content.contains("STOP") {
+                        print("⏸️ Android側でセンシング停止")
+                        self.clearRealtimeData()
+                    } else if message.content.contains("TEST") || message.content.contains("FOLLOW_UP") {
+                        print("🧪 テスト/フォローアップメッセージ - センシング状態確認要")
+                    }
+                } else {
+                    print("❓ 不明なメッセージタイプ")
+                }
+            }
+            
             self.receivedDataList.append((message.fromDeviceName, message.content))
         }
     }
@@ -741,6 +828,19 @@ extension HomeViewModel: CLLocationManagerDelegate {
             break
         @unknown default:
             break
+        }
+    }
+    
+    // MARK: - Realtime Data Management
+    
+    // テスト機能は削除 - 実際のUWBデータのみ使用
+    
+    func clearRealtimeData() {
+        print("🗑️ リアルタイムデータクリア")
+        DispatchQueue.main.async {
+            self.deviceRealtimeDataList.removeAll()
+            self.isReceivingRealtimeData = false
+            self.objectWillChange.send()
         }
     }
 }

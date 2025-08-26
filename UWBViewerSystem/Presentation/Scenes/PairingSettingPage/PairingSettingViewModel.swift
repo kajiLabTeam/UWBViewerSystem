@@ -62,8 +62,9 @@ class PairingSettingViewModel: ObservableObject {
     }
     
     init() {
-        nearbyRepository = NearbyRepository(nickName: "UWBViewer_\(UUID().uuidString.prefix(8))", 
-                                          serviceId: "net.harutiro.UWBSystem")
+        // HomeViewModelと同じNearbyRepositoryを使用
+        nearbyRepository = HomeViewModel.shared.nearByRepository
+        // 複数のcallbackをサポートするために、一時的にcallbackを切り替える
         nearbyRepository.callback = self
         
         loadSampleAntennas()
@@ -481,6 +482,14 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
             }
             
             isConnected = true
+            
+            // HomeViewModelにも接続情報を同期（重要）
+            HomeViewModel.shared.connectedEndpoints.insert(device.endpointId)
+            HomeViewModel.shared.connectedDeviceNames.insert(device.deviceName)
+            HomeViewModel.shared.connectState = "接続完了: \(device.deviceName)"
+            
+            // HomeViewModelのコールバックも呼び出す
+            HomeViewModel.shared.onDeviceConnected(device: device)
         }
     }
     
@@ -492,6 +501,15 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
         Task { @MainActor in
             // メッセージ受信時の処理
             print("PairingSettingViewModel - Message Received: \(message.content)")
+            
+            // HomeViewModelにメッセージを転送（特にREALTIME_DATAの場合）
+            if message.content.contains("REALTIME_DATA") {
+                print("🔄 PairingSettingViewModel -> HomeViewModel: REALTIME_DATAを転送")
+                HomeViewModel.shared.onMessageReceived(message: message)
+            } else {
+                // 他のメッセージもHomeViewModelに転送
+                HomeViewModel.shared.onMessageReceived(message: message)
+            }
         }
     }
 }

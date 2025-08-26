@@ -402,33 +402,52 @@ struct StatusBadge: View {
 }
 
 struct RealtimeDataRow: View {
-    let data: RealtimeDataPoint
+    let data: RealtimeData
     
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(spacing: 4) {
+            HStack {
                 Text(data.deviceName)
                     .font(.caption)
                     .fontWeight(.medium)
                 
-                Text("距離: \(String(format: "%.2f", data.distance))m")
+                Spacer()
+                
+                Text(data.formattedTime)
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
             
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("RSSI: \(data.rssi)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("距離: \(String(format: "%.2f", data.distance))m")
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                    
+                    Text("仰角: \(String(format: "%.1f", data.elevation))°")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                }
                 
-                Text(DateFormatter.timeFormatter.string(from: data.timestamp))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("方位: \(String(format: "%.1f", data.azimuth))°")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    
+                    Text("RSSI: \(String(format: "%.0f", data.rssi))")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
         }
         .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.gray.opacity(0.1))
+        )
     }
 }
 

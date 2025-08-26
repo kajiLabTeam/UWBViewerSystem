@@ -5,7 +5,7 @@ import Combine
 @MainActor
 class SensingManagementViewModel: ObservableObject {
     @Published var antennaDevices: [AntennaDevice] = []
-    @Published var realtimeData: [RealtimeDataPoint] = []
+    @Published var realtimeData: [RealtimeData] = []
     @Published var isSensingActive = false
     @Published var isPaused = false
     @Published var sensingDuration = "00:00:00"
@@ -16,6 +16,7 @@ class SensingManagementViewModel: ObservableObject {
     @Published var autoSave = true
     
     private var homeViewModel = HomeViewModel.shared
+    private var dataCollectionViewModel = DataCollectionViewModel.shared
     private var cancellables = Set<AnyCancellable>()
     private var sensingStartTime: Date?
     private var durationTimer: Timer?
@@ -60,8 +61,15 @@ class SensingManagementViewModel: ObservableObject {
         homeViewModel.$isSensingControlActive
             .assign(to: &$isSensingActive)
         
-        // HomeViewModelからのリアルタイムデータを監視（モック実装）
-        realtimeData = []
+        // HomeViewModelからのリアルタイムデータを監視
+        homeViewModel.$deviceRealtimeDataList
+            .map { deviceDataList in
+                // デバイスリストから最新のリアルタイムデータを抽出
+                deviceDataList.compactMap { deviceData in
+                    return deviceData.latestData
+                }
+            }
+            .assign(to: &$realtimeData)
         
         // データポイント数を監視
         $realtimeData
@@ -99,8 +107,11 @@ class SensingManagementViewModel: ObservableObject {
         currentFileName = sensingFileName
         sensingStartTime = Date()
         
-        // HomeViewModelでセンシング開始
-        homeViewModel.startRemoteSensing(fileName: currentFileName)
+        // DataCollectionViewModel経由でセンシング開始（セッション作成のため）
+        dataCollectionViewModel.startSensing(fileName: currentFileName)
+        
+        // リアルタイム表示の準備
+        print("🚀 センシング開始: UWBリアルタイムデータ受信準備完了")
         
         // 継続時間タイマーを開始
         startDurationTimer()
@@ -115,8 +126,13 @@ class SensingManagementViewModel: ObservableObject {
     }
     
     func stopSensing() {
-        homeViewModel.stopRemoteSensing()
+        // DataCollectionViewModel経由でセンシング停止（セッション完了のため）
+        dataCollectionViewModel.stopSensing()
         stopDurationTimer()
+        
+        // リアルタイムデータクリア
+        print("🛑 センシング停止: リアルタイムデータをクリア")
+        homeViewModel.clearRealtimeData()
         
         // センシング完了時の処理
         if autoSave {

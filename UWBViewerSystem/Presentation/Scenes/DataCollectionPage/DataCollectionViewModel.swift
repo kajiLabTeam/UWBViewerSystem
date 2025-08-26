@@ -6,6 +6,8 @@ import Combine
 
 @MainActor
 class DataCollectionViewModel: ObservableObject {
+    static let shared = DataCollectionViewModel()
+    
     @Published var isSensingActive = false
     @Published var sensingStatus = "センシング停止中"
     @Published var currentFileName = ""

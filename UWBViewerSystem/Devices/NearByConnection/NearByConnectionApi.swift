@@ -224,24 +224,39 @@ class NearbyRepository: NSObject {
     }
 
     func sendData(text: String) {
+        print("=== NearbyRepository sendData開始 ===")
+        print("送信データ: \(text)")
+        
         guard let connectionManager else {
+            print("エラー: ConnectionManager未初期化")
             callback?.onConnectionStateChanged(state: "ConnectionManager未初期化")
             return
         }
 
         guard !remoteEndpointIds.isEmpty else {
-            callback?.onConnectionStateChanged(state: "送信先なし")
+            print("エラー: 送信先なし")
+            print("remoteEndpointIds: \(remoteEndpointIds)")
+            print("connectedDevices: \(connectedDevices.keys)")
+            callback?.onConnectionStateChanged(state: "送信先なし（接続端末: \(connectedDevices.count)台）")
             return
         }
 
         let data = Data(text.utf8)
         let endpointIds = Array(remoteEndpointIds)
+        
+        print("送信先エンドポイント:")
+        for endpointId in endpointIds {
+            let deviceName = deviceNames[endpointId] ?? "Unknown"
+            print("- \(endpointId): \(deviceName)")
+        }
 
         _ = connectionManager.send(data, to: endpointIds) { [weak self] error in
             DispatchQueue.main.async {
                 if let error {
+                    print("データ送信エラー: \(error.localizedDescription)")
                     self?.callback?.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
                 } else {
+                    print("データ送信成功: \(text)")
                     self?.callback?.onConnectionStateChanged(state: "データ送信完了: \(text)")
                     
                     // メッセージ履歴に追加
@@ -257,6 +272,8 @@ class NearbyRepository: NSObject {
                 }
             }
         }
+        
+        print("=== NearbyRepository sendData終了 ===")
     }
     
     // 新しいメソッド

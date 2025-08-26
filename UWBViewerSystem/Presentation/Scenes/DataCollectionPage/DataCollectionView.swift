@@ -3,28 +3,37 @@ import SwiftUI
 /// データ取得専用画面
 /// センシング制御に特化し、参考デザイン「Stitch Design-4.png」に対応
 struct DataCollectionView: View {
-    @StateObject private var viewModel = DataCollectionViewModel()
+    @ObservedObject private var viewModel = DataCollectionViewModel.shared
+    @ObservedObject private var homeViewModel = HomeViewModel.shared
     @EnvironmentObject var router: NavigationRouterModel
     @State private var sensingFileName = ""
     @State private var showFileNameAlert = false
     
     var body: some View {
-        VStack(spacing: 24) {
-            headerSection
-            
-            Divider()
-            
-            sensingControlCard
-            
-            if viewModel.isSensingActive {
-                currentSessionCard
+        ScrollView {
+            VStack(spacing: 24) {
+                headerSection
+                
+                Divider()
+                
+                sensingControlCard
+                
+                // リアルタイムセンサーデータ表示（常時表示）
+                VStack {
+                    Text("🔍 デバッグ: リアルタイムセクション表示中")
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                        .padding(.bottom, 4)
+                    realtimeDataDisplaySection
+                }
+                
+                recentSessionsCard
+                
+                // 下部のスペースを確保
+                Spacer(minLength: 50)
             }
-            
-            recentSessionsCard
-            
-            Spacer()
+            .padding()
         }
-        .padding()
         .navigationTitle("データ取得")
         .alert("ファイル名が必要です", isPresented: $showFileNameAlert) {
             Button("OK") { }
@@ -151,49 +160,6 @@ struct DataCollectionView: View {
         .cornerRadius(8)
     }
     
-    // MARK: - Current Session Card
-    private var currentSessionCard: some View {
-        VStack(spacing: 16) {
-            Text("現在のセッション")
-                .font(.headline)
-                .fontWeight(.semibold)
-            
-            VStack(spacing: 12) {
-                HStack {
-                    Text("ファイル名:")
-                        .fontWeight(.medium)
-                    Spacer()
-                    Text(viewModel.currentFileName)
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Text("データポイント数:")
-                        .fontWeight(.medium)
-                    Spacer()
-                    Text("\(viewModel.dataPointCount)")
-                        .foregroundColor(.blue)
-                        .fontWeight(.semibold)
-                }
-                
-                HStack {
-                    Text("接続端末数:")
-                        .fontWeight(.medium)
-                    Spacer()
-                    Text("\(viewModel.connectedDeviceCount)")
-                        .foregroundColor(.green)
-                        .fontWeight(.semibold)
-                }
-            }
-            .padding()
-            .background(Color.blue.opacity(0.05))
-            .cornerRadius(8)
-        }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(16)
-    }
-    
     // MARK: - Recent Sessions Card
     private var recentSessionsCard: some View {
         VStack(spacing: 16) {
@@ -243,6 +209,501 @@ struct DataCollectionView: View {
     private func stopSensing() {
         viewModel.stopSensing()
     }
+    
+    // MARK: - Standalone Realtime Data Display Section
+    private var realtimeDataDisplaySection: some View {
+        VStack(spacing: 16) {
+            // デバッグ表示
+            Text("🔍 セクション内部: count=\(homeViewModel.deviceRealtimeDataList.count)")
+                .font(.caption2)
+                .foregroundColor(.red)
+            
+            HStack {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                Text("リアルタイムセンサーデータ")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+            }
+            
+            // リアルタイムデータ接続状態表示
+            VStack(spacing: 8) {
+                HStack {
+                    Circle()
+                        .fill(homeViewModel.deviceRealtimeDataList.isEmpty ? Color.gray : Color.green)
+                        .frame(width: 8, height: 8)
+                    
+                    Text(homeViewModel.deviceRealtimeDataList.isEmpty ? "UWBデータ待機中" : "UWBデータ受信中")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                if !homeViewModel.deviceRealtimeDataList.isEmpty {
+                    VStack(spacing: 2) {
+                        Text("最終更新: \(Date().formatted(.dateTime.hour().minute().second()))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
+                        Text("受信デバイス数: \(homeViewModel.deviceRealtimeDataList.count)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    VStack(spacing: 2) {
+                        Text("REALTIME_DATAメッセージ待機中")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                        
+                        Text("Android側でセンシング開始済みか確認")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+            
+            if homeViewModel.deviceRealtimeDataList.isEmpty {
+                // データなしの表示
+                VStack(spacing: 12) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray)
+                    
+                    Text("センサーデータを待機中...")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Android端末を接続してセンシングを開始してください")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    
+                    // 操作手順の表示
+                    VStack(spacing: 4) {
+                        Text("操作手順:")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                            .padding(.top, 8)
+                        
+                        Text("1. Android端末で「センシング開始」ボタンを押す")
+                        Text("2. UWBセンサーデータがリアルタイム表示されます")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+                .padding(40)
+                .frame(maxWidth: .infinity)
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+            } else {
+                // リアルタイムデータ表示
+                VStack(spacing: 12) {
+                    // 接続状態ヘッダー
+                    HStack {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 10, height: 10)
+                            
+                            Text("接続中")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.green)
+                        }
+                        
+                        Spacer()
+                        
+                        Text("\(homeViewModel.deviceRealtimeDataList.count)台のデバイス")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Button(action: {
+                            // データをクリア（デバッグ用）
+                            homeViewModel.clearRealtimeData()
+                        }) {
+                            Image(systemName: "trash")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(BorderlessButtonStyle())
+                    }
+                    .padding(.horizontal)
+                    
+                    // デバイス別データ表示
+                    ForEach(homeViewModel.deviceRealtimeDataList) { deviceData in
+                        if let latestData = deviceData.latestData {
+                            RealtimeDeviceCardView(deviceData: deviceData, latestData: latestData)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                )
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(16)
+    }
+    
+    // MARK: - Realtime Data Section
+    private var realtimeDataSection: some View {
+        Group {
+            if !homeViewModel.deviceRealtimeDataList.isEmpty {
+                VStack(spacing: 12) {
+                    realtimeDataHeader
+                    
+                    ForEach(homeViewModel.deviceRealtimeDataList) { deviceData in
+                        if let latestData = deviceData.latestData {
+                            DeviceDataCardView(deviceData: deviceData, latestData: latestData)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(8)
+            }
+        }
+    }
+    
+    private var realtimeDataHeader: some View {
+        HStack {
+            Text("リアルタイム計測値")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
+            
+            Spacer()
+            
+            Text("接続中: \(homeViewModel.deviceRealtimeDataList.count)台")
+                .font(.caption)
+                .foregroundColor(.green)
+                .fontWeight(.semibold)
+        }
+    }
+}
+
+// MARK: - Realtime Device Card View
+struct RealtimeDeviceCardView: View {
+    let deviceData: DeviceRealtimeData
+    let latestData: RealtimeData
+    
+    var body: some View {
+        VStack(spacing: 10) {
+            // デバイス名とリアルタイム更新インジケータ
+            HStack {
+                Text(deviceData.deviceName)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(deviceData.isRecentlyUpdated ? Color.green : Color.red)
+                        .frame(width: 8, height: 8)
+                    
+                    Text(deviceData.isRecentlyUpdated ? "LIVE" : "OFFLINE")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(deviceData.isRecentlyUpdated ? .green : .red)
+                }
+            }
+            
+            // データ品質バー
+            dataQualityBar
+            
+            // メイン計測値（大きく表示）
+            mainMeasurements
+            
+            // 補助情報
+            auxiliaryInfo
+            
+            // データ履歴
+            HStack {
+                Text("データ履歴: \(deviceData.dataHistory.count)件")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Text("更新: \(formatTimeAgo(deviceData.lastUpdateTime))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(16)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    deviceData.isRecentlyUpdated ? Color.blue.opacity(0.05) : Color.gray.opacity(0.05),
+                    deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.gray.opacity(0.02)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    deviceData.isRecentlyUpdated ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2),
+                    lineWidth: 1
+                )
+        )
+    }
+    
+    private var dataQualityBar: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<5) { index in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(qualityBarColor(for: index))
+                    .frame(height: 4)
+            }
+        }
+        .frame(height: 4)
+    }
+    
+    private func qualityBarColor(for index: Int) -> Color {
+        let quality = dataQuality
+        if index < quality {
+            return quality >= 4 ? .green : quality >= 2 ? .orange : .red
+        } else {
+            return .gray.opacity(0.3)
+        }
+    }
+    
+    private var dataQuality: Int {
+        var quality = 0
+        if latestData.distance > 0 { quality += 1 }
+        if latestData.elevation != 0 { quality += 1 }
+        if latestData.azimuth != 0 { quality += 1 }
+        if latestData.rssi > -80 { quality += 1 }
+        if latestData.nlos == 0 { quality += 1 }
+        return quality
+    }
+    
+    private var mainMeasurements: some View {
+        VStack(spacing: 16) {
+            // 距離表示（進歩バー式）
+            VStack(spacing: 8) {
+                HStack {
+                    Text("距離")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(String(format: "%.0f", latestData.distance)) cm")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.blue)
+                }
+                
+                DistanceProgressView(distance: latestData.distance, maxDistance: 1000.0) // 10m = 1000cm
+            }
+            
+            // 仰角と方位（コンパス形式）
+            HStack(spacing: 24) {
+                // 仰角ゲージ
+                VStack(spacing: 8) {
+                    Text("仰角")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    ElevationGaugeView(elevation: latestData.elevation)
+                    
+                    Text("\(String(format: "%.1f", latestData.elevation))°")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.green)
+                }
+                .frame(maxWidth: .infinity)
+                
+                Divider()
+                    .frame(height: 80)
+                
+                // 方位コンパス
+                VStack(spacing: 8) {
+                    Text("方位")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    AzimuthCompassView(azimuth: latestData.azimuth)
+                    
+                    Text("\(String(format: "%.1f", latestData.azimuth))°")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.orange)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+    
+    private var auxiliaryInfo: some View {
+        HStack(spacing: 16) {
+            HStack {
+                Text("RSSI:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("\(String(format: "%.0f", latestData.rssi))dBm")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.purple)
+            }
+            
+            HStack {
+                Text("NLOS:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("\(latestData.nlos)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(latestData.nlos == 0 ? .green : .red)
+            }
+            
+            Spacer()
+            
+            HStack {
+                Text("Seq:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("\(latestData.seqCount)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.gray)
+            }
+        }
+    }
+}
+
+// MARK: - Device Data Card View
+struct DeviceDataCardView: View {
+    let deviceData: DeviceRealtimeData
+    let latestData: RealtimeData
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            deviceStatusHeader
+            measurementValues
+        }
+        .padding(12)
+        .background(backgroundColor)
+        .cornerRadius(8)
+        .overlay(borderOverlay)
+    }
+    
+    private var deviceStatusHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(deviceData.deviceName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
+                
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(deviceData.isRecentlyUpdated ? Color.green : Color.orange)
+                        .frame(width: 8, height: 8)
+                    
+                    Text(deviceData.isRecentlyUpdated ? "アクティブ" : "非アクティブ")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    Text("更新: \(formatTimeAgo(deviceData.lastUpdateTime))")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("データ履歴")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Text("\(deviceData.dataHistory.count)件")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.blue)
+            }
+        }
+    }
+    
+    private var measurementValues: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 12) {
+                MeasurementValueView(
+                    title: "距離",
+                    value: String(format: "%.2f", latestData.distance),
+                    unit: "m",
+                    color: .blue,
+                    quality: latestData.distance > 0 ? .good : .poor
+                )
+                
+                MeasurementValueView(
+                    title: "仰角",
+                    value: String(format: "%.1f", latestData.elevation),
+                    unit: "°",
+                    color: .green,
+                    quality: latestData.elevation != 0 ? .good : .poor
+                )
+                
+                MeasurementValueView(
+                    title: "方位",
+                    value: String(format: "%.1f", latestData.azimuth),
+                    unit: "°",
+                    color: .orange,
+                    quality: latestData.azimuth != 0 ? .good : .poor
+                )
+            }
+            
+            HStack(spacing: 12) {
+                MeasurementValueView(
+                    title: "RSSI",
+                    value: String(format: "%.0f", latestData.rssi),
+                    unit: "dBm",
+                    color: .purple,
+                    quality: latestData.rssi > -80 ? .good : .poor
+                )
+                
+                MeasurementValueView(
+                    title: "NLOS",
+                    value: "\(latestData.nlos)",
+                    unit: "",
+                    color: latestData.nlos == 0 ? .green : .red,
+                    quality: latestData.nlos == 0 ? .good : .poor
+                )
+                
+                MeasurementValueView(
+                    title: "SeqCount",
+                    value: "\(latestData.seqCount)",
+                    unit: "",
+                    color: .gray,
+                    quality: .good
+                )
+            }
+        }
+    }
+    
+    private var backgroundColor: Color {
+        deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.orange.opacity(0.05)
+    }
+    
+    private var borderOverlay: some View {
+        RoundedRectangle(cornerRadius: 8)
+            .stroke(
+                deviceData.isRecentlyUpdated ? Color.green.opacity(0.3) : Color.orange.opacity(0.3),
+                lineWidth: 1
+            )
+    }
 }
 
 // MARK: - Session Row View
@@ -278,9 +739,234 @@ struct SessionRowView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color.white)
+        .background(Color.primary.opacity(0.05))
         .cornerRadius(8)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+}
+
+// MARK: - Supporting Views and Functions
+
+enum MeasurementQuality {
+    case good, poor
+}
+
+struct MeasurementValueView: View {
+    let title: String
+    let value: String
+    let unit: String
+    let color: Color
+    let quality: MeasurementQuality
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 2) {
+                Text(value)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(color)
+                
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // 品質インジケータ
+            Circle()
+                .fill(quality == .good ? Color.green : Color.red)
+                .frame(width: 4, height: 4)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private func formatTimeAgo(_ date: Date) -> String {
+    let interval = Date().timeIntervalSince(date)
+    
+    if interval < 1 {
+        return "今"
+    } else if interval < 60 {
+        return "\(Int(interval))秒前"
+    } else if interval < 3600 {
+        return "\(Int(interval / 60))分前"
+    } else {
+        return "\(Int(interval / 3600))時間前"
+    }
+}
+
+// MARK: - GUI Components for Sensor Data
+
+struct DistanceProgressView: View {
+    let distance: Double
+    let maxDistance: Double
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // 背景バー
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 8)
+                
+                // 進歩バー
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(LinearGradient(
+                        gradient: Gradient(colors: [Color.blue, Color.cyan]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ))
+                    .frame(width: progressWidth(geometry.size.width), height: 8)
+                    .animation(.easeInOut(duration: 0.3), value: distance)
+                
+                // 距離マーカー（100cm刻み）
+                ForEach(stride(from: 0, to: Int(maxDistance) + 1, by: 100).map { $0 }, id: \.self) { cm in
+                    VStack {
+                        Rectangle()
+                            .fill(Color.gray)
+                            .frame(width: 1, height: cm % 200 == 0 ? 12 : 6)
+                        
+                        if cm % 200 == 0 {
+                            Text("\(cm/100)m")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .offset(x: CGFloat(cm) / maxDistance * geometry.size.width - 0.5)
+                }
+            }
+        }
+        .frame(height: 24)
+    }
+    
+    private func progressWidth(_ totalWidth: CGFloat) -> CGFloat {
+        let progress = min(distance / maxDistance, 1.0)
+        return totalWidth * progress
+    }
+}
+
+struct ElevationGaugeView: View {
+    let elevation: Double
+    
+    var body: some View {
+        ZStack {
+            // 背景円弧（右半分）
+            Path { path in
+                path.addArc(
+                    center: CGPoint(x: 30, y: 30),
+                    radius: 25,
+                    startAngle: .degrees(0),
+                    endAngle: .degrees(180),
+                    clockwise: false
+                )
+            }
+            .stroke(Color.gray.opacity(0.3), lineWidth: 6)
+            
+            // 仰角インジケータ円弧
+            Path { path in
+                let startAngle: Double = 0
+                let endAngle = (elevation + 60) / 120 * 180 // -60°〜+60° を 0°〜180° にマップ
+                path.addArc(
+                    center: CGPoint(x: 30, y: 30),
+                    radius: 25,
+                    startAngle: .degrees(startAngle),
+                    endAngle: .degrees(endAngle),
+                    clockwise: false
+                )
+            }
+            .stroke(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.green, Color.yellow]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ),
+                style: StrokeStyle(lineWidth: 6, lineCap: .round)
+            )
+            .animation(.easeInOut(duration: 0.3), value: elevation)
+            
+            // 中心点
+            Circle()
+                .fill(Color.green)
+                .frame(width: 8, height: 8)
+            
+            // 角度マーカー（-60°〜+60°用に調整）
+            ForEach([-60, -30, 0, 30, 60], id: \.self) { angle in
+                let markerAngle = (Double(angle) + 60) / 120 * 180 // -60°〜+60° を 0°〜180° にマップ
+                let centerX: Double = 30
+                let centerY: Double = 30
+                let startRadius = angle == 0 ? 20.0 : 22.0
+                let endRadius = angle == 0 ? 30.0 : 28.0
+                
+                ZStack {
+                    Path { path in
+                        let startX = centerX + cos(markerAngle * .pi / 180) * startRadius
+                        let startY = centerY + sin(markerAngle * .pi / 180) * startRadius
+                        let endX = centerX + cos(markerAngle * .pi / 180) * endRadius
+                        let endY = centerY + sin(markerAngle * .pi / 180) * endRadius
+                        
+                        path.move(to: CGPoint(x: startX, y: startY))
+                        path.addLine(to: CGPoint(x: endX, y: endY))
+                    }
+                    .stroke(Color.gray, lineWidth: angle == 0 ? 2 : 1)
+                    
+                    if angle == 0 {
+                        Text("0°")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .position(x: centerX + cos(markerAngle * .pi / 180) * 35, y: centerY + sin(markerAngle * .pi / 180) * 35)
+                    }
+                }
+            }
+        }
+        .frame(width: 60, height: 40)
+    }
+}
+
+struct AzimuthCompassView: View {
+    let azimuth: Double
+    
+    var body: some View {
+        ZStack {
+            // 背景円
+            Circle()
+                .stroke(Color.gray.opacity(0.3), lineWidth: 3)
+                .frame(width: 50, height: 50)
+            
+            // 方位マーカー（N, E, S, W）
+            ForEach([(0, "N"), (90, "E"), (180, "S"), (270, "W")], id: \.0) { angle, label in
+                VStack {
+                    Text(label)
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(label == "N" ? .red : .secondary)
+                    Rectangle()
+                        .fill(label == "N" ? Color.red : Color.gray)
+                        .frame(width: 1, height: label == "N" ? 8 : 4)
+                }
+                .offset(y: -25)
+                .rotationEffect(.degrees(Double(angle)))
+            }
+            
+            // 方位針
+            Path { path in
+                path.move(to: CGPoint(x: 25, y: 25))
+                path.addLine(to: CGPoint(x: 25, y: 8))
+            }
+            .stroke(Color.orange, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+            .rotationEffect(.degrees(azimuth))
+            .animation(.easeInOut(duration: 0.3), value: azimuth)
+            
+            // 中心点
+            Circle()
+                .fill(Color.orange)
+                .frame(width: 6, height: 6)
+        }
+        .frame(width: 50, height: 50)
     }
 }
 

@@ -10,7 +10,7 @@ struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel.shared
     @State private var messageToSend = ""
     @EnvironmentObject var router: NavigationRouterModel
-    @State private var sensingFileName = ""
+    @State private var sensingFileName = "sensing_data"  // デフォルト値を設定
     @State private var showSettingsMenu = false
     
     var body: some View {
@@ -78,6 +78,11 @@ struct HomeView: View {
                     // センシング制御ボタン
                     HStack(spacing: 12) {
                         Button(action: {
+                            print("センシング開始ボタンが押されました")
+                            print("ファイル名: \(sensingFileName)")
+                            if sensingFileName.isEmpty {
+                                sensingFileName = "sensing_\(Date().timeIntervalSince1970)"
+                            }
                             viewModel.startRemoteSensing(fileName: sensingFileName)
                         }) {
                             HStack {
@@ -100,6 +105,7 @@ struct HomeView: View {
                         .disabled(viewModel.isSensingControlActive || sensingFileName.isEmpty)
                         
                         Button(action: {
+                            print("センシング停止ボタンが押されました")
                             viewModel.stopRemoteSensing()
                         }) {
                             HStack {
@@ -186,6 +192,96 @@ struct HomeView: View {
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal)
+                    
+                    // デバッグ情報表示
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("接続デバッグ情報:")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.orange)
+                        
+                        Text("Endpoints: \(viewModel.connectedEndpoints.count)台")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
+                        Text("DeviceNames: \(viewModel.connectedDeviceNames.count)台")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
+                        if !viewModel.connectedEndpoints.isEmpty {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(Array(viewModel.connectedEndpoints), id: \.self) { endpoint in
+                                    Text("- \(endpoint)")
+                                        .font(.caption2)
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                        
+                        if !viewModel.connectedDeviceNames.isEmpty {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(Array(viewModel.connectedDeviceNames), id: \.self) { deviceName in
+                                    Text("- \(deviceName)")
+                                        .font(.caption2)
+                                        .foregroundColor(.green)
+                                }
+                            }
+                        }
+                        
+                        // テスト用ボタン
+                        VStack(spacing: 4) {
+                            HStack(spacing: 8) {
+                                Button("テスト送信") {
+                                    viewModel.sendData(text: "TEST_MESSAGE")
+                                }
+                                .font(.caption2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.purple.opacity(0.2))
+                                .foregroundColor(.purple)
+                                .cornerRadius(4)
+                                
+                                Button("PING送信") {
+                                    viewModel.sendData(text: "PING_TEST")
+                                }
+                                .font(.caption2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.blue.opacity(0.2))
+                                .foregroundColor(.blue)
+                                .cornerRadius(4)
+                            }
+                            
+                            HStack(spacing: 8) {
+                                Button("センシングテスト") {
+                                    print("直接センシング開始コマンドを送信")
+                                    viewModel.sendData(text: "SENSING_START:test_file")
+                                }
+                                .font(.caption2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.green.opacity(0.2))
+                                .foregroundColor(.green)
+                                .cornerRadius(4)
+                                
+                                Button("停止テスト") {
+                                    print("直接センシング停止コマンドを送信")
+                                    viewModel.sendData(text: "SENSING_STOP")
+                                }
+                                .font(.caption2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.red.opacity(0.2))
+                                .foregroundColor(.red)
+                                .cornerRadius(4)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.orange.opacity(0.05))
+                    .cornerRadius(6)
                 }
                 .padding()
                 .background(Color.gray.opacity(0.05))
@@ -231,6 +327,54 @@ struct HomeView: View {
                     }
                     .padding()
                     .background(Color.gray.opacity(0.05))
+                    .cornerRadius(16)
+                }
+                
+                // 受信データ履歴表示（デバッグ用）
+                if !viewModel.receivedDataList.isEmpty {
+                    VStack(spacing: 12) {
+                        HStack {
+                            Text("受信データ履歴（最新5件）")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                            
+                            Button("クリア") {
+                                viewModel.receivedDataList.removeAll()
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.red.opacity(0.1))
+                            .foregroundColor(.red)
+                            .cornerRadius(4)
+                        }
+                        
+                        VStack(spacing: 4) {
+                            ForEach(viewModel.receivedDataList.suffix(5), id: \.0) { data in
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("From: \(data.0)")
+                                            .font(.caption2)
+                                            .foregroundColor(.blue)
+                                        
+                                        Text(data.1)
+                                            .font(.caption2)
+                                            .foregroundColor(.primary)
+                                    }
+                                    
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.gray.opacity(0.05))
+                                .cornerRadius(4)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.yellow.opacity(0.05))
                     .cornerRadius(16)
                 }
                 

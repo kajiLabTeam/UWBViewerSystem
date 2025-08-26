@@ -5,11 +5,9 @@ import SwiftUI
 struct DataDisplayView: View {
     @StateObject private var viewModel = DataDisplayViewModel()
     @EnvironmentObject var router: NavigationRouterModel
-    @State private var selectedDisplayMode: DisplayMode = .realtime
-    @State private var selectedDevice: String?
+    @State private var selectedDisplayMode: DisplayMode = .history
     
     enum DisplayMode: String, CaseIterable {
-        case realtime = "リアルタイム"
         case history = "履歴データ"
         case files = "ファイル管理"
     }
@@ -26,12 +24,6 @@ struct DataDisplayView: View {
         }
         .padding()
         .navigationTitle("データ表示")
-        .onAppear {
-            viewModel.startRealtimeUpdates()
-        }
-        .onDisappear {
-            viewModel.stopRealtimeUpdates()
-        }
     }
     
     // MARK: - Header Section
@@ -46,7 +38,7 @@ struct DataDisplayView: View {
                     .fontWeight(.bold)
             }
             
-            Text("リアルタイムUWBデータの表示、履歴データの分析、ファイル管理を行います")
+            Text("履歴データの分析、ファイル管理を行います")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -68,68 +60,11 @@ struct DataDisplayView: View {
     @ViewBuilder
     private var contentArea: some View {
         switch selectedDisplayMode {
-        case .realtime:
-            realtimeDataView
         case .history:
             historyDataView
         case .files:
             fileManagementView
         }
-    }
-    
-    // MARK: - Realtime Data View
-    private var realtimeDataView: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Text("リアルタイムデータ")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                if viewModel.isConnected {
-                    HStack {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 8, height: 8)
-                        Text("接続中")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    }
-                } else {
-                    HStack {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 8, height: 8)
-                        Text("未接続")
-                            .font(.caption)
-                            .foregroundColor(.red)
-                    }
-                }
-            }
-            
-            if viewModel.realtimeData.isEmpty {
-                EmptyDataView(
-                    icon: "antenna.radiowaves.left.and.right",
-                    title: "データなし",
-                    subtitle: "UWBセンサーからのデータが受信されていません"
-                )
-            } else {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 3), spacing: 16) {
-                    ForEach(viewModel.realtimeData, id: \.deviceName) { data in
-                        DeviceRealtimeDataCard(
-                            data: data,
-                            isSelected: selectedDevice == data.deviceName
-                        ) {
-                            selectedDevice = selectedDevice == data.deviceName ? nil : data.deviceName
-                        }
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(16)
     }
     
     // MARK: - History Data View
@@ -240,65 +175,6 @@ struct DataDisplayView: View {
     }
 }
 
-// MARK: - Realtime Data Card
-struct DeviceRealtimeDataCard: View {
-    let data: DeviceRealtimeData
-    let isSelected: Bool
-    let onTap: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Image(systemName: "iphone")
-                    .foregroundColor(.blue)
-                Text(data.deviceName)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-            
-            if let latestData = data.latestData {
-                VStack(spacing: 8) {
-                    DataRow(label: "距離", value: String(format: "%.2f m", latestData.distance))
-                    DataRow(label: "仰角", value: String(format: "%.1f°", latestData.elevation))
-                    DataRow(label: "方位角", value: String(format: "%.1f°", latestData.azimuth))
-                    DataRow(label: "RSSI", value: String(format: "%.0f dBm", latestData.rssi))
-                }
-                
-                HStack {
-                    Text("NLOS: \(latestData.nlos != 0 ? "Yes" : "No")")
-                        .font(.caption)
-                    .foregroundColor(latestData.nlos != 0 ? .orange : .green)
-                
-                Spacer()
-                
-                Text("Seq: \(latestData.seqCount)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                }
-                
-                Text(DateFormatter.timeOnly.string(from: Date(timeIntervalSince1970: latestData.timestamp)))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            } else {
-                Text("データなし")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding()
-        .background(isSelected ? Color.blue.opacity(0.1) : Color.white)
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isSelected ? Color.blue : Color.gray.opacity(0.2), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-        .onTapGesture {
-            onTap()
-        }
-    }
-}
 
 // MARK: - Data Row
 struct DataRow: View {
@@ -356,7 +232,7 @@ struct HistorySessionCard: View {
             }
         }
         .padding()
-        .background(Color.white)
+        .background(Color.primary.opacity(0.05))
         .cornerRadius(8)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
     }

@@ -4,7 +4,7 @@ import Combine
 
 // MARK: - Data Models
 
-struct SystemActivity: Identifiable {
+struct DashboardActivity: Identifiable {
     let id = UUID()
     let description: String
     let timestamp: Date
@@ -57,7 +57,7 @@ class DashboardViewModel: ObservableObject {
     @Published var connectedDeviceCount = 0
     @Published var isSensingActive = false
     @Published var sensingStatus = "停止中"
-    @Published var recentActivities: [SystemActivity] = []
+    @Published var recentActivities: [DashboardActivity] = []
     
     private let homeViewModel = HomeViewModel.shared
     
@@ -80,14 +80,14 @@ class DashboardViewModel: ObservableObject {
     }
     
     private func setupObservers() {
-        // HomeViewModelからの状態を監視
-        homeViewModel.$isSensingControlActive
+        // HomeViewModelの各Usecaseからの状態を監視
+        homeViewModel.sensingControlUsecase.$isSensingControlActive
             .assign(to: &$isSensingActive)
         
-        homeViewModel.$sensingStatus
+        homeViewModel.sensingControlUsecase.$sensingStatus
             .assign(to: &$sensingStatus)
         
-        homeViewModel.$connectedEndpoints
+        homeViewModel.connectionUsecase.$connectedEndpoints
             .map { $0.count }
             .assign(to: &$connectedDeviceCount)
     }
@@ -125,8 +125,8 @@ class DashboardViewModel: ObservableObject {
     
     // MARK: - Activity Management
     
-    func addActivity(_ description: String, type: SystemActivity.ActivityType) {
-        let activity = SystemActivity(
+    func addActivity(_ description: String, type: DashboardActivity.ActivityType) {
+        let activity = DashboardActivity(
             description: description,
             timestamp: Date(),
             type: type
@@ -157,7 +157,7 @@ class DashboardViewModel: ObservableObject {
     private func loadRecentActivities() {
         if let data = UserDefaults.standard.data(forKey: "RecentSystemActivities") {
             let decoder = JSONDecoder()
-            if let decoded = try? decoder.decode([SystemActivity].self, from: data) {
+            if let decoded = try? decoder.decode([DashboardActivity].self, from: data) {
                 recentActivities = decoded
             }
         }
@@ -217,7 +217,7 @@ struct SystemStatistics {
 
 // MARK: - Activity Extensions
 
-extension SystemActivity: Codable {
+extension DashboardActivity: Codable {
     enum CodingKeys: String, CodingKey {
         case description, timestamp, type
     }
@@ -239,7 +239,7 @@ extension SystemActivity: Codable {
     }
 }
 
-extension SystemActivity.ActivityType {
+extension DashboardActivity.ActivityType {
     var rawValue: String {
         switch self {
         case .sensingStart: return "sensingStart"
@@ -254,7 +254,7 @@ extension SystemActivity.ActivityType {
         }
     }
     
-    static func from(string: String) -> SystemActivity.ActivityType {
+    static func from(string: String) -> DashboardActivity.ActivityType {
         switch string {
         case "sensingStart": return .sensingStart
         case "sensingStop": return .sensingStop

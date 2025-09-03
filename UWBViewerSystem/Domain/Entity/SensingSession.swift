@@ -1,15 +1,15 @@
 import Foundation
 
-struct SensingSession: Identifiable, Codable {
-    let id: String
-    let fileName: String
-    let startTime: Date
-    let endTime: Date?
-    let dataPoints: Int
-    let createdAt: Date
-    let duration: String
+public struct SensingSession: Identifiable, Codable {
+    public let id: String
+    public let fileName: String
+    public let startTime: Date
+    public let endTime: Date?
+    public let dataPoints: Int
+    public let createdAt: Date
+    public let duration: String
     
-    init(fileName: String, startTime: Date = Date(), dataPoints: Int = 0) {
+    public init(fileName: String, startTime: Date = Date(), dataPoints: Int = 0) {
         self.id = UUID().uuidString
         self.fileName = fileName
         self.startTime = startTime
@@ -26,7 +26,7 @@ struct SensingSession: Identifiable, Codable {
         }
     }
     
-    init(id: String = UUID().uuidString, fileName: String, startTime: Date, endTime: Date?, dataPoints: Int, createdAt: Date? = nil, duration: String? = nil) {
+    public init(id: String = UUID().uuidString, fileName: String, startTime: Date, endTime: Date?, dataPoints: Int, createdAt: Date? = nil, duration: String? = nil) {
         self.id = id
         self.fileName = fileName
         self.startTime = startTime
@@ -44,7 +44,7 @@ struct SensingSession: Identifiable, Codable {
         }
     }
     
-    var formattedDate: String {
+    public var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .short

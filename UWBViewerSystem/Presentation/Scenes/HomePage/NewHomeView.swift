@@ -315,7 +315,7 @@ struct StatusRow: View {
 }
 
 struct ActivityRow: View {
-    let activity: SystemActivity
+    let activity: DashboardActivity
     
     var body: some View {
         HStack {

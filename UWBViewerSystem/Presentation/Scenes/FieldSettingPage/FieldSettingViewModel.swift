@@ -28,7 +28,8 @@ enum AntennaColor: String, CaseIterable, Codable {
     }
 }
 
-struct AntennaInfo: Identifiable, Codable, Transferable {
+// FieldSetting固有のAntennaInfo拡張
+struct FieldAntennaInfo: Identifiable, Codable, Transferable {
     let id: String
     var name: String
     var coordinates: Point3D
@@ -57,6 +58,27 @@ struct AntennaInfo: Identifiable, Codable, Transferable {
         self.init(id: id, name: name, coordinates: coordinates, antennaColor: .blue) // デフォルトで青
     }
     
+    // Domain層のAntennaInfoから変換
+    init(from domainEntity: AntennaInfo, antennaColor: AntennaColor = .blue) {
+        self.id = domainEntity.id
+        self.name = domainEntity.name
+        self.coordinates = domainEntity.coordinates
+        self.antennaColor = antennaColor
+        self.position = CGPoint(
+            x: domainEntity.coordinates.x / 10.0,
+            y: domainEntity.coordinates.y / 10.0
+        )
+    }
+    
+    // Domain層のAntennaInfoに変換
+    func toDomainEntity() -> AntennaInfo {
+        return AntennaInfo(
+            id: id,
+            name: name,
+            coordinates: coordinates
+        )
+    }
+    
     // MARK: - Transferable
     static var transferRepresentation: some TransferRepresentation {
         CodableRepresentation(contentType: .antennaInfo)
@@ -69,46 +91,43 @@ extension UTType {
     }
 }
 
-struct Point3D: Codable {
-    var x: Double
-    var y: Double
-    var z: Double
-}
 
 // MARK: - ViewModel
 
 @MainActor
 class FieldSettingViewModel: ObservableObject {
-    @Published var antennas: [AntennaInfo] = []
+    @Published var antennas: [FieldAntennaInfo] = []
     @Published var fieldWidth: Double = 10.0 // meters
     @Published var fieldHeight: Double = 10.0 // meters
     
     private let navigationModel = NavigationRouterModel.shared
+    private let dataRepository: DataRepositoryProtocol
     
-    init() {
+    init(dataRepository: DataRepositoryProtocol = DataRepository()) {
+        self.dataRepository = dataRepository
         loadSavedConfiguration()
     }
     
     // MARK: - Antenna Management
     
-    func addAntenna(_ antenna: AntennaInfo) {
+    func addAntenna(_ antenna: FieldAntennaInfo) {
         antennas.append(antenna)
         saveConfiguration()
     }
     
-    func updateAntenna(_ updatedAntenna: AntennaInfo) {
+    func updateAntenna(_ updatedAntenna: FieldAntennaInfo) {
         if let index = antennas.firstIndex(where: { $0.id == updatedAntenna.id }) {
             antennas[index] = updatedAntenna
             saveConfiguration()
         }
     }
     
-    func removeAntenna(_ antenna: AntennaInfo) {
+    func removeAntenna(_ antenna: FieldAntennaInfo) {
         antennas.removeAll { $0.id == antenna.id }
         saveConfiguration()
     }
     
-    func updateAntennaPosition(_ antenna: AntennaInfo, position: CGPoint) {
+    func updateAntennaPosition(_ antenna: FieldAntennaInfo, position: CGPoint) {
         if let index = antennas.firstIndex(where: { $0.id == antenna.id }) {
             antennas[index].position = position
             // Update 3D coordinates based on new position
@@ -131,10 +150,8 @@ class FieldSettingViewModel: ObservableObject {
     // MARK: - Configuration Persistence
     
     func saveConfiguration() {
-        let encoder = JSONEncoder()
-        if let encoded = try? encoder.encode(antennas) {
-            UserDefaults.standard.set(encoded, forKey: "FieldAntennaConfiguration")
-        }
+        let domainAntennas = antennas.map { $0.toDomainEntity() }
+        dataRepository.saveFieldAntennaConfiguration(domainAntennas)
     }
     
     func loadConfiguration() {
@@ -142,11 +159,8 @@ class FieldSettingViewModel: ObservableObject {
     }
     
     private func loadSavedConfiguration() {
-        if let data = UserDefaults.standard.data(forKey: "FieldAntennaConfiguration") {
-            let decoder = JSONDecoder()
-            if let decoded = try? decoder.decode([AntennaInfo].self, from: data) {
-                antennas = decoded
-            }
+        if let savedAntennas = dataRepository.loadFieldAntennaConfiguration() {
+            antennas = savedAntennas.map { FieldAntennaInfo(from: $0) }
         }
     }
     

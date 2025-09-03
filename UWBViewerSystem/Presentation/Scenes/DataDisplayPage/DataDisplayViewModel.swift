@@ -59,14 +59,14 @@ class DataDisplayViewModel: ObservableObject {
         
         guard let viewModel = homeViewModel else { return }
         
-        // HomeViewModelからの状態を監視
-        viewModel.$deviceRealtimeDataList
+        // HomeViewModelの各Usecaseからの状態を監視
+        viewModel.realtimeDataUsecase.$deviceRealtimeDataList
             .assign(to: &$realtimeData)
         
-        viewModel.$fileTransferProgress
+        viewModel.fileManagementUsecase.$fileTransferProgress
             .assign(to: &$fileTransferProgress)
         
-        viewModel.$receivedFiles
+        viewModel.fileManagementUsecase.$receivedFiles
             .map { files in
                 files.map { fileName in
                     DataDisplayFile(
@@ -79,7 +79,7 @@ class DataDisplayViewModel: ObservableObject {
             }
             .assign(to: &$receivedFiles)
         
-        viewModel.$connectedEndpoints
+        viewModel.connectionUsecase.$connectedEndpoints
             .map { !$0.isEmpty }
             .assign(to: &$isConnected)
     }

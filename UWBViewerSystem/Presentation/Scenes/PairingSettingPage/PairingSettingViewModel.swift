@@ -2,36 +2,7 @@ import SwiftUI
 import Combine
 
 // MARK: - Data Models
-
-struct AndroidDevice: Identifiable, Codable {
-    let id: String // endpointId
-    var name: String
-    var isConnected: Bool
-    var lastSeen: Date
-    let isNearbyDevice: Bool // NearBy Connectionで発見されたデバイスかどうか
-    
-    init(id: String = UUID().uuidString, name: String, isConnected: Bool = false, isNearbyDevice: Bool = true) {
-        self.id = id
-        self.name = name
-        self.isConnected = isConnected
-        self.lastSeen = Date()
-        self.isNearbyDevice = isNearbyDevice
-    }
-}
-
-struct AntennaPairing: Identifiable, Codable {
-    let id: String
-    let antenna: AntennaInfo
-    let device: AndroidDevice
-    let pairedAt: Date
-    
-    init(antenna: AntennaInfo, device: AndroidDevice) {
-        self.id = UUID().uuidString
-        self.antenna = antenna
-        self.device = device
-        self.pairedAt = Date()
-    }
-}
+// Domain層のEntityを使用
 
 // MARK: - ViewModel
 
@@ -483,13 +454,8 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
             
             isConnected = true
             
-            // HomeViewModelにも接続情報を同期（重要）
-            HomeViewModel.shared.connectedEndpoints.insert(device.endpointId)
-            HomeViewModel.shared.connectedDeviceNames.insert(device.deviceName)
-            HomeViewModel.shared.connectState = "接続完了: \(device.deviceName)"
-            
-            // HomeViewModelのコールバックも呼び出す
-            HomeViewModel.shared.onDeviceConnected(device: device)
+            // ConnectionManagementUsecaseにも接続情報を同期（重要）
+            HomeViewModel.shared.connectionUsecase.onDeviceConnected(device: device)
         }
     }
     

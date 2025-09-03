@@ -17,9 +17,15 @@ class SensingManagementViewModel: ObservableObject {
     
     private var homeViewModel = HomeViewModel.shared
     private var dataCollectionViewModel = DataCollectionViewModel.shared
+    private let dataRepository: DataRepositoryProtocol
     private var cancellables = Set<AnyCancellable>()
     private var sensingStartTime: Date?
     private var durationTimer: Timer?
+    
+    init(dataRepository: DataRepositoryProtocol = DataRepository()) {
+        self.dataRepository = dataRepository
+        initialize()
+    }
     
     var canStartSensing: Bool {
         !sensingFileName.isEmpty && 
@@ -38,8 +44,7 @@ class SensingManagementViewModel: ObservableObject {
     
     private func loadAntennaDevices() {
         // 保存されたアンテナ位置データから読み込み
-        if let data = UserDefaults.standard.data(forKey: "AntennaPositions"),
-           let positions = try? JSONDecoder().decode([AntennaPositionData].self, from: data) {
+        if let positions = dataRepository.loadAntennaPositions() {
             
             antennaDevices = positions.map { position in
                 AntennaDevice(
@@ -57,12 +62,12 @@ class SensingManagementViewModel: ObservableObject {
     }
     
     private func setupObservers() {
-        // HomeViewModelからの状態を監視
-        homeViewModel.$isSensingControlActive
+        // HomeViewModelの各Usecaseからの状態を監視
+        homeViewModel.sensingControlUsecase.$isSensingControlActive
             .assign(to: &$isSensingActive)
         
-        // HomeViewModelからのリアルタイムデータを監視
-        homeViewModel.$deviceRealtimeDataList
+        // RealtimeDataUsecaseからのリアルタイムデータを監視
+        homeViewModel.realtimeDataUsecase.$deviceRealtimeDataList
             .map { deviceDataList in
                 // デバイスリストから最新のリアルタイムデータを抽出
                 deviceDataList.compactMap { deviceData in
@@ -190,20 +195,14 @@ class SensingManagementViewModel: ObservableObject {
         )
         
         // 最近のセッションに追加
-        var recentSessions: [SensingSession] = []
-        if let data = UserDefaults.standard.data(forKey: "RecentSensingSessions"),
-           let decoded = try? JSONDecoder().decode([SensingSession].self, from: data) {
-            recentSessions = decoded
-        }
+        var recentSessions = dataRepository.loadRecentSensingSessions()
         
         recentSessions.insert(session, at: 0)
         if recentSessions.count > 10 {
             recentSessions.removeLast()
         }
         
-        if let encoded = try? JSONEncoder().encode(recentSessions) {
-            UserDefaults.standard.set(encoded, forKey: "RecentSensingSessions")
-        }
+        dataRepository.saveRecentSensingSessions(recentSessions)
     }
 }
 

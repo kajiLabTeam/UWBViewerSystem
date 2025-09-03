@@ -146,8 +146,8 @@ class AntennaPositioningViewModel: ObservableObject {
             AntennaPositionData(
                 deviceId: antenna.id,
                 deviceName: antenna.deviceName,
-                position: antenna.position,
-                realWorldPosition: convertToRealWorldPosition(antenna.position)
+                realWorldPosition: convertToRealWorldPosition(antenna.position),
+                fieldPosition: Point3D(x: antenna.position.x, y: antenna.position.y, z: 0.0)
             )
         }
         
@@ -181,16 +181,5 @@ struct AntennaPosition: Identifiable {
     let color: Color
 }
 
-struct AntennaPositionData: Codable {
-    let deviceId: String
-    let deviceName: String
-    let position: CGPoint
-    let realWorldPosition: RealWorldPosition
-}
-
-struct RealWorldPosition: Codable {
-    let x: Double
-    let y: Double
-    let z: Double
-}
+// Domain層のAntennaPositionDataとRealWorldPositionを使用
 

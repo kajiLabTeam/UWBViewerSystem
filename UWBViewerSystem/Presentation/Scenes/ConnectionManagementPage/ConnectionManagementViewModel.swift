@@ -63,6 +63,9 @@ class ConnectionManagementViewModel: ObservableObject {
     private var uptimeTimer: Timer?
     private var startTime: Date?
     private let homeViewModel = HomeViewModel.shared
+    private var connectionUsecase: ConnectionManagementUsecase { 
+        homeViewModel.connectionUsecase
+    }
     
     var formattedDataTransferred: String {
         let formatter = ByteCountFormatter()
@@ -80,10 +83,10 @@ class ConnectionManagementViewModel: ObservableObject {
     
     private func setupObservers() {
         // HomeViewModelからの状態を監視
-        homeViewModel.$isAdvertising
+        connectionUsecase.$isAdvertising
             .assign(to: &$isAdvertising)
         
-        homeViewModel.$connectedEndpoints
+        connectionUsecase.$connectedEndpoints
             .map { endpoints in
                 endpoints.map { endpointId in
                     ConnectionDeviceInfo(
@@ -97,7 +100,7 @@ class ConnectionManagementViewModel: ObservableObject {
             }
             .assign(to: &$connectedDevices)
         
-        homeViewModel.$connectedEndpoints
+        connectionUsecase.$connectedEndpoints
             .map { $0.count }
             .assign(to: &$activeConnections)
     }

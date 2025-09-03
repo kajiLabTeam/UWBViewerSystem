@@ -137,7 +137,7 @@ struct FieldSettingView: View {
                     y: antenna.position.y * geometry.size.height
                 )
                 .onTapGesture {
-                    presentedSheet = .editAntenna(antenna)
+                    presentedSheet = .editAntenna(antenna.toDomainEntity())
                 }
                 .onDrag {
                     NSItemProvider(object: antenna.id as NSString)
@@ -182,7 +182,7 @@ struct FieldSettingView: View {
                 VStack(spacing: 8) {
                     ForEach(viewModel.antennas) { antenna in
                         AntennaListItem(antenna: antenna) {
-                            presentedSheet = .editAntenna(antenna)
+                            presentedSheet = .editAntenna(antenna.toDomainEntity())
                         } onDelete: {
                             viewModel.removeAntenna(antenna)
                         }
@@ -269,7 +269,7 @@ struct FieldSettingView: View {
 }
 
 struct AntennaMarker: View {
-    let antenna: AntennaInfo
+    let antenna: FieldAntennaInfo
     
     var body: some View {
         VStack(spacing: 4) {
@@ -295,7 +295,7 @@ struct AntennaMarker: View {
 }
 
 struct AntennaListItem: View {
-    let antenna: AntennaInfo
+    let antenna: FieldAntennaInfo
     let onEdit: () -> Void
     let onDelete: () -> Void
     
@@ -418,7 +418,7 @@ struct AddAntennaSheet: View {
         
         ToolbarItem(placement: .confirmationAction) {
             Button("追加") {
-                let antenna = AntennaInfo(
+                let antenna = FieldAntennaInfo(
                     name: antennaName.isEmpty ? "アンテナ\(viewModel.antennas.count + 1)" : antennaName,
                     coordinates: Point3D(
                         x: Double(xCoordinate) ?? 0,
@@ -506,7 +506,7 @@ struct SimpleAddAntennaSheet: View {
                 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("追加") {
-                        let antenna = AntennaInfo(
+                        let antenna = FieldAntennaInfo(
                             name: antennaName.isEmpty ? "アンテナ\(viewModel.antennas.count + 1)" : antennaName,
                             coordinates: Point3D(
                                 x: Double(xCoordinate) ?? 0,
@@ -560,7 +560,7 @@ struct EditAntennaSheet: View {
             xCoordinate = String(antenna.coordinates.x)
             yCoordinate = String(antenna.coordinates.y)
             zCoordinate = String(antenna.coordinates.z)
-            selectedColor = antenna.antennaColor
+            selectedColor = .blue // デフォルト値
         }
     }
     
@@ -614,7 +614,7 @@ struct EditAntennaSheet: View {
         
         ToolbarItem(placement: .confirmationAction) {
             Button("保存") {
-                let updatedAntenna = AntennaInfo(
+                let updatedAntenna = FieldAntennaInfo(
                     id: antenna.id,
                     name: antennaName,
                     coordinates: Point3D(

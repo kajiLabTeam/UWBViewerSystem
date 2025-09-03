@@ -31,18 +31,18 @@ class DataCollectionViewModel: ObservableObject {
     }
     
     private func setupObservers() {
-        // HomeViewModelからの状態を監視
-        homeViewModel.$isSensingControlActive
+        // HomeViewModelの各Usecaseからの状態を監視
+        homeViewModel.sensingControlUsecase.$isSensingControlActive
             .assign(to: &$isSensingActive)
         
-        homeViewModel.$sensingStatus
+        homeViewModel.sensingControlUsecase.$sensingStatus
             .assign(to: &$sensingStatus)
         
-        homeViewModel.$connectedEndpoints
+        homeViewModel.connectionUsecase.$connectedEndpoints
             .map { $0.count }
             .assign(to: &$connectedDeviceCount)
         
-        homeViewModel.$deviceRealtimeDataList
+        homeViewModel.realtimeDataUsecase.$deviceRealtimeDataList
             .map { $0.count }
             .assign(to: &$dataPointCount)
     }

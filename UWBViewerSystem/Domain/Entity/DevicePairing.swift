@@ -3,12 +3,12 @@ import Foundation
 // MARK: - Androidデバイスエンティティ
 
 public struct AndroidDevice: Identifiable, Codable {
-    public let id: String // endpointId
+    public let id: String  // endpointId
     public var name: String
     public var isConnected: Bool
     public var lastSeen: Date
-    public let isNearbyDevice: Bool // NearBy Connectionで発見されたデバイスかどうか
-    
+    public let isNearbyDevice: Bool  // NearBy Connectionで発見されたデバイスかどうか
+
     init(id: String = UUID().uuidString, name: String, isConnected: Bool = false, isNearbyDevice: Bool = true) {
         self.id = id
         self.name = name
@@ -25,7 +25,7 @@ public struct AntennaPairing: Identifiable, Codable {
     public let antenna: AntennaInfo
     public let device: AndroidDevice
     public let pairedAt: Date
-    
+
     init(antenna: AntennaInfo, device: AndroidDevice) {
         self.id = UUID().uuidString
         self.antenna = antenna
@@ -40,7 +40,7 @@ public struct AntennaInfo: Identifiable, Codable {
     public let id: String
     public let name: String
     public let coordinates: Point3D
-    
+
     init(id: String = UUID().uuidString, name: String, coordinates: Point3D) {
         self.id = id
         self.name = name

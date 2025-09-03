@@ -1,13 +1,22 @@
+import SwiftData
 import SwiftUI
 
 struct PairingSettingView: View {
-    @StateObject private var viewModel = PairingSettingViewModel()
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var viewModel: PairingSettingViewModel
     @EnvironmentObject var router: NavigationRouterModel
-    
+
+    init() {
+        // ViewModelの初期化時に一時的なダミーリポジトリを使用
+        // onAppearで実際のModelContextベースのリポジトリに置き換える
+        self._viewModel = StateObject(
+            wrappedValue: PairingSettingViewModel(swiftDataRepository: DummySwiftDataRepository()))
+    }
+
     var body: some View {
         VStack(spacing: 20) {
             headerSection
-            
+
             // 左右分割のメインコンテンツ
             HStack(spacing: 20) {
                 // 左側: アンテナ情報
@@ -15,24 +24,24 @@ struct PairingSettingView: View {
                     Label("アンテナ情報", systemImage: "antenna.radiowaves.left.and.right")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
+
                     antennaListSection
-                    
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
                 .background(Color.blue.opacity(0.05))
                 .cornerRadius(12)
-                
+
                 // 右側: デバイス情報
                 VStack(alignment: .leading, spacing: 16) {
                     Label("Android端末", systemImage: "iphone.gen3")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
+
                     deviceSection
-                    
+
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
@@ -41,18 +50,18 @@ struct PairingSettingView: View {
                 .cornerRadius(12)
             }
             .frame(maxHeight: .infinity)
-            
+
             // ペアリング状況表示
             if !viewModel.antennaPairings.isEmpty {
                 pairingStatusSection
             }
-            
+
             navigationSection
         }
         .padding()
         .navigationTitle("Android端末ペアリング")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.large)
         #endif
         .alert(isPresented: $viewModel.showingConnectionAlert) {
             Alert(
@@ -61,14 +70,19 @@ struct PairingSettingView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+        .onAppear {
+            // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
+            let repository = SwiftDataRepository(modelContext: modelContext)
+            viewModel.setSwiftDataRepository(repository)
+        }
     }
-    
+
     private var headerSection: some View {
         VStack(spacing: 12) {
             Label("Android端末ペアリング", systemImage: "link")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-            
+
             Text("アンテナとAndroid端末をペアリングしてセンサーデータを収集します")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -76,21 +90,20 @@ struct PairingSettingView: View {
         }
         .padding()
     }
-    
-    
+
     private var antennaListSection: some View {
         ScrollView {
             VStack(spacing: 8) {
                 ForEach(viewModel.selectedAntennas, id: \.id) { antenna in
                     PairingAntennaListItem(
-                        antenna: antenna, 
+                        antenna: antenna,
                         isPaired: viewModel.antennaPairings.contains { $0.antenna.id == antenna.id }
                     )
                 }
             }
         }
     }
-    
+
     private var deviceSection: some View {
         VStack(spacing: 16) {
             // デバイス検索ボタン
@@ -118,7 +131,7 @@ struct PairingSettingView: View {
                 .cornerRadius(8)
             }
             .disabled(viewModel.isScanning)
-            
+
             // 見つかった端末一覧
             ScrollView {
                 VStack(spacing: 8) {
@@ -138,23 +151,23 @@ struct PairingSettingView: View {
             }
         }
     }
-    
+
     private var pairingStatusSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("ペアリング状況", systemImage: "checkmark.circle.fill")
                     .font(.headline)
                     .foregroundColor(.green)
-                
+
                 Spacer()
-                
+
                 Button("すべて解除") {
                     viewModel.removeAllPairings()
                 }
                 .foregroundColor(.red)
                 .font(.caption)
             }
-            
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(viewModel.antennaPairings) { pairing in
@@ -176,9 +189,7 @@ struct PairingSettingView: View {
         .background(Color.green.opacity(0.1))
         .cornerRadius(12)
     }
-    
-    
-    
+
     private var navigationSection: some View {
         HStack(spacing: 16) {
             Button(action: {
@@ -191,9 +202,9 @@ struct PairingSettingView: View {
                 .foregroundColor(.primary)
             }
             .buttonStyle(.bordered)
-            
+
             Spacer()
-            
+
             Button(action: {
                 viewModel.skipPairing()
             }) {
@@ -204,7 +215,7 @@ struct PairingSettingView: View {
                 .foregroundColor(.secondary)
             }
             .buttonStyle(.bordered)
-            
+
             Button(action: {
                 viewModel.proceedToNextStep()
             }) {
@@ -226,25 +237,25 @@ struct PairingSettingView: View {
 struct PairingAntennaListItem: View {
     let antenna: AntennaInfo
     let isPaired: Bool
-    
+
     var body: some View {
         HStack {
             Image(systemName: "antenna.radiowaves.left.and.right")
                 .foregroundColor(.blue)
                 .frame(width: 24)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(antenna.name)
                     .font(.body)
                     .fontWeight(.medium)
-                
+
                 Text("位置: (\(Int(antenna.coordinates.x)), \(Int(antenna.coordinates.y)))")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             Circle()
                 .fill(isPaired ? Color.green : Color.gray)
                 .frame(width: 12, height: 12)
@@ -260,28 +271,28 @@ struct DeviceListItem: View {
     let antennas: [AntennaInfo]
     let antennaPairings: [AntennaPairing]
     let onPair: (AntennaInfo) -> Void
-    
+
     @State private var selectedAntenna: AntennaInfo?
     @State private var showingPairAlert = false
-    
+
     var availableAntennas: [AntennaInfo] {
         // まだペアリングされていないアンテナのみ表示
         return antennas
     }
-    
+
     var body: some View {
         HStack {
             // NearBy Connectionデバイスには専用アイコンを表示
             Image(systemName: device.isNearbyDevice ? "antenna.radiowaves.left.and.right" : "iphone.gen3")
                 .foregroundColor(device.isNearbyDevice ? .green : .blue)
                 .frame(width: 24)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(device.name)
                         .font(.body)
                         .fontWeight(.medium)
-                    
+
                     if device.isNearbyDevice {
                         Text("NearBy")
                             .font(.caption2)
@@ -292,21 +303,21 @@ struct DeviceListItem: View {
                             .cornerRadius(3)
                     }
                 }
-                
+
                 Text("ID: \(device.id.prefix(8))...")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
+
                 Text("発見時刻: \(formatDate(device.lastSeen))")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             // アンテナと紐付け済みかチェック
             let isAntennaLinked = antennaPairings.contains(where: { $0.device.id == device.id })
-            
+
             if isAntennaLinked {
                 // アンテナと紐付け済みの場合は「ペア済み」を表示
                 Text("ペア済み")
@@ -351,12 +362,12 @@ struct DeviceListItem: View {
                     onPair(antenna)
                 }
             }
-            Button("キャンセル", role: .cancel) { }
+            Button("キャンセル", role: .cancel) {}
         } message: {
             Text("この端末と紐付けるアンテナを選択してください")
         }
     }
-    
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
@@ -368,36 +379,36 @@ struct PairingStatusCard: View {
     let pairing: AntennaPairing
     let onRemove: () -> Void
     let onTest: () -> Void
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "link.circle.fill")
                     .foregroundColor(.green)
-                
+
                 Spacer()
-                
+
                 Button(action: onRemove) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.red)
                 }
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(pairing.antenna.name)
                     .font(.caption)
                     .fontWeight(.bold)
                     .foregroundColor(.blue)
-                
+
                 Image(systemName: "arrow.down")
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                
+
                 Text(pairing.device.name)
                     .font(.caption)
                     .fontWeight(.bold)
                     .foregroundColor(.green)
-                
+
                 // 接続状況を表示
                 HStack {
                     Circle()
@@ -408,7 +419,7 @@ struct PairingStatusCard: View {
                         .foregroundColor(pairing.device.isConnected ? .green : .red)
                 }
             }
-            
+
             Button("接続テスト") {
                 onTest()
             }

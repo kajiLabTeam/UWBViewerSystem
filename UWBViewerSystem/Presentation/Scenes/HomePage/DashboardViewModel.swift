@@ -1,6 +1,6 @@
-import SwiftUI
-import Foundation
 import Combine
+import Foundation
+import SwiftUI
 
 // MARK: - Data Models
 
@@ -9,11 +9,11 @@ struct DashboardActivity: Identifiable {
     let description: String
     let timestamp: Date
     let type: ActivityType
-    
+
     enum ActivityType {
-        case sensingStart, sensingStop, deviceConnect, deviceDisconnect, 
-             antennaAdded, antennaRemoved, pairingAdded, pairingRemoved, error
-        
+        case sensingStart, sensingStop, deviceConnect, deviceDisconnect,
+            antennaAdded, antennaRemoved, pairingAdded, pairingRemoved, error
+
         var color: Color {
             switch self {
             case .sensingStart, .deviceConnect, .antennaAdded, .pairingAdded:
@@ -25,7 +25,7 @@ struct DashboardActivity: Identifiable {
             }
         }
     }
-    
+
     var icon: String {
         switch type {
         case .sensingStart: return "play.circle.fill"
@@ -39,7 +39,7 @@ struct DashboardActivity: Identifiable {
         case .error: return "exclamationmark.triangle.fill"
         }
     }
-    
+
     var formattedTimestamp: String {
         let formatter = DateFormatter()
         formatter.timeStyle = .medium
@@ -58,9 +58,9 @@ class DashboardViewModel: ObservableObject {
     @Published var isSensingActive = false
     @Published var sensingStatus = "停止中"
     @Published var recentActivities: [DashboardActivity] = []
-    
+
     private let homeViewModel = HomeViewModel.shared
-    
+
     var connectionStatus: StatusRow.SystemStatus {
         if pairedDeviceCount == 0 {
             return .warning
@@ -72,34 +72,34 @@ class DashboardViewModel: ObservableObject {
             return .error
         }
     }
-    
+
     init() {
         setupObservers()
         refreshStatus()
         loadRecentActivities()
     }
-    
+
     private func setupObservers() {
         // HomeViewModelの各Usecaseからの状態を監視
         homeViewModel.sensingControlUsecase.$isSensingControlActive
             .assign(to: &$isSensingActive)
-        
+
         homeViewModel.sensingControlUsecase.$sensingStatus
             .assign(to: &$sensingStatus)
-        
+
         homeViewModel.connectionUsecase.$connectedEndpoints
             .map { $0.count }
             .assign(to: &$connectedDeviceCount)
     }
-    
+
     // MARK: - Status Management
-    
+
     func refreshStatus() {
         loadAntennaCount()
         loadPairedDeviceCount()
         updateConnectionStatus()
     }
-    
+
     private func loadAntennaCount() {
         if let data = UserDefaults.standard.data(forKey: "FieldAntennaConfiguration") {
             let decoder = JSONDecoder()
@@ -108,7 +108,7 @@ class DashboardViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func loadPairedDeviceCount() {
         if let data = UserDefaults.standard.data(forKey: "AntennaPairings") {
             let decoder = JSONDecoder()
@@ -117,43 +117,43 @@ class DashboardViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func updateConnectionStatus() {
         // HomeViewModelから最新の接続状態を取得
         connectedDeviceCount = homeViewModel.connectedEndpoints.count
     }
-    
+
     // MARK: - Activity Management
-    
+
     func addActivity(_ description: String, type: DashboardActivity.ActivityType) {
         let activity = DashboardActivity(
             description: description,
             timestamp: Date(),
             type: type
         )
-        
+
         recentActivities.insert(activity, at: 0)
-        
+
         // 最大20件まで保持
         if recentActivities.count > 20 {
             recentActivities.removeLast()
         }
-        
+
         saveRecentActivities()
     }
-    
+
     func clearActivity() {
         recentActivities.removeAll()
         saveRecentActivities()
     }
-    
+
     private func saveRecentActivities() {
         let encoder = JSONEncoder()
         if let encoded = try? encoder.encode(recentActivities) {
             UserDefaults.standard.set(encoded, forKey: "RecentSystemActivities")
         }
     }
-    
+
     private func loadRecentActivities() {
         if let data = UserDefaults.standard.data(forKey: "RecentSystemActivities") {
             let decoder = JSONDecoder()
@@ -161,21 +161,21 @@ class DashboardViewModel: ObservableObject {
                 recentActivities = decoded
             }
         }
-        
+
         // デモ用の初期データ
         if recentActivities.isEmpty {
             addDemoActivities()
         }
     }
-    
+
     private func addDemoActivities() {
         addActivity("システムが初期化されました", type: .sensingStart)
         addActivity("アンテナ設定が読み込まれました", type: .antennaAdded)
         addActivity("端末ペアリング設定が確認されました", type: .pairingAdded)
     }
-    
+
     // MARK: - System Statistics
-    
+
     func getSystemStatistics() -> SystemStatistics {
         SystemStatistics(
             totalAntennas: antennaCount,
@@ -186,10 +186,10 @@ class DashboardViewModel: ObservableObject {
             totalActivities: recentActivities.count
         )
     }
-    
+
     private func getSystemUptime() -> TimeInterval {
         // アプリの起動時間を取得（簡易実装）
-        return Date().timeIntervalSince(Date().addingTimeInterval(-3600)) // 仮の1時間
+        return Date().timeIntervalSince(Date().addingTimeInterval(-3600))  // 仮の1時間
     }
 }
 
@@ -202,13 +202,13 @@ struct SystemStatistics {
     let isSensingActive: Bool
     let uptime: TimeInterval
     let totalActivities: Int
-    
+
     var formattedUptime: String {
         let hours = Int(uptime) / 3600
         let minutes = Int(uptime.truncatingRemainder(dividingBy: 3600)) / 60
         return String(format: "%02d:%02d", hours, minutes)
     }
-    
+
     var connectionRate: Double {
         guard pairedDevices > 0 else { return 0 }
         return Double(connectedDevices) / Double(pairedDevices)
@@ -221,16 +221,16 @@ extension DashboardActivity: Codable {
     enum CodingKeys: String, CodingKey {
         case description, timestamp, type
     }
-    
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         description = try container.decode(String.self, forKey: .description)
         timestamp = try container.decode(Date.self, forKey: .timestamp)
-        
+
         let typeString = try container.decode(String.self, forKey: .type)
         type = ActivityType.from(string: typeString)
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(description, forKey: .description)
@@ -253,7 +253,7 @@ extension DashboardActivity.ActivityType {
         case .error: return "error"
         }
     }
-    
+
     static func from(string: String) -> DashboardActivity.ActivityType {
         switch string {
         case "sensingStart": return .sensingStart

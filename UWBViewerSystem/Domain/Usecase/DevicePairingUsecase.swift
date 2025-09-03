@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 
 // MARK: - デバイスペアリング Usecase
 
@@ -10,46 +10,79 @@ class DevicePairingUsecase: ObservableObject {
     @Published var antennaPairings: [AntennaPairing] = []
     @Published var isScanning = false
     @Published var isConnected = false
-    
+
     private let connectionUsecase: ConnectionManagementUsecase
-    private let dataRepository: DataRepositoryProtocol
+    private let swiftDataRepository: SwiftDataRepositoryProtocol
     private var connectionRequestHandlers: [String: (Bool) -> Void] = [:]
-    
+
     var hasCompletePairing: Bool {
         return !antennaPairings.isEmpty && antennaPairings.count >= min(selectedAntennas.count, 2)
     }
-    
+
     var canProceedToNextStep: Bool {
         return hasCompletePairing && isConnected
     }
-    
-    public init(connectionUsecase: ConnectionManagementUsecase, dataRepository: DataRepositoryProtocol = DataRepository()) {
+
+    public init(
+        connectionUsecase: ConnectionManagementUsecase, 
+        swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()
+    ) {
         self.connectionUsecase = connectionUsecase
-        self.dataRepository = dataRepository
-        loadAntennaData()
-        loadPairingData()
-    }
-    
-    // MARK: - Data Management
-    
-    private func loadAntennaData() {
-        if let antennas = dataRepository.loadFieldAntennaConfiguration() {
-            selectedAntennas = antennas
-            return
-        }
+        self.swiftDataRepository = swiftDataRepository
         
-        // デフォルトのアンテナを作成
-        selectedAntennas = [
-            AntennaInfo(id: "antenna_1", name: "アンテナ 1", coordinates: Point3D(x: 50, y: 100, z: 0)),
-            AntennaInfo(id: "antenna_2", name: "アンテナ 2", coordinates: Point3D(x: 200, y: 100, z: 0)),
-            AntennaInfo(id: "antenna_3", name: "アンテナ 3", coordinates: Point3D(x: 125, y: 200, z: 0))
-        ]
+        Task {
+            await loadAntennaData()
+            await loadPairingData()
+        }
     }
-    
-    private func loadPairingData() {
-        if let pairings = dataRepository.loadAntennaPairings() {
-            antennaPairings = pairings
+
+    // MARK: - Data Management
+
+    private func loadAntennaData() async {
+        do {
+            let positions = try await swiftDataRepository.loadAntennaPositions()
+            selectedAntennas = positions.map { position in
+                AntennaInfo(
+                    id: position.antennaId,
+                    name: position.antennaName,
+                    coordinates: position.position
+                )
+            }
             
+            if selectedAntennas.isEmpty {
+                // デフォルトのアンテナを作成
+                selectedAntennas = [
+                    AntennaInfo(id: "antenna_1", name: "アンテナ 1", coordinates: Point3D(x: 50, y: 100, z: 0)),
+                    AntennaInfo(id: "antenna_2", name: "アンテナ 2", coordinates: Point3D(x: 200, y: 100, z: 0)),
+                    AntennaInfo(id: "antenna_3", name: "アンテナ 3", coordinates: Point3D(x: 125, y: 200, z: 0)),
+                ]
+                
+                // デフォルトアンテナをSwiftDataに保存
+                for antenna in selectedAntennas {
+                    let position = AntennaPositionData(
+                        antennaId: antenna.id,
+                        antennaName: antenna.name,
+                        position: antenna.coordinates
+                    )
+                    try await swiftDataRepository.saveAntennaPosition(position)
+                }
+            }
+        } catch {
+            print("アンテナデータ読み込みエラー: \(error)")
+            // エラー時はデフォルトアンテナを使用
+            selectedAntennas = [
+                AntennaInfo(id: "antenna_1", name: "アンテナ 1", coordinates: Point3D(x: 50, y: 100, z: 0)),
+                AntennaInfo(id: "antenna_2", name: "アンテナ 2", coordinates: Point3D(x: 200, y: 100, z: 0)),
+                AntennaInfo(id: "antenna_3", name: "アンテナ 3", coordinates: Point3D(x: 125, y: 200, z: 0)),
+            ]
+        }
+    }
+
+    private func loadPairingData() async {
+        do {
+            let pairings = try await swiftDataRepository.loadAntennaPairings()
+            antennaPairings = pairings
+
             // ペアリング済みデバイスをavailableDevicesに追加
             for pairing in pairings {
                 if !availableDevices.contains(where: { $0.id == pairing.device.id }) {
@@ -58,21 +91,32 @@ class DevicePairingUsecase: ObservableObject {
                     availableDevices.append(restoredDevice)
                 }
             }
+            
+            isConnected = !antennaPairings.isEmpty
+        } catch {
+            print("ペアリングデータ読み込みエラー: \(error)")
         }
+    }
+
+    private func savePairingData() async {
+        // システム活動ログを記録
+        let activity = SystemActivity(
+            activityType: "pairing",
+            activityDescription: "アンテナペアリング情報を更新: \(antennaPairings.count)件"
+        )
         
-        isConnected = dataRepository.loadHasDeviceConnected()
+        do {
+            try await swiftDataRepository.saveSystemActivity(activity)
+        } catch {
+            print("システム活動ログ保存エラー: \(error)")
+        }
     }
-    
-    private func savePairingData() {
-        dataRepository.saveAntennaPairings(antennaPairings)
-        dataRepository.saveHasDeviceConnected(isConnected)
-    }
-    
+
     // MARK: - Device Discovery
-    
+
     func startDeviceDiscovery() {
         isScanning = true
-        
+
         // 接続済みデバイスとペアリング済みデバイスのみ保持
         availableDevices.removeAll { device in
             if device.isConnected {
@@ -83,42 +127,50 @@ class DevicePairingUsecase: ObservableObject {
             }
             return true
         }
-        
+
         connectionUsecase.startDiscovery()
-        
+
         // 10秒後に自動で検索を停止
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             self?.stopDeviceDiscovery()
         }
     }
-    
+
     func stopDeviceDiscovery() {
         isScanning = false
         connectionUsecase.stopDiscovery()
     }
-    
+
     // MARK: - Antenna Pairing
-    
+
     func pairAntennaWithDevice(antenna: AntennaInfo, device: AndroidDevice) -> String? {
         // 既存のペアリングをチェック
         if antennaPairings.contains(where: { $0.antenna.id == antenna.id }) {
             return "このアンテナは既にペアリング済みです"
         }
-        
+
         if antennaPairings.contains(where: { $0.device.id == device.id }) {
             return "\(device.name)は既に他のアンテナとペアリング済みです"
         }
-        
+
         // デバイスがリストにあることを確認し、なければ追加
         if !availableDevices.contains(where: { $0.id == device.id }) {
             availableDevices.append(device)
         }
-        
+
         // ペアリング情報を作成・保存
         let pairing = AntennaPairing(antenna: antenna, device: device)
         antennaPairings.append(pairing)
-        savePairingData()
         
+        Task {
+            do {
+                try await swiftDataRepository.saveAntennaPairing(pairing)
+                await savePairingData()
+            } catch {
+                print("ペアリング保存エラー: \(error)")
+            }
+        }
+
         if device.isNearbyDevice {
             if device.isConnected {
                 // 接続済みデバイスには即座にペアリング情報を送信
@@ -128,7 +180,7 @@ class DevicePairingUsecase: ObservableObject {
             } else {
                 // 未接続の場合の処理
                 if let handler = connectionRequestHandlers[device.id] {
-                    handler(true) // 接続を承認してペアリング完了
+                    handler(true)  // 接続を承認してペアリング完了
                     connectionRequestHandlers.removeValue(forKey: device.id)
                     return "\(antenna.name) と \(device.name) の紐付け・接続を開始しました"
                 } else {
@@ -144,33 +196,40 @@ class DevicePairingUsecase: ObservableObject {
             if let index = availableDevices.firstIndex(where: { $0.id == device.id }) {
                 availableDevices[index].isConnected = true
             }
-            
+
             isConnected = true
-            savePairingData()
             
             return "\(antenna.name) と \(device.name) のペアリングが完了しました"
         }
     }
-    
+
     func removePairing(_ pairing: AntennaPairing) {
         antennaPairings.removeAll { $0.id == pairing.id }
-        
+
         // デバイスの接続状態を更新
         if let index = availableDevices.firstIndex(where: { $0.id == pairing.device.id }) {
             availableDevices[index].isConnected = false
         }
-        
+
         // NearBy Connection経由の場合は実際に切断
         if pairing.device.isNearbyDevice {
             connectionUsecase.disconnectFromDevice(endpointId: pairing.device.id)
         }
-        
+
         connectionRequestHandlers.removeValue(forKey: pairing.device.id)
-        
+
         isConnected = !antennaPairings.isEmpty
-        savePairingData()
+        
+        Task {
+            do {
+                try await swiftDataRepository.deleteAntennaPairing(by: pairing.id)
+                await savePairingData()
+            } catch {
+                print("ペアリング削除エラー: \(error)")
+            }
+        }
     }
-    
+
     func removeAllPairings() {
         for pairing in antennaPairings {
             if pairing.device.isNearbyDevice {
@@ -178,20 +237,31 @@ class DevicePairingUsecase: ObservableObject {
             }
         }
         
+        let pairingsToRemove = antennaPairings
         antennaPairings.removeAll()
-        
+
         for i in availableDevices.indices {
             availableDevices[i].isConnected = false
         }
-        
+
         connectionRequestHandlers.removeAll()
-        
+
         isConnected = false
-        savePairingData()
+        
+        Task {
+            do {
+                for pairing in pairingsToRemove {
+                    try await swiftDataRepository.deleteAntennaPairing(by: pairing.id)
+                }
+                await savePairingData()
+            } catch {
+                print("全ペアリング削除エラー: \(error)")
+            }
+        }
     }
-    
+
     // MARK: - Connection Testing
-    
+
     func testConnection(for pairing: AntennaPairing) -> String {
         if pairing.device.isNearbyDevice {
             let testMessage = "UWB_TEST_\(Date().timeIntervalSince1970)"
@@ -199,14 +269,12 @@ class DevicePairingUsecase: ObservableObject {
             return "接続テスト完了：テストメッセージを送信しました"
         } else {
             let isSuccess = Bool.random()
-            return isSuccess ? 
-                "接続テスト成功：正常に通信できています" : 
-                "接続テスト失敗：デバイスとの通信に問題があります"
+            return isSuccess ? "接続テスト成功：正常に通信できています" : "接続テスト失敗：デバイスとの通信に問題があります"
         }
     }
-    
+
     // MARK: - Event Handlers
-    
+
     func onConnectionInitiated(endpointId: String, deviceName: String, responseHandler: @escaping (Bool) -> Void) {
         let device = AndroidDevice(
             id: endpointId,
@@ -214,20 +282,20 @@ class DevicePairingUsecase: ObservableObject {
             isConnected: false,
             isNearbyDevice: true
         )
-        
+
         if let index = availableDevices.firstIndex(where: { $0.id == endpointId }) {
             availableDevices[index] = device
         } else {
             availableDevices.append(device)
         }
-        
+
         connectionRequestHandlers[endpointId] = responseHandler
-        
+
         // 接続を承認
         responseHandler(true)
         connectionRequestHandlers.removeValue(forKey: endpointId)
     }
-    
+
     func onConnectionResult(endpointId: String, isSuccess: Bool) {
         if isSuccess {
             if let index = availableDevices.firstIndex(where: { $0.id == endpointId }) {
@@ -244,7 +312,7 @@ class DevicePairingUsecase: ObservableObject {
                 availableDevices.append(unknownDevice)
             }
             isConnected = true
-            
+
             // 既にアンテナ紐付け済みの場合はペアリング情報を送信
             if let pairing = antennaPairings.first(where: { $0.device.id == endpointId }) {
                 let pairingInfo = "PAIRING:\(pairing.antenna.id):\(pairing.antenna.name)"
@@ -254,16 +322,27 @@ class DevicePairingUsecase: ObservableObject {
             connectionRequestHandlers.removeValue(forKey: endpointId)
         }
     }
-    
+
     func onDisconnected(endpointId: String) {
         if let index = availableDevices.firstIndex(where: { $0.id == endpointId }) {
             var updatedDevice = availableDevices[index]
             updatedDevice.isConnected = false
             availableDevices[index] = updatedDevice
         }
-        
+
+        let disconnectedPairings = antennaPairings.filter { $0.device.id == endpointId }
         antennaPairings.removeAll { $0.device.id == endpointId }
         isConnected = !antennaPairings.isEmpty
-        savePairingData()
+        
+        Task {
+            do {
+                for pairing in disconnectedPairings {
+                    try await swiftDataRepository.deleteAntennaPairing(by: pairing.id)
+                }
+                await savePairingData()
+            } catch {
+                print("切断時ペアリング削除エラー: \(error)")
+            }
+        }
     }
 }

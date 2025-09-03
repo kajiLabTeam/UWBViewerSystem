@@ -11,21 +11,27 @@ import Foundation
 /// 遷移先は全てここに書く
 enum Route: Hashable {
     case welcomePage
-    case indoorMapRegistration    // 屋内マップの登録
-    case deviceSelection         // 接続するデバイスの選択
-    case antennaPositioning      // アンテナ位置の設定（フロアマップの登録）
-    case calibration            // キャリブレーション
-    case sensingManagement      // センシングの管理
-    case trajectoryView         // センシングデータの軌跡確認
-    
-    // 既存の画面
+
+    // 新しいセンシングフロー
+    case floorMapSetting  // フロアマップ設定（新規追加）
+    case antennaConfiguration  // アンテナ設定（向き設定機能付き）
+    case devicePairing  // デバイスペアリング
+    case systemCalibration  // システムキャリブレーション（新規実装）
+    case sensingExecution  // センシング実行
+    case sensingDataViewer  // センシングデータ閲覧
+
+    // レガシー画面（互換性のため残す）
+    case antennaPositioning  // アンテナ位置の設定（フロアマップの登録）
+    case sensingManagement  // センシングの管理
+    case trajectoryView  // センシングデータの軌跡確認
+
+    // メイン機能画面
     case fieldSettingPage
     case pairingSettingPage
     case homePage
     case dataCollectionPage
     case dataDisplayPage
     case connectionManagementPage
-    case editPage
     case advertiserPage
     case mainTabView
 }

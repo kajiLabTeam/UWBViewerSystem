@@ -51,23 +51,31 @@ struct NavigationRouter: View {
     @ViewBuilder
     private func destinationView(for route: Route) -> some View {
         switch route {
-        // 新しい画面遷移フロー
+        // 新しいセンシングフロー
+        case .floorMapSetting:
+            FloorMapSettingView()
+        case .antennaConfiguration:
+            AntennaPositioningView()  // 改修済み：向き設定機能付き
+        case .devicePairing:
+            PairingSettingView()
+        case .systemCalibration:
+            SystemCalibrationView()
+        case .sensingExecution:
+            SensingManagementView()
+        case .sensingDataViewer:
+            DataDisplayView()
+
+        // レガシー画面（互換性のため）
         case .welcomePage:
             WelcomeView()
-        case .indoorMapRegistration:
-            IndoorMapRegistrationView()
-        case .deviceSelection:
-            DeviceSelectionView()
         case .antennaPositioning:
             AntennaPositioningView()
-        case .calibration:
-            CalibrationView()
         case .sensingManagement:
             SensingManagementView()
         case .trajectoryView:
             TrajectoryView()
-            
-        // 既存の画面
+
+        // メイン機能画面
         case .fieldSettingPage:
             FieldSettingView()
         case .pairingSettingPage:
@@ -80,8 +88,6 @@ struct NavigationRouter: View {
             DataDisplayView()
         case .connectionManagementPage:
             ConnectionManagementView()
-        case .editPage:
-            EditView()
         case .advertiserPage:
             AdvertiserView()
         case .mainTabView:

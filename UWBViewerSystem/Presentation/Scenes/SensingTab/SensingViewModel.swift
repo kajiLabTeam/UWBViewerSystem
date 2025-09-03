@@ -6,7 +6,7 @@ struct SensingData: Identifiable {
     let name: String
     let dataPoints: Int
     let createdAt: Date
-    
+
     var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -26,28 +26,28 @@ class SensingViewModel: ObservableObject {
     @Published var selectedSensingData: SensingData?
     @Published var hasFloorMap: Bool = false
     @Published var hasConnectedDevice: Bool = false
-    
+
     init() {
         loadSavedData()
         checkSystemStatus()
     }
-    
+
     func loadSavedData() {
         savedSensingData = [
             SensingData(name: "測定データ 1", dataPoints: 1250, createdAt: Date().addingTimeInterval(-86400)),
             SensingData(name: "測定データ 2", dataPoints: 890, createdAt: Date().addingTimeInterval(-172800)),
-            SensingData(name: "測定データ 3", dataPoints: 2100, createdAt: Date().addingTimeInterval(-259200))
+            SensingData(name: "測定データ 3", dataPoints: 2100, createdAt: Date().addingTimeInterval(-259200)),
         ]
     }
-    
+
     func checkSystemStatus() {
         hasFloorMap = UserDefaults.standard.bool(forKey: "hasFloorMapConfigured")
         hasConnectedDevice = UserDefaults.standard.bool(forKey: "hasDeviceConnected")
     }
-    
+
     func validateSensingRequirements() -> ValidationResult {
         checkSystemStatus()
-        
+
         if !hasFloorMap && !hasConnectedDevice {
             return ValidationResult(
                 isValid: false,
@@ -64,14 +64,14 @@ class SensingViewModel: ObservableObject {
                 message: "センシングを開始するには、端末の接続が必要です。"
             )
         }
-        
+
         return ValidationResult(isValid: true, message: "")
     }
-    
+
     func selectSensingData(_ data: SensingData) {
         selectedSensingData = data
     }
-    
+
     func deleteSensingData(_ data: SensingData) {
         savedSensingData.removeAll { $0.id == data.id }
         if selectedSensingData?.id == data.id {

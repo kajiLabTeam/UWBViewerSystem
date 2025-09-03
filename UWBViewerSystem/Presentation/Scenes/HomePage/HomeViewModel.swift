@@ -5,189 +5,189 @@
 //  Created by はるちろ on R 7/04/07.
 //
 
+import CoreLocation
 import Foundation
 import SwiftUI
-import CoreLocation
 
 @MainActor
 class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositoryCallback {
     static let shared = HomeViewModel()
-    
+
     // MARK: - Usecases
     let realtimeDataUsecase: RealtimeDataUsecase
     let connectionUsecase: ConnectionManagementUsecase
     let sensingControlUsecase: SensingControlUsecase
     let fileManagementUsecase: FileManagementUsecase
-    
+
     let nearByRepository: NearbyRepository
-    
+
     private override init() {
         nearByRepository = NearbyRepository()
         connectionUsecase = ConnectionManagementUsecase(nearbyRepository: nearByRepository)
         realtimeDataUsecase = RealtimeDataUsecase()
         sensingControlUsecase = SensingControlUsecase(connectionUsecase: connectionUsecase)
         fileManagementUsecase = FileManagementUsecase()
-        
+
         super.init()
         nearByRepository.callback = self
     }
-    
+
     // MARK: - Published Properties (プロパティのフォワード)
-    
+
     @Published var receivedDataList: [(String, String)] = []
-    
+
     // 接続管理関連
     var connectState: String {
         connectionUsecase.connectState
     }
-    
+
     var isLocationPermissionGranted: Bool {
         connectionUsecase.isLocationPermissionGranted
     }
-    
+
     var connectedDeviceNames: Set<String> {
         connectionUsecase.connectedDeviceNames
     }
-    
+
     var connectedEndpoints: Set<String> {
         connectionUsecase.connectedEndpoints
     }
-    
+
     var isAdvertising: Bool {
         connectionUsecase.isAdvertising
     }
-    
+
     // センシング制御関連
     var sensingStatus: String {
         sensingControlUsecase.sensingStatus
     }
-    
+
     var isSensingControlActive: Bool {
         sensingControlUsecase.isSensingControlActive
     }
-    
+
     var sensingFileName: String {
         sensingControlUsecase.sensingFileName
     }
-    
+
     var currentSensingFileName: String {
         sensingControlUsecase.currentSensingFileName
     }
-    
+
     // リアルタイムデータ関連
     var deviceRealtimeDataList: [DeviceRealtimeData] {
         realtimeDataUsecase.deviceRealtimeDataList
     }
-    
+
     var isReceivingRealtimeData: Bool {
         realtimeDataUsecase.isReceivingRealtimeData
     }
-    
+
     // ファイル管理関連
     var receivedFiles: [ReceivedFile] {
         fileManagementUsecase.receivedFiles
     }
-    
+
     var fileTransferProgress: [String: Int] {
         fileManagementUsecase.fileTransferProgress
     }
-    
+
     var fileStoragePath: String {
         fileManagementUsecase.fileStoragePath
     }
-    
+
     // MARK: - Public Methods
-    
+
     func startAdvertise() {
         connectionUsecase.startAdvertising()
     }
-    
+
     func startDiscovery() {
         connectionUsecase.startDiscovery()
     }
-    
+
     func sendData(text: String) {
         connectionUsecase.sendMessage(text)
     }
-    
+
     func startRemoteSensing(fileName: String) {
         sensingControlUsecase.startRemoteSensing(fileName: fileName)
     }
-    
+
     func stopRemoteSensing() {
         sensingControlUsecase.stopRemoteSensing()
     }
-    
+
     func pauseRemoteSensing() {
         sensingControlUsecase.pauseRemoteSensing()
     }
-    
+
     func resumeRemoteSensing() {
         sensingControlUsecase.resumeRemoteSensing()
     }
-    
+
     func disconnectAll() {
         connectionUsecase.disconnectAll()
         realtimeDataUsecase.clearAllRealtimeData()
         fileManagementUsecase.clearReceivedFiles()
     }
-    
+
     func resetAll() {
         connectionUsecase.resetAll()
         receivedDataList = []
         realtimeDataUsecase.clearAllRealtimeData()
         fileManagementUsecase.clearReceivedFiles()
     }
-    
+
     func clearRealtimeData() {
         realtimeDataUsecase.clearAllRealtimeData()
     }
-    
+
     func openFileStorageFolder() {
         fileManagementUsecase.openFileStorageFolder()
     }
-    
+
     // ConnectionManagementViewModel用のメソッド
     func startAdvertising() {
         connectionUsecase.startAdvertising()
     }
-    
+
     func stopAdvertising() {
         connectionUsecase.stopAdvertising()
     }
-    
+
     func disconnectEndpoint(_ endpointId: String) {
         connectionUsecase.disconnectFromDevice(endpointId: endpointId)
     }
-    
+
     func sendMessage(_ content: String, to endpointId: String) {
         connectionUsecase.sendMessageToDevice(content, to: endpointId)
     }
-    
+
     // MARK: - NearbyRepositoryCallback
-    
+
     func onConnectionStateChanged(state: String) {
         DispatchQueue.main.async {
             self.connectionUsecase.onConnectionStateChanged(state: state)
         }
     }
-    
+
     func onDataReceived(data: String, fromEndpointId: String) {
         DispatchQueue.main.async {
             print("=== Mac側データ受信開始 ===")
             print("EndpointID: \(fromEndpointId)")
             print("データ長: \(data.count) bytes")
             print("受信データ: \(data)")
-            
+
             self.receivedDataList.append((fromEndpointId, data))
-            
+
             // リアルタイムデータの処理
             self.processRealtimeData(data, fromEndpointId: fromEndpointId)
-            
+
             print("=== Mac側データ受信終了 ===")
         }
     }
-    
+
     func onConnectionRequestReceived(request: ConnectionRequest) {
         DispatchQueue.main.async {
             // HomeViewModelでは自動承認（基本画面なので）
@@ -195,20 +195,20 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
             self.connectionUsecase.onConnectionStateChanged(state: "接続要求を自動承認: \(request.deviceName)")
         }
     }
-    
+
     func onDeviceConnected(device: ConnectedDevice) {
         DispatchQueue.main.async {
             self.connectionUsecase.onDeviceConnected(device: device)
             self.realtimeDataUsecase.addConnectedDevice(device.deviceName)
         }
     }
-    
+
     func onDeviceDisconnected(endpointId: String) {
         DispatchQueue.main.async {
             self.connectionUsecase.onDeviceDisconnected(endpointId: endpointId)
         }
     }
-    
+
     func onMessageReceived(message: Message) {
         DispatchQueue.main.async {
             print("🔵 Mac HomeViewModel: onMessageReceived")
@@ -216,14 +216,15 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
             print("🔵 デバイス名: \(message.fromDeviceName)")
             print("🔵 メッセージ長: \(message.content.count) 文字")
             print("🔵 メッセージ先頭: \(String(message.content.prefix(100)))")
-            
+
             if message.content.contains("REALTIME_DATA") {
                 print("🟢 REALTIME_DATAを検出 - 直接処理開始")
                 if let data = message.content.data(using: .utf8) {
                     do {
                         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                             print("🟢 JSON解析成功 - processRealtimeDataJSON呼び出し")
-                            self.realtimeDataUsecase.processRealtimeDataMessage(json, fromEndpointId: message.fromEndpointId ?? "unknown")
+                            self.realtimeDataUsecase.processRealtimeDataMessage(
+                                json, fromEndpointId: message.fromEndpointId ?? "unknown")
                         }
                     } catch {
                         print("🔴 JSON解析エラー: \(error)")
@@ -231,7 +232,7 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
                 }
             } else {
                 print("🔴 非REALTIME_DATAメッセージ: \(message.content)")
-                
+
                 if message.content.contains("SENSING") {
                     print("📡 センシング関連メッセージを受信")
                     if message.content.contains("STOP") {
@@ -240,11 +241,11 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
                     }
                 }
             }
-            
+
             self.receivedDataList.append((message.fromDeviceName, message.content))
         }
     }
-    
+
     // ファイル受信のコールバック実装
     func onFileReceived(_ endpointId: String, _ fileURL: URL, _ fileName: String) {
         DispatchQueue.main.async {
@@ -254,19 +255,21 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
                 fileName: fileName,
                 deviceNames: self.connectionUsecase.connectedDeviceNames
             )
-            
+
             self.connectionUsecase.onConnectionStateChanged(state: "ファイル受信完了: \(fileName)")
         }
     }
-    
+
     func onFileTransferProgress(_ endpointId: String, _ progress: Int) {
         DispatchQueue.main.async {
             self.fileManagementUsecase.onFileTransferProgress(endpointId: endpointId, progress: progress)
         }
     }
-    
+
     // 新しいコールバック（AdvertiserViewModelでの詳細な制御用）
-    func onConnectionInitiated(_ endpointId: String, _ deviceName: String, _ context: Data, _ responseHandler: @escaping (Bool) -> Void) {
+    func onConnectionInitiated(
+        _ endpointId: String, _ deviceName: String, _ context: Data, _ responseHandler: @escaping (Bool) -> Void
+    ) {
         let request = ConnectionRequest(
             endpointId: endpointId,
             deviceName: deviceName,
@@ -276,47 +279,48 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
         )
         onConnectionRequestReceived(request: request)
     }
-    
+
     func onConnectionResult(_ endpointId: String, _ isSuccess: Bool) {
         // デフォルトでは何もしない
     }
-    
+
     func onDisconnected(_ endpointId: String) {
         onDeviceDisconnected(endpointId: endpointId)
     }
-    
+
     func onPayloadReceived(_ endpointId: String, _ payload: Data) {
         if let text = String(data: payload, encoding: .utf8) {
             onDataReceived(data: text, fromEndpointId: endpointId)
         }
     }
-    
+
     // MARK: - Private Methods
-    
+
     private func processRealtimeData(_ data: String, fromEndpointId: String = "") {
         print("=== processRealtimeData開始 ===")
         print("処理対象データ: \(data)")
-        
+
         // JSONデータかどうかチェック
-        if data.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{") &&
-           data.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("}") {
-            
+        if data.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
+            && data.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("}")
+        {
+
             print("JSONフォーマット確認: OK")
-            
-            guard let jsonData = data.data(using: .utf8) else { 
+
+            guard let jsonData = data.data(using: .utf8) else {
                 print("UTF8変換失敗")
-                return 
+                return
             }
-            
+
             print("UTF8データ変換: OK, サイズ: \(jsonData.count) bytes")
-            
+
             do {
                 if let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
                     print("JSON解析成功")
-                    
+
                     if let type = json["type"] as? String {
                         print("JSONタイプ: \(type)")
-                        
+
                         switch type {
                         case "REALTIME_DATA":
                             print("リアルタイムデータ処理開始")
@@ -355,29 +359,30 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
                 connectionUsecase.onConnectionStateChanged(state: "コマンドレスポンス: \(data)")
             }
         }
-        
+
         print("=== processRealtimeData終了 ===")
     }
-    
+
     private func processPingMessage(_ json: [String: Any], fromEndpointId: String) {
         let fromDevice = json["from"] as? String ?? "Unknown"
         let timestamp = json["timestamp"] as? Int64 ?? 0
-        
+
         print("Ping received from: \(fromDevice)")
         Task { @MainActor in
-            connectionUsecase.onConnectionStateChanged(state: "Ping受信: \(fromDevice) at \(Date(timeIntervalSince1970: Double(timestamp) / 1000))")
+            connectionUsecase.onConnectionStateChanged(
+                state: "Ping受信: \(fromDevice) at \(Date(timeIntervalSince1970: Double(timestamp) / 1000))")
         }
-        
+
         // Pingに対するPong応答を送信
         let pongMessage = """
-        {
-            "type": "PONG",
-            "timestamp": \(Int64(Date().timeIntervalSince1970 * 1000)),
-            "from": "Mac",
-            "responseTo": "\(fromDevice)"
-        }
-        """
-        
+            {
+                "type": "PONG",
+                "timestamp": \(Int64(Date().timeIntervalSince1970 * 1000)),
+                "from": "Mac",
+                "responseTo": "\(fromDevice)"
+            }
+            """
+
         Task { @MainActor in
             connectionUsecase.sendMessage(pongMessage)
         }

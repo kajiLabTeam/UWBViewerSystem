@@ -5,20 +5,20 @@ import SwiftUI
 struct NewHomeView: View {
     @StateObject private var dashboardViewModel = DashboardViewModel()
     @EnvironmentObject var router: NavigationRouterModel
-    
+
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 24) {
                 headerSection
-                
+
                 quickActionsSection
-                
+
                 systemStatusSection
-                
+
                 recentActivitySection
-                
+
                 navigationSection
-                
+
                 Spacer(minLength: 20)
             }
             .padding()
@@ -28,7 +28,7 @@ struct NewHomeView: View {
             dashboardViewModel.refreshStatus()
         }
     }
-    
+
     // MARK: - Header Section
     private var headerSection: some View {
         VStack(spacing: 12) {
@@ -36,17 +36,17 @@ struct NewHomeView: View {
                 Image(systemName: "sensor")
                     .font(.system(size: 40))
                     .foregroundColor(.blue)
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text("UWBViewerSystem")
                         .font(.title)
                         .fontWeight(.bold)
-                    
+
                     Text("Ultra-Wideband センサー制御システム")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
             }
             .padding()
@@ -60,15 +60,38 @@ struct NewHomeView: View {
             .cornerRadius(16)
         }
     }
-    
+
     // MARK: - Quick Actions Section
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("クイックアクション")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
-            HStack(spacing: 16) {
+
+            // 新しいセンシングフロー
+            VStack(spacing: 12) {
+                HStack {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                    Text("新しいセンシングフロー")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                }
+
+                QuickActionCard(
+                    icon: "play.rectangle.on.rectangle.fill",
+                    title: "新規センシング開始",
+                    subtitle: "フロアマップから開始する新しいフロー",
+                    color: .purple,
+                    isEnabled: true
+                ) {
+                    router.push(.floorMapSetting)
+                }
+            }
+
+            // 従来のクイックアクション
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
                 QuickActionCard(
                     icon: "play.circle.fill",
                     title: "データ収集",
@@ -78,7 +101,7 @@ struct NewHomeView: View {
                 ) {
                     router.push(.dataCollectionPage)
                 }
-                
+
                 QuickActionCard(
                     icon: "chart.line.uptrend.xyaxis",
                     title: "データ表示",
@@ -88,7 +111,7 @@ struct NewHomeView: View {
                 ) {
                     router.push(.dataDisplayPage)
                 }
-                
+
                 QuickActionCard(
                     icon: "network",
                     title: "接続管理",
@@ -98,17 +121,27 @@ struct NewHomeView: View {
                 ) {
                     router.push(.connectionManagementPage)
                 }
+
+                QuickActionCard(
+                    icon: "antenna.radiowaves.left.and.right",
+                    title: "アンテナ設定",
+                    subtitle: "位置・向き調整",
+                    color: .indigo,
+                    isEnabled: true
+                ) {
+                    router.push(.antennaConfiguration)
+                }
             }
         }
     }
-    
+
     // MARK: - System Status Section
     private var systemStatusSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("システム状態")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
+
             VStack(spacing: 12) {
                 StatusRow(
                     icon: "antenna.radiowaves.left.and.right",
@@ -116,21 +149,21 @@ struct NewHomeView: View {
                     value: "\(dashboardViewModel.antennaCount) 台設定済み",
                     status: dashboardViewModel.antennaCount > 0 ? .success : .warning
                 )
-                
+
                 StatusRow(
                     icon: "link.circle",
                     label: "端末ペアリング",
                     value: "\(dashboardViewModel.pairedDeviceCount) 台ペアリング済み",
                     status: dashboardViewModel.pairedDeviceCount > 0 ? .success : .warning
                 )
-                
+
                 StatusRow(
                     icon: "iphone.and.arrow.forward",
                     label: "接続状態",
                     value: "\(dashboardViewModel.connectedDeviceCount) / \(dashboardViewModel.pairedDeviceCount) 台接続中",
                     status: dashboardViewModel.connectionStatus
                 )
-                
+
                 StatusRow(
                     icon: "waveform.path.ecg",
                     label: "センシング状態",
@@ -143,7 +176,7 @@ struct NewHomeView: View {
             .cornerRadius(12)
         }
     }
-    
+
     // MARK: - Recent Activity Section
     private var recentActivitySection: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -151,16 +184,16 @@ struct NewHomeView: View {
                 Text("最近のアクティビティ")
                     .font(.headline)
                     .fontWeight(.semibold)
-                
+
                 Spacer()
-                
+
                 Button(action: dashboardViewModel.clearActivity) {
                     Text("クリア")
                         .font(.caption)
                         .foregroundColor(.blue)
                 }
             }
-            
+
             if dashboardViewModel.recentActivities.isEmpty {
                 Text("アクティビティはありません")
                     .font(.subheadline)
@@ -181,14 +214,14 @@ struct NewHomeView: View {
             }
         }
     }
-    
+
     // MARK: - Navigation Section
     private var navigationSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("設定・管理")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
+
             VStack(spacing: 12) {
                 NavigationRow(
                     icon: "antenna.radiowaves.left.and.right",
@@ -197,7 +230,7 @@ struct NewHomeView: View {
                 ) {
                     router.push(.fieldSettingPage)
                 }
-                
+
                 NavigationRow(
                     icon: "link.circle",
                     title: "端末紐付け設定",
@@ -205,7 +238,7 @@ struct NewHomeView: View {
                 ) {
                     router.push(.pairingSettingPage)
                 }
-                
+
                 NavigationRow(
                     icon: "megaphone",
                     title: "広告専用画面",
@@ -230,20 +263,20 @@ struct QuickActionCard: View {
     let color: Color
     let isEnabled: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.title)
                     .foregroundColor(isEnabled ? color : .gray)
-                
+
                 VStack(spacing: 4) {
                     Text(title)
                         .font(.body)
                         .fontWeight(.semibold)
                         .foregroundColor(isEnabled ? .primary : .gray)
-                    
+
                     Text(subtitle)
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -268,10 +301,10 @@ struct StatusRow: View {
     let label: String
     let value: String
     let status: SystemStatus
-    
+
     enum SystemStatus {
         case success, warning, error, active, inactive
-        
+
         var color: Color {
             switch self {
             case .success, .active: return .green
@@ -280,7 +313,7 @@ struct StatusRow: View {
             case .inactive: return .gray
             }
         }
-        
+
         var statusIcon: String {
             switch self {
             case .success, .active: return "checkmark.circle.fill"
@@ -290,22 +323,22 @@ struct StatusRow: View {
             }
         }
     }
-    
+
     var body: some View {
         HStack {
             Image(systemName: icon)
                 .foregroundColor(.blue)
                 .frame(width: 20)
-            
+
             Text(label)
                 .fontWeight(.medium)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             HStack(spacing: 6) {
                 Text(value)
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
+
                 Image(systemName: status.statusIcon)
                     .foregroundColor(status.color)
                     .font(.caption)
@@ -316,22 +349,22 @@ struct StatusRow: View {
 
 struct ActivityRow: View {
     let activity: DashboardActivity
-    
+
     var body: some View {
         HStack {
             Image(systemName: activity.icon)
                 .foregroundColor(activity.type.color)
                 .frame(width: 20)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(activity.description)
                     .font(.body)
-                
+
                 Text(activity.formattedTimestamp)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
         }
     }
@@ -342,27 +375,27 @@ struct NavigationRow: View {
     let title: String
     let subtitle: String
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack {
                 Image(systemName: icon)
                     .foregroundColor(.blue)
                     .frame(width: 24)
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.body)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
-                    
+
                     Text(subtitle)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .foregroundColor(.gray)
                     .font(.caption)

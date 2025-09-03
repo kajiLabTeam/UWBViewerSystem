@@ -3,69 +3,69 @@ import SwiftUI
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
     @EnvironmentObject var router: NavigationRouterModel
-    
+
     var body: some View {
         #if os(macOS)
-        NavigationSplitView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    headerSection
-                    
-                    connectionSettingsSection
-                    
-                    dataManagementSection
-                    
-                    advancedSettingsSection
-                    
-                    aboutSection
+            NavigationSplitView {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        headerSection
+
+                        connectionSettingsSection
+
+                        dataManagementSection
+
+                        advancedSettingsSection
+
+                        aboutSection
+                    }
+                    .padding()
                 }
-                .padding()
+                .navigationSplitViewColumnWidth(min: 300, ideal: 350)
+            } detail: {
+                if let selectedDetail = viewModel.selectedSettingDetail {
+                    SettingsDetailView(detailType: selectedDetail)
+                } else {
+                    Text("設定項目を選択してください")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(NSColor.controlBackgroundColor))
+                }
             }
-            .navigationSplitViewColumnWidth(min: 300, ideal: 350)
-        } detail: {
-            if let selectedDetail = viewModel.selectedSettingDetail {
-                SettingsDetailView(detailType: selectedDetail)
-            } else {
-                Text("設定項目を選択してください")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(NSColor.controlBackgroundColor))
-            }
-        }
         #else
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    headerSection
-                    
-                    connectionSettingsSection
-                    
-                    dataManagementSection
-                    
-                    advancedSettingsSection
-                    
-                    aboutSection
+            NavigationView {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        headerSection
+
+                        connectionSettingsSection
+
+                        dataManagementSection
+
+                        advancedSettingsSection
+
+                        aboutSection
+                    }
+                    .padding()
                 }
-                .padding()
+                .navigationTitle("設定")
+                .navigationBarTitleDisplayMode(.large)
             }
-            .navigationTitle("設定")
-            .navigationBarTitleDisplayMode(.large)
-        }
         #endif
     }
-    
+
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "gearshape")
                     .font(.title2)
                     .foregroundColor(.purple)
-                
+
                 Text("システム設定")
                     .font(.title2)
                     .fontWeight(.bold)
             }
-            
+
             Text("アプリケーションの設定と管理")
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -75,13 +75,13 @@ struct SettingsView: View {
         .background(Color.purple.opacity(0.1))
         .cornerRadius(12)
     }
-    
+
     private var connectionSettingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("接続設定")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
+
             VStack(spacing: 0) {
                 SettingsRow(
                     icon: "antenna.radiowaves.left.and.right",
@@ -90,15 +90,15 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                    viewModel.selectSettingDetail(.antennaSettings)
+                        viewModel.selectSettingDetail(.antennaSettings)
                     #else
-                    router.push(.fieldSettingPage)
+                        router.push(.fieldSettingPage)
                     #endif
                 }
-                
+
                 Divider()
                     .padding(.leading, 44)
-                
+
                 SettingsRow(
                     icon: "link.circle",
                     title: "端末ペアリング",
@@ -106,15 +106,15 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                    viewModel.selectSettingDetail(.pairingSettings)
+                        viewModel.selectSettingDetail(.pairingSettings)
                     #else
-                    router.push(.pairingSettingPage)
+                        router.push(.pairingSettingPage)
                     #endif
                 }
-                
+
                 Divider()
                     .padding(.leading, 44)
-                
+
                 SettingsRow(
                     icon: "network",
                     title: "接続管理",
@@ -122,9 +122,9 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                    viewModel.selectSettingDetail(.connectionManagement)
+                        viewModel.selectSettingDetail(.connectionManagement)
                     #else
-                    router.push(.connectionManagementPage)
+                        router.push(.connectionManagementPage)
                     #endif
                 }
             }
@@ -132,13 +132,13 @@ struct SettingsView: View {
             .cornerRadius(12)
         }
     }
-    
+
     private var dataManagementSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("データ管理")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
+
             VStack(spacing: 0) {
                 SettingsRow(
                     icon: "externaldrive",
@@ -147,15 +147,15 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                    viewModel.selectSettingDetail(.dataExport)
+                        viewModel.selectSettingDetail(.dataExport)
                     #else
-                    viewModel.exportData()
+                        viewModel.exportData()
                     #endif
                 }
-                
+
                 Divider()
                     .padding(.leading, 44)
-                
+
                 SettingsRow(
                     icon: "trash",
                     title: "キャッシュクリア",
@@ -163,23 +163,23 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                    viewModel.selectSettingDetail(.cacheManagement)
+                        viewModel.selectSettingDetail(.cacheManagement)
                     #else
-                    viewModel.clearCache()
+                        viewModel.clearCache()
                     #endif
                 }
-                
+
                 Divider()
                     .padding(.leading, 44)
-                
+
                 HStack {
                     Image(systemName: "icloud")
                         .frame(width: 20)
                         .foregroundColor(.blue)
-                    
+
                     Text("自動バックアップ")
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
+
                     Toggle("", isOn: $viewModel.autoBackupEnabled)
                         .labelsHidden()
                 }
@@ -189,13 +189,13 @@ struct SettingsView: View {
             .cornerRadius(12)
         }
     }
-    
+
     private var advancedSettingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("詳細設定")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
+
             VStack(spacing: 0) {
                 SettingsRow(
                     icon: "megaphone",
@@ -204,39 +204,39 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                    viewModel.selectSettingDetail(.advertiserSettings)
+                        viewModel.selectSettingDetail(.advertiserSettings)
                     #else
-                    router.push(.advertiserPage)
+                        router.push(.advertiserPage)
                     #endif
                 }
-                
+
                 Divider()
                     .padding(.leading, 44)
-                
+
                 HStack {
                     Image(systemName: "waveform.path.ecg")
                         .frame(width: 20)
                         .foregroundColor(.blue)
-                    
+
                     Text("高精度モード")
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
+
                     Toggle("", isOn: $viewModel.highAccuracyMode)
                         .labelsHidden()
                 }
                 .padding()
-                
+
                 Divider()
                     .padding(.leading, 44)
-                
+
                 HStack {
                     Image(systemName: "bell")
                         .frame(width: 20)
                         .foregroundColor(.blue)
-                    
+
                     Text("通知設定")
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
+
                     Toggle("", isOn: $viewModel.notificationsEnabled)
                         .labelsHidden()
                 }
@@ -246,31 +246,31 @@ struct SettingsView: View {
             .cornerRadius(12)
         }
     }
-    
+
     private var aboutSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("情報")
                 .font(.headline)
                 .fontWeight(.semibold)
-            
+
             VStack(spacing: 0) {
                 HStack {
                     Image(systemName: "info.circle")
                         .frame(width: 20)
                         .foregroundColor(.blue)
-                    
+
                     Text("バージョン")
-                    
+
                     Spacer()
-                    
+
                     Text(viewModel.appVersion)
                         .foregroundColor(.secondary)
                 }
                 .padding()
-                
+
                 Divider()
                     .padding(.leading, 44)
-                
+
                 SettingsRow(
                     icon: "questionmark.circle",
                     title: "ヘルプ",
@@ -278,15 +278,15 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                    viewModel.selectSettingDetail(.help)
+                        viewModel.selectSettingDetail(.help)
                     #else
-                    viewModel.showHelp()
+                        viewModel.showHelp()
                     #endif
                 }
-                
+
                 Divider()
                     .padding(.leading, 44)
-                
+
                 SettingsRow(
                     icon: "doc.text",
                     title: "利用規約",
@@ -294,9 +294,9 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                    viewModel.selectSettingDetail(.terms)
+                        viewModel.selectSettingDetail(.terms)
                     #else
-                    viewModel.showTerms()
+                        viewModel.showTerms()
                     #endif
                 }
             }
@@ -312,18 +312,18 @@ struct SettingsRow: View {
     let subtitle: String?
     let showChevron: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack {
                 Image(systemName: icon)
                     .frame(width: 20)
                     .foregroundColor(.blue)
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .foregroundColor(.primary)
-                    
+
                     if let subtitle = subtitle {
                         Text(subtitle)
                             .font(.caption)
@@ -331,7 +331,7 @@ struct SettingsRow: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                
+
                 if showChevron {
                     Image(systemName: "chevron.right")
                         .font(.caption)
@@ -347,7 +347,7 @@ struct SettingsRow: View {
 struct SettingsDetailView: View {
     let detailType: SettingsDetailType
     @EnvironmentObject var router: NavigationRouterModel
-    
+
     var body: some View {
         VStack(spacing: 30) {
             // ヘッダー
@@ -355,14 +355,14 @@ struct SettingsDetailView: View {
                 Text(detailType.rawValue)
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                
+
                 Text(subtitle)
                     .foregroundColor(.secondary)
             }
             .padding()
             .background(Color.primary.opacity(0.05))
             .cornerRadius(12)
-            
+
             // メインコンテンツ
             switch detailType {
             case .antennaSettings:
@@ -382,18 +382,18 @@ struct SettingsDetailView: View {
             case .terms:
                 termsContent
             }
-            
+
             Spacer()
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         #if os(macOS)
-        .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(NSColor.controlBackgroundColor))
         #else
-        .background(Color(UIColor.systemBackground))
+            .background(Color(UIColor.systemBackground))
         #endif
     }
-    
+
     private var subtitle: String {
         switch detailType {
         case .antennaSettings:
@@ -414,7 +414,7 @@ struct SettingsDetailView: View {
             return "利用規約とプライバシーポリシー"
         }
     }
-    
+
     @ViewBuilder
     private var antennaSettingsContent: some View {
         VStack(spacing: 16) {
@@ -433,7 +433,7 @@ struct SettingsDetailView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var pairingSettingsContent: some View {
         VStack(spacing: 16) {
@@ -452,7 +452,7 @@ struct SettingsDetailView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var connectionManagementContent: some View {
         VStack(spacing: 16) {
@@ -471,17 +471,17 @@ struct SettingsDetailView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var dataExportContent: some View {
         VStack(spacing: 16) {
             Text("データエクスポート機能")
                 .font(.headline)
-            
+
             Text("センシングデータをCSVまたはJSON形式で出力できます。")
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            
+
             Button(action: {
                 // データエクスポート処理
             }) {
@@ -497,17 +497,17 @@ struct SettingsDetailView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var cacheManagementContent: some View {
         VStack(spacing: 16) {
             Text("キャッシュ管理")
                 .font(.headline)
-            
+
             Text("アプリの動作を軽快に保つため、定期的にキャッシュをクリアすることをお勧めします。")
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-            
+
             Button(action: {
                 // キャッシュクリア処理
             }) {
@@ -523,7 +523,7 @@ struct SettingsDetailView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var advertiserSettingsContent: some View {
         VStack(spacing: 16) {
@@ -542,13 +542,13 @@ struct SettingsDetailView: View {
             }
         }
     }
-    
+
     @ViewBuilder
     private var helpContent: some View {
         VStack(spacing: 16) {
             Text("ヘルプ・使い方ガイド")
                 .font(.headline)
-            
+
             VStack(alignment: .leading, spacing: 12) {
                 Text("• フロアマップの登録方法")
                 Text("• アンテナの配置設定")
@@ -562,13 +562,13 @@ struct SettingsDetailView: View {
             .cornerRadius(8)
         }
     }
-    
+
     @ViewBuilder
     private var termsContent: some View {
         VStack(spacing: 16) {
             Text("利用規約・プライバシーポリシー")
                 .font(.headline)
-            
+
             ScrollView {
                 Text("このアプリケーションは研究目的で開発されたUWBセンシングシステムです。収集されたデータは研究目的でのみ使用され、第三者に提供されることはありません。")
                     .padding()

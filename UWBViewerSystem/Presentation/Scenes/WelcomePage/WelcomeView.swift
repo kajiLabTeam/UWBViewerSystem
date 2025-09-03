@@ -36,10 +36,10 @@ struct WelcomeView: View {
 
                 Spacer()
                     .frame(height: 50)
-                
+
                 VStack(spacing: 15) {
                     Button(action: {
-                        navigationModel.navigate(to: .indoorMapRegistration)
+                        navigationModel.navigate(to: .floorMapSetting)
                     }) {
                         Label("新しいセンシングを開始", systemImage: "plus.circle.fill")
                             .font(.headline)
@@ -48,7 +48,7 @@ struct WelcomeView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    
+
                     Button(action: {
                         navigationModel.navigate(to: .mainTabView)
                     }) {

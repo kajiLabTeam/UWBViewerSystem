@@ -11,12 +11,12 @@ import SwiftUI
 @MainActor
 class NavigationRouterModel: ObservableObject {
     static let shared = NavigationRouterModel()
-    
+
     @Published var path = NavigationPath()
     @Published var appState: AppState = .initializing
     @Published var currentRoute: Route = .welcomePage
-    
-    init() {} // public initializer for flexibility
+
+    init() {}  // public initializer for flexibility
 
     /// 画面を遷移する
     ///
@@ -50,7 +50,7 @@ class NavigationRouterModel: ObservableObject {
     func initializeApp() async {
         appState = .initializing
         // 少し待ってからログイン状態をチェック
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+        try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
 
         // もしここにログイン処理とか書く場合はこちらに
 
@@ -61,7 +61,7 @@ class NavigationRouterModel: ObservableObject {
     func onLoginSuccess() {
         appState = .authenticated
     }
-    
+
     /// 指定したルートに遷移する（新しいファイル用のメソッド）
     func navigate(to route: Route) {
         navigateTo(route)

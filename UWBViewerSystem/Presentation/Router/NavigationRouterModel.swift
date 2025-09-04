@@ -10,16 +10,24 @@ import SwiftUI
 /// 画面遷移の動作をまとめている
 @MainActor
 class NavigationRouterModel: ObservableObject {
+    static let shared = NavigationRouterModel()
+
     @Published var path = NavigationPath()
     @Published var appState: AppState = .initializing
     @Published var currentRoute: Route = .welcomePage
+
+    init() {}  // public initializer for flexibility
 
     /// 画面を遷移する
     ///
     /// - Parameter route: 遷移先の画面
     /// - Note: 遷移先の画面はRouteに定義されているものを使用すること
     func push(_ route: Route) {
+        print("🚀 NavigationRouter.push(\(route))が呼び出されました")
+        print("🚀 self instance: \(ObjectIdentifier(self))")
+        print("🚀 現在のpath.count: \(path.count)")
         path.append(route)
+        print("🚀 push後のpath.count: \(path.count)")
     }
 
     /// 一つ前の画面に戻る
@@ -42,7 +50,7 @@ class NavigationRouterModel: ObservableObject {
     func initializeApp() async {
         appState = .initializing
         // 少し待ってからログイン状態をチェック
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+        try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
 
         // もしここにログイン処理とか書く場合はこちらに
 
@@ -52,5 +60,10 @@ class NavigationRouterModel: ObservableObject {
     /// ログイン成功時の処理
     func onLoginSuccess() {
         appState = .authenticated
+    }
+
+    /// 指定したルートに遷移する（新しいファイル用のメソッド）
+    func navigate(to route: Route) {
+        navigateTo(route)
     }
 }

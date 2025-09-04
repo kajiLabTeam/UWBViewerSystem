@@ -19,7 +19,11 @@ struct NavigationRouter: View {
             NavigationStack(path: $router.path) {
                 rootView
                     .navigationDestination(for: Route.self) { route in
-                        destinationView(for: route)
+                        print("🎯 NavigationStack destinationView called for route: \(route)")
+                        return destinationView(for: route)
+                    }
+                    .onChange(of: router.path) { _, newPath in
+                        print("🎯 NavigationStack path changed, count: \(newPath.count)")
                     }
             }
         }
@@ -38,7 +42,7 @@ struct NavigationRouter: View {
         case .initializing:
             WelcomeView()
         case .authenticated:
-            HomeView()
+            MainTabView()
         case .unauthenticated:
             WelcomeView()
         }
@@ -47,12 +51,47 @@ struct NavigationRouter: View {
     @ViewBuilder
     private func destinationView(for route: Route) -> some View {
         switch route {
+        // 新しいセンシングフロー
+        case .floorMapSetting:
+            FloorMapSettingView()
+        case .antennaConfiguration:
+            AntennaPositioningView()  // 改修済み：向き設定機能付き
+        case .devicePairing:
+            PairingSettingView()
+        case .systemCalibration:
+            SystemCalibrationView()
+        case .sensingExecution:
+            SensingManagementView()
+        case .sensingDataViewer:
+            DataDisplayView()
+
+        // レガシー画面（互換性のため）
         case .welcomePage:
             WelcomeView()
+        case .antennaPositioning:
+            AntennaPositioningView()
+        case .sensingManagement:
+            SensingManagementView()
+        case .trajectoryView:
+            TrajectoryView()
+
+        // メイン機能画面
+        case .fieldSettingPage:
+            FieldSettingView()
+        case .pairingSettingPage:
+            PairingSettingView()
         case .homePage:
-            HomeView()
-        case .editPage:
-            EditView()
+            NewHomeView()
+        case .dataCollectionPage:
+            DataCollectionView()
+        case .dataDisplayPage:
+            DataDisplayView()
+        case .connectionManagementPage:
+            ConnectionManagementView()
+        case .advertiserPage:
+            AdvertiserView()
+        case .mainTabView:
+            MainTabView()
         }
     }
 }

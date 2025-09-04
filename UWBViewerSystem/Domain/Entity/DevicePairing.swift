@@ -34,22 +34,4 @@ public struct AntennaPairing: Identifiable, Codable {
     }
 }
 
-// MARK: - アンテナ情報エンティティ（参照用）
-
-public struct AntennaInfo: Identifiable, Codable {
-    public let id: String
-    public let name: String
-    public let coordinates: Point3D
-
-    init(id: String = UUID().uuidString, name: String, coordinates: Point3D) {
-        self.id = id
-        self.name = name
-        self.coordinates = coordinates
-    }
-}
-
-public struct Point3D: Codable {
-    public let x: Double
-    public let y: Double
-    public let z: Double
-}
+// AntennaInfo、Point3DはCommonTypes.swiftで定義済み

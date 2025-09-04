@@ -6,6 +6,7 @@ import SwiftUI
 struct DataDisplayView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = DataDisplayViewModel()
+    @StateObject private var flowNavigator = SensingFlowNavigator()
     @EnvironmentObject var router: NavigationRouterModel
     @State private var selectedDisplayMode: DisplayMode = .history
 
@@ -15,21 +16,32 @@ struct DataDisplayView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            headerSection
+        VStack(spacing: 0) {
+            // フロープログレス表示
+            SensingFlowProgressView(navigator: flowNavigator)
 
-            displayModeSelector
+            ScrollView {
+                VStack(spacing: 20) {
+                    headerSection
 
-            contentArea
+                    displayModeSelector
 
-            Spacer()
+                    contentArea
+
+                    Spacer(minLength: 80)
+                }
+                .padding()
+            }
+
+            // ナビゲーションボタン
+            navigationButtons
         }
-        .padding()
         .navigationTitle("データ表示")
         .onAppear {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
             let repository = SwiftDataRepository(modelContext: modelContext)
             viewModel.setSwiftDataRepository(repository)
+            flowNavigator.currentStep = .dataViewer
         }
     }
 
@@ -300,6 +312,45 @@ struct FileTransferProgressView: View {
 
             ProgressView(value: Double(progress), total: 100)
                 .progressViewStyle(LinearProgressViewStyle())
+        }
+    }
+}
+
+// MARK: - Navigation Buttons
+extension DataDisplayView {
+    private var navigationButtons: some View {
+        VStack(spacing: 12) {
+            Divider()
+
+            HStack(spacing: 16) {
+                Button("戻る") {
+                    flowNavigator.goToPreviousStep()
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.secondary)
+                .background(Color.secondary.opacity(0.1))
+                .cornerRadius(8)
+
+                Button("フローを完了") {
+                    flowNavigator.completeFlow()
+                    router.reset()
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.white)
+                .background(Color.green)
+                .cornerRadius(8)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+        }
+        .alert("エラー", isPresented: Binding.constant(flowNavigator.lastError != nil)) {
+            Button("OK") {
+                flowNavigator.lastError = nil
+            }
+        } message: {
+            Text(flowNavigator.lastError ?? "")
         }
     }
 }

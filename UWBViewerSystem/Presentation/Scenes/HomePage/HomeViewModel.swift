@@ -11,7 +11,6 @@ import SwiftUI
 
 @MainActor
 class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositoryCallback {
-    static let shared = HomeViewModel()
 
     // MARK: - Usecases
     let realtimeDataUsecase: RealtimeDataUsecase
@@ -21,15 +20,35 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
 
     let nearByRepository: NearbyRepository
 
-    private override init() {
-        nearByRepository = NearbyRepository()
-        connectionUsecase = ConnectionManagementUsecase(nearbyRepository: nearByRepository)
-        realtimeDataUsecase = RealtimeDataUsecase()
-        sensingControlUsecase = SensingControlUsecase(connectionUsecase: connectionUsecase)
-        fileManagementUsecase = FileManagementUsecase()
+    // MARK: - Dependency Injection対応のイニシャライザ
+
+    public init(
+        nearbyRepository: NearbyRepository? = nil,
+        connectionUsecase: ConnectionManagementUsecase? = nil,
+        realtimeDataUsecase: RealtimeDataUsecase? = nil,
+        sensingControlUsecase: SensingControlUsecase? = nil,
+        fileManagementUsecase: FileManagementUsecase? = nil
+    ) {
+        // 依存関係の注入または新規作成
+        self.nearByRepository = nearbyRepository ?? NearbyRepository()
+        self.connectionUsecase =
+            connectionUsecase ?? ConnectionManagementUsecase(nearbyRepository: self.nearByRepository)
+        self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
+        self.sensingControlUsecase =
+            sensingControlUsecase ?? SensingControlUsecase(connectionUsecase: self.connectionUsecase)
+        self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase()
 
         super.init()
-        nearByRepository.callback = self
+        self.nearByRepository.callback = self
+    }
+
+    // MARK: - Factory Method（従来互換性のため）
+
+    /// 従来のsharedパターンと同じ動作をするファクトリーメソッド
+    /// 新しいコードではDI対応のイニシャライザを使用することを推奨
+    @available(*, deprecated, message: "Use dependency injection initializer instead")
+    public static func createDefault() -> HomeViewModel {
+        return HomeViewModel()
     }
 
     // MARK: - Published Properties (プロパティのフォワード)
@@ -212,8 +231,8 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
     func onMessageReceived(message: Message) {
         DispatchQueue.main.async {
             print("🔵 Mac HomeViewModel: onMessageReceived")
-            print("🔵 エンドポイント: \(String(describing: message.fromEndpointId))")
-            print("🔵 デバイス名: \(message.fromDeviceName)")
+            print("🔵 エンドポイント: \(message.senderId)")
+            print("🔵 デバイス名: \(message.senderName)")
             print("🔵 メッセージ長: \(message.content.count) 文字")
             print("🔵 メッセージ先頭: \(String(message.content.prefix(100)))")
 
@@ -224,7 +243,7 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
                         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                             print("🟢 JSON解析成功 - processRealtimeDataJSON呼び出し")
                             self.realtimeDataUsecase.processRealtimeDataMessage(
-                                json, fromEndpointId: message.fromEndpointId ?? "unknown")
+                                json, fromEndpointId: message.senderId)
                         }
                     } catch {
                         print("🔴 JSON解析エラー: \(error)")
@@ -242,7 +261,7 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
                 }
             }
 
-            self.receivedDataList.append((message.fromDeviceName, message.content))
+            self.receivedDataList.append((message.senderName, message.content))
         }
     }
 
@@ -273,7 +292,7 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
         let request = ConnectionRequest(
             endpointId: endpointId,
             deviceName: deviceName,
-            requestTime: Date(),
+            timestamp: Date(),
             context: context,
             responseHandler: responseHandler
         )
@@ -388,4 +407,48 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
         }
         print("Pong response sent to: \(fromDevice)")
     }
+    
+    // MARK: - NearbyRepositoryCallback Protocol Implementation
+    
+    func onDiscoveryStateChanged(isDiscovering: Bool) {
+        // デフォルトでは何もしない
+    }
+    
+    func onDeviceFound(endpointId: String, name: String, isConnectable: Bool) {
+        // デフォルトでは何もしない
+    }
+    
+    func onDeviceLost(endpointId: String) {
+        // デフォルトでは何もしない
+    }
+    
+    func onConnectionRequest(endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void) {
+        let request = ConnectionRequest(
+            endpointId: endpointId,
+            deviceName: deviceName,
+            timestamp: Date(),
+            context: context,
+            responseHandler: accept
+        )
+        onConnectionRequestReceived(request: request)
+    }
+    
+    
+    func onDataReceived(endpointId: String, data: Data) {
+        if let messageContent = String(data: data, encoding: .utf8) {
+            let message = Message(
+                content: messageContent,
+                timestamp: Date(),
+                senderId: endpointId,
+                senderName: "Unknown",
+                isOutgoing: false
+            )
+            onMessageReceived(message: message)
+        }
+    }
+    
+    func onDeviceConnected(endpointId: String, deviceName: String) {
+        // デフォルトでは何もしない
+    }
+    
 }

@@ -40,11 +40,29 @@ class DataDisplayViewModel: ObservableObject {
     @Published var isConnected = false
 
     private var updateTimer: Timer?
-    private var homeViewModel: HomeViewModel?
-    private var swiftDataRepository: SwiftDataRepositoryProtocol
 
-    init(swiftDataRepository: SwiftDataRepositoryProtocol) {
+    // DI対応: 必要なUseCaseを直接注入
+    private let realtimeDataUsecase: RealtimeDataUsecase
+    private let fileManagementUsecase: FileManagementUsecase
+    private let connectionUsecase: ConnectionManagementUsecase
+    private var swiftDataRepository: SwiftDataRepositoryProtocol
+    private var cancellables = Set<AnyCancellable>()
+
+    init(
+        swiftDataRepository: SwiftDataRepositoryProtocol,
+        realtimeDataUsecase: RealtimeDataUsecase? = nil,
+        fileManagementUsecase: FileManagementUsecase? = nil,
+        connectionUsecase: ConnectionManagementUsecase? = nil
+    ) {
         self.swiftDataRepository = swiftDataRepository
+        self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
+        self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase()
+        self.connectionUsecase =
+            connectionUsecase
+            ?? ConnectionManagementUsecase(
+                nearbyRepository: NearbyRepository()
+            )
+
         setupObservers()
         Task {
             await loadHistoryData()
@@ -66,19 +84,14 @@ class DataDisplayViewModel: ObservableObject {
     }
 
     private func setupObservers() {
-        // HomeViewModelのインスタンスを安全に取得
-        homeViewModel = HomeViewModel.shared
-
-        guard let viewModel = homeViewModel else { return }
-
-        // HomeViewModelの各Usecaseからの状態を監視
-        viewModel.realtimeDataUsecase.$deviceRealtimeDataList
+        // 直接注入されたUsecaseからの状態を監視
+        realtimeDataUsecase.$deviceRealtimeDataList
             .assign(to: &$realtimeData)
 
-        viewModel.fileManagementUsecase.$fileTransferProgress
+        fileManagementUsecase.$fileTransferProgress
             .assign(to: &$fileTransferProgress)
 
-        viewModel.fileManagementUsecase.$receivedFiles
+        fileManagementUsecase.$receivedFiles
             .map { files in
                 files.map { fileName in
                     DataDisplayFile(
@@ -91,7 +104,7 @@ class DataDisplayViewModel: ObservableObject {
             }
             .assign(to: &$receivedFiles)
 
-        viewModel.connectionUsecase.$connectedEndpoints
+        connectionUsecase.$connectedEndpoints
             .map { !$0.isEmpty }
             .assign(to: &$isConnected)
     }
@@ -144,7 +157,7 @@ class DataDisplayViewModel: ObservableObject {
     // MARK: - File Management
 
     func openStorageFolder() {
-        homeViewModel?.openFileStorageFolder()
+        fileManagementUsecase.openFileStorageFolder()
     }
 
     func openFile(_ file: DataDisplayFile) {
@@ -227,7 +240,12 @@ class DataDisplayViewModel: ObservableObject {
 extension DataDisplayViewModel {
     /// テスト用またはプレースホルダー用の初期化
     convenience init() {
-        self.init(swiftDataRepository: DummySwiftDataRepository())
+        self.init(
+            swiftDataRepository: DummySwiftDataRepository(),
+            realtimeDataUsecase: nil,
+            fileManagementUsecase: nil,
+            connectionUsecase: nil
+        )
     }
 }
 

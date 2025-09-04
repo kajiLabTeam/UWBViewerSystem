@@ -6,7 +6,8 @@ import PackageDescription
 let package = Package(
     name: "UWBViewerSystem",
     platforms: [
-        .iOS(.v16)
+        .iOS(.v17),
+        .macOS(.v14)
     ],
     products: [
         .library(
@@ -15,14 +16,21 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-format.git", from: "509.0.0")
-        // Nearby Connectionsは直接CocoaPodsまたはXcodeプロジェクトの依存関係として管理
+        .package(url: "https://github.com/apple/swift-format.git", from: "509.0.0"),
+        .package(url: "https://github.com/google/nearby.git", branch: "main")
     ],
     targets: [
         .target(
             name: "UWBViewerSystem",
-            dependencies: [],
-            path: "UWBViewerSystem"
+            dependencies: [
+                .product(name: "NearbyConnections", package: "nearby")
+            ],
+            path: "UWBViewerSystem",
+            exclude: ["UWBViewerSystemApp.swift"],
+            resources: [
+                .process("Assets.xcassets"),
+                .copy("UWBViewerSystem.entitlements")
+            ]
         ),
         .testTarget(
             name: "UWBViewerSystemTests",

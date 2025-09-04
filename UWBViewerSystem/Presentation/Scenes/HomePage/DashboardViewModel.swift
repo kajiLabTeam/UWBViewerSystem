@@ -59,7 +59,10 @@ class DashboardViewModel: ObservableObject {
     @Published var sensingStatus = "停止中"
     @Published var recentActivities: [DashboardActivity] = []
 
-    private let homeViewModel = HomeViewModel.shared
+    // DI対応: 必要なUseCaseを直接注入
+    private let sensingControlUsecase: SensingControlUsecase
+    private let connectionUsecase: ConnectionManagementUsecase
+    private var cancellables = Set<AnyCancellable>()
 
     var connectionStatus: StatusRow.SystemStatus {
         if pairedDeviceCount == 0 {
@@ -73,21 +76,32 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
-    init() {
+    init(
+        sensingControlUsecase: SensingControlUsecase? = nil,
+        connectionUsecase: ConnectionManagementUsecase? = nil
+    ) {
+        let nearbyRepository = NearbyRepository()
+        let defaultConnectionUsecase =
+            connectionUsecase ?? ConnectionManagementUsecase(nearbyRepository: nearbyRepository)
+
+        self.connectionUsecase = defaultConnectionUsecase
+        self.sensingControlUsecase =
+            sensingControlUsecase ?? SensingControlUsecase(connectionUsecase: defaultConnectionUsecase)
+
         setupObservers()
         refreshStatus()
         loadRecentActivities()
     }
 
     private func setupObservers() {
-        // HomeViewModelの各Usecaseからの状態を監視
-        homeViewModel.sensingControlUsecase.$isSensingControlActive
+        // 直接注入されたUsecaseからの状態を監視
+        sensingControlUsecase.$isSensingControlActive
             .assign(to: &$isSensingActive)
 
-        homeViewModel.sensingControlUsecase.$sensingStatus
+        sensingControlUsecase.$sensingStatus
             .assign(to: &$sensingStatus)
 
-        homeViewModel.connectionUsecase.$connectedEndpoints
+        connectionUsecase.$connectedEndpoints
             .map { $0.count }
             .assign(to: &$connectedDeviceCount)
     }
@@ -119,8 +133,8 @@ class DashboardViewModel: ObservableObject {
     }
 
     private func updateConnectionStatus() {
-        // HomeViewModelから最新の接続状態を取得
-        connectedDeviceCount = homeViewModel.connectedEndpoints.count
+        // ConnectionUsecaseから最新の接続状態を取得
+        connectedDeviceCount = connectionUsecase.connectedEndpoints.count
     }
 
     // MARK: - Activity Management

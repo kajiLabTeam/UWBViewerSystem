@@ -22,7 +22,7 @@ public class SensingControlUsecase: ObservableObject {
     private var currentSessionId: String?
 
     public init(
-        connectionUsecase: ConnectionManagementUsecase, 
+        connectionUsecase: ConnectionManagementUsecase,
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()
     ) {
         self.connectionUsecase = connectionUsecase
@@ -60,14 +60,14 @@ public class SensingControlUsecase: ObservableObject {
                 let session = SensingSession(name: fileName, startTime: Date(), isActive: true)
                 try await swiftDataRepository.saveSensingSession(session)
                 currentSessionId = session.id
-                
+
                 // システム活動ログも記録
                 let activity = SystemActivity(
-                    activityType: "sensing", 
+                    activityType: "sensing",
                     activityDescription: "センシングセッション開始: \(fileName)"
                 )
                 try await swiftDataRepository.saveSystemActivity(activity)
-                
+
                 print("センシングセッション作成完了: \(session.id)")
             } catch {
                 print("センシングセッション作成エラー: \(error)")
@@ -191,7 +191,7 @@ public class SensingControlUsecase: ObservableObject {
 
         do {
             // 既存のセッションを更新（終了時間とデータポイント数を設定）
-            if let existingSession = try await swiftDataRepository.loadSensingSession(by: sessionId) {
+            if let _ = try await swiftDataRepository.loadSensingSession(by: sessionId) {
                 let updatedSession = SensingSession(
                     id: sessionId,
                     name: currentSensingFileName,
@@ -200,16 +200,16 @@ public class SensingControlUsecase: ObservableObject {
                     isActive: false,
                     dataPoints: dataPointCount
                 )
-                
+
                 try await swiftDataRepository.updateSensingSession(updatedSession)
-                
+
                 // システム活動ログも記録
                 let activity = SystemActivity(
-                    activityType: "sensing", 
+                    activityType: "sensing",
                     activityDescription: "センシングセッション終了: \(currentSensingFileName) (\(dataPointCount)データポイント)"
                 )
                 try await swiftDataRepository.saveSystemActivity(activity)
-                
+
                 print("センシングセッション更新完了: \(sessionId)")
             }
         } catch {
@@ -218,13 +218,13 @@ public class SensingControlUsecase: ObservableObject {
     }
 
     // MARK: - Data Management
-    
+
     public func saveRealtimeData(_ data: RealtimeData) async {
         guard let sessionId = currentSessionId else { return }
-        
+
         do {
             try await swiftDataRepository.saveRealtimeData(data, sessionId: sessionId)
-            
+
             // データポイント数を更新
             Task { @MainActor in
                 self.dataPointCount += 1
@@ -233,7 +233,7 @@ public class SensingControlUsecase: ObservableObject {
             print("リアルタイムデータ保存エラー: \(error)")
         }
     }
-    
+
     public func loadSensingHistory() async throws -> [SensingSession] {
         return try await swiftDataRepository.loadAllSensingSessions()
     }

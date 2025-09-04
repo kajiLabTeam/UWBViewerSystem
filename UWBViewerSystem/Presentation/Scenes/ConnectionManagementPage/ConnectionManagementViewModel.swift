@@ -62,10 +62,10 @@ class ConnectionManagementViewModel: ObservableObject {
 
     private var uptimeTimer: Timer?
     private var startTime: Date?
-    private let homeViewModel = HomeViewModel.shared
-    private var connectionUsecase: ConnectionManagementUsecase {
-        homeViewModel.connectionUsecase
-    }
+    private var cancellables = Set<AnyCancellable>()
+
+    // DI対応: 必要なUseCaseを直接注入
+    private let connectionUsecase: ConnectionManagementUsecase
 
     var formattedDataTransferred: String {
         let formatter = ByteCountFormatter()
@@ -73,7 +73,12 @@ class ConnectionManagementViewModel: ObservableObject {
         return formatter.string(fromByteCount: dataTransferred)
     }
 
-    init() {
+    init(connectionUsecase: ConnectionManagementUsecase? = nil) {
+        self.connectionUsecase =
+            connectionUsecase
+            ?? ConnectionManagementUsecase(
+                nearbyRepository: NearbyRepository()
+            )
         setupObservers()
     }
 
@@ -82,7 +87,7 @@ class ConnectionManagementViewModel: ObservableObject {
     }
 
     private func setupObservers() {
-        // HomeViewModelからの状態を監視
+        // 直接注入されたUsecaseからの状態を監視
         connectionUsecase.$isAdvertising
             .assign(to: &$isAdvertising)
 
@@ -114,16 +119,16 @@ class ConnectionManagementViewModel: ObservableObject {
 
     func toggleAdvertising() {
         if isAdvertising {
-            homeViewModel.stopAdvertising()
+            connectionUsecase.stopAdvertising()
         } else {
-            homeViewModel.startAdvertising()
+            connectionUsecase.startAdvertising()
             startTime = Date()
         }
     }
 
     func startDiscovery() {
         isDiscovering = true
-        homeViewModel.startDiscovery()
+        connectionUsecase.startDiscovery()
 
         // 5秒後に自動停止
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
@@ -137,7 +142,7 @@ class ConnectionManagementViewModel: ObservableObject {
     }
 
     func disconnectDevice(_ device: ConnectionDeviceInfo) {
-        homeViewModel.disconnectEndpoint(device.id)
+        connectionUsecase.disconnectFromDevice(endpointId: device.id)
 
         // メッセージ履歴に切断ログを追加
         let disconnectMessage = ConnectionMessage(
@@ -150,9 +155,7 @@ class ConnectionManagementViewModel: ObservableObject {
     }
 
     func disconnectAll() {
-        for device in connectedDevices {
-            homeViewModel.disconnectEndpoint(device.id)
-        }
+        connectionUsecase.disconnectAll()
 
         let disconnectAllMessage = ConnectionMessage(
             content: "全ての端末が切断されました",
@@ -170,7 +173,7 @@ class ConnectionManagementViewModel: ObservableObject {
 
         // 全ての接続端末にメッセージを送信
         for device in connectedDevices {
-            homeViewModel.sendMessage(content, to: device.id)
+            connectionUsecase.sendMessageToDevice(content, to: device.id)
         }
 
         // メッセージ履歴に追加

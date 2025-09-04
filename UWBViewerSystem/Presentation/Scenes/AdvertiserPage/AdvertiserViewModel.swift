@@ -143,9 +143,9 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
         // メッセージ履歴に追加（送信者として）
         let message = Message(
             content: messageContent,
-            fromEndpointId: nil,  // 自分からの送信なのでnil
-            fromDeviceName: "自分",
             timestamp: Date(),
+            senderId: "self",
+            senderName: "自分",
             isOutgoing: true
         )
         messages.append(message)
@@ -187,96 +187,92 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
 
 // MARK: - NearbyRepositoryCallback
 extension AdvertiserViewModel: NearbyRepositoryCallback {
-    func onConnectionInitiated(
-        _ endpointId: String, _ deviceName: String, _ context: Data, _ responseHandler: @escaping (Bool) -> Void
-    ) {
-        logger.info("接続要求受信: \(endpointId) from \(deviceName)")
-
+    
+    func onDiscoveryStateChanged(isDiscovering: Bool) {
+        // 広告者モードでは特に処理なし
+    }
+    
+    func onDeviceFound(endpointId: String, name: String, isConnectable: Bool) {
+        // 広告者モードでは特に処理なし
+    }
+    
+    func onDeviceLost(endpointId: String) {
+        // 広告者モードでは特に処理なし
+    }
+    
+    func onConnectionRequest(endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void) {
         let request = ConnectionRequest(
             endpointId: endpointId,
             deviceName: deviceName,
-            requestTime: Date(),
+            timestamp: Date(),
             context: context,
-            responseHandler: responseHandler
+            responseHandler: accept
         )
-
+        
         DispatchQueue.main.async {
             self.connectionRequests.append(request)
         }
     }
-
-    func onConnectionResult(_ endpointId: String, _ isSuccess: Bool) {
-        logger.info("接続結果: \(endpointId) -> \(isSuccess)")
-
+    
+    func onConnectionResult(_ endpointId: String, _ success: Bool) {
+        logger.info("接続結果: \(endpointId) -> \(success)")
+        
         DispatchQueue.main.async {
-            if !isSuccess {
+            if !success {
                 // 接続失敗時は接続済みリストから削除
                 self.connectedDevices.removeAll { $0.endpointId == endpointId }
             }
         }
     }
-
-    func onDisconnected(_ endpointId: String) {
-        logger.info("切断: \(endpointId)")
-
-        DispatchQueue.main.async {
-            self.connectedDevices.removeAll { $0.endpointId == endpointId }
-        }
+    
+    func onConnectionStateChanged(state: String) {
+        statusMessage = state
     }
-
-    func onPayloadReceived(_ endpointId: String, _ payload: Data) {
-        guard let messageContent = String(data: payload, encoding: .utf8) else {
-            logger.warning("受信データのデコードに失敗: \(endpointId)")
-            return
-        }
-
-        logger.info("メッセージ受信: \(messageContent) from \(endpointId)")
-
-        DispatchQueue.main.async {
+    
+    func onDataReceived(endpointId: String, data: Data) {
+        if let messageContent = String(data: data, encoding: .utf8) {
             // 送信者のデバイス名を取得
-            let senderName = self.connectedDevices.first { $0.endpointId == endpointId }?.deviceName ?? endpointId
-
+            let senderName = connectedDevices.first { $0.endpointId == endpointId }?.deviceName ?? "Unknown"
+            
             // メッセージ履歴に追加
             let message = Message(
                 content: messageContent,
-                fromEndpointId: endpointId,
-                fromDeviceName: senderName,
                 timestamp: Date(),
+                senderId: endpointId,
+                senderName: senderName,
                 isOutgoing: false
             )
-            self.messages.append(message)
-
+            messages.append(message)
+            
             // 最終受信時刻を更新
-            if let index = self.connectedDevices.firstIndex(where: { $0.endpointId == endpointId }) {
-                self.connectedDevices[index].lastMessageTime = Date()
+            if let index = connectedDevices.firstIndex(where: { $0.endpointId == endpointId }) {
+                connectedDevices[index].lastMessageTime = Date()
             }
         }
     }
-
-    // MARK: - 古いコールバックメソッドのデフォルト実装（互換性のため）
-    func onConnectionStateChanged(state: String) {
+    
+    func onDeviceConnected(endpointId: String, deviceName: String) {
+        logger.info("端末接続: \(endpointId) (\(deviceName))")
+        
+        let newDevice = ConnectedDevice(
+            endpointId: endpointId,
+            deviceName: deviceName,
+            connectTime: Date(),
+            isActive: true
+        )
+        
         DispatchQueue.main.async {
-            self.statusMessage = state
+            self.connectedDevices.append(newDevice)
+            self.statusMessage = "接続完了: \(deviceName)"
         }
     }
-
-    func onDataReceived(data: String, fromEndpointId: String) {
-        // 新しい形式で処理済みなのでここでは何もしない
-    }
-
-    func onConnectionRequestReceived(request: ConnectionRequest) {
-        // 新しい形式で処理済みなのでここでは何もしない
-    }
-
-    func onDeviceConnected(device: ConnectedDevice) {
-        // 新しい形式で処理済みなのでここでは何もしない
-    }
-
+    
     func onDeviceDisconnected(endpointId: String) {
-        // 新しい形式で処理済みなのでここでは何もしない
-    }
-
-    func onMessageReceived(message: Message) {
-        // 新しい形式で処理済みなのでここでは何もしない
+        logger.info("端末切断: \(endpointId)")
+        
+        DispatchQueue.main.async {
+            self.connectedDevices.removeAll { $0.endpointId == endpointId }
+            self.statusMessage = "端末切断: \(endpointId)"
+        }
     }
 }

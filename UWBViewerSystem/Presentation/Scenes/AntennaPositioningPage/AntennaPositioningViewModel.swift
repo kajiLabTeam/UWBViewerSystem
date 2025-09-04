@@ -9,7 +9,7 @@ import SwiftUI
 
 @MainActor
 class AntennaPositioningViewModel: ObservableObject {
-    @Published var selectedDevices: [UWBDevice] = []
+    @Published var selectedDevices: [AndroidDevice] = []
     @Published var antennaPositions: [AntennaPosition] = []
     @Published var canProceedValue: Bool = false
 
@@ -18,7 +18,8 @@ class AntennaPositioningViewModel: ObservableObject {
     #elseif os(iOS)
         var mapImage: UIImage?
     #endif
-    var mapData: IndoorMapData?
+    // mapData: IndoorMapDataは現在利用できないため、一時的にコメントアウト
+    // var mapData: IndoorMapData?
 
     private let colors: [Color] = [.red, .blue, .green, .orange, .purple, .pink, .cyan, .yellow]
 
@@ -26,11 +27,11 @@ class AntennaPositioningViewModel: ObservableObject {
         let positionedAntennas = antennaPositions.filter { $0.position != CGPoint(x: 50, y: 50) }
         canProceedValue = positionedAntennas.count >= 3
     }
-    
+
     func getDevicePosition(_ deviceId: String) -> CGPoint {
         return antennaPositions.first { $0.id == deviceId }?.position ?? CGPoint(x: 50, y: 50)
     }
-    
+
     func getDeviceRotation(_ deviceId: String) -> Double {
         return antennaPositions.first { $0.id == deviceId }?.rotation ?? 0.0
     }
@@ -43,13 +44,15 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func loadSelectedDevices() {
         if let data = UserDefaults.standard.data(forKey: "SelectedUWBDevices"),
-            let decoded = try? JSONDecoder().decode([UWBDevice].self, from: data)
+            let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
         {
             selectedDevices = decoded
         }
     }
 
     private func loadMapData() {
+        // IndoorMapDataは現在利用できないため、一時的にコメントアウト
+        /*
         if let data = UserDefaults.standard.data(forKey: "CurrentIndoorMap"),
             let decoded = try? JSONDecoder().decode(IndoorMapData.self, from: data)
         {
@@ -62,6 +65,7 @@ class AntennaPositioningViewModel: ObservableObject {
                 }
             #endif
         }
+        */
     }
 
     private func createAntennaPositions() {
@@ -83,7 +87,7 @@ class AntennaPositioningViewModel: ObservableObject {
             updateCanProceed()
         }
     }
-    
+
     func updateAntennaRotation(_ antennaId: String, rotation: Double) {
         if let index = antennaPositions.firstIndex(where: { $0.id == antennaId }) {
             antennaPositions[index].rotation = rotation
@@ -175,15 +179,33 @@ class AntennaPositioningViewModel: ObservableObject {
         }
     }
 
+    func saveAntennaPositionsForFlow() -> Bool {
+        // 配置されたアンテナの数をチェック
+        let positionedAntennas = antennaPositions.filter { $0.position != CGPoint(x: 50, y: 50) }
+        guard positionedAntennas.count >= 2 else {
+            return false
+        }
+
+        // 回転角度が設定されているかチェック（必須ではないが、推奨）
+        let _ = positionedAntennas.filter { $0.rotation != 0.0 }
+
+        // データを保存
+        saveAntennaPositions()
+
+        return true
+    }
+
     private func convertToRealWorldPosition(_ screenPosition: CGPoint) -> RealWorldPosition {
         // マップの実際のサイズとスクリーン上のサイズの比率を計算
-        guard let mapData = mapData else {
+        // UserDefaultsからフロアマップ情報を取得
+        guard let mapData = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
+              let floorMapData = try? JSONDecoder().decode(FloorMapInfo.self, from: mapData) else {
             return RealWorldPosition(x: Double(screenPosition.x), y: Double(screenPosition.y), z: 0)
         }
 
         let canvasSize = CGSize(width: 400, height: 400)
-        let scaleX = mapData.realWidth / Double(canvasSize.width)
-        let scaleY = mapData.realHeight / Double(canvasSize.height)
+        let scaleX = floorMapData.width / Double(canvasSize.width)
+        let scaleY = floorMapData.depth / Double(canvasSize.height)
 
         let realX = Double(screenPosition.x) * scaleX
         let realY = Double(screenPosition.y) * scaleY

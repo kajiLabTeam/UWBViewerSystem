@@ -3,8 +3,7 @@ import SwiftUI
 /// データ取得専用画面
 /// センシング制御に特化し、参考デザイン「Stitch Design-4.png」に対応
 struct DataCollectionView: View {
-    @ObservedObject private var viewModel = DataCollectionViewModel.shared
-    @ObservedObject private var homeViewModel = HomeViewModel.shared
+    @StateObject private var viewModel = DataCollectionViewModel()
     @EnvironmentObject var router: NavigationRouterModel
     @State private var sensingFileName = ""
     @State private var showFileNameAlert = false
@@ -214,7 +213,7 @@ struct DataCollectionView: View {
     private var realtimeDataDisplaySection: some View {
         VStack(spacing: 16) {
             // デバッグ表示
-            Text("🔍 セクション内部: count=\(homeViewModel.deviceRealtimeDataList.count)")
+            Text("🔍 セクション内部: count=\(viewModel.dataPointCount)")
                 .font(.caption2)
                 .foregroundColor(.red)
 
@@ -232,21 +231,21 @@ struct DataCollectionView: View {
             VStack(spacing: 8) {
                 HStack {
                     Circle()
-                        .fill(homeViewModel.deviceRealtimeDataList.isEmpty ? Color.gray : Color.green)
+                        .fill(viewModel.deviceRealtimeDataList.isEmpty ? Color.gray : Color.green)
                         .frame(width: 8, height: 8)
 
-                    Text(homeViewModel.deviceRealtimeDataList.isEmpty ? "UWBデータ待機中" : "UWBデータ受信中")
+                    Text(viewModel.deviceRealtimeDataList.isEmpty ? "UWBデータ待機中" : "UWBデータ受信中")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
-                if !homeViewModel.deviceRealtimeDataList.isEmpty {
+                if !viewModel.deviceRealtimeDataList.isEmpty {
                     VStack(spacing: 2) {
                         Text("最終更新: \(Date().formatted(.dateTime.hour().minute().second()))")
                             .font(.caption2)
                             .foregroundColor(.secondary)
 
-                        Text("受信デバイス数: \(homeViewModel.deviceRealtimeDataList.count)")
+                        Text("受信デバイス数: \(viewModel.deviceRealtimeDataList.count)")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -264,7 +263,7 @@ struct DataCollectionView: View {
             }
             .padding(.vertical, 8)
 
-            if homeViewModel.deviceRealtimeDataList.isEmpty {
+            if viewModel.deviceRealtimeDataList.isEmpty {
                 // データなしの表示
                 VStack(spacing: 12) {
                     Image(systemName: "wifi.slash")
@@ -316,13 +315,13 @@ struct DataCollectionView: View {
 
                         Spacer()
 
-                        Text("\(homeViewModel.deviceRealtimeDataList.count)台のデバイス")
+                        Text("\(viewModel.deviceRealtimeDataList.count)台のデバイス")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
                         Button(action: {
                             // データをクリア（デバッグ用）
-                            homeViewModel.clearRealtimeData()
+                            viewModel.clearRealtimeData()
                         }) {
                             Image(systemName: "trash")
                                 .font(.caption)
@@ -333,14 +332,14 @@ struct DataCollectionView: View {
                     .padding(.horizontal)
 
                     // デバイス別データ表示
-                    ForEach(homeViewModel.deviceRealtimeDataList) { deviceData in
+                    ForEach(viewModel.deviceRealtimeDataList) { deviceData in
                         if let latestData = deviceData.latestData {
                             RealtimeDeviceCardView(deviceData: deviceData, latestData: latestData)
                         }
                     }
                 }
                 .padding()
-                .background(Color(.systemGray6))
+                .background(Color.gray.opacity(0.1))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
@@ -356,11 +355,11 @@ struct DataCollectionView: View {
     // MARK: - Realtime Data Section
     private var realtimeDataSection: some View {
         Group {
-            if !homeViewModel.deviceRealtimeDataList.isEmpty {
+            if !viewModel.deviceRealtimeDataList.isEmpty {
                 VStack(spacing: 12) {
                     realtimeDataHeader
 
-                    ForEach(homeViewModel.deviceRealtimeDataList) { deviceData in
+                    ForEach(viewModel.deviceRealtimeDataList) { deviceData in
                         if let latestData = deviceData.latestData {
                             DeviceDataCardView(deviceData: deviceData, latestData: latestData)
                         }
@@ -382,7 +381,7 @@ struct DataCollectionView: View {
 
             Spacer()
 
-            Text("接続中: \(homeViewModel.deviceRealtimeDataList.count)台")
+            Text("接続中: \(viewModel.deviceRealtimeDataList.count)台")
                 .font(.caption)
                 .foregroundColor(.green)
                 .fontWeight(.semibold)

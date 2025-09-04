@@ -21,7 +21,7 @@ struct AntennaPositioningView: View {
                     }
 
                     InstructionsSection()
-                    
+
                     Spacer(minLength: 80)
                 }
                 .padding()
@@ -62,47 +62,59 @@ struct AntennaPositioningView: View {
     // MARK: - Navigation Buttons
     @ViewBuilder
     private func NavigationButtonsSection(viewModel: AntennaPositioningViewModel) -> some View {
-        HStack(spacing: 20) {
-            Button("戻る") {
-                print("🔙 戻るボタンが押されました")
-                router.pop()
-            }
-            .buttonStyle(.bordered)
-            .foregroundColor(.primary)
+        VStack(spacing: 12) {
+            Divider()
 
-            Spacer()
+            HStack(spacing: 20) {
+                Button("戻る") {
+                    flowNavigator.goToPreviousStep()
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.secondary)
+                .background(Color.secondary.opacity(0.1))
+                .cornerRadius(8)
 
-            Button("自動配置") {
-                print("🎯 自動配置ボタンが押されました")
-                print("🎯 自動配置前 - canProceedValue: \(viewModel.canProceedValue)")
-                viewModel.autoArrangeAntennas()
-                print("🎯 自動配置後 - canProceedValue: \(viewModel.canProceedValue)")
-            }
-            .buttonStyle(.bordered)
-            .foregroundColor(.primary)
+                Button("自動配置") {
+                    viewModel.autoArrangeAntennas()
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.blue)
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(8)
 
-            Button("リセット") {
-                print("🔄 リセットボタンが押されました")
-                viewModel.resetPositions()
-            }
-            .buttonStyle(.bordered)
-            .foregroundColor(.primary)
+                Button("リセット") {
+                    viewModel.resetPositions()
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.orange)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
 
-            Button("次へ") {
-                print("➡️ 次へボタンが押されました - canProceed: \(viewModel.canProceedValue)")
-                print("➡️ router情報: \(type(of: router))")
-                print("➡️ アンテナ位置保存開始")
-                viewModel.saveAntennaPositions()
-                print("➡️ アンテナ位置保存完了")
-                print("➡️ システムキャリブレーション画面に移動開始")
-                router.push(.systemCalibration)
-                print("➡️ push(.systemCalibration)実行完了")
+                Button("次へ") {
+                    if viewModel.saveAntennaPositionsForFlow() {
+                        flowNavigator.proceedToNextStep()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.white)
+                .background(viewModel.canProceedValue ? Color.blue : Color.gray)
+                .cornerRadius(8)
+                .disabled(!viewModel.canProceedValue)
             }
-            .buttonStyle(.borderedProminent)
-            .foregroundColor(.white)
-            .disabled(!viewModel.canProceedValue)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
         }
-        .padding()
+        .alert("エラー", isPresented: Binding.constant(flowNavigator.lastError != nil)) {
+            Button("OK") {
+                flowNavigator.lastError = nil
+            }
+        } message: {
+            Text(flowNavigator.lastError ?? "")
+        }
     }
 }
 
@@ -150,15 +162,18 @@ struct MapCanvasSection: View {
                         )
                 }
 
-                // アンテナ位置 (一時的にコメントアウト)
-                // ForEach(viewModel.antennaPositions) { antenna in
-                //     PositionAntennaMarker(
-                //         antenna: antenna,
-                //         onPositionChanged: { newPosition in
-                //             viewModel.updateAntennaPosition(antenna.id, position: newPosition)
-                //         }
-                //     )
-                // }
+                // アンテナ位置
+                ForEach(viewModel.antennaPositions) { antenna in
+                    PositionAntennaMarker(
+                        antenna: antenna,
+                        onPositionChanged: { newPosition in
+                            viewModel.updateAntennaPosition(antenna.id, position: newPosition)
+                        },
+                        onRotationChanged: { newRotation in
+                            viewModel.updateAntennaRotation(antenna.id, rotation: newRotation)
+                        }
+                    )
+                }
             }
             .frame(maxWidth: .infinity)
             .frame(height: 400)
@@ -187,7 +202,7 @@ struct AntennaDeviceListSection: View {
                 LazyVStack(spacing: 8) {
                     ForEach(viewModel.selectedDevices) { device in
                         AntennaDeviceRow(
-                            device: device,
+                            device: AntennaInfo(id: device.id, name: device.name, coordinates: Point3D.zero),
                             position: viewModel.getDevicePosition(device.id),
                             rotation: viewModel.getDeviceRotation(device.id),
                             isPositioned: viewModel.isDevicePositioned(device.id)
@@ -401,7 +416,7 @@ struct AntennaRotationControl: View {
 
 // MARK: - Enhanced Antenna Device Row with Rotation Info
 struct AntennaDeviceRow: View {
-    let device: UWBDevice
+    let device: AntennaInfo
     let position: CGPoint?
     let rotation: Double?
     let isPositioned: Bool
@@ -414,7 +429,7 @@ struct AntennaDeviceRow: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
 
-                Text(device.identifier)
+                Text(device.id)
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -457,7 +472,7 @@ struct AntennaDeviceRow: View {
                     .foregroundColor(isPositioned ? .green : .orange)
 
                 // 向き設定状況
-                if let rotation = rotation {
+                if rotation != nil {
                     Text("向き設定済み")
                         .font(.caption2)
                         .foregroundColor(.blue)

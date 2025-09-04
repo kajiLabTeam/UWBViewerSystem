@@ -41,6 +41,7 @@ public protocol SwiftDataRepositoryProtocol {
 }
 
 @MainActor
+@available(macOS 14, iOS 17, *)
 public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     private let modelContext: ModelContext
 
@@ -294,6 +295,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
 /// ViewModelの初期化時に使用するダミーリポジトリ
 /// 実際のModelContextが利用可能になったら実装されたリポジトリに置き換える
+@available(macOS 14, iOS 17, *)
 public class DummySwiftDataRepository: SwiftDataRepositoryProtocol {
     public init() {}
 

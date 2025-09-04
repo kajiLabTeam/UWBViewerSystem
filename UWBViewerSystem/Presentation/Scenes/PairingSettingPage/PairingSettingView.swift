@@ -4,6 +4,7 @@ import SwiftUI
 struct PairingSettingView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel: PairingSettingViewModel
+    @StateObject private var flowNavigator = SensingFlowNavigator()
     @EnvironmentObject var router: NavigationRouterModel
 
     init() {
@@ -14,51 +15,60 @@ struct PairingSettingView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            headerSection
+        VStack(spacing: 0) {
+            // フロープログレス表示
+            SensingFlowProgressView(navigator: flowNavigator)
 
-            // 左右分割のメインコンテンツ
-            HStack(spacing: 20) {
-                // 左側: アンテナ情報
-                VStack(alignment: .leading, spacing: 16) {
-                    Label("アンテナ情報", systemImage: "antenna.radiowaves.left.and.right")
-                        .font(.headline)
-                        .foregroundColor(.primary)
+            ScrollView {
+                VStack(spacing: 20) {
+                    headerSection
 
-                    antennaListSection
+                    // 左右分割のメインコンテンツ
+                    HStack(spacing: 20) {
+                        // 左側: アンテナ情報
+                        VStack(alignment: .leading, spacing: 16) {
+                            Label("アンテナ情報", systemImage: "antenna.radiowaves.left.and.right")
+                                .font(.headline)
+                                .foregroundColor(.primary)
 
-                    Spacer()
+                            antennaListSection
+
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue.opacity(0.05))
+                        .cornerRadius(12)
+
+                        // 右側: デバイス情報
+                        VStack(alignment: .leading, spacing: 16) {
+                            Label("Android端末", systemImage: "iphone.gen3")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+
+                            deviceSection
+
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green.opacity(0.05))
+                        .cornerRadius(12)
+                    }
+                    .frame(maxHeight: .infinity)
+
+                    // ペアリング状況表示
+                    if !viewModel.antennaPairings.isEmpty {
+                        pairingStatusSection
+                    }
+
+                    Spacer(minLength: 80)
                 }
-                .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(12)
-
-                // 右側: デバイス情報
-                VStack(alignment: .leading, spacing: 16) {
-                    Label("Android端末", systemImage: "iphone.gen3")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-
-                    deviceSection
-
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.green.opacity(0.05))
-                .cornerRadius(12)
-            }
-            .frame(maxHeight: .infinity)
-
-            // ペアリング状況表示
-            if !viewModel.antennaPairings.isEmpty {
-                pairingStatusSection
             }
 
             navigationSection
         }
-        .padding()
         .navigationTitle("Android端末ペアリング")
         #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
@@ -74,6 +84,7 @@ struct PairingSettingView: View {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
             let repository = SwiftDataRepository(modelContext: modelContext)
             viewModel.setSwiftDataRepository(repository)
+            flowNavigator.currentStep = .devicePairing
         }
     }
 
@@ -191,44 +202,41 @@ struct PairingSettingView: View {
     }
 
     private var navigationSection: some View {
-        HStack(spacing: 16) {
-            Button(action: {
-                router.pop()
-            }) {
-                HStack {
-                    Image(systemName: "arrow.left")
-                    Text("戻る")
-                }
-                .foregroundColor(.primary)
-            }
-            .buttonStyle(.bordered)
+        VStack(spacing: 12) {
+            Divider()
 
-            Spacer()
-
-            Button(action: {
-                viewModel.skipPairing()
-            }) {
-                HStack {
-                    Text("スキップ")
-                    Image(systemName: "arrow.right")
+            HStack(spacing: 16) {
+                Button("戻る") {
+                    flowNavigator.goToPreviousStep()
                 }
+                .frame(maxWidth: .infinity)
+                .padding()
                 .foregroundColor(.secondary)
-            }
-            .buttonStyle(.bordered)
+                .background(Color.secondary.opacity(0.1))
+                .cornerRadius(8)
 
-            Button(action: {
-                viewModel.proceedToNextStep()
-            }) {
-                HStack {
-                    Text("センシング開始")
-                    Image(systemName: "arrow.right")
+                Button("次へ") {
+                    if viewModel.savePairingForFlow() {
+                        flowNavigator.proceedToNextStep()
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .padding()
                 .foregroundColor(.white)
+                .background(viewModel.canProceedToNext ? Color.blue : Color.gray)
+                .cornerRadius(8)
+                .disabled(!viewModel.canProceedToNext)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(!viewModel.canProceedToNextStep)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
         }
-        .padding()
+        .alert("エラー", isPresented: Binding.constant(flowNavigator.lastError != nil)) {
+            Button("OK") {
+                flowNavigator.lastError = nil
+            }
+        } message: {
+            Text(flowNavigator.lastError ?? "")
+        }
     }
 }
 

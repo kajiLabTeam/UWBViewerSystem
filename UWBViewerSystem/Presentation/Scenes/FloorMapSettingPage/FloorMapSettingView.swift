@@ -54,12 +54,20 @@ struct FloorMapSettingView: View {
         } message: {
             Text(viewModel.errorMessage)
         }
+        #if os(iOS)
         .imagePickerSheet(
             isPresented: $viewModel.isImagePickerPresented,
             selectedImage: $viewModel.selectedFloorMapImage,
             sourceType: viewModel.imagePickerSourceType,
             onImagePicked: viewModel.onImageSelected
         )
+        #elseif os(macOS)
+        .imagePickerSheet(
+            isPresented: $viewModel.isImagePickerPresented,
+            selectedImage: $viewModel.selectedFloorMapImage,
+            onImagePicked: viewModel.onImageSelected
+        )
+        #endif
     }
 
     // MARK: - Header Section
@@ -98,16 +106,26 @@ struct FloorMapSettingView: View {
             // マップ画像表示・選択エリア
             VStack(spacing: 12) {
                 if let selectedImage = viewModel.selectedFloorMapImage {
+                    #if os(iOS)
                     Image(uiImage: selectedImage)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(maxHeight: 200)
-                        .background(Color(.systemGray6))
+                        .background(Color.gray.opacity(0.1))
                         .cornerRadius(12)
                         .clipped()
+                    #elseif os(macOS)
+                    Image(nsImage: selectedImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: 200)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(12)
+                        .clipped()
+                    #endif
                 } else {
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.systemGray6))
+                        .fill(Color.gray.opacity(0.1))
                         .frame(height: 200)
                         .overlay(
                             VStack(spacing: 8) {
@@ -156,7 +174,7 @@ struct FloorMapSettingView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -203,7 +221,9 @@ struct FloorMapSettingView: View {
                                 .foregroundColor(.secondary)
                             TextField("10.0", value: $viewModel.floorWidth, format: .number)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                                #if os(iOS)
                                 .keyboardType(.decimalPad)
+                                #endif
                         }
 
                         Text("×")
@@ -217,14 +237,16 @@ struct FloorMapSettingView: View {
                                 .foregroundColor(.secondary)
                             TextField("15.0", value: $viewModel.floorDepth, format: .number)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                                #if os(iOS)
                                 .keyboardType(.decimalPad)
+                                #endif
                         }
                     }
                 }
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -250,7 +272,7 @@ struct FloorMapSettingView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -332,7 +354,7 @@ struct FloorPresetCard: View {
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemGray6))
+            .background(isSelected ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)

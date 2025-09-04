@@ -15,15 +15,26 @@ class SensingManagementViewModel: ObservableObject {
     @Published var sampleRate = 10
     @Published var autoSave = true
 
-    private var homeViewModel = HomeViewModel.shared
-    private var dataCollectionViewModel = DataCollectionViewModel.shared
+    // DI対応: 必要なUseCaseを直接注入
+    private let sensingControlUsecase: SensingControlUsecase
+    private let realtimeDataUsecase: RealtimeDataUsecase
     private var swiftDataRepository: SwiftDataRepositoryProtocol
     private var cancellables = Set<AnyCancellable>()
     private var sensingStartTime: Date?
     private var durationTimer: Timer?
 
-    init(swiftDataRepository: SwiftDataRepositoryProtocol) {
+    init(
+        swiftDataRepository: SwiftDataRepositoryProtocol,
+        sensingControlUsecase: SensingControlUsecase? = nil,
+        realtimeDataUsecase: RealtimeDataUsecase? = nil
+    ) {
         self.swiftDataRepository = swiftDataRepository
+        self.sensingControlUsecase =
+            sensingControlUsecase
+            ?? SensingControlUsecase(
+                connectionUsecase: ConnectionManagementUsecase(nearbyRepository: NearbyRepository())
+            )
+        self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
         initialize()
     }
 
@@ -39,6 +50,10 @@ class SensingManagementViewModel: ObservableObject {
 
     var hasDataToView: Bool {
         dataPointCount > 0 || !realtimeData.isEmpty
+    }
+
+    var canProceedToNext: Bool {
+        hasDataToView
     }
 
     func initialize() {
@@ -77,12 +92,12 @@ class SensingManagementViewModel: ObservableObject {
     }
 
     private func setupObservers() {
-        // HomeViewModelの各Usecaseからの状態を監視
-        homeViewModel.sensingControlUsecase.$isSensingControlActive
+        // 直接注入されたUsecaseからの状態を監視
+        sensingControlUsecase.$isSensingControlActive
             .assign(to: &$isSensingActive)
 
         // RealtimeDataUsecaseからのリアルタイムデータを監視
-        homeViewModel.realtimeDataUsecase.$deviceRealtimeDataList
+        realtimeDataUsecase.$deviceRealtimeDataList
             .map { deviceDataList in
                 // デバイスリストから最新のリアルタイムデータを抽出
                 deviceDataList.compactMap { deviceData in
@@ -127,8 +142,8 @@ class SensingManagementViewModel: ObservableObject {
         currentFileName = sensingFileName
         sensingStartTime = Date()
 
-        // DataCollectionViewModel経由でセンシング開始（セッション作成のため）
-        dataCollectionViewModel.startSensing(fileName: currentFileName)
+        // 直接SensingControlUsecaseを使用してセンシング開始
+        sensingControlUsecase.startRemoteSensing(fileName: currentFileName)
 
         // リアルタイム表示の準備
         print("🚀 センシング開始: UWBリアルタイムデータ受信準備完了")
@@ -146,13 +161,13 @@ class SensingManagementViewModel: ObservableObject {
     }
 
     func stopSensing() {
-        // DataCollectionViewModel経由でセンシング停止（セッション完了のため）
-        dataCollectionViewModel.stopSensing()
+        // 直接SensingControlUsecaseを使用してセンシング停止
+        sensingControlUsecase.stopRemoteSensing()
         stopDurationTimer()
 
         // リアルタイムデータクリア
         print("🛑 センシング停止: リアルタイムデータをクリア")
-        homeViewModel.clearRealtimeData()
+        realtimeDataUsecase.clearAllRealtimeData()
 
         // センシング完了時の処理
         if autoSave {
@@ -166,13 +181,25 @@ class SensingManagementViewModel: ObservableObject {
 
     func pauseSensing() {
         isPaused = true
-        homeViewModel.pauseRemoteSensing()
+        sensingControlUsecase.pauseRemoteSensing()
         stopDurationTimer()
+    }
+
+    func saveSensingSessionForFlow() -> Bool {
+        // センシングセッションが実行されたかどうかを確認
+        guard hasDataToView else {
+            return false
+        }
+
+        // セッション実行フラグを保存
+        UserDefaults.standard.set(true, forKey: "hasExecutedSensingSession")
+
+        return true
     }
 
     func resumeSensing() {
         isPaused = false
-        homeViewModel.resumeRemoteSensing()
+        sensingControlUsecase.resumeRemoteSensing()
         startDurationTimer()
     }
 
@@ -227,7 +254,11 @@ class SensingManagementViewModel: ObservableObject {
 extension SensingManagementViewModel {
     /// テスト用またはプレースホルダー用の初期化
     convenience init() {
-        self.init(swiftDataRepository: DummySwiftDataRepository())
+        self.init(
+            swiftDataRepository: DummySwiftDataRepository(),
+            sensingControlUsecase: nil,
+            realtimeDataUsecase: nil
+        )
     }
 }
 

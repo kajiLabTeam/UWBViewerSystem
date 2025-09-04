@@ -24,12 +24,12 @@ class DevicePairingUsecase: ObservableObject {
     }
 
     public init(
-        connectionUsecase: ConnectionManagementUsecase, 
+        connectionUsecase: ConnectionManagementUsecase,
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()
     ) {
         self.connectionUsecase = connectionUsecase
         self.swiftDataRepository = swiftDataRepository
-        
+
         Task {
             await loadAntennaData()
             await loadPairingData()
@@ -48,7 +48,7 @@ class DevicePairingUsecase: ObservableObject {
                     coordinates: position.position
                 )
             }
-            
+
             if selectedAntennas.isEmpty {
                 // デフォルトのアンテナを作成
                 selectedAntennas = [
@@ -56,7 +56,7 @@ class DevicePairingUsecase: ObservableObject {
                     AntennaInfo(id: "antenna_2", name: "アンテナ 2", coordinates: Point3D(x: 200, y: 100, z: 0)),
                     AntennaInfo(id: "antenna_3", name: "アンテナ 3", coordinates: Point3D(x: 125, y: 200, z: 0)),
                 ]
-                
+
                 // デフォルトアンテナをSwiftDataに保存
                 for antenna in selectedAntennas {
                     let position = AntennaPositionData(
@@ -91,7 +91,7 @@ class DevicePairingUsecase: ObservableObject {
                     availableDevices.append(restoredDevice)
                 }
             }
-            
+
             isConnected = !antennaPairings.isEmpty
         } catch {
             print("ペアリングデータ読み込みエラー: \(error)")
@@ -104,7 +104,7 @@ class DevicePairingUsecase: ObservableObject {
             activityType: "pairing",
             activityDescription: "アンテナペアリング情報を更新: \(antennaPairings.count)件"
         )
-        
+
         do {
             try await swiftDataRepository.saveSystemActivity(activity)
         } catch {
@@ -161,7 +161,7 @@ class DevicePairingUsecase: ObservableObject {
         // ペアリング情報を作成・保存
         let pairing = AntennaPairing(antenna: antenna, device: device)
         antennaPairings.append(pairing)
-        
+
         Task {
             do {
                 try await swiftDataRepository.saveAntennaPairing(pairing)
@@ -198,7 +198,7 @@ class DevicePairingUsecase: ObservableObject {
             }
 
             isConnected = true
-            
+
             return "\(antenna.name) と \(device.name) のペアリングが完了しました"
         }
     }
@@ -219,7 +219,7 @@ class DevicePairingUsecase: ObservableObject {
         connectionRequestHandlers.removeValue(forKey: pairing.device.id)
 
         isConnected = !antennaPairings.isEmpty
-        
+
         Task {
             do {
                 try await swiftDataRepository.deleteAntennaPairing(by: pairing.id)
@@ -236,7 +236,7 @@ class DevicePairingUsecase: ObservableObject {
                 connectionUsecase.disconnectFromDevice(endpointId: pairing.device.id)
             }
         }
-        
+
         let pairingsToRemove = antennaPairings
         antennaPairings.removeAll()
 
@@ -247,7 +247,7 @@ class DevicePairingUsecase: ObservableObject {
         connectionRequestHandlers.removeAll()
 
         isConnected = false
-        
+
         Task {
             do {
                 for pairing in pairingsToRemove {
@@ -333,7 +333,7 @@ class DevicePairingUsecase: ObservableObject {
         let disconnectedPairings = antennaPairings.filter { $0.device.id == endpointId }
         antennaPairings.removeAll { $0.device.id == endpointId }
         isConnected = !antennaPairings.isEmpty
-        
+
         Task {
             do {
                 for pairing in disconnectedPairings {

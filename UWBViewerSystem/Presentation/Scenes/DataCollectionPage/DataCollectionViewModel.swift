@@ -6,8 +6,6 @@ import SwiftUI
 
 @MainActor
 class DataCollectionViewModel: ObservableObject {
-    static let shared = DataCollectionViewModel()
-
     @Published var isSensingActive = false
     @Published var sensingStatus = "センシング停止中"
     @Published var currentFileName = ""
@@ -15,34 +13,59 @@ class DataCollectionViewModel: ObservableObject {
     @Published var connectedDeviceCount = 0
     @Published var elapsedTime = "00:00"
     @Published var recentSessions: [SensingSession] = []
+    @Published var deviceRealtimeDataList: [DeviceRealtimeData] = []
 
     private var currentSession: SensingSession?
     private var sensingTimer: Timer?
     private var startTime: Date?
-    private let homeViewModel = HomeViewModel.shared
+    private var cancellables = Set<AnyCancellable>()
 
-    init() {
+    // DI対応: 必要なUseCaseを直接注入
+    private let sensingControlUsecase: SensingControlUsecase
+    private let connectionUsecase: ConnectionManagementUsecase
+    private let realtimeDataUsecase: RealtimeDataUsecase
+
+    init(
+        sensingControlUsecase: SensingControlUsecase? = nil,
+        connectionUsecase: ConnectionManagementUsecase? = nil,
+        realtimeDataUsecase: RealtimeDataUsecase? = nil
+    ) {
+        let nearbyRepository = NearbyRepository()
+        let defaultConnectionUsecase =
+            connectionUsecase ?? ConnectionManagementUsecase(nearbyRepository: nearbyRepository)
+
+        self.connectionUsecase = defaultConnectionUsecase
+        self.sensingControlUsecase =
+            sensingControlUsecase ?? SensingControlUsecase(connectionUsecase: defaultConnectionUsecase)
+        self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
+
         loadRecentSessions()
         setupObservers()
     }
+
+    /// 従来との互換性を保つための静的インスタンス
+    static let shared = DataCollectionViewModel()
 
     deinit {
         sensingTimer?.invalidate()
     }
 
     private func setupObservers() {
-        // HomeViewModelの各Usecaseからの状態を監視
-        homeViewModel.sensingControlUsecase.$isSensingControlActive
+        // 直接注入されたUsecaseからの状態を監視
+        sensingControlUsecase.$isSensingControlActive
             .assign(to: &$isSensingActive)
 
-        homeViewModel.sensingControlUsecase.$sensingStatus
+        sensingControlUsecase.$sensingStatus
             .assign(to: &$sensingStatus)
 
-        homeViewModel.connectionUsecase.$connectedEndpoints
+        connectionUsecase.$connectedEndpoints
             .map { $0.count }
             .assign(to: &$connectedDeviceCount)
 
-        homeViewModel.realtimeDataUsecase.$deviceRealtimeDataList
+        realtimeDataUsecase.$deviceRealtimeDataList
+            .assign(to: &$deviceRealtimeDataList)
+
+        realtimeDataUsecase.$deviceRealtimeDataList
             .map { $0.count }
             .assign(to: &$dataPointCount)
     }
@@ -53,11 +76,11 @@ class DataCollectionViewModel: ObservableObject {
         guard !fileName.isEmpty else { return }
 
         currentFileName = fileName
-        currentSession = SensingSession(fileName: fileName, dataPoints: 0)
+        currentSession = SensingSession(name: fileName, dataPoints: 0)
         startTime = Date()
 
-        // HomeViewModelのセンシング開始
-        homeViewModel.startRemoteSensing(fileName: fileName)
+        // 直接SensingControlUsecaseを使用してセンシング開始
+        sensingControlUsecase.startRemoteSensing(fileName: fileName)
 
         // タイマー開始
         startTimer()
@@ -67,8 +90,8 @@ class DataCollectionViewModel: ObservableObject {
     }
 
     func stopSensing() {
-        // HomeViewModelのセンシング停止
-        homeViewModel.stopRemoteSensing()
+        // 直接SensingControlUsecaseを使用してセンシング停止
+        sensingControlUsecase.stopRemoteSensing()
 
         // セッションを完了
         if let session = currentSession, let _ = startTime {
@@ -98,6 +121,10 @@ class DataCollectionViewModel: ObservableObject {
         currentFileName = ""
         sensingStatus = "センシング停止中"
         isSensingActive = false
+    }
+
+    func clearRealtimeData() {
+        realtimeDataUsecase.clearAllRealtimeData()
     }
 
     // MARK: - Timer Management

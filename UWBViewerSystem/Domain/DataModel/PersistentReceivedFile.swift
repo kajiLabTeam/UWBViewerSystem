@@ -3,6 +3,7 @@ import SwiftData
 
 // MARK: - 受信ファイルの永続化モデル
 
+@available(macOS 14, iOS 17, *)
 @Model
 public final class PersistentReceivedFile {
     @Attribute(.unique) public var id: UUID
@@ -11,7 +12,7 @@ public final class PersistentReceivedFile {
     public var deviceName: String
     public var receivedAt: Date
     public var fileSize: Int64
-    
+
     public init(
         id: UUID = UUID(),
         fileName: String,
@@ -27,9 +28,9 @@ public final class PersistentReceivedFile {
         self.receivedAt = receivedAt
         self.fileSize = fileSize
     }
-    
+
     // MARK: - 変換メソッド
-    
+
     public func toEntity() -> ReceivedFile {
         return ReceivedFile(
             id: id,

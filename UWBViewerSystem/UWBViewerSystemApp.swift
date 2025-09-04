@@ -14,6 +14,7 @@ struct UWBViewerSystemApp: App {
     /// - Note: NavigationRouterModelはObservableObjectを継承しているため、@StateObjectで使用することができる
     @StateObject var router = NavigationRouterModel.shared
 
+    @available(macOS 14, iOS 17, *)
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             PersistentSensingSession.self,
@@ -43,15 +44,15 @@ struct UWBViewerSystemApp: App {
         }
         .modelContainer(sharedModelContainer)
     }
-    
+
     // MARK: - Data Migration
-    
+
     /// アプリ起動時にデータ移行を実行
     @MainActor
     private func performDataMigrationIfNeeded() async {
         let swiftDataRepository = SwiftDataRepository(modelContext: sharedModelContainer.mainContext)
         let migrationUsecase = DataMigrationUsecase(swiftDataRepository: swiftDataRepository)
-        
+
         do {
             try await migrationUsecase.migrateDataIfNeeded()
         } catch {

@@ -12,13 +12,13 @@ public class FileManagementUsecase: ObservableObject {
     @Published var receivedFiles: [ReceivedFile] = []
     @Published var fileTransferProgress: [String: Int] = [:]  // endpointId: progress
     @Published var fileStoragePath: String = ""
-    
+
     private let swiftDataRepository: SwiftDataRepositoryProtocol
 
     public init(swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()) {
         self.swiftDataRepository = swiftDataRepository
         setupFileStoragePath()
-        
+
         Task {
             await loadReceivedFiles()
         }
@@ -86,14 +86,14 @@ public class FileManagementUsecase: ObservableObject {
         Task {
             do {
                 try await swiftDataRepository.saveReceivedFile(receivedFile)
-                
+
                 // システム活動ログも記録
                 let activity = SystemActivity(
                     activityType: "file_transfer",
                     activityDescription: "ファイル受信完了: \(fileName) (\(receivedFile.formattedSize)) from \(deviceName)"
                 )
                 try await swiftDataRepository.saveSystemActivity(activity)
-                
+
                 print("ファイル受信完了・保存済み: \(fileName) (\(receivedFile.formattedSize)) from \(deviceName)")
             } catch {
                 print("受信ファイル保存エラー: \(error)")
@@ -117,7 +117,7 @@ public class FileManagementUsecase: ObservableObject {
     }
 
     // MARK: - File Management
-    
+
     private func loadReceivedFiles() async {
         do {
             receivedFiles = try await swiftDataRepository.loadReceivedFiles()
@@ -129,7 +129,7 @@ public class FileManagementUsecase: ObservableObject {
     public func clearReceivedFiles() {
         receivedFiles.removeAll()
         fileTransferProgress.removeAll()
-        
+
         Task {
             do {
                 try await swiftDataRepository.deleteAllReceivedFiles()

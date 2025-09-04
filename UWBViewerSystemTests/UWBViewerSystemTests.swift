@@ -217,6 +217,12 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     func saveSystemActivity(_ activity: SystemActivity) async throws {}
     func loadRecentSystemActivities(limit: Int) async throws -> [SystemActivity] { return [] }
     func deleteOldSystemActivities(olderThan date: Date) async throws {}
+    
+    // 受信ファイル関連ダミー実装
+    func saveReceivedFile(_ file: ReceivedFile) async throws {}
+    func loadReceivedFiles() async throws -> [ReceivedFile] { return [] }
+    func deleteReceivedFile(by id: UUID) async throws {}
+    func deleteAllReceivedFiles() async throws {}
 }
 
 struct PairingSettingViewModelTests {

@@ -6,120 +6,61 @@
 //
 
 import Foundation
+
+#if canImport(NearbyConnections)
 import NearbyConnections
 
 // MARK: - Data Models
+// ConnectionRequest、Message、ConnectedDeviceはCommonTypes.swiftで定義済み
 
-/// 接続要求の情報
-struct ConnectionRequest: Identifiable, Equatable {
-    let id = UUID()
-    let endpointId: String
-    let deviceName: String
-    let requestTime: Date
-    let context: Data
-    let responseHandler: (Bool) -> Void
-
-    static func == (lhs: ConnectionRequest, rhs: ConnectionRequest) -> Bool {
-        return lhs.id == rhs.id && lhs.endpointId == rhs.endpointId && lhs.deviceName == rhs.deviceName
-            && lhs.requestTime == rhs.requestTime && lhs.context == rhs.context
-        // responseHandlerは比較から除外（関数は比較できないため）
-    }
-}
-
-/// 接続済み端末の情報
-struct ConnectedDevice: Identifiable, Equatable {
-    let id = UUID()
-    let endpointId: String
-    let deviceName: String
-    let connectTime: Date
-    var lastMessageTime: Date?
-    var isActive: Bool = true
-
-    static func == (lhs: ConnectedDevice, rhs: ConnectedDevice) -> Bool {
-        return lhs.id == rhs.id && lhs.endpointId == rhs.endpointId && lhs.deviceName == rhs.deviceName
-            && lhs.connectTime == rhs.connectTime && lhs.lastMessageTime == rhs.lastMessageTime
-            && lhs.isActive == rhs.isActive
-    }
-}
-
-/// メッセージの情報
-struct Message: Identifiable, Equatable {
-    let id = UUID()
-    let content: String
-    let fromEndpointId: String?
-    let fromDeviceName: String
-    let timestamp: Date
-    let isOutgoing: Bool
-
-    static func == (lhs: Message, rhs: Message) -> Bool {
-        return lhs.id == rhs.id && lhs.content == rhs.content && lhs.fromEndpointId == rhs.fromEndpointId
-            && lhs.fromDeviceName == rhs.fromDeviceName && lhs.timestamp == rhs.timestamp
-            && lhs.isOutgoing == rhs.isOutgoing
-    }
-}
+// グローバルの型を明示的に参照するためのtypealiasを追加
+typealias GlobalConnectionRequest = ConnectionRequest
+typealias GlobalMessage = Message
 
 protocol NearbyRepositoryCallback: AnyObject {
-    // 古いコールバック（HomeViewModelとの互換性のため）
-    func onConnectionStateChanged(state: String)
-    func onDataReceived(data: String, fromEndpointId: String)
-
-    // 新しいコールバック（AdvertiserViewModelでの詳細な制御用）
-    func onConnectionInitiated(
-        _ endpointId: String, _ deviceName: String, _ context: Data, _ responseHandler: @escaping (Bool) -> Void)
-    func onConnectionResult(_ endpointId: String, _ isSuccess: Bool)
-    func onDisconnected(_ endpointId: String)
-    func onPayloadReceived(_ endpointId: String, _ payload: Data)
-
-    // ファイル受信のコールバック
-    func onFileReceived(_ endpointId: String, _ fileURL: URL, _ fileName: String)
-    func onFileTransferProgress(_ endpointId: String, _ progress: Int)
-
-    // 従来のコールバック（デフォルト実装で互換性を保つ）
-    func onConnectionRequestReceived(request: ConnectionRequest)
-    func onDeviceConnected(device: ConnectedDevice)
+    // 検索とディスカバリー関連
+    func onDiscoveryStateChanged(isDiscovering: Bool)
+    func onDeviceFound(endpointId: String, name: String, isConnectable: Bool)
+    func onDeviceLost(endpointId: String)
+    
+    // 接続関連
+    func onConnectionRequest(endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void)
+    func onConnectionResult(_ endpointId: String, _ success: Bool)
+    func onDeviceConnected(endpointId: String, deviceName: String)
     func onDeviceDisconnected(endpointId: String)
-    func onMessageReceived(message: Message)
+    
+    // データ通信関連
+    func onConnectionStateChanged(state: String)
+    func onDataReceived(endpointId: String, data: Data)
+    
+    // 古いコールバック（既存のViewModelとの互換性のため）
+    func onDataReceived(data: String, fromEndpointId: String)
 }
 
-// デフォルト実装を提供（既存のViewModelとの互換性のため）
+// デフォルト実装を提供（オプショナルメソッドに対して）
 extension NearbyRepositoryCallback {
-    func onConnectionInitiated(
-        _ endpointId: String, _ deviceName: String, _ context: Data, _ responseHandler: @escaping (Bool) -> Void
-    ) {
-        // HomeViewModelでは古い形式を使用
-        let request = ConnectionRequest(
-            endpointId: endpointId,
-            deviceName: deviceName,
-            requestTime: Date(),
-            context: context,
-            responseHandler: responseHandler
-        )
-        onConnectionRequestReceived(request: request)
-    }
-
-    func onConnectionResult(_ endpointId: String, _ isSuccess: Bool) {
+    func onDiscoveryStateChanged(isDiscovering: Bool) {
         // デフォルトでは何もしない
     }
-
-    func onDisconnected(_ endpointId: String) {
-        onDeviceDisconnected(endpointId: endpointId)
+    
+    func onDeviceFound(endpointId: String, name: String, isConnectable: Bool) {
+        // デフォルトでは何もしない
     }
-
-    func onPayloadReceived(_ endpointId: String, _ payload: Data) {
-        if let text = String(data: payload, encoding: .utf8) {
-            onDataReceived(data: text, fromEndpointId: endpointId)
+    
+    func onDeviceLost(endpointId: String) {
+        // デフォルトでは何もしない
+    }
+    
+    func onConnectionResult(_ endpointId: String, _ success: Bool) {
+        // デフォルトでは何もしない
+    }
+    
+    // 互換性のための変換
+    func onDataReceived(data: String, fromEndpointId: String) {
+        // 新しい形式を使用している場合は、古いメソッドから新しいメソッドへ変換
+        if let data = data.data(using: .utf8) {
+            onDataReceived(endpointId: fromEndpointId, data: data)
         }
-    }
-
-    // ファイル受信のデフォルト実装
-    func onFileReceived(_ endpointId: String, _ fileURL: URL, _ fileName: String) {
-        // デフォルトではconnectionStateChangedに通知
-        onConnectionStateChanged(state: "ファイル受信完了: \(fileName)")
-    }
-
-    func onFileTransferProgress(_ endpointId: String, _ progress: Int) {
-        // デフォルトではconnectionStateChangedに通知
-        onConnectionStateChanged(state: "ファイル転送中: \(progress)%")
     }
 }
 
@@ -178,7 +119,7 @@ class NearbyRepository: NSObject {
 
         let context = Data(nickName.utf8)
         advertiser.startAdvertising(using: context) { [weak self] error in
-            DispatchQueue.main.async {
+            Task { @MainActor [weak self] in
                 if let error {
                     self?.callback?.onConnectionStateChanged(state: "広告開始エラー: \(error.localizedDescription)")
                 } else {
@@ -201,13 +142,14 @@ class NearbyRepository: NSObject {
         }
 
         discoverer.startDiscovery { [weak self] error in
-            DispatchQueue.main.async {
+            Task { @MainActor [weak self] in
                 if let error {
                     self?.isDiscovering = false
                     self?.callback?.onConnectionStateChanged(state: "発見開始エラー: \(error.localizedDescription)")
                 } else {
                     self?.isDiscovering = true
                     self?.callback?.onConnectionStateChanged(state: "発見開始成功")
+                    self?.callback?.onDiscoveryStateChanged(isDiscovering: true)
                 }
             }
         }
@@ -217,6 +159,7 @@ class NearbyRepository: NSObject {
         discoverer?.stopDiscovery()
         isDiscovering = false
         callback?.onConnectionStateChanged(state: "検索停止（接続は維持）")
+        callback?.onDiscoveryStateChanged(isDiscovering: false)
     }
 
     func sendData(text: String) {
@@ -247,7 +190,7 @@ class NearbyRepository: NSObject {
         }
 
         _ = connectionManager.send(data, to: endpointIds) { [weak self] error in
-            DispatchQueue.main.async {
+            Task { @MainActor [weak self] in
                 if let error {
                     print("データ送信エラー: \(error.localizedDescription)")
                     self?.callback?.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
@@ -258,13 +201,12 @@ class NearbyRepository: NSObject {
                     // メッセージ履歴に追加
                     let message = Message(
                         content: text,
-                        fromEndpointId: nil,
-                        fromDeviceName: self?.nickName ?? "自分",
                         timestamp: Date(),
+                        senderId: "self",
+                        senderName: self?.nickName ?? "自分",
                         isOutgoing: true
                     )
                     self?.messages.append(message)
-                    self?.callback?.onMessageReceived(message: message)
                 }
             }
         }
@@ -287,7 +229,7 @@ class NearbyRepository: NSObject {
         let data = Data(text.utf8)
 
         _ = connectionManager.send(data, to: [toEndpointId]) { [weak self] error in
-            DispatchQueue.main.async {
+            Task { @MainActor [weak self] in
                 if let error {
                     self?.callback?.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
                 } else {
@@ -297,13 +239,12 @@ class NearbyRepository: NSObject {
                     // メッセージ履歴に追加
                     let message = Message(
                         content: text,
-                        fromEndpointId: nil,
-                        fromDeviceName: self?.nickName ?? "自分",
                         timestamp: Date(),
+                        senderId: "self",
+                        senderName: self?.nickName ?? "自分",
                         isOutgoing: true
                     )
                     self?.messages.append(message)
-                    self?.callback?.onMessageReceived(message: message)
                 }
             }
         }
@@ -387,7 +328,7 @@ extension NearbyRepository: AdvertiserDelegate {
         deviceNames[endpointID] = deviceName
 
         // 新しいコールバック形式を呼び出し
-        callback?.onConnectionInitiated(endpointID, deviceName, context, connectionRequestHandler)
+        callback?.onConnectionRequest(endpointId: endpointID, deviceName: deviceName, context: context, accept: connectionRequestHandler)
         callback?.onConnectionStateChanged(state: "接続要求受信: \(deviceName) (\(endpointID))")
     }
 }
@@ -410,10 +351,12 @@ extension NearbyRepository: DiscovererDelegate {
         let connectionContext = Data(nickName.utf8)
         discoverer.requestConnection(to: endpointID, using: connectionContext)
         callback?.onConnectionStateChanged(state: "エンドポイント発見: \(deviceName) (\(endpointID))")
+        callback?.onDeviceFound(endpointId: endpointID, name: deviceName, isConnectable: true)
     }
 
     func discoverer(_ discoverer: Discoverer, didLose endpointID: String) {
         callback?.onConnectionStateChanged(state: "エンドポイント消失: \(endpointID)")
+        callback?.onDeviceLost(endpointId: endpointID)
     }
 }
 
@@ -441,7 +384,7 @@ extension NearbyRepository: ConnectionManagerDelegate {
 
         callback?.onConnectionStateChanged(state: "接続成功: \(deviceName)")
         callback?.onConnectionResult(endpointID, true)
-        callback?.onDeviceConnected(device: device)
+        callback?.onDeviceConnected(endpointId: endpointID, deviceName: deviceName)
     }
 
     func connectionManager(
@@ -462,19 +405,18 @@ extension NearbyRepository: ConnectionManagerDelegate {
         // メッセージ履歴に追加
         let message = Message(
             content: receivedText,
-            fromEndpointId: endpointID,
-            fromDeviceName: deviceName,
             timestamp: Date(),
+            senderId: endpointID,
+            senderName: deviceName,
             isOutgoing: false
         )
         messages.append(message)
 
-        // 新しいコールバック形式を呼び出し
-        callback?.onPayloadReceived(endpointID, data)
-
+        // コールバック呼び出し
+        callback?.onDataReceived(endpointId: endpointID, data: data)
+        
         // 古いコールバック形式も維持（互換性のため）
         callback?.onDataReceived(data: receivedText, fromEndpointId: endpointID)
-        callback?.onMessageReceived(message: message)
     }
 
     func connectionManager(
@@ -568,7 +510,7 @@ extension NearbyRepository: ConnectionManagerDelegate {
             try fileManager.moveItem(at: tempURL, to: destinationURL)
 
             callback?.onConnectionStateChanged(state: "ファイル保存完了: \(finalFileName)")
-            callback?.onFileReceived(endpointID, destinationURL, finalFileName)
+            callback?.onConnectionStateChanged(state: "ファイル受信完了: \(finalFileName)")
 
         } catch {
             callback?.onConnectionStateChanged(state: "ファイル保存エラー: \(error.localizedDescription)")
@@ -588,7 +530,8 @@ extension NearbyRepository: ConnectionManagerDelegate {
 
         // 進捗については後で実装
         // 一旦50%として固定値で通知
-        callback?.onFileTransferProgress(endpointID, 50)
+        // ファイル転送プログレス情報をconnectionStateChangedで通知
+        callback?.onConnectionStateChanged(state: "ファイル転送中: 50%")
     }
 
     func connectionManager(
@@ -608,7 +551,7 @@ extension NearbyRepository: ConnectionManagerDelegate {
             deviceNames.removeValue(forKey: endpointID)
 
             // 新しいコールバック形式を呼び出し
-            callback?.onDisconnected(endpointID)
+            callback?.onDeviceDisconnected(endpointId: endpointID)
 
             // 古いコールバック形式も維持（互換性のため）
             callback?.onConnectionStateChanged(state: "切断: \(endpointID)")
@@ -621,3 +564,48 @@ extension NearbyRepository: ConnectionManagerDelegate {
         }
     }
 }
+
+#else
+// NearbyConnectionsが利用できない場合のダミー実装
+public class NearbyRepository {
+    weak var callback: NearbyRepositoryCallback?
+    
+    public init() {}
+    
+    public func startAdvertising() {
+        print("NearbyConnections not available - dummy implementation")
+    }
+    
+    public func startAdvertise() {
+        startAdvertising()
+    }
+    
+    public func stopAdvertising() {}
+    public func stopAdvertise() {
+        stopAdvertising()
+    }
+    
+    public func startDiscovery() {}
+    public func stopDiscovery() {}
+    public func connectTo(endpointId: String, deviceName: String) {}
+    public func acceptConnection(endpointId: String) {}
+    public func rejectConnection(endpointId: String) {}
+    public func disconnect(endpointId: String) {}
+    public func sendData(_ data: Data, to endpointId: String) {}
+    public func sendMessage(_ message: String, to endpointIds: [String]) {}
+    public func getConnectedEndpoints() -> [String] { return [] }
+}
+
+public protocol NearbyRepositoryCallback: AnyObject {
+    func onDiscoveryStateChanged(isDiscovering: Bool)
+    func onDeviceFound(endpointId: String, name: String, isConnectable: Bool)
+    func onDeviceLost(endpointId: String)
+    func onConnectionRequest(endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void)
+    func onConnectionResult(_ endpointId: String, _ success: Bool)
+    func onConnectionStateChanged(state: String)
+    func onDataReceived(endpointId: String, data: Data)
+    func onDeviceConnected(endpointId: String, deviceName: String)
+    func onDeviceDisconnected(endpointId: String)
+}
+
+#endif

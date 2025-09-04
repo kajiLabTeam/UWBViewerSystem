@@ -147,7 +147,7 @@ struct SystemCalibrationView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -178,7 +178,7 @@ struct SystemCalibrationView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -225,7 +225,7 @@ struct SystemCalibrationView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -315,7 +315,7 @@ struct SystemCalibrationView: View {
             .disabled(viewModel.calibrationStatus == .running)
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -443,9 +443,9 @@ struct CalibrationStepRow: View {
         } else if isCurrent {
             return .blue
         } else if isEnabled {
-            return Color(.systemGray4)
+            return Color.gray.opacity(0.3)
         } else {
-            return Color(.systemGray5)
+            return Color.gray.opacity(0.2)
         }
     }
 

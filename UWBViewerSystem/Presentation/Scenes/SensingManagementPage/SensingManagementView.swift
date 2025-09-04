@@ -5,18 +5,29 @@ struct SensingManagementView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject var router: NavigationRouterModel
     @StateObject private var viewModel = SensingManagementViewModel()
+    @StateObject private var flowNavigator = SensingFlowNavigator()
 
     var body: some View {
-        VStack(spacing: 20) {
-            HeaderSection()
+        VStack(spacing: 0) {
+            // フロープログレス表示
+            SensingFlowProgressView(navigator: flowNavigator)
 
-            HStack(spacing: 20) {
-                AntennaStatusSection(viewModel: viewModel)
+            ScrollView {
+                VStack(spacing: 20) {
+                    HeaderSection()
 
-                SensingControlSection(viewModel: viewModel)
+                    HStack(spacing: 20) {
+                        AntennaStatusSection(viewModel: viewModel)
+
+                        SensingControlSection(viewModel: viewModel)
+                    }
+
+                    RealtimeDataSection(viewModel: viewModel)
+
+                    Spacer(minLength: 80)
+                }
+                .padding()
             }
-
-            RealtimeDataSection(viewModel: viewModel)
 
             NavigationButtonsSection(viewModel: viewModel)
         }
@@ -34,6 +45,7 @@ struct SensingManagementView: View {
             let repository = SwiftDataRepository(modelContext: modelContext)
             viewModel.setSwiftDataRepository(repository)
             viewModel.initialize()
+            flowNavigator.currentStep = .sensingExecution
         }
     }
 
@@ -55,21 +67,41 @@ struct SensingManagementView: View {
     // MARK: - Navigation Buttons
     @ViewBuilder
     private func NavigationButtonsSection(viewModel: SensingManagementViewModel) -> some View {
-        HStack(spacing: 20) {
-            Button("戻る") {
-                router.pop()
-            }
-            .buttonStyle(.bordered)
+        VStack(spacing: 12) {
+            Divider()
 
-            Spacer()
+            HStack(spacing: 16) {
+                Button("戻る") {
+                    flowNavigator.goToPreviousStep()
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.secondary)
+                .background(Color.secondary.opacity(0.1))
+                .cornerRadius(8)
 
-            Button("データを確認") {
-                router.push(.trajectoryView)
+                Button("次へ") {
+                    if viewModel.saveSensingSessionForFlow() {
+                        flowNavigator.proceedToNextStep()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.white)
+                .background(viewModel.canProceedToNext ? Color.blue : Color.gray)
+                .cornerRadius(8)
+                .disabled(!viewModel.canProceedToNext)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(!viewModel.hasDataToView)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
         }
-        .padding()
+        .alert("エラー", isPresented: Binding.constant(flowNavigator.lastError != nil)) {
+            Button("OK") {
+                flowNavigator.lastError = nil
+            }
+        } message: {
+            Text(flowNavigator.lastError ?? "")
+        }
     }
 }
 

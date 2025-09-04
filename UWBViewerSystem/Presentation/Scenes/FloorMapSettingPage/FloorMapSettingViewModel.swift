@@ -1,13 +1,26 @@
 import Foundation
 import SwiftUI
-import UIKit
+
+#if canImport(UIKit)
+    import UIKit
+#elseif canImport(AppKit)
+    import AppKit
+#endif
 
 /// フロアマップ設定画面のViewModel
 @MainActor
 class FloorMapSettingViewModel: ObservableObject {
     // MARK: - Published Properties
 
-    @Published var selectedFloorMapImage: UIImage?
+    #if canImport(UIKit)
+        #if os(iOS)
+            @Published var selectedFloorMapImage: UIImage?
+        #elseif os(macOS)
+            @Published var selectedFloorMapImage: NSImage?
+        #endif
+    #elseif canImport(AppKit)
+        @Published var selectedFloorMapImage: NSImage?
+    #endif
     @Published var floorName: String = ""
     @Published var buildingName: String = ""
     @Published var floorWidth: Double = 10.0
@@ -16,7 +29,11 @@ class FloorMapSettingViewModel: ObservableObject {
     @Published var floorPresets: [FloorMapPreset] = []
 
     @Published var isImagePickerPresented: Bool = false
-    @Published var imagePickerSourceType: UIImagePickerController.SourceType = .photoLibrary
+    #if canImport(UIKit)
+        #if os(iOS)
+            @Published var imagePickerSourceType: UIImagePickerController.SourceType = .photoLibrary
+        #endif
+    #endif
     @Published var showErrorAlert: Bool = false
     @Published var errorMessage: String = ""
     @Published var isLoading: Bool = false
@@ -28,7 +45,15 @@ class FloorMapSettingViewModel: ObservableObject {
     }
 
     var isCameraAvailable: Bool {
-        UIImagePickerController.isSourceTypeAvailable(.camera)
+        #if canImport(UIKit)
+            #if os(iOS)
+                return UIImagePickerController.isSourceTypeAvailable(.camera)
+            #else
+                return false
+            #endif
+        #else
+            return false
+        #endif
     }
 
     // MARK: - Initialization
@@ -44,7 +69,9 @@ class FloorMapSettingViewModel: ObservableObject {
     }
 
     func selectImageFromLibrary() {
-        imagePickerSourceType = .photoLibrary
+        #if canImport(UIKit)
+            imagePickerSourceType = .photoLibrary
+        #endif
         isImagePickerPresented = true
     }
 
@@ -54,7 +81,9 @@ class FloorMapSettingViewModel: ObservableObject {
             return
         }
 
-        imagePickerSourceType = .camera
+        #if canImport(UIKit)
+            imagePickerSourceType = .camera
+        #endif
         isImagePickerPresented = true
     }
 
@@ -111,10 +140,17 @@ class FloorMapSettingViewModel: ObservableObject {
         NavigationRouterModel.shared.pop()
     }
 
-    func onImageSelected(_ image: UIImage) {
-        selectedFloorMapImage = image
-        isImagePickerPresented = false
-    }
+    #if os(iOS)
+        func onImageSelected(_ image: UIImage) {
+            selectedFloorMapImage = image
+            isImagePickerPresented = false
+        }
+    #elseif os(macOS)
+        func onImageSelected(_ image: NSImage) {
+            selectedFloorMapImage = image
+            isImagePickerPresented = false
+        }
+    #endif
 
     // MARK: - Private Methods
 
@@ -199,16 +235,36 @@ class FloorMapSettingViewModel: ObservableObject {
         UserDefaults.standard.set(data, forKey: "currentFloorMapInfo")
     }
 
-    private func saveImageToDocuments(_ image: UIImage, with id: String) throws {
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-            throw FloorMapSettingError.imageProcessingFailed
+    #if os(iOS)
+        private func saveImageToDocuments(_ image: UIImage, with id: String) throws {
+            guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+                throw FloorMapSettingError.imageProcessingFailed
+            }
+
+            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
+
+            try imageData.write(to: imageURL)
         }
+    #elseif os(macOS)
+        private func saveImageToDocuments(_ image: NSImage, with id: String) throws {
+            guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+                throw FloorMapSettingError.imageProcessingFailed
+            }
+            let nsImage = NSImage(cgImage: cgImage, size: image.size)
+            guard let tiffData = nsImage.tiffRepresentation,
+                let bitmapRep = NSBitmapImageRep(data: tiffData),
+                let imageData = bitmapRep.representation(using: .jpeg, properties: [:])
+            else {
+                throw FloorMapSettingError.imageProcessingFailed
+            }
 
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
+            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
 
-        try imageData.write(to: imageURL)
-    }
+            try imageData.write(to: imageURL)
+        }
+    #endif
 
     private func showError(_ message: String) {
         errorMessage = message
@@ -227,21 +283,7 @@ struct FloorMapPreset: Identifiable {
     let iconName: String
 }
 
-struct FloorMapInfo: Codable {
-    let id: String
-    let name: String
-    let buildingName: String
-    let width: Double
-    let depth: Double
-    let createdAt: Date
-
-    // UIImageは直接Codableではないため、保存時は別途処理
-    var image: UIImage?
-
-    enum CodingKeys: String, CodingKey {
-        case id, name, buildingName, width, depth, createdAt
-    }
-}
+// FloorMapInfoはCommonTypes.swiftで定義済み
 
 enum FloorMapSettingError: Error, LocalizedError {
     case imageProcessingFailed

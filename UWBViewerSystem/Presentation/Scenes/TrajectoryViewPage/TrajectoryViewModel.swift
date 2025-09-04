@@ -44,7 +44,8 @@ class TrajectoryViewModel: ObservableObject {
     @Published var maxSpeed: Double = 0
 
     private var playbackTimer: Timer?
-    private var mapData: IndoorMapData?
+    // mapData: IndoorMapDataは現在利用できないため、一時的にコメントアウト
+    // private var mapData: IndoorMapData?
     private var allTrajectoryPoints: [TrajectoryPoint] = []  // フィルタリング前の全データ
 
     var hasTrajectoryData: Bool {
@@ -97,6 +98,8 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     private func loadMapData() {
+        // IndoorMapDataは現在利用できないため、一時的にコメントアウト
+        /*
         if let data = UserDefaults.standard.data(forKey: "CurrentIndoorMap"),
             let decoded = try? JSONDecoder().decode(IndoorMapData.self, from: data)
         {
@@ -109,6 +112,7 @@ class TrajectoryViewModel: ObservableObject {
                 }
             #endif
         }
+        */
     }
 
     private func loadAntennaPositions() {
@@ -200,13 +204,15 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     private func convertToScreenPosition(_ realPosition: RealWorldPosition) -> CGPoint {
-        guard let mapData = mapData else {
+        // UserDefaultsからフロアマップ情報を取得
+        guard let floorMapData = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
+              let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: floorMapData) else {
             return CGPoint(x: 50, y: 50)
         }
 
         let canvasSize = CGSize(width: 500, height: 500)  // マップキャンバスのサイズ
-        let scaleX = Double(canvasSize.width) / mapData.realWidth
-        let scaleY = Double(canvasSize.height) / mapData.realHeight
+        let scaleX = Double(canvasSize.width) / floorMapInfo.width
+        let scaleY = Double(canvasSize.height) / floorMapInfo.depth
 
         let screenX = realPosition.x * scaleX
         let screenY = realPosition.y * scaleY

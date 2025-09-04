@@ -246,8 +246,8 @@ class SystemCalibrationViewModel: ObservableObject {
         let result = SystemCalibrationResult(
             timestamp: Date(),
             wasSuccessful: calibrationStatus == .completed,
-            completedSteps: Array(completedSteps),
-            duration: overallProgress * Double(SystemCalibrationStep.totalEstimatedDuration)
+            calibrationData: [:],
+            errorMessage: calibrationStatus == .failed ? "キャリブレーションが失敗しました" : nil
         )
 
         if let data = try? JSONEncoder().encode(result) {
@@ -387,9 +387,3 @@ enum CalibrationInterval: String, CaseIterable {
     }
 }
 
-struct SystemCalibrationResult: Codable {
-    let timestamp: Date
-    let wasSuccessful: Bool
-    let completedSteps: [SystemCalibrationStep]
-    let duration: TimeInterval
-}

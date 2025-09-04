@@ -102,7 +102,7 @@ public class RealtimeDataUsecase: ObservableObject {
         }
         objectWillChange.send()
     }
-    
+
     public func loadRealtimeDataHistory(for sessionId: String) async -> [RealtimeData] {
         do {
             return try await swiftDataRepository.loadRealtimeData(for: sessionId)
@@ -111,7 +111,7 @@ public class RealtimeDataUsecase: ObservableObject {
             return []
         }
     }
-    
+
     public func setSensingControlUsecase(_ usecase: SensingControlUsecase) {
         sensingControlUsecase = usecase
     }
@@ -130,7 +130,7 @@ public class RealtimeDataUsecase: ObservableObject {
             // 既存デバイスのデータ更新
             print("🟡 既存デバイス更新: \(data.deviceName) (インデックス: \(index))")
 
-            var updatedDevice = deviceRealtimeDataList[index]
+            let updatedDevice = deviceRealtimeDataList[index]
             updatedDevice.latestData = data
             updatedDevice.dataHistory.append(data)
             updatedDevice.lastUpdateTime = Date()

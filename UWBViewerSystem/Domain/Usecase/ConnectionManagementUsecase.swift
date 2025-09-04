@@ -79,19 +79,23 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     }
 
     public func disconnectFromDevice(endpointId: String) {
-        nearbyRepository.disconnectFromDevice(endpointId: endpointId)
+        nearbyRepository.disconnect(endpointId)
         connectedEndpoints.remove(endpointId)
         connectedDeviceNames = connectedDeviceNames.filter { $0 != endpointId }
     }
 
     public func disconnectAll() {
-        nearbyRepository.disconnectAll()
+        // 各接続を個別に切断
+        for endpoint in connectedEndpoints {
+            nearbyRepository.disconnect(endpoint)
+        }
         connectedDeviceNames.removeAll()
         connectedEndpoints.removeAll()
     }
 
     public func resetAll() {
-        nearbyRepository.resetAll()
+        nearbyRepository.stopAdvertise()
+        nearbyRepository.stopDiscoveryOnly()
         connectedDeviceNames.removeAll()
         connectedEndpoints.removeAll()
         isAdvertising = false
@@ -101,7 +105,9 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     // MARK: - Message Sending
 
     public func sendMessage(_ content: String) {
-        nearbyRepository.sendData(text: content)
+        if let firstEndpoint = connectedEndpoints.first {
+            nearbyRepository.sendDataToDevice(text: content, toEndpointId: firstEndpoint)
+        }
     }
 
     public func sendMessageToDevice(_ content: String, to endpointId: String) {
@@ -111,7 +117,7 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     // MARK: - Connection Status
 
     public func hasConnectedDevices() -> Bool {
-        return nearbyRepository.hasConnectedDevices()
+        return !connectedEndpoints.isEmpty
     }
 
     public func getConnectedDeviceCount() -> Int {

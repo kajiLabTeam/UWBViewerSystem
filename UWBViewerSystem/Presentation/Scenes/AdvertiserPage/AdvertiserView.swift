@@ -34,20 +34,22 @@ struct AdvertiserView: View {
                 }
         }
         .navigationTitle("広告専用画面")
-        .alert("接続要求", isPresented: $showingConnectionAlert, presenting: selectedRequest) { request in
+        .alert("接続要求", isPresented: $showingConnectionAlert) {
             Button("承認") {
-                viewModel.approveConnection(for: request)
+                if let request = selectedRequest {
+                    viewModel.approveConnection(for: request)
+                }
                 selectedRequest = nil
             }
             Button("拒否", role: .cancel) {
-                viewModel.rejectConnection(for: request)
+                if let request = selectedRequest {
+                    viewModel.rejectConnection(for: request)
+                }
                 selectedRequest = nil
             }
-        } message: { request in
-            VStack(alignment: .leading) {
-                Text("端末名: \(request.deviceName)")
-                Text("ID: \(request.endpointId)")
-                Text("要求時刻: \(request.requestTime, style: .time)")
+        } message: {
+            if let request = selectedRequest {
+                Text("端末: \(request.deviceName)\nID: \(request.endpointId)")
             }
         }
         .onChange(of: viewModel.connectionRequests) { _, newRequests in
@@ -227,7 +229,7 @@ struct MessageBubble: View {
 
             VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 4) {
                 if !message.isOutgoing {
-                    Text(message.fromDeviceName)
+                    Text(message.senderName)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

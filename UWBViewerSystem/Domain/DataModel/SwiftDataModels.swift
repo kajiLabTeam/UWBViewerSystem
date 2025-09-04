@@ -3,6 +3,7 @@ import SwiftData
 
 // MARK: - SwiftDataモデル
 
+@available(macOS 14, iOS 17, *)
 @Model
 public final class PersistentSensingSession {
     public var id: String
@@ -46,6 +47,7 @@ public final class PersistentSensingSession {
     }
 }
 
+@available(macOS 14, iOS 17, *)
 @Model
 public final class PersistentAntennaPosition {
     public var id: String
@@ -88,6 +90,7 @@ public final class PersistentAntennaPosition {
     }
 }
 
+@available(macOS 14, iOS 17, *)
 @Model
 public final class PersistentAntennaPairing {
     public var id: String
@@ -143,6 +146,7 @@ public final class PersistentAntennaPairing {
     }
 }
 
+@available(macOS 14, iOS 17, *)
 @Model
 public final class PersistentRealtimeData {
     public var id: UUID
@@ -195,11 +199,13 @@ public final class PersistentRealtimeData {
     }
 }
 
+@available(macOS 14, iOS 17, *)
 @Model
 public final class PersistentSystemActivity {
     public var id: String
     public var activityType: String
     public var activityDescription: String
+    public var status: String
     public var timestamp: Date
     public var metadata: Data?  // JSON data for additional information
 
@@ -207,62 +213,36 @@ public final class PersistentSystemActivity {
         id: String = UUID().uuidString,
         activityType: String,
         activityDescription: String,
+        status: String = "completed",
         timestamp: Date = Date(),
         metadata: Data? = nil
     ) {
         self.id = id
         self.activityType = activityType
         self.activityDescription = activityDescription
+        self.status = status
         self.timestamp = timestamp
         self.metadata = metadata
     }
 
     public func toEntity() -> SystemActivity {
+        var additionalData: [String: String]?
+        if let metadataData = self.metadata {
+            additionalData = try? JSONSerialization.jsonObject(with: metadataData) as? [String: String]
+        }
+        
         return SystemActivity(
-            id: self.id,
+            id: UUID(uuidString: self.id) ?? UUID(),
+            timestamp: self.timestamp,
             activityType: self.activityType,
             activityDescription: self.activityDescription,
-            timestamp: self.timestamp
+            status: ActivityStatus(rawValue: self.status) ?? .completed,
+            additionalData: additionalData
         )
     }
 }
 
-@Model
-public final class PersistentReceivedFile {
-    public var id: UUID
-    public var fileName: String
-    public var filePath: String  // FileURLの代わりにパスを保存
-    public var deviceName: String
-    public var receivedAt: Date
-    public var fileSize: Int64
-
-    public init(
-        id: UUID = UUID(),
-        fileName: String,
-        filePath: String,
-        deviceName: String,
-        receivedAt: Date = Date(),
-        fileSize: Int64
-    ) {
-        self.id = id
-        self.fileName = fileName
-        self.filePath = filePath
-        self.deviceName = deviceName
-        self.receivedAt = receivedAt
-        self.fileSize = fileSize
-    }
-
-    public func toEntity() -> ReceivedFile {
-        return ReceivedFile(
-            id: self.id,
-            fileName: self.fileName,
-            fileURL: URL(fileURLWithPath: self.filePath),
-            deviceName: self.deviceName,
-            receivedAt: self.receivedAt,
-            fileSize: self.fileSize
-        )
-    }
-}
+// PersistentReceivedFileは単体ファイルで定義済み
 
 // MARK: - Entity拡張（SwiftDataモデルへの変換）
 
@@ -326,24 +306,16 @@ extension RealtimeData {
 
 extension SystemActivity {
     public func toPersistent() -> PersistentSystemActivity {
+        let metadataData = try? JSONSerialization.data(withJSONObject: self.additionalData ?? [:])
         return PersistentSystemActivity(
-            id: self.id,
+            id: self.id.uuidString,
             activityType: self.activityType,
             activityDescription: self.activityDescription,
-            timestamp: self.timestamp
+            status: self.status.rawValue,
+            timestamp: self.timestamp,
+            metadata: metadataData
         )
     }
 }
 
-extension ReceivedFile {
-    public func toPersistent() -> PersistentReceivedFile {
-        return PersistentReceivedFile(
-            id: self.id,
-            fileName: self.fileName,
-            filePath: self.fileURL.path,
-            deviceName: self.deviceName,
-            receivedAt: self.receivedAt,
-            fileSize: self.fileSize
-        )
-    }
-}
+// ReceivedFileのtoPersistent拡張はPersistentReceivedFile.swiftで定義済み

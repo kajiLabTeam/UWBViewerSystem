@@ -81,7 +81,7 @@ struct SensingFlowProgressView: View {
                 }
             }
             .padding(12)
-            .background(Color(.systemGray6))
+            .background(Color.gray.opacity(0.1))
             .cornerRadius(12)
         }
         .padding()
@@ -151,7 +151,7 @@ struct StepIndicatorView: View {
         } else if isCurrent {
             return .blue
         } else {
-            return Color(.systemGray4)
+            return Color.gray.opacity(0.3)
         }
     }
 

@@ -1,6 +1,9 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Data Models for Flow Validation
+// FloorMapInfoとSystemCalibrationResultは各ViewModelで定義済みのため削除
+
 /// 新しいセンシングフローのナビゲーション管理
 ///
 /// フロー: フロアマップ設定 → アンテナ設定 → ペアリング → キャリブレーション → センシング → データ閲覧
@@ -14,8 +17,8 @@ class SensingFlowNavigator: ObservableObject {
 
     private let router: NavigationRouterModel
 
-    init(router: NavigationRouterModel = .shared) {
-        self.router = router
+    init(router: NavigationRouterModel? = nil) {
+        self.router = router ?? NavigationRouterModel()
         loadFlowState()
     }
 
@@ -33,10 +36,10 @@ class SensingFlowNavigator: ObservableObject {
             lastError = currentStep.incompletionError
             return
         }
-        
+
         // 現在のステップを完了済みとしてマーク
         markStepAsCompleted(currentStep)
-        
+
         guard let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep),
             currentIndex < SensingFlowStep.allCases.count - 1
         else {
@@ -84,7 +87,7 @@ class SensingFlowNavigator: ObservableObject {
     }
 
     /// フローを完了
-    private func completeFlow() {
+    func completeFlow() {
         markStepAsCompleted(currentStep)
         isFlowCompleted = true
         currentStep = .dataViewer
@@ -121,7 +124,8 @@ class SensingFlowNavigator: ObservableObject {
     /// 指定されたステップにアクセス可能かどうかを判定
     func canAccessStep(_ step: SensingFlowStep) -> Bool {
         guard let stepIndex = SensingFlowStep.allCases.firstIndex(of: step),
-              let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep) else {
+            let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep)
+        else {
             return false
         }
 
@@ -131,7 +135,7 @@ class SensingFlowNavigator: ObservableObject {
         }
 
         // 次のステップには、前のステップがすべて完了している場合のみアクセス可能
-        let previousSteps = Array(SensingFlowStep.allCases[0..<stepIndex])
+        let previousSteps = Array(SensingFlowStep.allCases[0 ..< stepIndex])
         return previousSteps.allSatisfy { completedSteps.contains($0) }
     }
 
@@ -145,39 +149,41 @@ class SensingFlowNavigator: ObservableObject {
     /// フローの状態を保存
     private func saveFlowState() {
         let encoder = JSONEncoder()
-        
+
         if let currentStepData = try? encoder.encode(currentStep.rawValue) {
             UserDefaults.standard.set(currentStepData, forKey: "sensingFlowCurrentStep")
         }
-        
+
         let completedStepsArray = Array(completedSteps.map { $0.rawValue })
         if let completedStepsData = try? encoder.encode(completedStepsArray) {
             UserDefaults.standard.set(completedStepsData, forKey: "sensingFlowCompletedSteps")
         }
-        
+
         UserDefaults.standard.set(isFlowCompleted, forKey: "sensingFlowCompleted")
     }
 
     /// フローの状態を復元
     private func loadFlowState() {
         let decoder = JSONDecoder()
-        
+
         // 現在のステップを復元
         if let currentStepData = UserDefaults.standard.data(forKey: "sensingFlowCurrentStep"),
-           let currentStepRaw = try? decoder.decode(String.self, from: currentStepData),
-           let savedStep = SensingFlowStep(rawValue: currentStepRaw) {
+            let currentStepRaw = try? decoder.decode(String.self, from: currentStepData),
+            let savedStep = SensingFlowStep(rawValue: currentStepRaw)
+        {
             currentStep = savedStep
         }
-        
+
         // 完了済みステップを復元
         if let completedStepsData = UserDefaults.standard.data(forKey: "sensingFlowCompletedSteps"),
-           let completedStepsArray = try? decoder.decode([String].self, from: completedStepsData) {
+            let completedStepsArray = try? decoder.decode([String].self, from: completedStepsData)
+        {
             completedSteps = Set(completedStepsArray.compactMap { SensingFlowStep(rawValue: $0) })
         }
-        
+
         // フロー完了状態を復元
         isFlowCompleted = UserDefaults.standard.bool(forKey: "sensingFlowCompleted")
-        
+
         updateProgress()
     }
 
@@ -272,7 +278,7 @@ enum SensingFlowStep: String, CaseIterable {
             return 5
         }
     }
-    
+
     /// ステップが完了していない場合のエラーメッセージ
     var incompletionError: String {
         switch self {
@@ -290,7 +296,7 @@ enum SensingFlowStep: String, CaseIterable {
             return "データが確認されていません。"
         }
     }
-    
+
     /// ステップの完了条件をチェックする関数
     func completionCondition() -> Bool {
         switch self {
@@ -305,56 +311,61 @@ enum SensingFlowStep: String, CaseIterable {
         case .sensingExecution:
             return checkSensingExecutionCompletion()
         case .dataViewer:
-            return true // データ閲覧は常に完了とみなす
+            return true  // データ閲覧は常に完了とみなす
         }
     }
-    
+
     // MARK: - Private Completion Check Functions
-    
+
     private func checkFloorMapSettingCompletion() -> Bool {
         // UserDefaultsからフロアマップ設定を確認
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let _ = try? JSONDecoder().decode(FloorMapInfo.self, from: data) else {
+            let _ = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
+        else {
             return false
         }
         return true
     }
-    
+
     private func checkAntennaConfigurationCompletion() -> Bool {
         // UserDefaultsからアンテナ設定を確認
         guard let data = UserDefaults.standard.data(forKey: "configuredAntennaPositions"),
-              let antennas = try? JSONDecoder().decode([AntennaPositionData].self, from: data) else {
+            let antennas = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
+        else {
             return false
         }
-        
+
         // 最低2つのアンテナが必要
-        return antennas.count >= 2 && antennas.allSatisfy { antenna in
-            antenna.rotation >= 0 && antenna.rotation <= 360
-        }
+        return antennas.count >= 2
+            && antennas.allSatisfy { antenna in
+                antenna.rotation >= 0 && antenna.rotation <= 360
+            }
     }
-    
+
     private func checkDevicePairingCompletion() -> Bool {
         // ペアリング済みデバイスを確認
         guard let data = UserDefaults.standard.data(forKey: "pairedDevices"),
-              let devices = try? JSONDecoder().decode([String].self, from: data) else {
+            let devices = try? JSONDecoder().decode([String].self, from: data)
+        else {
             return false
         }
-        
+
         // 最低1つのデバイスがペアリング済み
         return devices.count >= 1
     }
-    
+
     private func checkSystemCalibrationCompletion() -> Bool {
         // キャリブレーション結果を確認
         guard let data = UserDefaults.standard.data(forKey: "lastCalibrationResult"),
-              let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data) else {
+            let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data)
+        else {
             return false
         }
-        
+
         // 1時間以内の成功したキャリブレーション
         return result.wasSuccessful && result.timestamp.timeIntervalSinceNow > -3600
     }
-    
+
     private func checkSensingExecutionCompletion() -> Bool {
         // センシングセッション履歴を確認
         return UserDefaults.standard.bool(forKey: "hasExecutedSensingSession")

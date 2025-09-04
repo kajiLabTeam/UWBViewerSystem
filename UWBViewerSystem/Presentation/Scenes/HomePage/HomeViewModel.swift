@@ -5,55 +5,102 @@
 //  Created by はるちろ on R 7/04/07.
 //
 
+import CoreLocation
 import Foundation
 import SwiftUI
 
-class HomeViewModel: ObservableObject {
-    private let deviceConnectionUsecase: DeviceConnectionUsecase
-    
-    @Published var isLocationPermissionGranted: Bool = false
+class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
+    private let repository: NearbyRepository
+    private let locationManager = CLLocationManager()
+
     @Published var connectState: String = ""
     @Published var receivedDataList: [(String, String)] = []
-    
-    init() {
-        deviceConnectionUsecase = DeviceConnectionUsecase()
-        updateFromUsecase()
-        
-        // DeviceConnectionUsecaseの状態を定期的に監視
-        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            self.updateFromUsecase()
+    @Published var isLocationPermissionGranted = false
+
+    override init() {
+        repository = NearbyRepository()
+        super.init()
+        repository.callback = self
+        setupLocationManager()
+        requestLocationPermission()
+    }
+
+    private func setupLocationManager() {
+        locationManager.delegate = self
+    }
+
+    private func requestLocationPermission() {
+        switch locationManager.authorizationStatus {
+        case .notDetermined:
+            locationManager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse, .authorizedAlways:
+            isLocationPermissionGranted = true
+        case .denied, .restricted:
+            connectState = "位置情報の権限が必要です"
+        @unknown default:
+            break
         }
     }
-    
-    private func updateFromUsecase() {
-        DispatchQueue.main.async {
-            self.isLocationPermissionGranted = self.deviceConnectionUsecase.isLocationPermissionGranted
-            self.connectState = self.deviceConnectionUsecase.connectState
-            self.receivedDataList = self.deviceConnectionUsecase.receivedDataList
-        }
-    }
-    
-    func requestLocationPermission() {
-        deviceConnectionUsecase.requestLocationPermission()
-    }
-    
+
     func startAdvertise() {
-        deviceConnectionUsecase.startAdvertise()
+        guard isLocationPermissionGranted else {
+            connectState = "位置情報の権限を許可してください"
+            return
+        }
+        repository.startAdvertise()
     }
-    
+
     func startDiscovery() {
-        deviceConnectionUsecase.startDiscovery()
+        guard isLocationPermissionGranted else {
+            connectState = "位置情報の権限を許可してください"
+            return
+        }
+        repository.startDiscovery()
     }
-    
+
     func sendData(text: String) {
-        deviceConnectionUsecase.sendData(text: text)
+        repository.sendData(text: text)
     }
-    
+
     func disconnectAll() {
-        deviceConnectionUsecase.disconnectAll()
+        repository.disconnectAll()
     }
-    
+
     func resetAll() {
-        deviceConnectionUsecase.resetAll()
+        repository.resetAll()
+        receivedDataList = []
+    }
+
+    // MARK: - NearbyRepositoryCallback
+
+    func onConnectionStateChanged(state: String) {
+        DispatchQueue.main.async {
+            self.connectState = state
+        }
+    }
+
+    func onDataReceived(data: String, fromEndpointId: String) {
+        DispatchQueue.main.async {
+            self.receivedDataList.append((fromEndpointId, data))
+        }
+    }
+}
+
+// MARK: - CLLocationManagerDelegate
+
+extension HomeViewModel: CLLocationManagerDelegate {
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        switch status {
+        case .authorizedWhenInUse, .authorizedAlways:
+            isLocationPermissionGranted = true
+            connectState = "権限許可完了"
+        case .denied, .restricted:
+            isLocationPermissionGranted = false
+            connectState = "位置情報の権限が拒否されました"
+        case .notDetermined:
+            break
+        @unknown default:
+            break
+        }
     }
 }

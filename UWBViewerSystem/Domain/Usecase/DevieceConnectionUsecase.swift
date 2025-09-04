@@ -1,5 +1,5 @@
 //
-//  DevieceConnectionUsecase.swift
+//  DeviceConnectionUsecase.swift
 //  UWBViewerSystem
 //
 //  Created by はるちろ on R 7/07/08.
@@ -10,9 +10,9 @@ import Foundation
 class DeviceConnectionUsecase: NearbyRepositoryCallback, LocationPermissionDelegate {
     private let repository: NearbyRepository
     private let locationApi: LocationApi
-
+    
     var isLocationPermissionGranted: Bool {
-        locationApi.isLocationPermissionGranted
+        return locationApi.isLocationPermissionGranted
     }
     var connectState = ""
     var receivedDataList: [(String, String)] = []
@@ -20,14 +20,14 @@ class DeviceConnectionUsecase: NearbyRepositoryCallback, LocationPermissionDeleg
     init() {
         repository = NearbyRepository()
         locationApi = LocationApi()
-
+        
         repository.callback = self
         locationApi.delegate = self
-
+        
         // 初期化時に位置情報の権限状態を確認
         let permissionStatus = locationApi.checkLocationPermission()
         connectState = permissionStatus.message
-
+        
         // 権限が未設定の場合は自動でリクエスト
         if !permissionStatus.isGranted {
             locationApi.requestLocationPermission()

@@ -8,7 +8,7 @@ struct PrimaryButton: View {
     let action: () -> Void
     let isDisabled: Bool
     let isFullWidth: Bool
-    
+
     init(
         title: String,
         systemImage: String? = nil,
@@ -22,11 +22,11 @@ struct PrimaryButton: View {
         self.isFullWidth = isFullWidth
         self.action = action
     }
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                if let systemImage = systemImage {
+                if let systemImage {
                     Image(systemName: systemImage)
                         .font(.body)
                 }
@@ -51,7 +51,7 @@ struct SecondaryButton: View {
     let systemImage: String?
     let action: () -> Void
     let isFullWidth: Bool
-    
+
     init(
         title: String,
         systemImage: String? = nil,
@@ -63,11 +63,11 @@ struct SecondaryButton: View {
         self.isFullWidth = isFullWidth
         self.action = action
     }
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                if let systemImage = systemImage {
+                if let systemImage {
                     Image(systemName: systemImage)
                         .font(.body)
                 }
@@ -91,7 +91,7 @@ struct DestructiveButton: View {
     let systemImage: String?
     let action: () -> Void
     let isFullWidth: Bool
-    
+
     init(
         title: String,
         systemImage: String? = nil,
@@ -103,11 +103,11 @@ struct DestructiveButton: View {
         self.isFullWidth = isFullWidth
         self.action = action
     }
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                if let systemImage = systemImage {
+                if let systemImage {
                     Image(systemName: systemImage)
                         .font(.body)
                 }
@@ -129,15 +129,15 @@ struct DestructiveButton: View {
         PrimaryButton(title: "次へ", systemImage: "arrow.right") {
             print("Primary tapped")
         }
-        
+
         PrimaryButton(title: "保存", isDisabled: true) {
             print("Save tapped")
         }
-        
+
         SecondaryButton(title: "キャンセル") {
             print("Cancel tapped")
         }
-        
+
         DestructiveButton(title: "削除", systemImage: "trash") {
             print("Delete tapped")
         }

@@ -6,7 +6,7 @@ struct InformationSection: View {
     let systemImage: String
     let imageColor: Color
     let items: [String]
-    
+
     init(
         title: String,
         systemImage: String = "info.circle",
@@ -18,7 +18,7 @@ struct InformationSection: View {
         self.imageColor = imageColor
         self.items = items
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // タイトル
@@ -26,12 +26,12 @@ struct InformationSection: View {
                 Image(systemName: systemImage)
                     .font(.headline)
                     .foregroundColor(imageColor)
-                
+
                 Text(title)
                     .font(.headline)
                     .fontWeight(.semibold)
             }
-            
+
             // 項目リスト
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
@@ -39,7 +39,7 @@ struct InformationSection: View {
                         Text("•")
                             .font(.body)
                             .foregroundColor(imageColor)
-                        
+
                         Text(item)
                             .font(.subheadline)
                             .foregroundColor(.secondary)
@@ -62,7 +62,7 @@ struct StepInstructionView: View {
         let text: String
         let icon: String?
         let iconColor: Color
-        
+
         init(number: Int, text: String, icon: String? = nil, iconColor: Color = .blue) {
             self.number = number
             self.text = text
@@ -70,18 +70,18 @@ struct StepInstructionView: View {
             self.iconColor = iconColor
         }
     }
-    
+
     let title: String?
     let steps: [Step]
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let title = title {
+            if let title {
                 Text(title)
                     .font(.headline)
                     .fontWeight(.semibold)
             }
-            
+
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(steps, id: \.number) { step in
                     HStack(alignment: .top, spacing: 12) {
@@ -90,13 +90,13 @@ struct StepInstructionView: View {
                             Circle()
                                 .fill(step.iconColor)
                                 .frame(width: 24, height: 24)
-                            
+
                             Text("\(step.number)")
                                 .font(.caption)
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                         }
-                        
+
                         // アイコンとテキスト
                         HStack(alignment: .top, spacing: 8) {
                             if let icon = step.icon {
@@ -104,12 +104,12 @@ struct StepInstructionView: View {
                                     .font(.subheadline)
                                     .foregroundColor(step.iconColor)
                             }
-                            
+
                             Text(step.text)
                                 .font(.subheadline)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
-                        
+
                         Spacer()
                     }
                 }
@@ -130,7 +130,7 @@ struct StepInstructionView: View {
                 "壁際への設置は避けてください"
             ]
         )
-        
+
         StepInstructionView(
             title: "アンテナ配置手順",
             steps: [

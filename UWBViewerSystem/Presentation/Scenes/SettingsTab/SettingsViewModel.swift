@@ -13,40 +13,19 @@ enum SettingsDetailType: String, CaseIterable {
 }
 
 class SettingsViewModel: ObservableObject {
-    @Published var autoBackupEnabled: Bool = false
-    @Published var highAccuracyMode: Bool = false
-    @Published var notificationsEnabled: Bool = true
     @Published var selectedSettingDetail: SettingsDetailType?
-
+    
     let appVersion = "1.0.0"
-
-    init() {
-        loadSettings()
+    
+    func selectSettingDetail(_ detail: SettingsDetailType) {
+        selectedSettingDetail = detail
     }
-
-    private func loadSettings() {
-        autoBackupEnabled = UserDefaults.standard.bool(forKey: "autoBackupEnabled")
-        highAccuracyMode = UserDefaults.standard.bool(forKey: "highAccuracyMode")
-        notificationsEnabled = UserDefaults.standard.bool(forKey: "notificationsEnabled")
-    }
-
-    func exportData() {
-        print("データエクスポート機能を実行")
-    }
-
-    func clearCache() {
-        print("キャッシュクリア機能を実行")
-    }
-
+    
     func showHelp() {
         print("ヘルプ画面を表示")
     }
-
+    
     func showTerms() {
         print("利用規約を表示")
-    }
-
-    func selectSettingDetail(_ detail: SettingsDetailType) {
-        selectedSettingDetail = detail
     }
 }

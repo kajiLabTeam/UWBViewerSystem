@@ -235,7 +235,10 @@ struct AntennaStatusCard: View {
 
                 Spacer()
 
-                ConnectionStatusIndicator(status: device.connectionStatus)
+                ConnectionStatusIndicator(
+                    isConnected: device.connectionStatus == .connected,
+                    label: device.connectionStatus.displayName
+                )
             }
 
             HStack {
@@ -281,7 +284,7 @@ struct SensingStatusCard: View {
 
                 StatusBadge(
                     text: viewModel.isSensingActive ? "実行中" : "停止",
-                    color: viewModel.isSensingActive ? .green : .red
+                    status: viewModel.isSensingActive ? .success : .error
                 )
             }
 
@@ -395,21 +398,6 @@ struct SensingControlButtons: View {
     }
 }
 
-struct ConnectionStatusIndicator: View {
-    let status: DeviceConnectionStatus
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(status.color)
-                .frame(width: 8, height: 8)
-            Text(status.displayName)
-                .font(.caption)
-                .fontWeight(.medium)
-        }
-    }
-}
-
 struct StatusItem: View {
     let title: String
     let value: String
@@ -426,22 +414,6 @@ struct StatusItem: View {
                 .foregroundColor(color)
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-struct StatusBadge: View {
-    let text: String
-    let color: Color
-
-    var body: some View {
-        Text(text)
-            .font(.caption)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.2))
-            .foregroundColor(color)
-            .cornerRadius(4)
     }
 }
 

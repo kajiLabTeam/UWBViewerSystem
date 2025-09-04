@@ -5,30 +5,30 @@
 //  Created by はるちろ on R 7/04/07.
 //
 
-import CoreLocation
 import Foundation
 import SwiftUI
+import CoreLocation
 
 class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
     private let repository: NearbyRepository
     private let locationManager = CLLocationManager()
-
+    
     @Published var connectState: String = ""
     @Published var receivedDataList: [(String, String)] = []
     @Published var isLocationPermissionGranted = false
-
+    
     override init() {
-        repository = NearbyRepository()
+        self.repository = NearbyRepository()
         super.init()
-        repository.callback = self
+        self.repository.callback = self
         setupLocationManager()
         requestLocationPermission()
     }
-
+    
     private func setupLocationManager() {
         locationManager.delegate = self
     }
-
+    
     private func requestLocationPermission() {
         switch locationManager.authorizationStatus {
         case .notDetermined:
@@ -41,7 +41,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
             break
         }
     }
-
+    
     func startAdvertise() {
         guard isLocationPermissionGranted else {
             connectState = "位置情報の権限を許可してください"
@@ -49,7 +49,7 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         }
         repository.startAdvertise()
     }
-
+    
     func startDiscovery() {
         guard isLocationPermissionGranted else {
             connectState = "位置情報の権限を許可してください"
@@ -57,28 +57,27 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
         }
         repository.startDiscovery()
     }
-
+    
     func sendData(text: String) {
         repository.sendData(text: text)
     }
-
+    
     func disconnectAll() {
         repository.disconnectAll()
     }
-
+    
     func resetAll() {
         repository.resetAll()
         receivedDataList = []
     }
-
+    
     // MARK: - NearbyRepositoryCallback
-
     func onConnectionStateChanged(state: String) {
         DispatchQueue.main.async {
             self.connectState = state
         }
     }
-
+    
     func onDataReceived(data: String, fromEndpointId: String) {
         DispatchQueue.main.async {
             self.receivedDataList.append((fromEndpointId, data))
@@ -87,7 +86,6 @@ class HomeViewModel: NSObject, ObservableObject, NearbyRepositoryCallback {
 }
 
 // MARK: - CLLocationManagerDelegate
-
 extension HomeViewModel: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         switch status {

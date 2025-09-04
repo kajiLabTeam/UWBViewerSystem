@@ -157,14 +157,14 @@ public class FileManagementUsecase: ObservableObject {
     }
 
     public func getFileTransferProgress(for endpointId: String) -> Int? {
-        return fileTransferProgress[endpointId]
+        fileTransferProgress[endpointId]
     }
 
     public var hasReceivedFiles: Bool {
-        return !receivedFiles.isEmpty
+        !receivedFiles.isEmpty
     }
 
     public var isTransferringFiles: Bool {
-        return !fileTransferProgress.isEmpty
+        !fileTransferProgress.isEmpty
     }
 }

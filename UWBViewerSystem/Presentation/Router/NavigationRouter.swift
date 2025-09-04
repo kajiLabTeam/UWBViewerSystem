@@ -64,7 +64,6 @@ struct NavigationRouter: View {
             SensingManagementView()
         case .sensingDataViewer:
             DataDisplayView()
-
         // レガシー画面（互換性のため）
         case .welcomePage:
             WelcomeView()
@@ -74,7 +73,6 @@ struct NavigationRouter: View {
             SensingManagementView()
         case .trajectoryView:
             TrajectoryView()
-
         // メイン機能画面
         case .fieldSettingPage:
             FieldSettingView()

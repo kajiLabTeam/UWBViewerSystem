@@ -46,6 +46,7 @@ struct DataDisplayView: View {
     }
 
     // MARK: - Header Section
+
     private var headerSection: some View {
         VStack(spacing: 8) {
             HStack {
@@ -65,6 +66,7 @@ struct DataDisplayView: View {
     }
 
     // MARK: - Display Mode Selector
+
     private var displayModeSelector: some View {
         Picker("表示モード", selection: $selectedDisplayMode) {
             ForEach(DisplayMode.allCases, id: \.self) { mode in
@@ -76,6 +78,7 @@ struct DataDisplayView: View {
     }
 
     // MARK: - Content Area
+
     @ViewBuilder
     private var contentArea: some View {
         switch selectedDisplayMode {
@@ -87,6 +90,7 @@ struct DataDisplayView: View {
     }
 
     // MARK: - History Data View
+
     private var historyDataView: some View {
         VStack(spacing: 16) {
             HStack {
@@ -126,6 +130,7 @@ struct DataDisplayView: View {
     }
 
     // MARK: - File Management View
+
     private var fileManagementView: some View {
         VStack(spacing: 16) {
             HStack {
@@ -195,6 +200,7 @@ struct DataDisplayView: View {
 }
 
 // MARK: - Data Row
+
 struct DataRow: View {
     let label: String
     let value: String
@@ -213,6 +219,7 @@ struct DataRow: View {
 }
 
 // MARK: - History Session Card
+
 struct HistorySessionCard: View {
     let session: SensingSession
     let onTap: () -> Void
@@ -257,6 +264,7 @@ struct HistorySessionCard: View {
 }
 
 // MARK: - File Item Card
+
 struct FileItemCard: View {
     let file: DataDisplayFile
     let onTap: () -> Void
@@ -295,6 +303,7 @@ struct FileItemCard: View {
 }
 
 // MARK: - File Transfer Progress View
+
 struct FileTransferProgressView: View {
     let endpointId: String
     let progress: Int
@@ -317,6 +326,7 @@ struct FileTransferProgressView: View {
 }
 
 // MARK: - Navigation Buttons
+
 extension DataDisplayView {
     private var navigationButtons: some View {
         VStack(spacing: 12) {
@@ -356,6 +366,7 @@ extension DataDisplayView {
 }
 
 // MARK: - Empty Data View
+
 struct EmptyDataView: View {
     let icon: String
     let title: String
@@ -382,6 +393,7 @@ struct EmptyDataView: View {
 }
 
 // MARK: - Extensions
+
 extension DateFormatter {
     static let timeOnly: DateFormatter = {
         let formatter = DateFormatter()

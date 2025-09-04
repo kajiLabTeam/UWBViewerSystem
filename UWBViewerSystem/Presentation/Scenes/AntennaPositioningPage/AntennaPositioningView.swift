@@ -34,9 +34,9 @@ struct AntennaPositioningView: View {
             .navigationBarTitleDisplayMode(.large)
         #endif
         #if os(macOS)
-            .background(Color(NSColor.controlBackgroundColor))
+        .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-            .background(Color(UIColor.systemBackground))
+        .background(Color(UIColor.systemBackground))
         #endif
         .onAppear {
             viewModel.loadMapAndDevices()
@@ -45,6 +45,7 @@ struct AntennaPositioningView: View {
     }
 
     // MARK: - Header Section
+
     @ViewBuilder
     private func HeaderSection() -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -60,6 +61,7 @@ struct AntennaPositioningView: View {
     }
 
     // MARK: - Navigation Buttons
+
     @ViewBuilder
     private func NavigationButtonsSection(viewModel: AntennaPositioningViewModel) -> some View {
         VStack(spacing: 12) {
@@ -119,6 +121,7 @@ struct AntennaPositioningView: View {
 }
 
 // MARK: - Map Canvas Section
+
 struct MapCanvasSection: View {
     @ObservedObject var viewModel: AntennaPositioningViewModel
 
@@ -145,11 +148,11 @@ struct MapCanvasSection: View {
                     #endif
                 } else {
                     RoundedRectangle(cornerRadius: 8)
-                        #if os(macOS)
-                            .fill(Color(NSColor.controlColor))
-                        #elseif os(iOS)
-                            .fill(Color(UIColor.systemGray5))
-                        #endif
+                    #if os(macOS)
+                        .fill(Color(NSColor.controlColor))
+                    #elseif os(iOS)
+                        .fill(Color(UIColor.systemGray5))
+                    #endif
                         .overlay(
                             VStack {
                                 Image(systemName: "map")
@@ -182,14 +185,15 @@ struct MapCanvasSection: View {
             #elseif os(iOS)
                 .background(Color(UIColor.systemBackground))
             #endif
-            .cornerRadius(8)
-            .shadow(radius: 2)
+                .cornerRadius(8)
+                .shadow(radius: 2)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
 // MARK: - Antenna Device List Section
+
 struct AntennaDeviceListSection: View {
     @ObservedObject var viewModel: AntennaPositioningViewModel
 
@@ -217,6 +221,7 @@ struct AntennaDeviceListSection: View {
 }
 
 // MARK: - Enhanced Instructions Section with Rotation Info
+
 struct InstructionsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -274,6 +279,7 @@ struct InstructionsSection: View {
 }
 
 // MARK: - Position Antenna Marker with Rotation
+
 struct PositionAntennaMarker: View {
     let antenna: AntennaPosition
     let onPositionChanged: (CGPoint) -> Void
@@ -319,11 +325,11 @@ struct PositionAntennaMarker: View {
                 .padding(.vertical, 2)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
-                        #if os(macOS)
-                            .fill(Color(NSColor.controlBackgroundColor))
-                        #elseif os(iOS)
-                            .fill(Color(UIColor.systemBackground))
-                        #endif
+                    #if os(macOS)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                    #elseif os(iOS)
+                        .fill(Color(UIColor.systemBackground))
+                    #endif
                         .shadow(radius: 1)
                 )
 
@@ -360,6 +366,7 @@ struct PositionAntennaMarker: View {
 }
 
 // MARK: - Antenna Rotation Control
+
 struct AntennaRotationControl: View {
     let rotation: Double
     let onRotationChanged: (Double) -> Void
@@ -404,17 +411,18 @@ struct AntennaRotationControl: View {
         .padding(8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                #if os(macOS)
-                    .fill(Color(NSColor.controlBackgroundColor))
-                #elseif os(iOS)
-                    .fill(Color(UIColor.systemBackground))
-                #endif
+            #if os(macOS)
+                .fill(Color(NSColor.controlBackgroundColor))
+            #elseif os(iOS)
+                .fill(Color(UIColor.systemBackground))
+            #endif
                 .shadow(radius: 2)
         )
     }
 }
 
 // MARK: - Enhanced Antenna Device Row with Rotation Info
+
 struct AntennaDeviceRow: View {
     let device: AntennaInfo
     let position: CGPoint?
@@ -433,13 +441,13 @@ struct AntennaDeviceRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                if let position = position {
+                if let position {
                     Text("位置: (\(Int(position.x)), \(Int(position.y)))")
                         .font(.caption2)
                         .foregroundColor(.blue)
                 }
 
-                if let rotation = rotation {
+                if let rotation {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.up")
                             .font(.caption2)

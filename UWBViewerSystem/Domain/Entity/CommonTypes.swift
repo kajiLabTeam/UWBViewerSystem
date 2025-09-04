@@ -6,27 +6,27 @@ import SwiftUI
 /// 3Dポイントを表すデータ構造
 public struct Point3D: Codable, Equatable, Hashable {
     public let x: Double
-    public let y: Double  
+    public let y: Double
     public let z: Double
-    
+
     public init(x: Double, y: Double, z: Double) {
         self.x = x
         self.y = y
         self.z = z
     }
-    
+
     /// CGPointから2D情報を使って3Dポイントを作成
     public init(cgPoint: CGPoint, z: Double = 0.0) {
-        self.x = Double(cgPoint.x)
-        self.y = Double(cgPoint.y)
+        x = Double(cgPoint.x)
+        y = Double(cgPoint.y)
         self.z = z
     }
-    
+
     /// CGPointに変換
     public var cgPoint: CGPoint {
-        return CGPoint(x: x, y: y)
+        CGPoint(x: x, y: y)
     }
-    
+
     public static let zero = Point3D(x: 0, y: 0, z: 0)
 }
 
@@ -39,7 +39,7 @@ public struct AntennaInfo: Codable, Identifiable, Equatable, Hashable {
     public let coordinates: Point3D
     public var rotation: Double = 0.0
     public var isActive: Bool = false
-    
+
     public init(id: String, name: String, coordinates: Point3D, rotation: Double = 0.0, isActive: Bool = false) {
         self.id = id
         self.name = name
@@ -59,7 +59,7 @@ public struct SystemActivity: Codable, Identifiable {
     public let activityDescription: String
     public let status: ActivityStatus
     public var additionalData: [String: String]?
-    
+
     public init(
         id: UUID = UUID(),
         timestamp: Date = Date(),
@@ -102,7 +102,7 @@ public struct SystemCalibrationResult: Codable {
     public let wasSuccessful: Bool
     public let calibrationData: [String: Double]
     public let errorMessage: String?
-    
+
     public init(
         timestamp: Date = Date(),
         wasSuccessful: Bool,
@@ -126,13 +126,13 @@ public struct FloorMapInfo: Codable, Identifiable {
     public let width: Double
     public let depth: Double
     public let createdAt: Date
-    
+
     #if os(iOS)
-    public var image: UIImage?
+        public var image: UIImage?
     #elseif os(macOS)
-    public var image: NSImage?
+        public var image: NSImage?
     #endif
-    
+
     public init(
         id: String = UUID().uuidString,
         name: String,
@@ -148,7 +148,7 @@ public struct FloorMapInfo: Codable, Identifiable {
         self.depth = depth
         self.createdAt = createdAt
     }
-    
+
     enum CodingKeys: String, CodingKey {
         case id, name, buildingName, width, depth, createdAt
     }
@@ -161,13 +161,13 @@ public struct RealWorldPosition: Codable, Equatable {
     public let x: Double  // メートル
     public let y: Double  // メートル
     public let z: Double  // メートル
-    
+
     public init(x: Double, y: Double, z: Double) {
         self.x = x
-        self.y = y  
+        self.y = y
         self.z = z
     }
-    
+
     public static let zero = RealWorldPosition(x: 0, y: 0, z: 0)
 }
 
@@ -180,7 +180,7 @@ public struct DeviceInfo: Codable, Identifiable, Equatable {
     public let deviceType: String
     public var isConnected: Bool
     public var lastSeen: Date?
-    
+
     public init(
         id: String,
         name: String,
@@ -222,7 +222,7 @@ public struct ConnectedDevice: Identifiable, Equatable {
     }
 
     public static func == (lhs: ConnectedDevice, rhs: ConnectedDevice) -> Bool {
-        return lhs.id == rhs.id && lhs.endpointId == rhs.endpointId && lhs.deviceName == rhs.deviceName
+        lhs.id == rhs.id && lhs.endpointId == rhs.endpointId && lhs.deviceName == rhs.deviceName
             && lhs.connectTime == rhs.connectTime && lhs.lastMessageTime == rhs.lastMessageTime
             && lhs.isActive == rhs.isActive
     }
@@ -230,7 +230,7 @@ public struct ConnectedDevice: Identifiable, Equatable {
 
 // MARK: - Nearby Connections 関連
 
-/// 接続要求の情報  
+/// 接続要求の情報
 public struct ConnectionRequest: Identifiable, Equatable {
     public let id = UUID()
     public let endpointId: String
@@ -252,13 +252,13 @@ public struct ConnectionRequest: Identifiable, Equatable {
         self.context = context
         self.responseHandler = responseHandler
     }
-    
+
     public static func == (lhs: ConnectionRequest, rhs: ConnectionRequest) -> Bool {
-        return lhs.id == rhs.id && 
-               lhs.endpointId == rhs.endpointId && 
-               lhs.deviceName == rhs.deviceName && 
-               lhs.timestamp == rhs.timestamp && 
-               lhs.context == rhs.context
+        lhs.id == rhs.id &&
+            lhs.endpointId == rhs.endpointId &&
+            lhs.deviceName == rhs.deviceName &&
+            lhs.timestamp == rhs.timestamp &&
+            lhs.context == rhs.context
         // responseHandlerは関数なので比較から除外
     }
 }

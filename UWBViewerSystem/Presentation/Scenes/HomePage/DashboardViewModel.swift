@@ -12,7 +12,7 @@ struct DashboardActivity: Identifiable {
 
     enum ActivityType {
         case sensingStart, sensingStop, deviceConnect, deviceDisconnect,
-            antennaAdded, antennaRemoved, pairingAdded, pairingRemoved, error
+             antennaAdded, antennaRemoved, pairingAdded, pairingRemoved, error
 
         var color: Color {
             switch self {
@@ -203,7 +203,7 @@ class DashboardViewModel: ObservableObject {
 
     private func getSystemUptime() -> TimeInterval {
         // アプリの起動時間を取得（簡易実装）
-        return Date().timeIntervalSince(Date().addingTimeInterval(-3600))  // 仮の1時間
+        Date().timeIntervalSince(Date().addingTimeInterval(-3600))  // 仮の1時間
     }
 }
 

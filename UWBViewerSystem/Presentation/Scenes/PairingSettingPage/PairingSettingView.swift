@@ -10,7 +10,7 @@ struct PairingSettingView: View {
     init() {
         // ViewModelの初期化時に一時的なダミーリポジトリを使用
         // onAppearで実際のModelContextベースのリポジトリに置き換える
-        self._viewModel = StateObject(
+        _viewModel = StateObject(
             wrappedValue: PairingSettingViewModel(swiftDataRepository: DummySwiftDataRepository()))
     }
 
@@ -73,19 +73,19 @@ struct PairingSettingView: View {
         #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
         #endif
-        .alert(isPresented: $viewModel.showingConnectionAlert) {
-            Alert(
-                title: Text("ペアリング情報"),
-                message: Text(viewModel.alertMessage),
-                dismissButton: .default(Text("OK"))
-            )
-        }
-        .onAppear {
-            // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
-            let repository = SwiftDataRepository(modelContext: modelContext)
-            viewModel.setSwiftDataRepository(repository)
-            flowNavigator.currentStep = .devicePairing
-        }
+            .alert(isPresented: $viewModel.showingConnectionAlert) {
+                Alert(
+                    title: Text("ペアリング情報"),
+                    message: Text(viewModel.alertMessage),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
+            .onAppear {
+                // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
+                let repository = SwiftDataRepository(modelContext: modelContext)
+                viewModel.setSwiftDataRepository(repository)
+                flowNavigator.currentStep = .devicePairing
+            }
     }
 
     private var headerSection: some View {
@@ -285,7 +285,7 @@ struct DeviceListItem: View {
 
     var availableAntennas: [AntennaInfo] {
         // まだペアリングされていないアンテナのみ表示
-        return antennas
+        antennas
     }
 
     var body: some View {

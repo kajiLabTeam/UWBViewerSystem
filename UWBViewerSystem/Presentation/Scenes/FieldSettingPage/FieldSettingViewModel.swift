@@ -47,7 +47,7 @@ struct FieldAntennaInfo: Identifiable, Codable, Transferable {
         self.antennaColor = antennaColor
 
         // Convert 3D coordinates to 2D position for display (normalized 0-1)
-        self.position = CGPoint(
+        position = CGPoint(
             x: coordinates.x / 10.0,  // Assuming 10m field width
             y: coordinates.y / 10.0  // Assuming 10m field height
         )
@@ -60,11 +60,11 @@ struct FieldAntennaInfo: Identifiable, Codable, Transferable {
 
     // Domain層のAntennaInfoから変換
     init(from domainEntity: AntennaInfo, antennaColor: AntennaColor = .blue) {
-        self.id = domainEntity.id
-        self.name = domainEntity.name
-        self.coordinates = domainEntity.coordinates
+        id = domainEntity.id
+        name = domainEntity.name
+        coordinates = domainEntity.coordinates
         self.antennaColor = antennaColor
-        self.position = CGPoint(
+        position = CGPoint(
             x: domainEntity.coordinates.x / 10.0,
             y: domainEntity.coordinates.y / 10.0
         )
@@ -72,7 +72,7 @@ struct FieldAntennaInfo: Identifiable, Codable, Transferable {
 
     // Domain層のAntennaInfoに変換
     func toDomainEntity() -> AntennaInfo {
-        return AntennaInfo(
+        AntennaInfo(
             id: id,
             name: name,
             coordinates: coordinates
@@ -80,6 +80,7 @@ struct FieldAntennaInfo: Identifiable, Codable, Transferable {
     }
 
     // MARK: - Transferable
+
     static var transferRepresentation: some TransferRepresentation {
         CodableRepresentation(contentType: .antennaInfo)
     }
@@ -199,19 +200,19 @@ extension Color: Codable {
 
         // Convert Color to platform color to get RGB components
         #if os(iOS)
-        let uiColor = UIColor(self)
-        var red: CGFloat = 0
-        var green: CGFloat = 0
-        var blue: CGFloat = 0
-        var alpha: CGFloat = 0
-        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+            let uiColor = UIColor(self)
+            var red: CGFloat = 0
+            var green: CGFloat = 0
+            var blue: CGFloat = 0
+            var alpha: CGFloat = 0
+            uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
         #elseif os(macOS)
-        let nsColor = NSColor(self)
-        var red: CGFloat = 0
-        var green: CGFloat = 0
-        var blue: CGFloat = 0
-        var alpha: CGFloat = 0
-        nsColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+            let nsColor = NSColor(self)
+            var red: CGFloat = 0
+            var green: CGFloat = 0
+            var blue: CGFloat = 0
+            var alpha: CGFloat = 0
+            nsColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
         #endif
 
         try container.encode(Double(red), forKey: .red)

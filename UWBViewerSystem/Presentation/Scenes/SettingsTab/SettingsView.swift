@@ -324,7 +324,7 @@ struct SettingsRow: View {
                     Text(title)
                         .foregroundColor(.primary)
 
-                    if let subtitle = subtitle {
+                    if let subtitle {
                         Text(subtitle)
                             .font(.caption)
                             .foregroundColor(.secondary)

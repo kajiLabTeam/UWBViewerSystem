@@ -18,8 +18,8 @@ import SwiftUI
             sourceType: UIImagePickerController.SourceType,
             onImagePicked: ((UIImage) -> Void)? = nil
         ) {
-            self._isPresented = isPresented
-            self._selectedImage = selectedImage
+            _isPresented = isPresented
+            _selectedImage = selectedImage
             self.sourceType = sourceType
             self.onImagePicked = onImagePicked
         }
@@ -70,7 +70,7 @@ import SwiftUI
             sourceType: UIImagePickerController.SourceType,
             onImagePicked: ((UIImage) -> Void)? = nil
         ) -> some View {
-            self.sheet(isPresented: isPresented) {
+            sheet(isPresented: isPresented) {
                 ImagePickerView(
                     isPresented: isPresented,
                     selectedImage: selectedImage,

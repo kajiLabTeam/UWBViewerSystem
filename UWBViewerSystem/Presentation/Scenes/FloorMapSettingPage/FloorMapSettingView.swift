@@ -9,7 +9,7 @@ struct FloorMapSettingView: View {
     @Environment(\.modelContext) private var modelContext
 
     init(viewModel: FloorMapSettingViewModel? = nil) {
-        if let viewModel = viewModel {
+        if let viewModel {
             self.viewModel = viewModel
         } else {
             self.viewModel = FloorMapSettingViewModel()
@@ -107,21 +107,21 @@ struct FloorMapSettingView: View {
             VStack(spacing: 12) {
                 if let selectedImage = viewModel.selectedFloorMapImage {
                     #if os(iOS)
-                    Image(uiImage: selectedImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: 200)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
-                        .clipped()
+                        Image(uiImage: selectedImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxHeight: 200)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(12)
+                            .clipped()
                     #elseif os(macOS)
-                    Image(nsImage: selectedImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxHeight: 200)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
-                        .clipped()
+                        Image(nsImage: selectedImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxHeight: 200)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(12)
+                            .clipped()
                     #endif
                 } else {
                     RoundedRectangle(cornerRadius: 12)
@@ -221,9 +221,9 @@ struct FloorMapSettingView: View {
                                 .foregroundColor(.secondary)
                             TextField("10.0", value: $viewModel.floorWidth, format: .number)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                                #if os(iOS)
+                            #if os(iOS)
                                 .keyboardType(.decimalPad)
-                                #endif
+                            #endif
                         }
 
                         Text("×")
@@ -237,9 +237,9 @@ struct FloorMapSettingView: View {
                                 .foregroundColor(.secondary)
                             TextField("15.0", value: $viewModel.floorDepth, format: .number)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                                #if os(iOS)
+                            #if os(iOS)
                                 .keyboardType(.decimalPad)
-                                #endif
+                            #endif
                         }
                     }
                 }

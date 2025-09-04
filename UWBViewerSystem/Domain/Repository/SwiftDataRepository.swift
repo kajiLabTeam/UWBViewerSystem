@@ -300,26 +300,26 @@ public class DummySwiftDataRepository: SwiftDataRepositoryProtocol {
     public init() {}
 
     public func saveSensingSession(_ session: SensingSession) async throws {}
-    public func loadSensingSession(by id: String) async throws -> SensingSession? { return nil }
-    public func loadAllSensingSessions() async throws -> [SensingSession] { return [] }
+    public func loadSensingSession(by id: String) async throws -> SensingSession? { nil }
+    public func loadAllSensingSessions() async throws -> [SensingSession] { [] }
     public func deleteSensingSession(by id: String) async throws {}
     public func updateSensingSession(_ session: SensingSession) async throws {}
     public func saveAntennaPosition(_ position: AntennaPositionData) async throws {}
-    public func loadAntennaPositions() async throws -> [AntennaPositionData] { return [] }
+    public func loadAntennaPositions() async throws -> [AntennaPositionData] { [] }
     public func deleteAntennaPosition(by id: String) async throws {}
     public func updateAntennaPosition(_ position: AntennaPositionData) async throws {}
     public func saveAntennaPairing(_ pairing: AntennaPairing) async throws {}
-    public func loadAntennaPairings() async throws -> [AntennaPairing] { return [] }
+    public func loadAntennaPairings() async throws -> [AntennaPairing] { [] }
     public func deleteAntennaPairing(by id: String) async throws {}
     public func updateAntennaPairing(_ pairing: AntennaPairing) async throws {}
     public func saveRealtimeData(_ data: RealtimeData, sessionId: String) async throws {}
-    public func loadRealtimeData(for sessionId: String) async throws -> [RealtimeData] { return [] }
+    public func loadRealtimeData(for sessionId: String) async throws -> [RealtimeData] { [] }
     public func deleteRealtimeData(by id: UUID) async throws {}
     public func saveSystemActivity(_ activity: SystemActivity) async throws {}
-    public func loadRecentSystemActivities(limit: Int) async throws -> [SystemActivity] { return [] }
+    public func loadRecentSystemActivities(limit: Int) async throws -> [SystemActivity] { [] }
     public func deleteOldSystemActivities(olderThan date: Date) async throws {}
     public func saveReceivedFile(_ file: ReceivedFile) async throws {}
-    public func loadReceivedFiles() async throws -> [ReceivedFile] { return [] }
+    public func loadReceivedFiles() async throws -> [ReceivedFile] { [] }
     public func deleteReceivedFile(by id: UUID) async throws {}
     public func deleteAllReceivedFiles() async throws {}
 }

@@ -17,7 +17,7 @@ public class DataMigrationUsecase {
 
     /// データ移行が必要かどうかを確認
     public var needsMigration: Bool {
-        return !UserDefaults.standard.bool(forKey: migrationKey)
+        !UserDefaults.standard.bool(forKey: migrationKey)
     }
 
     /// UserDefaultsからSwiftDataへデータを移行

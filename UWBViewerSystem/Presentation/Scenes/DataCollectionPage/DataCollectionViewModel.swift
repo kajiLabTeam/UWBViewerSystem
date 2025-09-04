@@ -144,7 +144,7 @@ class DataCollectionViewModel: ObservableObject {
     }
 
     private func updateElapsedTime() {
-        guard let startTime = startTime else { return }
+        guard let startTime else { return }
         let elapsed = Date().timeIntervalSince(startTime)
         let minutes = Int(elapsed) / 60
         let seconds = Int(elapsed) % 60

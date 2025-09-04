@@ -42,6 +42,7 @@ struct DataCollectionView: View {
     }
 
     // MARK: - Header Section
+
     private var headerSection: some View {
         VStack(spacing: 8) {
             HStack {
@@ -62,6 +63,7 @@ struct DataCollectionView: View {
     }
 
     // MARK: - Sensing Control Card
+
     private var sensingControlCard: some View {
         VStack(spacing: 20) {
             Text("センシング制御")
@@ -136,6 +138,7 @@ struct DataCollectionView: View {
     }
 
     // MARK: - Status Indicator
+
     private var statusIndicator: some View {
         HStack {
             Circle()
@@ -160,6 +163,7 @@ struct DataCollectionView: View {
     }
 
     // MARK: - Recent Sessions Card
+
     private var recentSessionsCard: some View {
         VStack(spacing: 16) {
             HStack {
@@ -196,6 +200,7 @@ struct DataCollectionView: View {
     }
 
     // MARK: - Actions
+
     private func startSensing() {
         guard !sensingFileName.isEmpty else {
             showFileNameAlert = true
@@ -210,6 +215,7 @@ struct DataCollectionView: View {
     }
 
     // MARK: - Standalone Realtime Data Display Section
+
     private var realtimeDataDisplaySection: some View {
         VStack(spacing: 16) {
             // デバッグ表示
@@ -353,6 +359,7 @@ struct DataCollectionView: View {
     }
 
     // MARK: - Realtime Data Section
+
     private var realtimeDataSection: some View {
         Group {
             if !viewModel.deviceRealtimeDataList.isEmpty {
@@ -390,6 +397,7 @@ struct DataCollectionView: View {
 }
 
 // MARK: - Realtime Device Card View
+
 struct RealtimeDeviceCardView: View {
     let deviceData: DeviceRealtimeData
     let latestData: RealtimeData
@@ -462,7 +470,7 @@ struct RealtimeDeviceCardView: View {
 
     private var dataQualityBar: some View {
         HStack(spacing: 2) {
-            ForEach(0 ..< 5) { index in
+            ForEach(0..<5) { index in
                 RoundedRectangle(cornerRadius: 1)
                     .fill(qualityBarColor(for: index))
                     .frame(height: 4)
@@ -584,6 +592,7 @@ struct RealtimeDeviceCardView: View {
 }
 
 // MARK: - Device Data Card View
+
 struct DeviceDataCardView: View {
     let deviceData: DeviceRealtimeData
     let latestData: RealtimeData
@@ -706,6 +715,7 @@ struct DeviceDataCardView: View {
 }
 
 // MARK: - Session Row View
+
 struct SessionRowView: View {
     let session: SensingSession
 
@@ -833,7 +843,7 @@ struct DistanceProgressView: View {
                             .frame(width: 1, height: cm % 200 == 0 ? 12 : 6)
 
                         if cm % 200 == 0 {
-                            Text("\(cm/100)m")
+                            Text("\(cm / 100)m")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }

@@ -2,6 +2,7 @@ import Combine
 import SwiftUI
 
 // MARK: - Data Models
+
 // Domain層のEntityを使用
 
 // MARK: - ViewModel
@@ -30,15 +31,15 @@ class PairingSettingViewModel: ObservableObject {
 
     // アンテナペアリングの状態
     var hasCompletePairing: Bool {
-        return !antennaPairings.isEmpty && antennaPairings.count >= min(selectedAntennas.count, 2)
+        !antennaPairings.isEmpty && antennaPairings.count >= min(selectedAntennas.count, 2)
     }
 
     var canProceedToNextStep: Bool {
-        return hasCompletePairing && isConnected
+        hasCompletePairing && isConnected
     }
 
     var canProceedToNext: Bool {
-        return !antennaPairings.isEmpty
+        !antennaPairings.isEmpty
     }
 
     init(
@@ -63,7 +64,7 @@ class PairingSettingViewModel: ObservableObject {
 
     /// 実際のModelContextを使用してSwiftDataRepositoryを設定
     func setSwiftDataRepository(_ repository: SwiftDataRepositoryProtocol) {
-        self.swiftDataRepository = repository
+        swiftDataRepository = repository
         Task {
             await loadPairingData()
         }
@@ -483,7 +484,7 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
             }
         }
     }
-    
+
     // NearbyRepositoryCallbackプロトコルの不足しているメソッドを追加
     nonisolated func onDiscoveryStateChanged(isDiscovering: Bool) {
         Task { @MainActor in
@@ -502,7 +503,7 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
                 isConnected: false,
                 isNearbyDevice: true
             )
-            
+
             if !availableDevices.contains(where: { $0.id == endpointId }) {
                 availableDevices.append(device)
             }
@@ -563,6 +564,7 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
 }
 
 // MARK: - Dummy Repository for Initialization
+
 extension PairingSettingViewModel {
     /// テスト用またはプレースホルダー用の初期化
     convenience init() {

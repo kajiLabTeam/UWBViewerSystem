@@ -30,6 +30,7 @@ struct NewHomeView: View {
     }
 
     // MARK: - Header Section
+
     private var headerSection: some View {
         VStack(spacing: 12) {
             HStack {
@@ -62,6 +63,7 @@ struct NewHomeView: View {
     }
 
     // MARK: - Quick Actions Section
+
     private var quickActionsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("クイックアクション")
@@ -136,6 +138,7 @@ struct NewHomeView: View {
     }
 
     // MARK: - System Status Section
+
     private var systemStatusSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("システム状態")
@@ -178,6 +181,7 @@ struct NewHomeView: View {
     }
 
     // MARK: - Recent Activity Section
+
     private var recentActivitySection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -216,6 +220,7 @@ struct NewHomeView: View {
     }
 
     // MARK: - Navigation Section
+
     private var navigationSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("設定・管理")

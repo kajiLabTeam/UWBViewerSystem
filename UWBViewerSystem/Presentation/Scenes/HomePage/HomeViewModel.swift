@@ -13,6 +13,7 @@ import SwiftUI
 class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositoryCallback {
 
     // MARK: - Usecases
+
     let realtimeDataUsecase: RealtimeDataUsecase
     let connectionUsecase: ConnectionManagementUsecase
     let sensingControlUsecase: SensingControlUsecase
@@ -30,16 +31,16 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
         fileManagementUsecase: FileManagementUsecase? = nil
     ) {
         // 依存関係の注入または新規作成
-        self.nearByRepository = nearbyRepository ?? NearbyRepository()
+        nearByRepository = nearbyRepository ?? NearbyRepository()
         self.connectionUsecase =
-            connectionUsecase ?? ConnectionManagementUsecase(nearbyRepository: self.nearByRepository)
+            connectionUsecase ?? ConnectionManagementUsecase(nearbyRepository: nearByRepository)
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
         self.sensingControlUsecase =
             sensingControlUsecase ?? SensingControlUsecase(connectionUsecase: self.connectionUsecase)
         self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase()
 
         super.init()
-        self.nearByRepository.callback = self
+        nearByRepository.callback = self
     }
 
     // MARK: - Factory Method（従来互換性のため）
@@ -48,7 +49,7 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
     /// 新しいコードではDI対応のイニシャライザを使用することを推奨
     @available(*, deprecated, message: "Use dependency injection initializer instead")
     public static func createDefault() -> HomeViewModel {
-        return HomeViewModel()
+        HomeViewModel()
     }
 
     // MARK: - Published Properties (プロパティのフォワード)
@@ -394,34 +395,34 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
 
         // Pingに対するPong応答を送信
         let pongMessage = """
-            {
-                "type": "PONG",
-                "timestamp": \(Int64(Date().timeIntervalSince1970 * 1000)),
-                "from": "Mac",
-                "responseTo": "\(fromDevice)"
-            }
-            """
+        {
+            "type": "PONG",
+            "timestamp": \(Int64(Date().timeIntervalSince1970 * 1000)),
+            "from": "Mac",
+            "responseTo": "\(fromDevice)"
+        }
+        """
 
         Task { @MainActor in
             connectionUsecase.sendMessage(pongMessage)
         }
         print("Pong response sent to: \(fromDevice)")
     }
-    
+
     // MARK: - NearbyRepositoryCallback Protocol Implementation
-    
+
     func onDiscoveryStateChanged(isDiscovering: Bool) {
         // デフォルトでは何もしない
     }
-    
+
     func onDeviceFound(endpointId: String, name: String, isConnectable: Bool) {
         // デフォルトでは何もしない
     }
-    
+
     func onDeviceLost(endpointId: String) {
         // デフォルトでは何もしない
     }
-    
+
     func onConnectionRequest(endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void) {
         let request = ConnectionRequest(
             endpointId: endpointId,
@@ -432,8 +433,7 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
         )
         onConnectionRequestReceived(request: request)
     }
-    
-    
+
     func onDataReceived(endpointId: String, data: Data) {
         if let messageContent = String(data: data, encoding: .utf8) {
             let message = Message(
@@ -446,9 +446,8 @@ class HomeViewModel: NSObject, ObservableObject, @preconcurrency NearbyRepositor
             onMessageReceived(message: message)
         }
     }
-    
+
     func onDeviceConnected(endpointId: String, deviceName: String) {
         // デフォルトでは何もしない
     }
-    
 }

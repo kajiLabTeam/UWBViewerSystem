@@ -32,7 +32,7 @@ struct ConnectionMessage: Identifiable {
     let isOutgoing: Bool
 
     init(content: String, deviceName: String, timestamp: Date = Date(), isOutgoing: Bool = false) {
-        self.id = UUID().uuidString
+        id = UUID().uuidString
         self.content = content
         self.deviceName = deviceName
         self.timestamp = timestamp
@@ -76,9 +76,9 @@ class ConnectionManagementViewModel: ObservableObject {
     init(connectionUsecase: ConnectionManagementUsecase? = nil) {
         self.connectionUsecase =
             connectionUsecase
-            ?? ConnectionManagementUsecase(
-                nearbyRepository: NearbyRepository()
-            )
+                ?? ConnectionManagementUsecase(
+                    nearbyRepository: NearbyRepository()
+                )
         setupObservers()
     }
 
@@ -204,7 +204,7 @@ class ConnectionManagementViewModel: ObservableObject {
     }
 
     private func updateUptime() {
-        guard let startTime = startTime else { return }
+        guard let startTime else { return }
         let elapsed = Date().timeIntervalSince(startTime)
         let hours = Int(elapsed) / 3600
         let minutes = Int(elapsed.truncatingRemainder(dividingBy: 3600)) / 60
@@ -246,7 +246,7 @@ class ConnectionManagementViewModel: ObservableObject {
         guard !connectedDevices.isEmpty else { return 0 }
 
         let totalTime = connectedDevices.reduce(0.0) { result, device in
-            return result + Date().timeIntervalSince(device.connectionTime)
+            result + Date().timeIntervalSince(device.connectionTime)
         }
 
         return totalTime / Double(connectedDevices.count)

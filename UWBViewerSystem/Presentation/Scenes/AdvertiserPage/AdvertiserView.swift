@@ -61,6 +61,7 @@ struct AdvertiserView: View {
     }
 
     // MARK: - 制御ビュー
+
     @ViewBuilder
     private func ControlView() -> some View {
         VStack(spacing: 20) {
@@ -108,6 +109,7 @@ struct AdvertiserView: View {
     }
 
     // MARK: - 端末管理ビュー
+
     @ViewBuilder
     private func DeviceManagementView() -> some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -137,6 +139,7 @@ struct AdvertiserView: View {
     }
 
     // MARK: - メッセージビュー
+
     @ViewBuilder
     private func MessagesView() -> some View {
         VStack(spacing: 0) {
@@ -178,6 +181,7 @@ struct AdvertiserView: View {
 }
 
 // MARK: - Connected Device Row
+
 struct ConnectedDeviceRow: View {
     let device: ConnectedDevice
     let onDisconnect: () -> Void
@@ -218,6 +222,7 @@ struct ConnectedDeviceRow: View {
 }
 
 // MARK: - Message Bubble
+
 struct MessageBubble: View {
     let message: Message
 

@@ -10,7 +10,7 @@ struct FloorMap: Identifiable {
     var isActive: Bool
 
     var formattedSize: String {
-        return String(format: "%.1f × %.1f m", width, height)
+        String(format: "%.1f × %.1f m", width, height)
     }
 }
 
@@ -37,19 +37,19 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func selectFloorMap(_ map: FloorMap) {
-        for i in 0 ..< floorMaps.count {
+        for i in 0..<floorMaps.count {
             floorMaps[i].isActive = (floorMaps[i].id == map.id)
         }
         selectedFloorMap = map
     }
 
     func toggleActiveFloorMap(_ map: FloorMap) {
-        for i in 0 ..< floorMaps.count {
+        for i in 0..<floorMaps.count {
             if floorMaps[i].id == map.id {
                 floorMaps[i].isActive.toggle()
                 if floorMaps[i].isActive {
                     selectedFloorMap = floorMaps[i]
-                    for j in 0 ..< floorMaps.count {
+                    for j in 0..<floorMaps.count {
                         if j != i && floorMaps[j].isActive {
                             floorMaps[j].isActive = false
                         }

@@ -205,13 +205,13 @@ class FloorMapSettingViewModel: ObservableObject {
         // UserDefaultsまたはSwiftDataから保存された設定を読み込む
         // 実装例：以前の設定がある場合は復元
         if let savedFloorName = UserDefaults.standard.object(forKey: "lastFloorName") as? String,
-            !savedFloorName.isEmpty
+           !savedFloorName.isEmpty
         {
             floorName = savedFloorName
         }
 
         if let savedBuildingName = UserDefaults.standard.object(forKey: "lastBuildingName") as? String,
-            !savedBuildingName.isEmpty
+           !savedBuildingName.isEmpty
         {
             buildingName = savedBuildingName
         }
@@ -253,8 +253,8 @@ class FloorMapSettingViewModel: ObservableObject {
             }
             let nsImage = NSImage(cgImage: cgImage, size: image.size)
             guard let tiffData = nsImage.tiffRepresentation,
-                let bitmapRep = NSBitmapImageRep(data: tiffData),
-                let imageData = bitmapRep.representation(using: .jpeg, properties: [:])
+                  let bitmapRep = NSBitmapImageRep(data: tiffData),
+                  let imageData = bitmapRep.representation(using: .jpeg, properties: [:])
             else {
                 throw FloorMapSettingError.imageProcessingFailed
             }

@@ -149,25 +149,25 @@ class SystemCalibrationViewModel: ObservableObject {
 
         // 現在のステップを実行
         executeStep(currentCalibrationStep) { [weak self] success in
-            guard let self = self else { return }
+            guard let self else { return }
 
             if success {
                 // ステップ完了
-                self.completeStep(self.currentCalibrationStep)
+                completeStep(currentCalibrationStep)
 
                 // 次のステップに進む
                 if currentIndex < steps.count - 1 {
-                    self.currentCalibrationStep = steps[currentIndex + 1]
+                    currentCalibrationStep = steps[currentIndex + 1]
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         self.executeCalibrationSteps()
                     }
                 } else {
                     // 全ステップ完了
-                    self.completeCalibration()
+                    completeCalibration()
                 }
             } else {
                 // ステップ失敗
-                self.failCalibration()
+                failCalibration()
             }
         }
     }
@@ -183,7 +183,7 @@ class SystemCalibrationViewModel: ObservableObject {
                 self.isLoading = false
 
                 // 成功率をシミュレート（実際の実装では実際の処理結果を使用）
-                let success = Double.random(in: 0 ... 1) > 0.1  // 90%の成功率
+                let success = Double.random(in: 0...1) > 0.1  // 90%の成功率
                 completion(success)
             }
         }
@@ -216,7 +216,7 @@ class SystemCalibrationViewModel: ObservableObject {
         isAutoCalibrationEnabled = UserDefaults.standard.bool(forKey: "autoCalibrationEnabled")
 
         if let intervalRawValue = UserDefaults.standard.object(forKey: "calibrationInterval") as? String,
-            let interval = CalibrationInterval(rawValue: intervalRawValue)
+           let interval = CalibrationInterval(rawValue: intervalRawValue)
         {
             calibrationInterval = interval
         }
@@ -230,7 +230,7 @@ class SystemCalibrationViewModel: ObservableObject {
     private func loadCalibrationHistory() {
         // 過去のキャリブレーション結果を読み込む
         if let data = UserDefaults.standard.data(forKey: "lastCalibrationResult"),
-            let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data)
+           let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data)
         {
 
             // 最近のキャリブレーションが成功していれば一部ステップをスキップ
@@ -346,11 +346,11 @@ enum SystemCalibrationStep: String, CaseIterable, Codable {
     }
 
     static var totalEstimatedDuration: TimeInterval {
-        return allCases.reduce(0) { $0 + $1.estimatedDuration }
+        allCases.reduce(0) { $0 + $1.estimatedDuration }
     }
 
     static var minimumRequiredSteps: Int {
-        return 4  // 最低限必要なステップ数
+        4  // 最低限必要なステップ数
     }
 }
 
@@ -386,4 +386,3 @@ enum CalibrationInterval: String, CaseIterable {
         }
     }
 }
-

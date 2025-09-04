@@ -16,11 +16,11 @@ class DevicePairingUsecase: ObservableObject {
     private var connectionRequestHandlers: [String: (Bool) -> Void] = [:]
 
     var hasCompletePairing: Bool {
-        return !antennaPairings.isEmpty && antennaPairings.count >= min(selectedAntennas.count, 2)
+        !antennaPairings.isEmpty && antennaPairings.count >= min(selectedAntennas.count, 2)
     }
 
     var canProceedToNextStep: Bool {
-        return hasCompletePairing && isConnected
+        hasCompletePairing && isConnected
     }
 
     public init(

@@ -32,7 +32,7 @@ public final class PersistentReceivedFile {
     // MARK: - 変換メソッド
 
     public func toEntity() -> ReceivedFile {
-        return ReceivedFile(
+        ReceivedFile(
             id: id,
             fileName: fileName,
             fileURL: URL(fileURLWithPath: fileURLString),
@@ -47,7 +47,7 @@ public final class PersistentReceivedFile {
 
 extension ReceivedFile {
     public func toPersistent() -> PersistentReceivedFile {
-        return PersistentReceivedFile(
+        PersistentReceivedFile(
             id: id,
             fileName: fileName,
             fileURLString: fileURL.path,

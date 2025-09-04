@@ -51,7 +51,7 @@ public class DataRepository: DataRepositoryProtocol {
 
     public func loadRecentSensingSessions() -> [SensingSession] {
         guard let data = userDefaults.data(forKey: "RecentSensingSessions"),
-            let sessions = try? JSONDecoder().decode([SensingSession].self, from: data)
+              let sessions = try? JSONDecoder().decode([SensingSession].self, from: data)
         else {
             return []
         }
@@ -100,7 +100,7 @@ public class DataRepository: DataRepositoryProtocol {
     }
 
     public func loadHasDeviceConnected() -> Bool {
-        return userDefaults.bool(forKey: "hasDeviceConnected")
+        userDefaults.bool(forKey: "hasDeviceConnected")
     }
 
     // MARK: - キャリブレーション関連
@@ -110,7 +110,7 @@ public class DataRepository: DataRepositoryProtocol {
     }
 
     public func loadCalibrationResults() -> Data? {
-        return userDefaults.data(forKey: "CalibrationResults")
+        userDefaults.data(forKey: "CalibrationResults")
     }
 
     // MARK: - 設定関連
@@ -120,7 +120,7 @@ public class DataRepository: DataRepositoryProtocol {
     }
 
     public func loadBoolSetting(key: String) -> Bool {
-        return userDefaults.bool(forKey: key)
+        userDefaults.bool(forKey: key)
     }
 
     // MARK: - システム活動履歴
@@ -138,7 +138,7 @@ public class DataRepository: DataRepositoryProtocol {
 
     // MARK: - 一般的なデータ保存
 
-    public func saveData<T: Codable>(_ data: T, forKey key: String) throws {
+    public func saveData(_ data: some Codable, forKey key: String) throws {
         let encoded = try JSONEncoder().encode(data)
         userDefaults.set(encoded, forKey: key)
     }

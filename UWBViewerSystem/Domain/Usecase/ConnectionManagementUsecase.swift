@@ -117,11 +117,11 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     // MARK: - Connection Status
 
     public func hasConnectedDevices() -> Bool {
-        return !connectedEndpoints.isEmpty
+        !connectedEndpoints.isEmpty
     }
 
     public func getConnectedDeviceCount() -> Int {
-        return connectedEndpoints.count
+        connectedEndpoints.count
     }
 
     // MARK: - Event Handlers

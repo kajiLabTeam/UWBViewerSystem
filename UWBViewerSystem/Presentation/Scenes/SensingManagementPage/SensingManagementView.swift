@@ -36,9 +36,9 @@ struct SensingManagementView: View {
             .navigationBarTitleDisplayMode(.large)
         #endif
         #if os(macOS)
-            .background(Color(NSColor.controlBackgroundColor))
+        .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-            .background(Color(UIColor.systemBackground))
+        .background(Color(UIColor.systemBackground))
         #endif
         .onAppear {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
@@ -50,6 +50,7 @@ struct SensingManagementView: View {
     }
 
     // MARK: - Header Section
+
     @ViewBuilder
     private func HeaderSection() -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -65,6 +66,7 @@ struct SensingManagementView: View {
     }
 
     // MARK: - Navigation Buttons
+
     @ViewBuilder
     private func NavigationButtonsSection(viewModel: SensingManagementViewModel) -> some View {
         VStack(spacing: 12) {
@@ -106,6 +108,7 @@ struct SensingManagementView: View {
 }
 
 // MARK: - Antenna Status Section
+
 struct AntennaStatusSection: View {
     @ObservedObject var viewModel: SensingManagementViewModel
 
@@ -137,6 +140,7 @@ struct AntennaStatusSection: View {
 }
 
 // MARK: - Sensing Control Section
+
 struct SensingControlSection: View {
     @ObservedObject var viewModel: SensingManagementViewModel
 
@@ -163,6 +167,7 @@ struct SensingControlSection: View {
 }
 
 // MARK: - Realtime Data Section
+
 struct RealtimeDataSection: View {
     @ObservedObject var viewModel: SensingManagementViewModel
 
@@ -200,11 +205,11 @@ struct RealtimeDataSection: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                #if os(macOS)
-                    .fill(Color(NSColor.controlColor))
-                #elseif os(iOS)
-                    .fill(Color(UIColor.systemGray6))
-                #endif
+            #if os(macOS)
+                .fill(Color(NSColor.controlColor))
+            #elseif os(iOS)
+                .fill(Color(UIColor.systemGray6))
+            #endif
         )
         .padding(.horizontal)
     }
@@ -295,11 +300,11 @@ struct SensingStatusCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 8)
-                #if os(macOS)
-                    .fill(Color(NSColor.controlBackgroundColor))
-                #elseif os(iOS)
-                    .fill(Color(UIColor.systemBackground))
-                #endif
+            #if os(macOS)
+                .fill(Color(NSColor.controlBackgroundColor))
+            #elseif os(iOS)
+                .fill(Color(UIColor.systemBackground))
+            #endif
                 .shadow(radius: 1)
         )
     }
@@ -343,11 +348,11 @@ struct SensingSettingsCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 8)
-                #if os(macOS)
-                    .fill(Color(NSColor.controlBackgroundColor))
-                #elseif os(iOS)
-                    .fill(Color(UIColor.systemBackground))
-                #endif
+            #if os(macOS)
+                .fill(Color(NSColor.controlBackgroundColor))
+            #elseif os(iOS)
+                .fill(Color(UIColor.systemBackground))
+            #endif
                 .shadow(radius: 1)
         )
     }

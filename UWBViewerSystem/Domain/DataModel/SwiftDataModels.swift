@@ -37,12 +37,12 @@ public final class PersistentSensingSession {
 
     // Entity層への変換メソッド
     public func toEntity() -> SensingSession {
-        return SensingSession(
-            id: self.id,
-            name: self.name,
-            startTime: self.startTime,
-            endTime: self.endTime,
-            isActive: self.isActive
+        SensingSession(
+            id: id,
+            name: name,
+            startTime: startTime,
+            endTime: endTime,
+            isActive: isActive
         )
     }
 }
@@ -80,12 +80,12 @@ public final class PersistentAntennaPosition {
     }
 
     public func toEntity() -> AntennaPositionData {
-        return AntennaPositionData(
-            id: self.id,
-            antennaId: self.antennaId,
-            antennaName: self.antennaName,
-            position: Point3D(x: self.x, y: self.y, z: self.z),
-            rotation: self.rotation
+        AntennaPositionData(
+            id: id,
+            antennaId: antennaId,
+            antennaName: antennaName,
+            position: Point3D(x: x, y: y, z: z),
+            rotation: rotation
         )
     }
 }
@@ -133,14 +133,14 @@ public final class PersistentAntennaPairing {
 
     public func toEntity() -> AntennaPairing {
         let antenna = AntennaInfo(
-            id: self.antennaId,
-            name: self.antennaName,
-            coordinates: Point3D(x: self.antennaX, y: self.antennaY, z: self.antennaZ)
+            id: antennaId,
+            name: antennaName,
+            coordinates: Point3D(x: antennaX, y: antennaY, z: antennaZ)
         )
         let device = AndroidDevice(
-            id: self.deviceId,
-            name: self.deviceName,
-            isConnected: self.isConnected
+            id: deviceId,
+            name: deviceName,
+            isConnected: isConnected
         )
         return AntennaPairing(antenna: antenna, device: device)
     }
@@ -185,16 +185,16 @@ public final class PersistentRealtimeData {
     }
 
     public func toEntity() -> RealtimeData {
-        return RealtimeData(
-            id: self.id,
-            deviceName: self.deviceName,
-            timestamp: self.timestamp,
-            elevation: self.elevation,
-            azimuth: self.azimuth,
-            distance: self.distance,
-            nlos: self.nlos,
-            rssi: self.rssi,
-            seqCount: self.seqCount
+        RealtimeData(
+            id: id,
+            deviceName: deviceName,
+            timestamp: timestamp,
+            elevation: elevation,
+            azimuth: azimuth,
+            distance: distance,
+            nlos: nlos,
+            rssi: rssi,
+            seqCount: seqCount
         )
     }
 }
@@ -227,16 +227,16 @@ public final class PersistentSystemActivity {
 
     public func toEntity() -> SystemActivity {
         var additionalData: [String: String]?
-        if let metadataData = self.metadata {
+        if let metadataData = metadata {
             additionalData = try? JSONSerialization.jsonObject(with: metadataData) as? [String: String]
         }
-        
+
         return SystemActivity(
-            id: UUID(uuidString: self.id) ?? UUID(),
-            timestamp: self.timestamp,
-            activityType: self.activityType,
-            activityDescription: self.activityDescription,
-            status: ActivityStatus(rawValue: self.status) ?? .completed,
+            id: UUID(uuidString: id) ?? UUID(),
+            timestamp: timestamp,
+            activityType: activityType,
+            activityDescription: activityDescription,
+            status: ActivityStatus(rawValue: status) ?? .completed,
             additionalData: additionalData
         )
     }
@@ -248,71 +248,71 @@ public final class PersistentSystemActivity {
 
 extension SensingSession {
     public func toPersistent() -> PersistentSensingSession {
-        return PersistentSensingSession(
-            id: self.id,
-            name: self.name,
-            startTime: self.startTime,
-            endTime: self.endTime,
-            isActive: self.isActive
+        PersistentSensingSession(
+            id: id,
+            name: name,
+            startTime: startTime,
+            endTime: endTime,
+            isActive: isActive
         )
     }
 }
 
 extension AntennaPositionData {
     public func toPersistent() -> PersistentAntennaPosition {
-        return PersistentAntennaPosition(
-            id: self.id,
-            antennaId: self.antennaId,
-            antennaName: self.antennaName,
-            x: self.position.x,
-            y: self.position.y,
-            z: self.position.z,
-            rotation: self.rotation
+        PersistentAntennaPosition(
+            id: id,
+            antennaId: antennaId,
+            antennaName: antennaName,
+            x: position.x,
+            y: position.y,
+            z: position.z,
+            rotation: rotation
         )
     }
 }
 
 extension AntennaPairing {
     public func toPersistent() -> PersistentAntennaPairing {
-        return PersistentAntennaPairing(
-            antennaId: self.antenna.id,
-            antennaName: self.antenna.name,
-            antennaX: self.antenna.coordinates.x,
-            antennaY: self.antenna.coordinates.y,
-            antennaZ: self.antenna.coordinates.z,
-            deviceId: self.device.id,
-            deviceName: self.device.name,
-            isConnected: self.device.isConnected,
-            pairedAt: self.pairedAt
+        PersistentAntennaPairing(
+            antennaId: antenna.id,
+            antennaName: antenna.name,
+            antennaX: antenna.coordinates.x,
+            antennaY: antenna.coordinates.y,
+            antennaZ: antenna.coordinates.z,
+            deviceId: device.id,
+            deviceName: device.name,
+            isConnected: device.isConnected,
+            pairedAt: pairedAt
         )
     }
 }
 
 extension RealtimeData {
     public func toPersistent() -> PersistentRealtimeData {
-        return PersistentRealtimeData(
-            id: self.id,
-            deviceName: self.deviceName,
-            timestamp: self.timestamp,
-            elevation: self.elevation,
-            azimuth: self.azimuth,
-            distance: self.distance,
-            nlos: self.nlos,
-            rssi: self.rssi,
-            seqCount: self.seqCount
+        PersistentRealtimeData(
+            id: id,
+            deviceName: deviceName,
+            timestamp: timestamp,
+            elevation: elevation,
+            azimuth: azimuth,
+            distance: distance,
+            nlos: nlos,
+            rssi: rssi,
+            seqCount: seqCount
         )
     }
 }
 
 extension SystemActivity {
     public func toPersistent() -> PersistentSystemActivity {
-        let metadataData = try? JSONSerialization.data(withJSONObject: self.additionalData ?? [:])
+        let metadataData = try? JSONSerialization.data(withJSONObject: additionalData ?? [:])
         return PersistentSystemActivity(
-            id: self.id.uuidString,
-            activityType: self.activityType,
-            activityDescription: self.activityDescription,
-            status: self.status.rawValue,
-            timestamp: self.timestamp,
+            id: id.uuidString,
+            activityType: activityType,
+            activityDescription: activityDescription,
+            status: status.rawValue,
+            timestamp: timestamp,
             metadata: metadataData
         )
     }

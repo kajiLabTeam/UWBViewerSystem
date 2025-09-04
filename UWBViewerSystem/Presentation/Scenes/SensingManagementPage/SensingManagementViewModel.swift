@@ -31,16 +31,16 @@ class SensingManagementViewModel: ObservableObject {
         self.swiftDataRepository = swiftDataRepository
         self.sensingControlUsecase =
             sensingControlUsecase
-            ?? SensingControlUsecase(
-                connectionUsecase: ConnectionManagementUsecase(nearbyRepository: NearbyRepository())
-            )
+                ?? SensingControlUsecase(
+                    connectionUsecase: ConnectionManagementUsecase(nearbyRepository: NearbyRepository())
+                )
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
         initialize()
     }
 
     /// 実際のModelContextを使用してSwiftDataRepositoryを設定
     func setSwiftDataRepository(_ repository: SwiftDataRepositoryProtocol) {
-        self.swiftDataRepository = repository
+        swiftDataRepository = repository
         loadAntennaDevices()
     }
 
@@ -73,8 +73,8 @@ class SensingManagementViewModel: ObservableObject {
                         id: position.id,
                         name: position.antennaName,
                         connectionStatus: .connected,  // 実際の実装では実際のステータスを取得
-                        rssi: Int.random(in: -60 ... (-40)),
-                        batteryLevel: Int.random(in: 70 ... 100),
+                        rssi: Int.random(in: -60...(-40)),
+                        batteryLevel: Int.random(in: 70...100),
                         dataRate: sampleRate,
                         position: RealWorldPosition(
                             x: position.position.x,
@@ -101,7 +101,7 @@ class SensingManagementViewModel: ObservableObject {
             .map { deviceDataList in
                 // デバイスリストから最新のリアルタイムデータを抽出
                 deviceDataList.compactMap { deviceData in
-                    return deviceData.latestData
+                    deviceData.latestData
                 }
             }
             .assign(to: &$realtimeData)
@@ -121,8 +121,8 @@ class SensingManagementViewModel: ObservableObject {
     func refreshAntennaStatus() {
         // 実際の実装ではデバイスから最新の状態を取得
         for index in antennaDevices.indices {
-            antennaDevices[index].rssi = Int.random(in: -60 ... (-40))
-            antennaDevices[index].batteryLevel = max(0, antennaDevices[index].batteryLevel - Int.random(in: 0 ... 2))
+            antennaDevices[index].rssi = Int.random(in: -60...(-40))
+            antennaDevices[index].batteryLevel = max(0, antennaDevices[index].batteryLevel - Int.random(in: 0...2))
             antennaDevices[index].lastUpdate = Date()
 
             // バッテリーレベルに基づいて接続状態を更新
@@ -250,6 +250,7 @@ class SensingManagementViewModel: ObservableObject {
 }
 
 // MARK: - Dummy Repository for Initialization
+
 // PairingSettingViewModelと同じDummySwiftDataRepositoryを使用
 extension SensingManagementViewModel {
     /// テスト用またはプレースホルダー用の初期化
@@ -263,6 +264,7 @@ extension SensingManagementViewModel {
 }
 
 // MARK: - Data Models
+
 struct AntennaDevice: Identifiable {
     let id: String
     let name: String

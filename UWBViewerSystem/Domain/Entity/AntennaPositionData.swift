@@ -29,10 +29,10 @@ public struct AntennaPositionData: Identifiable, Codable {
         fieldPosition: Point3D, calibratedAt: Date = Date()
     ) {
         self.id = id
-        self.antennaId = deviceId
-        self.antennaName = deviceName
-        self.position = Point3D(x: realWorldPosition.x, y: realWorldPosition.y, z: realWorldPosition.z)
-        self.rotation = 0.0
+        antennaId = deviceId
+        antennaName = deviceName
+        position = Point3D(x: realWorldPosition.x, y: realWorldPosition.y, z: realWorldPosition.z)
+        rotation = 0.0
         self.calibratedAt = calibratedAt
     }
 }

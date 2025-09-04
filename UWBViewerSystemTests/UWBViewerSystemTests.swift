@@ -6,8 +6,8 @@
 //
 
 import Foundation
-import Testing
 import SwiftData
+import Testing
 @testable import UWBViewerSystem
 
 struct UWBViewerSystemTests {
@@ -20,7 +20,7 @@ struct UWBViewerSystemTests {
 // MARK: - SwiftDataRepository Tests
 
 struct SwiftDataRepositoryTests {
-    
+
     @MainActor
     private func createInMemoryRepository() throws -> SwiftDataRepository {
         let schema = Schema([
@@ -30,19 +30,19 @@ struct SwiftDataRepositoryTests {
             PersistentRealtimeData.self,
             PersistentSystemActivity.self
         ])
-        
+
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let modelContainer = try ModelContainer(for: schema, configurations: [modelConfiguration])
         let modelContext = ModelContext(modelContainer)
-        
+
         return SwiftDataRepository(modelContext: modelContext)
     }
-    
+
     @Test("センシングセッション保存・読み込みテスト")
     @MainActor
     func testSensingSessionSaveAndLoad() async throws {
         let repository = try createInMemoryRepository()
-        
+
         // テストデータを作成
         let testSession = SensingSession(
             id: "test_session_1",
@@ -51,52 +51,52 @@ struct SwiftDataRepositoryTests {
             endTime: Date().addingTimeInterval(3600),
             isActive: false
         )
-        
+
         // 保存
         try await repository.saveSensingSession(testSession)
-        
+
         // 読み込み
         let loadedSession = try await repository.loadSensingSession(by: testSession.id)
         #expect(loadedSession != nil)
         #expect(loadedSession?.id == testSession.id)
         #expect(loadedSession?.name == testSession.name)
         #expect(loadedSession?.isActive == testSession.isActive)
-        
+
         // 全てのセッションを読み込み
         let allSessions = try await repository.loadAllSensingSessions()
         #expect(allSessions.count == 1)
         #expect(allSessions.first?.id == testSession.id)
-        
+
         // 削除
         try await repository.deleteSensingSession(by: testSession.id)
         let deletedSession = try await repository.loadSensingSession(by: testSession.id)
         #expect(deletedSession == nil)
     }
-    
+
     @Test("アンテナペアリング保存・読み込みテスト")
     @MainActor
     func testAntennaPairingSaveAndLoad() async throws {
         let repository = try createInMemoryRepository()
-        
+
         // テストデータを作成
         let antenna = AntennaInfo(
             id: "antenna_1",
             name: "Test Antenna",
             coordinates: Point3D(x: 1.0, y: 2.0, z: 3.0)
         )
-        
+
         let device = AndroidDevice(
             id: "device_1",
             name: "Test Device",
             isConnected: true,
             isNearbyDevice: true
         )
-        
+
         let testPairing = AntennaPairing(antenna: antenna, device: device)
-        
+
         // 保存
         try await repository.saveAntennaPairing(testPairing)
-        
+
         // 読み込み
         let loadedPairings = try await repository.loadAntennaPairings()
         #expect(loadedPairings.count == 1)
@@ -104,18 +104,18 @@ struct SwiftDataRepositoryTests {
         #expect(loadedPairing.id == testPairing.id)
         #expect(loadedPairing.antenna.id == antenna.id)
         #expect(loadedPairing.device.id == device.id)
-        
+
         // 削除
         try await repository.deleteAntennaPairing(by: testPairing.id)
         let emptyPairings = try await repository.loadAntennaPairings()
-        #expect(emptyPairings.count == 0)
+        #expect(emptyPairings.isEmpty)
     }
-    
+
     @Test("アンテナ位置データ保存・読み込みテスト")
     @MainActor
     func testAntennaPositionSaveAndLoad() async throws {
         let repository = try createInMemoryRepository()
-        
+
         // テストデータを作成
         let testPosition = AntennaPositionData(
             id: "pos_1",
@@ -124,10 +124,10 @@ struct SwiftDataRepositoryTests {
             position: Point3D(x: 10.0, y: 20.0, z: 30.0),
             rotation: 45.0
         )
-        
+
         // 保存
         try await repository.saveAntennaPosition(testPosition)
-        
+
         // 読み込み
         let loadedPositions = try await repository.loadAntennaPositions()
         #expect(loadedPositions.count == 1)
@@ -137,11 +137,11 @@ struct SwiftDataRepositoryTests {
         #expect(loadedPosition.antennaName == testPosition.antennaName)
         #expect(loadedPosition.position.x == testPosition.position.x)
         #expect(loadedPosition.rotation == testPosition.rotation)
-        
+
         // 削除
         try await repository.deleteAntennaPosition(by: testPosition.id)
         let emptyPositions = try await repository.loadAntennaPositions()
-        #expect(emptyPositions.count == 0)
+        #expect(emptyPositions.isEmpty)
     }
 }
 
@@ -151,112 +151,112 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     private var sessions: [SensingSession] = []
     private var pairings: [AntennaPairing] = []
     private var positions: [AntennaPositionData] = []
-    
+
     func saveSensingSession(_ session: SensingSession) async throws {
         sessions.append(session)
     }
-    
+
     func loadSensingSession(by id: String) async throws -> SensingSession? {
-        return sessions.first { $0.id == id }
+        sessions.first { $0.id == id }
     }
-    
+
     func loadAllSensingSessions() async throws -> [SensingSession] {
-        return sessions.sorted { $0.startTime > $1.startTime }
+        sessions.sorted { $0.startTime > $1.startTime }
     }
-    
+
     func deleteSensingSession(by id: String) async throws {
         sessions.removeAll { $0.id == id }
     }
-    
+
     func updateSensingSession(_ session: SensingSession) async throws {
         if let index = sessions.firstIndex(where: { $0.id == session.id }) {
             sessions[index] = session
         }
     }
-    
+
     func saveAntennaPairing(_ pairing: AntennaPairing) async throws {
         pairings.append(pairing)
     }
-    
+
     func loadAntennaPairings() async throws -> [AntennaPairing] {
-        return pairings.sorted { $0.pairedAt > $1.pairedAt }
+        pairings.sorted { $0.pairedAt > $1.pairedAt }
     }
-    
+
     func deleteAntennaPairing(by id: String) async throws {
         pairings.removeAll { $0.id == id }
     }
-    
+
     func updateAntennaPairing(_ pairing: AntennaPairing) async throws {
         if let index = pairings.firstIndex(where: { $0.id == pairing.id }) {
             pairings[index] = pairing
         }
     }
-    
+
     func saveAntennaPosition(_ position: AntennaPositionData) async throws {
         positions.append(position)
     }
-    
+
     func loadAntennaPositions() async throws -> [AntennaPositionData] {
-        return positions.sorted { $0.antennaName < $1.antennaName }
+        positions.sorted { $0.antennaName < $1.antennaName }
     }
-    
+
     func deleteAntennaPosition(by id: String) async throws {
         positions.removeAll { $0.id == id }
     }
-    
+
     func updateAntennaPosition(_ position: AntennaPositionData) async throws {
         if let index = positions.firstIndex(where: { $0.id == position.id }) {
             positions[index] = position
         }
     }
-    
+
     // 他の実装はダミー
     func saveRealtimeData(_ data: RealtimeData, sessionId: String) async throws {}
-    func loadRealtimeData(for sessionId: String) async throws -> [RealtimeData] { return [] }
+    func loadRealtimeData(for sessionId: String) async throws -> [RealtimeData] { [] }
     func deleteRealtimeData(by id: UUID) async throws {}
     func saveSystemActivity(_ activity: SystemActivity) async throws {}
-    func loadRecentSystemActivities(limit: Int) async throws -> [SystemActivity] { return [] }
+    func loadRecentSystemActivities(limit: Int) async throws -> [SystemActivity] { [] }
     func deleteOldSystemActivities(olderThan date: Date) async throws {}
-    
+
     // 受信ファイル関連ダミー実装
     func saveReceivedFile(_ file: ReceivedFile) async throws {}
-    func loadReceivedFiles() async throws -> [ReceivedFile] { return [] }
+    func loadReceivedFiles() async throws -> [ReceivedFile] { [] }
     func deleteReceivedFile(by id: UUID) async throws {}
     func deleteAllReceivedFiles() async throws {}
 }
 
 struct PairingSettingViewModelTests {
-    
+
     @Test("PairingSettingViewModel データ保存・読み込みテスト")
     @MainActor
     func testPairingDataSaveAndLoad() async throws {
         let mockRepository = MockSwiftDataRepository()
         let viewModel = PairingSettingViewModel(swiftDataRepository: mockRepository)
-        
+
         // テストデータ準備
         let antenna = AntennaInfo(
             id: "test_antenna",
             name: "Test Antenna",
             coordinates: Point3D(x: 1.0, y: 2.0, z: 3.0)
         )
-        
+
         let device = AndroidDevice(
             id: "test_device",
             name: "Test Device",
             isConnected: true,
             isNearbyDevice: true
         )
-        
+
         // アンテナとデバイスを設定
         viewModel.selectedAntennas.append(antenna)
         viewModel.availableDevices.append(device)
-        
+
         // ペアリングを実行
         viewModel.pairAntennaWithDevice(antenna: antenna, device: device)
-        
+
         // 少し待機（非同期処理のため）
         try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
-        
+
         // ペアリングが成功したかチェック
         #expect(viewModel.antennaPairings.count == 1)
         #expect(viewModel.antennaPairings.first?.antenna.id == antenna.id)
@@ -266,13 +266,13 @@ struct PairingSettingViewModelTests {
 }
 
 struct DataDisplayViewModelTests {
-    
+
     @Test("DataDisplayViewModel 履歴データ読み込みテスト")
     @MainActor
     func testHistoryDataLoading() async throws {
         let mockRepository = MockSwiftDataRepository()
         let viewModel = DataDisplayViewModel(swiftDataRepository: mockRepository)
-        
+
         // テストセッションを追加
         let testSession = SensingSession(
             id: "test_session",
@@ -281,15 +281,15 @@ struct DataDisplayViewModelTests {
             endTime: Date(),
             isActive: false
         )
-        
+
         try await mockRepository.saveSensingSession(testSession)
-        
+
         // データを再読み込み
         viewModel.refreshHistoryData()
-        
+
         // 少し待機（非同期処理のため）
         try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
-        
+
         // 履歴データが読み込まれたかチェック
         #expect(viewModel.historyData.count == 1)
         #expect(viewModel.historyData.first?.id == testSession.id)

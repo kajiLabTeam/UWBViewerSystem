@@ -29,11 +29,11 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     func getDevicePosition(_ deviceId: String) -> CGPoint {
-        return antennaPositions.first { $0.id == deviceId }?.position ?? CGPoint(x: 50, y: 50)
+        antennaPositions.first { $0.id == deviceId }?.position ?? CGPoint(x: 50, y: 50)
     }
 
     func getDeviceRotation(_ deviceId: String) -> Double {
-        return antennaPositions.first { $0.id == deviceId }?.rotation ?? 0.0
+        antennaPositions.first { $0.id == deviceId }?.rotation ?? 0.0
     }
 
     func loadMapAndDevices() {
@@ -44,7 +44,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func loadSelectedDevices() {
         if let data = UserDefaults.standard.data(forKey: "SelectedUWBDevices"),
-            let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
+           let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
         {
             selectedDevices = decoded
         }
@@ -53,19 +53,19 @@ class AntennaPositioningViewModel: ObservableObject {
     private func loadMapData() {
         // IndoorMapDataは現在利用できないため、一時的にコメントアウト
         /*
-        if let data = UserDefaults.standard.data(forKey: "CurrentIndoorMap"),
-            let decoded = try? JSONDecoder().decode(IndoorMapData.self, from: data)
-        {
-            mapData = decoded
-            #if os(macOS)
-                mapImage = NSImage(contentsOfFile: decoded.filePath)
-            #elseif os(iOS)
-                if let data = try? Data(contentsOf: URL(fileURLWithPath: decoded.filePath)) {
-                    mapImage = UIImage(data: data)
-                }
-            #endif
-        }
-        */
+         if let data = UserDefaults.standard.data(forKey: "CurrentIndoorMap"),
+             let decoded = try? JSONDecoder().decode(IndoorMapData.self, from: data)
+         {
+             mapData = decoded
+             #if os(macOS)
+                 mapImage = NSImage(contentsOfFile: decoded.filePath)
+             #elseif os(iOS)
+                 if let data = try? Data(contentsOf: URL(fileURLWithPath: decoded.filePath)) {
+                     mapImage = UIImage(data: data)
+                 }
+             #endif
+         }
+         */
     }
 
     private func createAntennaPositions() {
@@ -95,7 +95,7 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     func getAntennaPosition(for deviceId: String) -> CGPoint? {
-        return antennaPositions.first(where: { $0.id == deviceId })?.position
+        antennaPositions.first(where: { $0.id == deviceId })?.position
     }
 
     func isDevicePositioned(_ deviceId: String) -> Bool {
@@ -215,6 +215,7 @@ class AntennaPositioningViewModel: ObservableObject {
 }
 
 // MARK: - Data Models
+
 struct AntennaPosition: Identifiable {
     let id: String
     let deviceName: String

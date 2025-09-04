@@ -7,11 +7,12 @@
 
 import CoreLocation
 import Foundation
-import SwiftUI
 import os
+import SwiftUI
 
 class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Published Properties
+
     @Published var isAdvertising = false
     @Published var statusMessage = "停止中"
     @Published var connectionRequests: [ConnectionRequest] = []
@@ -21,13 +22,15 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     @Published var locationPermissionStatus: CLAuthorizationStatus = .notDetermined
 
     // MARK: - Private Properties
+
     private let locationManager = CLLocationManager()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "", category: "AdvertiserViewModel")
     private let nearbyRepository: NearbyRepository
 
     // MARK: - Initialization
+
     override init() {
-        self.nearbyRepository = NearbyRepository()
+        nearbyRepository = NearbyRepository()
         super.init()
         setupLocationManager()
         setupNearbyRepository()
@@ -35,6 +38,7 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     // MARK: - Setup Methods
+
     private func setupLocationManager() {
         locationManager.delegate = self
         locationPermissionStatus = locationManager.authorizationStatus
@@ -69,6 +73,7 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     // MARK: - Public Methods
+
     func startAdvertising() {
         #if os(macOS)
             guard locationPermissionStatus == .authorizedAlways else {
@@ -157,6 +162,7 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     // MARK: - Helper Methods
+
     private func formatTimeInterval(_ timeInterval: TimeInterval) -> String {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute, .second]
@@ -165,6 +171,7 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     // MARK: - CLLocationManagerDelegate
+
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         locationPermissionStatus = status
         switch status {
@@ -186,20 +193,21 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
 }
 
 // MARK: - NearbyRepositoryCallback
+
 extension AdvertiserViewModel: NearbyRepositoryCallback {
-    
+
     func onDiscoveryStateChanged(isDiscovering: Bool) {
         // 広告者モードでは特に処理なし
     }
-    
+
     func onDeviceFound(endpointId: String, name: String, isConnectable: Bool) {
         // 広告者モードでは特に処理なし
     }
-    
+
     func onDeviceLost(endpointId: String) {
         // 広告者モードでは特に処理なし
     }
-    
+
     func onConnectionRequest(endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void) {
         let request = ConnectionRequest(
             endpointId: endpointId,
@@ -208,15 +216,15 @@ extension AdvertiserViewModel: NearbyRepositoryCallback {
             context: context,
             responseHandler: accept
         )
-        
+
         DispatchQueue.main.async {
             self.connectionRequests.append(request)
         }
     }
-    
+
     func onConnectionResult(_ endpointId: String, _ success: Bool) {
         logger.info("接続結果: \(endpointId) -> \(success)")
-        
+
         DispatchQueue.main.async {
             if !success {
                 // 接続失敗時は接続済みリストから削除
@@ -224,16 +232,16 @@ extension AdvertiserViewModel: NearbyRepositoryCallback {
             }
         }
     }
-    
+
     func onConnectionStateChanged(state: String) {
         statusMessage = state
     }
-    
+
     func onDataReceived(endpointId: String, data: Data) {
         if let messageContent = String(data: data, encoding: .utf8) {
             // 送信者のデバイス名を取得
             let senderName = connectedDevices.first { $0.endpointId == endpointId }?.deviceName ?? "Unknown"
-            
+
             // メッセージ履歴に追加
             let message = Message(
                 content: messageContent,
@@ -243,33 +251,33 @@ extension AdvertiserViewModel: NearbyRepositoryCallback {
                 isOutgoing: false
             )
             messages.append(message)
-            
+
             // 最終受信時刻を更新
             if let index = connectedDevices.firstIndex(where: { $0.endpointId == endpointId }) {
                 connectedDevices[index].lastMessageTime = Date()
             }
         }
     }
-    
+
     func onDeviceConnected(endpointId: String, deviceName: String) {
         logger.info("端末接続: \(endpointId) (\(deviceName))")
-        
+
         let newDevice = ConnectedDevice(
             endpointId: endpointId,
             deviceName: deviceName,
             connectTime: Date(),
             isActive: true
         )
-        
+
         DispatchQueue.main.async {
             self.connectedDevices.append(newDevice)
             self.statusMessage = "接続完了: \(deviceName)"
         }
     }
-    
+
     func onDeviceDisconnected(endpointId: String) {
         logger.info("端末切断: \(endpointId)")
-        
+
         DispatchQueue.main.async {
             self.connectedDevices.removeAll { $0.endpointId == endpointId }
             self.statusMessage = "端末切断: \(endpointId)"

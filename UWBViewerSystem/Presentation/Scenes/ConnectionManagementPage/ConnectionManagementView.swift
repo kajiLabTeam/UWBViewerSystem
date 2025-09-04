@@ -32,6 +32,7 @@ struct ConnectionManagementView: View {
     }
 
     // MARK: - Header Section
+
     private var headerSection: some View {
         VStack(spacing: 8) {
             HStack {
@@ -51,6 +52,7 @@ struct ConnectionManagementView: View {
     }
 
     // MARK: - Tab Selector
+
     private var tabSelector: some View {
         Picker("タブ", selection: $selectedTab) {
             ForEach(ConnectionTab.allCases, id: \.self) { tab in
@@ -62,6 +64,7 @@ struct ConnectionManagementView: View {
     }
 
     // MARK: - Tab Content
+
     @ViewBuilder
     private var tabContent: some View {
         switch selectedTab {
@@ -75,6 +78,7 @@ struct ConnectionManagementView: View {
     }
 
     // MARK: - Connection Control View
+
     private var connectionControlView: some View {
         VStack(spacing: 20) {
             // 接続状態表示
@@ -213,6 +217,7 @@ struct ConnectionManagementView: View {
     }
 
     // MARK: - Device Management View
+
     private var deviceManagementView: some View {
         VStack(spacing: 16) {
             HStack {
@@ -248,6 +253,7 @@ struct ConnectionManagementView: View {
     }
 
     // MARK: - Message View
+
     private var messageView: some View {
         VStack(spacing: 16) {
             // メッセージ履歴

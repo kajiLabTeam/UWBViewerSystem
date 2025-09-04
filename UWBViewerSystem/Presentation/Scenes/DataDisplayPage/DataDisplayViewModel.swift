@@ -59,9 +59,9 @@ class DataDisplayViewModel: ObservableObject {
         self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase()
         self.connectionUsecase =
             connectionUsecase
-            ?? ConnectionManagementUsecase(
-                nearbyRepository: NearbyRepository()
-            )
+                ?? ConnectionManagementUsecase(
+                    nearbyRepository: NearbyRepository()
+                )
 
         setupObservers()
         Task {
@@ -72,7 +72,7 @@ class DataDisplayViewModel: ObservableObject {
 
     /// 実際のModelContextを使用してSwiftDataRepositoryを設定
     func setSwiftDataRepository(_ repository: SwiftDataRepositoryProtocol) {
-        self.swiftDataRepository = repository
+        swiftDataRepository = repository
         Task {
             await loadHistoryData()
         }
@@ -226,16 +226,17 @@ class DataDisplayViewModel: ObservableObject {
             averageDistance: realtimeData.compactMap { $0.latestData }.isEmpty
                 ? 0
                 : realtimeData.compactMap { $0.latestData }.map { $0.distance }.reduce(0, +)
-                    / Double(realtimeData.compactMap { $0.latestData }.count),
+                / Double(realtimeData.compactMap { $0.latestData }.count),
             averageRSSI: realtimeData.compactMap { $0.latestData }.isEmpty
                 ? 0
                 : realtimeData.compactMap { $0.latestData }.map { $0.rssi }.reduce(0, +)
-                    / Double(realtimeData.compactMap { $0.latestData }.count)
+                / Double(realtimeData.compactMap { $0.latestData }.count)
         )
     }
 }
 
 // MARK: - Dummy Repository for Initialization
+
 // PairingSettingViewModelと同じDummySwiftDataRepositoryを使用
 extension DataDisplayViewModel {
     /// テスト用またはプレースホルダー用の初期化

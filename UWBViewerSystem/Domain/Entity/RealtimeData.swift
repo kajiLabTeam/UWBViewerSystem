@@ -55,7 +55,7 @@ public class DeviceRealtimeData: Identifiable, ObservableObject {
     }
 
     public var isDataStale: Bool {
-        guard let latestData = latestData else { return true }
+        guard let latestData else { return true }
         let dataTime = Date(timeIntervalSince1970: latestData.timestamp / 1000)
         return Date().timeIntervalSince(dataTime) > 10.0
     }

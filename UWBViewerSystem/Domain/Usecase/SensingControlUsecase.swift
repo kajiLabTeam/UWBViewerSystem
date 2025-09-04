@@ -235,7 +235,7 @@ public class SensingControlUsecase: ObservableObject {
     }
 
     public func loadSensingHistory() async throws -> [SensingSession] {
-        return try await swiftDataRepository.loadAllSensingSessions()
+        try await swiftDataRepository.loadAllSensingSessions()
     }
 
     // MARK: - Configuration
@@ -245,7 +245,7 @@ public class SensingControlUsecase: ObservableObject {
     }
 
     public func canStartSensing(connectedDeviceCount: Int) -> Bool {
-        return !sensingFileName.isEmpty && connectedDeviceCount >= 3
+        !sensingFileName.isEmpty && connectedDeviceCount >= 3
     }
 
     public var hasDataToView: Bool {

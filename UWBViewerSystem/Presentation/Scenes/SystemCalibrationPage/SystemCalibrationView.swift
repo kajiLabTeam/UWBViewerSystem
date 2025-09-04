@@ -9,7 +9,7 @@ struct SystemCalibrationView: View {
     @Environment(\.modelContext) private var modelContext
 
     init(viewModel: SystemCalibrationViewModel? = nil) {
-        if let viewModel = viewModel {
+        if let viewModel {
             self.viewModel = viewModel
         } else {
             self.viewModel = SystemCalibrationViewModel()

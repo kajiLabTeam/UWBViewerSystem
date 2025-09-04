@@ -25,15 +25,15 @@ struct WelcomeView: View {
                     .padding(.bottom, 8)
                     .scaleEffect(isAnimating ? 1.1 : 1.0)
                     .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: isAnimating)
-                
+
                 Text("UWBViewerSystem")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                
+
                 Text("UWBのセンサーを集めたり表示したりします。")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                
+
                 Spacer()
                     .frame(height: 50)
             }

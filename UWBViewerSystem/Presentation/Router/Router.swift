@@ -28,7 +28,6 @@ enum Route: Hashable {
     // メイン機能画面
     case fieldSettingPage
     case pairingSettingPage
-    case homePage
     case dataCollectionPage
     case dataDisplayPage
     case connectionManagementPage

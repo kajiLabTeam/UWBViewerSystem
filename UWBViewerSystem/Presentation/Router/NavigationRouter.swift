@@ -78,8 +78,6 @@ struct NavigationRouter: View {
             FieldSettingView()
         case .pairingSettingPage:
             PairingSettingView()
-        case .homePage:
-            NewHomeView()
         case .dataCollectionPage:
             DataCollectionView()
         case .dataDisplayPage:

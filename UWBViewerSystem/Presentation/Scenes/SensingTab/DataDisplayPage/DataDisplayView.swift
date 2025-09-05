@@ -42,6 +42,7 @@ struct DataDisplayView: View {
             let repository = SwiftDataRepository(modelContext: modelContext)
             viewModel.setSwiftDataRepository(repository)
             flowNavigator.currentStep = .dataViewer
+            flowNavigator.setRouter(router)
         }
     }
 

@@ -42,9 +42,14 @@ class NavigationRouterModel: ObservableObject {
 
     /// 指定されたルートに直接遷移する（スタックをクリアしてから）
     func navigateTo(_ route: Route) {
+        print("🔄 NavigationRouter.navigateTo(\(route)) called")
+        print("🔄 Current path count before reset: \(path.count)")
         reset()
+        print("🔄 Path reset, count: \(path.count)")
         currentRoute = route
+        print("🔄 Current route updated to: \(currentRoute)")
         push(route)
+        print("🔄 Final path count: \(path.count)")
     }
 
     /// アプリの初期化とログイン状態チェック

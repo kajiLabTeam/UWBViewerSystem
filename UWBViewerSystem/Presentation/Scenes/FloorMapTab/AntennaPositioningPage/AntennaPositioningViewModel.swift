@@ -231,9 +231,19 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     func saveAntennaPositionsForFlow() -> Bool {
+        print("🔄 saveAntennaPositionsForFlow: Starting save process")
+        print("🔄 saveAntennaPositionsForFlow: Total antennas = \(antennaPositions.count)")
+        
         // 配置されたアンテナの数をチェック
         let positionedAntennas = antennaPositions.filter { $0.position != CGPoint(x: 50, y: 50) }
+        print("🔄 saveAntennaPositionsForFlow: Positioned antennas = \(positionedAntennas.count)")
+        
+        for (index, antenna) in antennaPositions.enumerated() {
+            print("🔄 Antenna \(index): \(antenna.deviceName) at (\(antenna.position.x), \(antenna.position.y))")
+        }
+        
         guard positionedAntennas.count >= 2 else {
+            print("❌ saveAntennaPositionsForFlow: Need at least 2 positioned antennas, got \(positionedAntennas.count)")
             return false
         }
 
@@ -241,8 +251,10 @@ class AntennaPositioningViewModel: ObservableObject {
         let _ = positionedAntennas.filter { $0.rotation != 0.0 }
 
         // データを保存
+        print("💾 saveAntennaPositionsForFlow: Saving antenna positions")
         saveAntennaPositions()
 
+        print("✅ saveAntennaPositionsForFlow: Save completed successfully")
         return true
     }
 

@@ -85,6 +85,7 @@ struct PairingSettingView: View {
                 let repository = SwiftDataRepository(modelContext: modelContext)
                 viewModel.setSwiftDataRepository(repository)
                 flowNavigator.currentStep = .devicePairing
+                flowNavigator.setRouter(router)
             }
     }
 

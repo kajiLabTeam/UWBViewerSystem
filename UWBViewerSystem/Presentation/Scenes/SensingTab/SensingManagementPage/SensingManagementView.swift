@@ -46,6 +46,7 @@ struct SensingManagementView: View {
             viewModel.setSwiftDataRepository(repository)
             viewModel.initialize()
             flowNavigator.currentStep = .sensingExecution
+            flowNavigator.setRouter(router)
         }
     }
 

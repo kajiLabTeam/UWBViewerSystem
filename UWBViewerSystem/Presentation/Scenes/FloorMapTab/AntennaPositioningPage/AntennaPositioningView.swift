@@ -41,6 +41,7 @@ struct AntennaPositioningView: View {
         .onAppear {
             viewModel.loadMapAndDevices()
             flowNavigator.currentStep = .antennaConfiguration
+            flowNavigator.setRouter(router)
         }
     }
 
@@ -96,8 +97,15 @@ struct AntennaPositioningView: View {
                 .cornerRadius(8)
 
                 Button("次へ") {
-                    if viewModel.saveAntennaPositionsForFlow() {
+                    print("🔘 Next button clicked")
+                    let saveSuccess = viewModel.saveAntennaPositionsForFlow()
+                    print("🔘 Save result: \(saveSuccess)")
+                    
+                    if saveSuccess {
+                        print("🔘 Calling flowNavigator.proceedToNextStep()")
                         flowNavigator.proceedToNextStep()
+                    } else {
+                        print("❌ Cannot proceed: antenna positions not saved")
                     }
                 }
                 .frame(maxWidth: .infinity)

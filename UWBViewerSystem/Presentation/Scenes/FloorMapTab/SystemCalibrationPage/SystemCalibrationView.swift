@@ -7,6 +7,7 @@ struct SystemCalibrationView: View {
     @ObservedObject var viewModel: SystemCalibrationViewModel
     @StateObject private var flowNavigator = SensingFlowNavigator()
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject var router: NavigationRouterModel
 
     init(viewModel: SystemCalibrationViewModel? = nil) {
         if let viewModel {
@@ -51,6 +52,7 @@ struct SystemCalibrationView: View {
         .onAppear {
             viewModel.initialize()
             flowNavigator.currentStep = .systemCalibration
+            flowNavigator.setRouter(router)
         }
         .alert("エラー", isPresented: $viewModel.showErrorAlert) {
             Button("OK", role: .cancel) {}

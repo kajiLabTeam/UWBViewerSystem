@@ -8,10 +8,6 @@
 	<string>通信を用いるために使用します</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>通信を用いるために使用します</string>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict/>
-	</array>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_D33B052930BB._tcp</string>

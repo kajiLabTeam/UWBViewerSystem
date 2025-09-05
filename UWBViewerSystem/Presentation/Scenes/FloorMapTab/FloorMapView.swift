@@ -107,7 +107,7 @@ struct FloorMapView: View {
                     FloorMapRow(map: map) {
                         viewModel.selectFloorMap(map)
                         #if os(iOS)
-                            router.push(.fieldSettingPage)
+                            router.push(.antennaConfiguration)
                         #endif
                     } onDelete: {
                         viewModel.deleteFloorMap(map)
@@ -121,7 +121,7 @@ struct FloorMapView: View {
 
     private var addFloorMapButton: some View {
         Button(action: {
-            router.push(.fieldSettingPage)
+            router.push(.floorMapSetting)
         }) {
             HStack {
                 Image(systemName: "plus.circle.fill")
@@ -239,7 +239,7 @@ struct FloorMapDetailView: View {
             // アクション
             VStack(spacing: 16) {
                 Button(action: {
-                    router.push(.fieldSettingPage)
+                    router.push(.antennaConfiguration)
                 }) {
                     HStack {
                         Image(systemName: "antenna.radiowaves.left.and.right")

@@ -4,17 +4,10 @@ import SwiftUI
 /// フロアマップ設定画面
 /// 新しいセンシングフローの最初のステップ
 struct FloorMapSettingView: View {
-    @ObservedObject var viewModel: FloorMapSettingViewModel
+    @StateObject private var viewModel = FloorMapSettingViewModel()
+    @EnvironmentObject var router: NavigationRouterModel
     @StateObject private var flowNavigator = SensingFlowNavigator()
     @Environment(\.modelContext) private var modelContext
-
-    init(viewModel: FloorMapSettingViewModel? = nil) {
-        if let viewModel {
-            self.viewModel = viewModel
-        } else {
-            self.viewModel = FloorMapSettingViewModel()
-        }
-    }
 
     var body: some View {
         NavigationView {
@@ -46,8 +39,12 @@ struct FloorMapSettingView: View {
             }
         }
         .onAppear {
+            print("🏁 FloorMapSettingView: onAppear called")
             viewModel.setupInitialData()
             flowNavigator.currentStep = .floorMapSetting
+            // 共有のRouterをSensingFlowNavigatorに設定
+            flowNavigator.setRouter(router)
+            print("🏁 FloorMapSettingView: setup completed")
         }
         .alert("エラー", isPresented: $viewModel.showErrorAlert) {
             Button("OK", role: .cancel) {}
@@ -146,7 +143,10 @@ struct FloorMapSettingView: View {
 
                 // 画像選択ボタン
                 HStack(spacing: 12) {
-                    Button(action: viewModel.selectImageFromLibrary) {
+                    Button(action: {
+                        print("🔘 FloorMapSettingView: 写真から選択ボタンがクリックされました")
+                        viewModel.selectImageFromLibrary()
+                    }) {
                         HStack {
                             Image(systemName: "photo.on.rectangle")
                             Text("写真から選択")
@@ -158,7 +158,10 @@ struct FloorMapSettingView: View {
                         .cornerRadius(8)
                     }
 
-                    Button(action: viewModel.captureImageFromCamera) {
+                    Button(action: {
+                        print("🔘 FloorMapSettingView: カメラで撮影ボタンがクリックされました")
+                        viewModel.captureImageFromCamera()
+                    }) {
                         HStack {
                             Image(systemName: "camera")
                             Text("カメラで撮影")

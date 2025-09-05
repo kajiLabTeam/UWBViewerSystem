@@ -16,11 +16,16 @@ class SensingFlowNavigator: ObservableObject {
     @Published var completedSteps: Set<SensingFlowStep> = []
     @Published var lastError: String?
 
-    private let router: NavigationRouterModel
+    private var router: NavigationRouterModel
 
     init(router: NavigationRouterModel? = nil) {
         self.router = router ?? NavigationRouterModel()
         loadFlowState()
+    }
+    
+    /// 外部からRouterを設定するメソッド
+    func setRouter(_ router: NavigationRouterModel) {
+        self.router = router
     }
 
     /// 現在のフロー進行状況を更新

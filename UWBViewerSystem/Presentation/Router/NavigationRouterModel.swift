@@ -44,17 +44,20 @@ class NavigationRouterModel: ObservableObject {
     func navigateTo(_ route: Route) {
         reset()
         currentRoute = route
+        push(route)
     }
 
     /// アプリの初期化とログイン状態チェック
     func initializeApp() async {
+        print("🔧 NavigationRouterModel: 初期化開始")
         appState = .initializing
         // 少し待ってからログイン状態をチェック
         try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
 
         // もしここにログイン処理とか書く場合はこちらに
-
+        print("🔧 NavigationRouterModel: 認証状態に変更")
         appState = .authenticated
+        print("🔧 NavigationRouterModel: 初期化完了 - appState: \(appState)")
     }
 
     /// ログイン成功時の処理

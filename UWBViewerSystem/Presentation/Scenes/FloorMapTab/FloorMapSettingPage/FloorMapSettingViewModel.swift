@@ -21,8 +21,8 @@ class FloorMapSettingViewModel: ObservableObject {
     #elseif canImport(AppKit)
         @Published var selectedFloorMapImage: NSImage?
     #endif
-    @Published var floorName: String = ""
-    @Published var buildingName: String = ""
+    @Published var floorName: String = "テストフロア"
+    @Published var buildingName: String = "テストビル"
     @Published var floorWidth: Double = 10.0
     @Published var floorDepth: Double = 15.0
     @Published var selectedPreset: FloorMapPreset?
@@ -41,7 +41,9 @@ class FloorMapSettingViewModel: ObservableObject {
     // MARK: - Computed Properties
 
     var canProceedToNext: Bool {
-        !floorName.isEmpty && !buildingName.isEmpty && floorWidth > 0 && floorDepth > 0
+        let hasRequiredFields = !floorName.isEmpty && !buildingName.isEmpty && floorWidth > 0 && floorDepth > 0
+        print("🔄 FloorMapSettingViewModel: canProceedToNext check - hasRequiredFields: \(hasRequiredFields), hasImage: \(selectedFloorMapImage != nil)")
+        return hasRequiredFields
     }
 
     var isCameraAvailable: Bool {
@@ -59,7 +61,9 @@ class FloorMapSettingViewModel: ObservableObject {
     // MARK: - Initialization
 
     init() {
+        print("🚀 FloorMapSettingViewModel: init called")
         setupFloorPresets()
+        print("🚀 FloorMapSettingViewModel: init completed")
     }
 
     // MARK: - Public Methods
@@ -69,10 +73,12 @@ class FloorMapSettingViewModel: ObservableObject {
     }
 
     func selectImageFromLibrary() {
+        print("📸 FloorMapSettingViewModel: selectImageFromLibrary called")
         #if canImport(UIKit)
             imagePickerSourceType = .photoLibrary
         #endif
         isImagePickerPresented = true
+        print("📸 FloorMapSettingViewModel: isImagePickerPresented set to true")
     }
 
     func captureImageFromCamera() {
@@ -142,13 +148,17 @@ class FloorMapSettingViewModel: ObservableObject {
 
     #if os(iOS)
         func onImageSelected(_ image: UIImage) {
+            print("🖼️ FloorMapSettingViewModel: Image selected (iOS) - \(image.size)")
             selectedFloorMapImage = image
             isImagePickerPresented = false
+            print("🖼️ FloorMapSettingViewModel: selectedFloorMapImage updated, picker dismissed")
         }
     #elseif os(macOS)
         func onImageSelected(_ image: NSImage) {
+            print("🖼️ FloorMapSettingViewModel: Image selected (macOS) - \(image.size)")
             selectedFloorMapImage = image
             isImagePickerPresented = false
+            print("🖼️ FloorMapSettingViewModel: selectedFloorMapImage updated, picker dismissed")
         }
     #endif
 

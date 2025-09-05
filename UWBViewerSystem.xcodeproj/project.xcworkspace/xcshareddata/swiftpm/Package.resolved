@@ -24,7 +24,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/google/nearby",
       "state" : {
-        "branch" : "main",
+        "branch" : "b90f1d3",
         "revision" : "b90f1d3719a968458311258916bea4206c1ee5b6"
       }
     }

@@ -591,8 +591,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/google/nearby";
 			requirement = {
-				branch = main;
-				kind = branch;
+				kind = revision;
+				revision = "b90f1d3";
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

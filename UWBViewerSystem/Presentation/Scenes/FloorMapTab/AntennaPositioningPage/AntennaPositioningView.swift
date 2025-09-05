@@ -196,20 +196,39 @@ struct MapCanvasSection: View {
 
 struct AntennaDeviceListSection: View {
     @ObservedObject var viewModel: AntennaPositioningViewModel
+    @State private var showingAddDeviceAlert = false
+    @State private var newDeviceName = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
-            Text("アンテナデバイス")
-                .font(.headline)
+            HStack {
+                Text("アンテナデバイス")
+                    .font(.headline)
+                
+                Spacer()
+                
+                Button(action: {
+                    newDeviceName = ""
+                    showingAddDeviceAlert = true
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
 
             ScrollView {
                 LazyVStack(spacing: 8) {
                     ForEach(viewModel.selectedDevices) { device in
-                        AntennaDeviceRow(
+                        AntennaDeviceRowWithActions(
                             device: AntennaInfo(id: device.id, name: device.name, coordinates: Point3D.zero),
                             position: viewModel.getDevicePosition(device.id),
                             rotation: viewModel.getDeviceRotation(device.id),
-                            isPositioned: viewModel.isDevicePositioned(device.id)
+                            isPositioned: viewModel.isDevicePositioned(device.id),
+                            onRemove: {
+                                viewModel.removeDevice(device.id)
+                            }
                         )
                     }
                 }
@@ -217,6 +236,20 @@ struct AntennaDeviceListSection: View {
             }
         }
         .frame(width: 300)
+        .alert("新しいデバイスを追加", isPresented: $showingAddDeviceAlert) {
+            TextField("デバイス名", text: $newDeviceName)
+            
+            Button("追加") {
+                if !newDeviceName.isEmpty {
+                    viewModel.addNewDevice(name: newDeviceName)
+                }
+            }
+            .disabled(newDeviceName.isEmpty)
+            
+            Button("キャンセル", role: .cancel) { }
+        } message: {
+            Text("アンテナデバイスの名前を入力してください。")
+        }
     }
 }
 
@@ -496,6 +529,116 @@ struct AntennaDeviceRow: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(backgroundColorForStatus)
         )
+    }
+
+    private var backgroundColorForStatus: Color {
+        if isPositioned && rotation != nil {
+            return Color(.systemGreen).opacity(0.15)
+        } else if isPositioned {
+            return Color(.systemOrange).opacity(0.1)
+        } else {
+            return Color(.systemRed).opacity(0.1)
+        }
+    }
+}
+
+// MARK: - Antenna Device Row with Actions (Add/Remove)
+
+struct AntennaDeviceRowWithActions: View {
+    let device: AntennaInfo
+    let position: CGPoint?
+    let rotation: Double?
+    let isPositioned: Bool
+    let onRemove: () -> Void
+    
+    @State private var showingRemoveAlert = false
+
+    var body: some View {
+        HStack {
+            // デバイス情報
+            VStack(alignment: .leading, spacing: 4) {
+                Text(device.name)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Text(device.id)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                if let position {
+                    Text("位置: (\(Int(position.x)), \(Int(position.y)))")
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                }
+
+                if let rotation {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                            .rotationEffect(.degrees(rotation))
+
+                        Text("向き: \(Int(rotation))°")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+
+            Spacer()
+
+            // ステータス表示と削除ボタン
+            VStack(spacing: 8) {
+                VStack(spacing: 4) {
+                    if isPositioned {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.title3)
+                    } else {
+                        Image(systemName: "exclamationmark.circle")
+                            .foregroundColor(.orange)
+                            .font(.title3)
+                    }
+
+                    Text(isPositioned ? "配置済み" : "未配置")
+                        .font(.caption2)
+                        .foregroundColor(isPositioned ? .green : .orange)
+
+                    // 向き設定状況
+                    if rotation != nil {
+                        Text("向き設定済み")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                    } else if isPositioned {
+                        Text("向き未設定")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                }
+                
+                Button(action: {
+                    showingRemoveAlert = true
+                }) {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(backgroundColorForStatus)
+        )
+        .alert("デバイスを削除", isPresented: $showingRemoveAlert) {
+            Button("削除", role: .destructive) {
+                onRemove()
+            }
+            Button("キャンセル", role: .cancel) { }
+        } message: {
+            Text("デバイス「\(device.name)」を削除しますか？この操作は取り消せません。")
+        }
     }
 
     private var backgroundColorForStatus: Color {

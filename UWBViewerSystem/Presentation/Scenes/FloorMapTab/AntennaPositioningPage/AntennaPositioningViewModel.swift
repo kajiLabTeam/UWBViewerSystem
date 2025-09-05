@@ -51,21 +51,29 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     private func loadMapData() {
-        // IndoorMapDataは現在利用できないため、一時的にコメントアウト
-        /*
-         if let data = UserDefaults.standard.data(forKey: "CurrentIndoorMap"),
-             let decoded = try? JSONDecoder().decode(IndoorMapData.self, from: data)
-         {
-             mapData = decoded
-             #if os(macOS)
-                 mapImage = NSImage(contentsOfFile: decoded.filePath)
-             #elseif os(iOS)
-                 if let data = try? Data(contentsOf: URL(fileURLWithPath: decoded.filePath)) {
-                     mapImage = UIImage(data: data)
-                 }
-             #endif
-         }
-         */
+        print("📍 AntennaPositioningViewModel: loadMapData called")
+        
+        // currentFloorMapInfoから読み込む
+        if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
+           let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) {
+            print("📍 AntennaPositioningViewModel: FloorMapInfo loaded - \(floorMapInfo.name)")
+            
+            // 保存された画像を読み込む
+            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let imageURL = documentsDirectory.appendingPathComponent("\(floorMapInfo.id).jpg")
+            
+            print("📍 AntennaPositioningViewModel: Looking for image at: \(imageURL.path)")
+            
+            // 新しいFloorMapInfo構造を使用して画像を読み込む
+            mapImage = floorMapInfo.image
+            if mapImage != nil {
+                print("✅ AntennaPositioningViewModel: Map image loaded successfully")
+            } else {
+                print("❌ AntennaPositioningViewModel: Failed to load map image")
+            }
+        } else {
+            print("❌ AntennaPositioningViewModel: No FloorMapInfo found in UserDefaults")
+        }
     }
 
     private func createAntennaPositions() {
@@ -161,6 +169,49 @@ class AntennaPositioningViewModel: ObservableObject {
             antennaPositions[index].position = CGPoint(x: 50, y: 50)
         }
         updateCanProceed()
+    }
+    
+    func addNewDevice(name: String) {
+        let newDevice = AndroidDevice(
+            id: UUID().uuidString,
+            name: name,
+            isConnected: false,
+            isNearbyDevice: false
+        )
+        
+        selectedDevices.append(newDevice)
+        
+        let newAntennaPosition = AntennaPosition(
+            id: newDevice.id,
+            deviceName: newDevice.name,
+            position: CGPoint(x: 50, y: 50),
+            rotation: 0.0,
+            color: colors[antennaPositions.count % colors.count]
+        )
+        
+        antennaPositions.append(newAntennaPosition)
+        
+        saveSelectedDevices()
+        updateCanProceed()
+        
+        print("🎯 新しいデバイスを追加しました: \(name)")
+    }
+    
+    func removeDevice(_ deviceId: String) {
+        selectedDevices.removeAll { $0.id == deviceId }
+        antennaPositions.removeAll { $0.id == deviceId }
+        
+        saveSelectedDevices()
+        updateCanProceed()
+        
+        print("🗑️ デバイスを削除しました: \(deviceId)")
+    }
+    
+    private func saveSelectedDevices() {
+        if let encoded = try? JSONEncoder().encode(selectedDevices) {
+            UserDefaults.standard.set(encoded, forKey: "SelectedUWBDevices")
+            print("💾 選択デバイス一覧を保存しました: \(selectedDevices.count)台")
+        }
     }
 
     func saveAntennaPositions() {

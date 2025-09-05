@@ -94,6 +94,65 @@ public enum ActivityStatus: String, Codable {
     case cancelled = "cancelled"
 }
 
+// MARK: - フロアマップ情報
+
+/// フロアマップ情報を表すデータ構造
+public struct FloorMapInfo: Codable {
+    public let id: String
+    public let name: String
+    public let buildingName: String
+    public let width: Double
+    public let depth: Double
+    public let createdAt: Date
+    
+    // imageプロパティはCodableに含めない（ファイルシステムに別途保存）
+    
+    public init(id: String, name: String, buildingName: String, width: Double, depth: Double, createdAt: Date) {
+        self.id = id
+        self.name = name
+        self.buildingName = buildingName
+        self.width = width
+        self.depth = depth
+        self.createdAt = createdAt
+    }
+}
+
+// FloorMapInfo用のプラットフォーム固有拡張
+#if os(macOS)
+extension FloorMapInfo {
+    public var image: NSImage? {
+        get {
+            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
+            if FileManager.default.fileExists(atPath: imageURL.path) {
+                return NSImage(contentsOf: imageURL)
+            }
+            return nil
+        }
+        set {
+            // 画像の設定は別のメソッドで処理
+        }
+    }
+}
+#elseif os(iOS)
+extension FloorMapInfo {
+    public var image: UIImage? {
+        get {
+            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
+            if FileManager.default.fileExists(atPath: imageURL.path),
+               let data = try? Data(contentsOf: imageURL) {
+                return UIImage(data: data)
+            }
+            return nil
+        }
+        set {
+            // 画像の設定は別のメソッドで処理
+        }
+    }
+}
+#endif
+
 // MARK: - システムキャリブレーション
 
 /// システムキャリブレーションの結果
@@ -116,43 +175,6 @@ public struct SystemCalibrationResult: Codable {
     }
 }
 
-// MARK: - フロアマップ情報
-
-/// フロアマップの基本情報
-public struct FloorMapInfo: Codable, Identifiable {
-    public let id: String
-    public let name: String
-    public let buildingName: String
-    public let width: Double
-    public let depth: Double
-    public let createdAt: Date
-
-    #if os(iOS)
-        public var image: UIImage?
-    #elseif os(macOS)
-        public var image: NSImage?
-    #endif
-
-    public init(
-        id: String = UUID().uuidString,
-        name: String,
-        buildingName: String,
-        width: Double,
-        depth: Double,
-        createdAt: Date = Date()
-    ) {
-        self.id = id
-        self.name = name
-        self.buildingName = buildingName
-        self.width = width
-        self.depth = depth
-        self.createdAt = createdAt
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case id, name, buildingName, width, depth, createdAt
-    }
-}
 
 // MARK: - 実世界位置
 

@@ -112,7 +112,7 @@ class FloorMapSettingViewModel: ObservableObject {
         isLoading = true
 
         // フロアマップ情報を保存
-        var floorMapInfo = FloorMapInfo(
+        let floorMapInfo = FloorMapInfo(
             id: UUID().uuidString,
             name: floorName,
             buildingName: buildingName,
@@ -120,7 +120,6 @@ class FloorMapSettingViewModel: ObservableObject {
             depth: floorDepth,
             createdAt: Date()
         )
-        floorMapInfo.image = selectedFloorMapImage
 
         do {
             try saveFloorMapInfo(floorMapInfo)
@@ -235,7 +234,7 @@ class FloorMapSettingViewModel: ObservableObject {
         UserDefaults.standard.set(info.depth, forKey: "lastFloorDepth")
 
         // 画像をDocumentsディレクトリに保存
-        if let image = info.image {
+        if let image = selectedFloorMapImage {
             try saveImageToDocuments(image, with: info.id)
         }
 

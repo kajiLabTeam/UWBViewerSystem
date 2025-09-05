@@ -37,11 +37,16 @@ class SensingFlowNavigator: ObservableObject {
 
     /// 次のステップに進む
     func proceedToNextStep() {
+        print("🚀 proceedToNextStep: Current step = \(currentStep.rawValue)")
+        
         // 現在のステップの完了条件をチェック
         guard canProceedFromCurrentStep() else {
             lastError = currentStep.incompletionError
+            print("❌ proceedToNextStep: Cannot proceed - \(currentStep.incompletionError)")
             return
         }
+
+        print("✅ proceedToNextStep: Step completion check passed")
 
         // 現在のステップを完了済みとしてマーク
         markStepAsCompleted(currentStep)
@@ -49,17 +54,22 @@ class SensingFlowNavigator: ObservableObject {
         guard let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep),
               currentIndex < SensingFlowStep.allCases.count - 1
         else {
+            print("🎯 proceedToNextStep: Flow completed!")
             completeFlow()
             return
         }
 
         let nextStep = SensingFlowStep.allCases[currentIndex + 1]
+        print("➡️ proceedToNextStep: Moving to next step = \(nextStep.rawValue)")
+        
         currentStep = nextStep
         updateProgress()
         saveFlowState()
 
         // ルーターを使用して実際の画面遷移を実行
+        print("🔄 proceedToNextStep: Navigating to route = \(nextStep.route)")
         router.navigateTo(nextStep.route)
+        print("✅ proceedToNextStep: Navigation completed")
     }
 
     /// 前のステップに戻る
@@ -338,14 +348,29 @@ enum SensingFlowStep: String, CaseIterable {
         guard let data = UserDefaults.standard.data(forKey: "configuredAntennaPositions"),
               let antennas = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
         else {
+            print("❌ checkAntennaConfigurationCompletion: No antenna position data found")
             return false
         }
 
-        // 最低2つのアンテナが必要
-        return antennas.count >= 2
-            && antennas.allSatisfy { antenna in
-                antenna.rotation >= 0 && antenna.rotation <= 360
-            }
+        print("📍 checkAntennaConfigurationCompletion: Found \(antennas.count) antennas")
+        
+        // デフォルト位置(50,50)以外に配置されたアンテナを確認
+        let positionedAntennas = antennas.filter { antenna in
+            antenna.position.x != 50.0 || antenna.position.y != 50.0
+        }
+        
+        print("📍 checkAntennaConfigurationCompletion: \(positionedAntennas.count) antennas are positioned")
+        
+        // 最低2つのアンテナが配置されている必要がある
+        let hasEnoughAntennas = positionedAntennas.count >= 2
+        
+        if hasEnoughAntennas {
+            print("✅ checkAntennaConfigurationCompletion: Antenna configuration is complete")
+        } else {
+            print("❌ checkAntennaConfigurationCompletion: Need at least 2 positioned antennas, got \(positionedAntennas.count)")
+        }
+        
+        return hasEnoughAntennas
     }
 
     private func checkDevicePairingCompletion() -> Bool {

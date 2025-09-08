@@ -132,6 +132,23 @@ struct AntennaPositioningView: View {
 
 struct MapCanvasSection: View {
     @ObservedObject var viewModel: AntennaPositioningViewModel
+    
+    // フロアマップのスケールを計算（メートル/ピクセル）
+    private var mapScale: Double {
+        viewModel.mapScale
+    }
+    
+    // 15cmのアンテナサイズをピクセルに変換
+    private var antennaSizeInPixels: CGFloat {
+        let sizeInPixels = CGFloat(0.15 / mapScale) // 0.15m = 15cm
+        print("🎯 Antenna size calculation: 0.15m / \(mapScale)m/px = \(sizeInPixels)px")
+        return sizeInPixels
+    }
+    
+    // センサー範囲（50m）をピクセルに変換
+    private var sensorRangeInPixels: CGFloat {
+        CGFloat(50.0 / mapScale) // 50mのセンサー範囲
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -177,6 +194,8 @@ struct MapCanvasSection: View {
                 ForEach(viewModel.antennaPositions) { antenna in
                     PositionAntennaMarker(
                         antenna: antenna,
+                        antennaSize: antennaSizeInPixels,
+                        sensorRange: sensorRangeInPixels,
                         onPositionChanged: { newPosition in
                             viewModel.updateAntennaPosition(antenna.id, position: newPosition)
                         },
@@ -184,6 +203,7 @@ struct MapCanvasSection: View {
                             viewModel.updateAntennaRotation(antenna.id, rotation: newRotation)
                         }
                     )
+                    .zIndex(100) // アンテナマーカーを前面に配置
                 }
             }
             .frame(maxWidth: .infinity)
@@ -319,62 +339,146 @@ struct InstructionsSection: View {
     }
 }
 
+// MARK: - Sensor Range View (Fan Shape)
+
+struct SensorRangeView: View {
+    let rotation: Double
+    let sensorRange: CGFloat
+    
+    var body: some View {
+        GeometryReader { geometry in
+            Path { path in
+                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                let radius = min(geometry.size.width, geometry.size.height) / 2
+                
+                // センサー範囲: -60度から+60度（120度の扇形）
+                let startAngle = -60.0
+                let endAngle = 60.0
+                
+                // 中心点から開始
+                path.move(to: center)
+                
+                // 扇形を描画（SwiftUIの角度は時計回りで、0度が上）
+                path.addArc(
+                    center: center,
+                    radius: radius,
+                    startAngle: .degrees(startAngle - 90), // -90度オフセットで上向きを0度に
+                    endAngle: .degrees(endAngle - 90),
+                    clockwise: false
+                )
+                
+                // 中心点に戻る
+                path.closeSubpath()
+            }
+            .fill(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.blue.opacity(0.3),
+                        Color.blue.opacity(0.1)
+                    ]),
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+            )
+            .overlay(
+                // 扇形の境界線
+                Path { path in
+                    let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    let radius = min(geometry.size.width, geometry.size.height) / 2
+                    
+                    let startAngle = -60.0
+                    let endAngle = 60.0
+                    
+                    path.move(to: center)
+                    path.addArc(
+                        center: center,
+                        radius: radius,
+                        startAngle: .degrees(startAngle - 90),
+                        endAngle: .degrees(endAngle - 90),
+                        clockwise: false
+                    )
+                    path.closeSubpath()
+                }
+                .stroke(Color.blue.opacity(0.5), lineWidth: 1)
+            )
+        }
+        .rotationEffect(.degrees(rotation))
+    }
+}
+
 // MARK: - Position Antenna Marker with Rotation
 
 struct PositionAntennaMarker: View {
     let antenna: AntennaPosition
+    let antennaSize: CGFloat
+    let sensorRange: CGFloat
     let onPositionChanged: (CGPoint) -> Void
     let onRotationChanged: ((Double) -> Void)?
 
     @State private var dragOffset = CGSize.zero
     @State private var showRotationControls = false
+    
+    // アンテナアイコンの最小/最大サイズを制限
+    private var displayAntennaSize: CGFloat {
+        let clampedSize = min(max(antennaSize, 20), 80) // 最小20px、最大80px
+        print("🎯 Display antenna size: original=\(antennaSize)px, clamped=\(clampedSize)px")
+        return clampedSize
+    }
 
     var body: some View {
-        VStack(spacing: 4) {
-            ZStack {
-                // アンテナ背景円
-                Circle()
-                    .fill(antenna.color)
-                    .frame(width: 40, height: 40)
-                    .shadow(radius: 2)
+        ZStack {
+            // センサー範囲を示す扇形（-60°〜+60°）
+            SensorRangeView(rotation: antenna.rotation, sensorRange: sensorRange)
+                .frame(width: sensorRange, height: sensorRange)
+                .allowsHitTesting(false)
+            
+            VStack(spacing: 4) {
+                ZStack {
+                    // アンテナ背景円（15cmの実寸サイズ、但し最小/最大サイズ制限あり）
+                    Circle()
+                        .fill(antenna.color)
+                        .frame(width: displayAntennaSize, height: displayAntennaSize)
+                        .shadow(radius: 2)
 
-                // アンテナアイコン（回転対応）
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .rotationEffect(.degrees(antenna.rotation))
-
-                // 向きを示す矢印
-                if showRotationControls || antenna.rotation != 0 {
-                    Image(systemName: "arrow.up")
-                        .font(.caption)
-                        .foregroundColor(.yellow)
-                        .offset(y: -20)
+                    // アンテナアイコン（回転対応）
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: displayAntennaSize * 0.5)) // アイコンサイズを表示サイズに合わせる
+                        .foregroundColor(.white)
                         .rotationEffect(.degrees(antenna.rotation))
+
+                    // 向きを示す矢印
+                    if showRotationControls || antenna.rotation != 0 {
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: displayAntennaSize * 0.3))
+                            .foregroundColor(.yellow)
+                            .offset(y: -displayAntennaSize * 0.6)
+                            .rotationEffect(.degrees(antenna.rotation))
+                    }
                 }
-            }
-            .onTapGesture(count: 2) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    showRotationControls.toggle()
+                .onTapGesture(count: 2) {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showRotationControls.toggle()
+                    }
                 }
+                
+                // アンテナ名表示
+                Text(antenna.deviceName)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                        #if os(macOS)
+                            .fill(Color(NSColor.controlBackgroundColor))
+                        #elseif os(iOS)
+                            .fill(Color(UIColor.systemBackground))
+                        #endif
+                            .shadow(radius: 1)
+                    )
             }
 
-            Text(antenna.deviceName)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                    #if os(macOS)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                    #elseif os(iOS)
-                        .fill(Color(UIColor.systemBackground))
-                    #endif
-                        .shadow(radius: 1)
-                )
-
-            // 回転コントロール（表示時のみ）
+            // 回転コントロール（表示時のみ、固定サイズ）
             if showRotationControls {
                 AntennaRotationControl(
                     rotation: antenna.rotation,
@@ -382,6 +486,8 @@ struct PositionAntennaMarker: View {
                         onRotationChanged?(newRotation)
                     }
                 )
+                .offset(y: displayAntennaSize + 50) // アンテナアイコンの下に十分な余白を確保
+                .zIndex(1000) // 最前面に表示
                 .transition(.scale.combined(with: .opacity))
             }
         }
@@ -415,17 +521,21 @@ struct AntennaRotationControl: View {
     var body: some View {
         VStack(spacing: 8) {
             Text("向き: \(Int(rotation))°")
-                .font(.caption2)
+                .font(.caption)
+                .fontWeight(.medium)
                 .foregroundColor(.primary)
 
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 Button(action: {
                     let newRotation = (rotation - 15).truncatingRemainder(dividingBy: 360)
                     onRotationChanged(newRotation >= 0 ? newRotation : newRotation + 360)
                 }) {
                     Image(systemName: "rotate.left")
-                        .font(.caption)
+                        .font(.system(size: 16))
                         .foregroundColor(.blue)
+                        .frame(width: 30, height: 30)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(6)
                 }
                 .buttonStyle(PlainButtonStyle())
 
@@ -433,8 +543,11 @@ struct AntennaRotationControl: View {
                     onRotationChanged(0)
                 }) {
                     Image(systemName: "arrow.up.circle")
-                        .font(.caption)
+                        .font(.system(size: 16))
                         .foregroundColor(.green)
+                        .frame(width: 30, height: 30)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(6)
                 }
                 .buttonStyle(PlainButtonStyle())
 
@@ -443,13 +556,16 @@ struct AntennaRotationControl: View {
                     onRotationChanged(newRotation)
                 }) {
                     Image(systemName: "rotate.right")
-                        .font(.caption)
+                        .font(.system(size: 16))
                         .foregroundColor(.blue)
+                        .frame(width: 30, height: 30)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(6)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
         }
-        .padding(8)
+        .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 8)
             #if os(macOS)
@@ -457,7 +573,7 @@ struct AntennaRotationControl: View {
             #elseif os(iOS)
                 .fill(Color(UIColor.systemBackground))
             #endif
-                .shadow(radius: 2)
+                .shadow(radius: 3)
         )
     }
 }

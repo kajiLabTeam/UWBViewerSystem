@@ -20,6 +20,26 @@ class AntennaPositioningViewModel: ObservableObject {
     #endif
     // mapData: IndoorMapDataは現在利用できないため、一時的にコメントアウト
     // var mapData: IndoorMapData?
+    
+    // フロアマップのスケール（メートル/ピクセル）
+    var mapScale: Double {
+        // UserDefaultsからフロアマップ情報を取得
+        guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
+              let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) else {
+            return 0.01 // デフォルト値: 1ピクセル = 1cm
+        }
+        
+        // マップキャンバスのサイズは400x400ピクセル
+        let canvasSize: Double = 400.0
+        
+        // より大きい辺を基準にスケールを計算（アスペクト比を考慮）
+        let maxRealSize = max(floorMapInfo.width, floorMapInfo.depth)
+        let scale = maxRealSize / canvasSize
+        
+        print("🗺️ MapScale calculation: width=\(floorMapInfo.width)m, depth=\(floorMapInfo.depth)m, maxSize=\(maxRealSize)m, canvasSize=\(canvasSize)px, scale=\(scale)m/px")
+        
+        return scale
+    }
 
     private let colors: [Color] = [.red, .blue, .green, .orange, .purple, .pink, .cyan, .yellow]
 

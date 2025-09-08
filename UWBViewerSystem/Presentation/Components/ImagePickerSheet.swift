@@ -75,29 +75,29 @@ import SwiftUI
             ) { result in
                 print("🔄 ImagePickerSheet (macOS): fileImporter result received")
                 do {
-                    guard let selectedFile: URL = try result.get().first else { 
+                    guard let selectedFile: URL = try result.get().first else {
                         print("❌ ImagePickerSheet (macOS): No file selected")
-                        return 
+                        return
                     }
                     print("📁 ImagePickerSheet (macOS): Selected file: \(selectedFile.path)")
-                    
+
                     // セキュリティスコープ付きリソースアクセスを開始
                     let accessGranted = selectedFile.startAccessingSecurityScopedResource()
                     print("🔐 ImagePickerSheet (macOS): Security scoped access granted: \(accessGranted)")
-                    
+
                     defer {
                         if accessGranted {
                             selectedFile.stopAccessingSecurityScopedResource()
                             print("🔐 ImagePickerSheet (macOS): Security scoped access stopped")
                         }
                     }
-                    
+
                     // まずファイルが存在するか確認
                     if !FileManager.default.fileExists(atPath: selectedFile.path) {
                         print("❌ ImagePickerSheet (macOS): File does not exist at path")
                         return
                     }
-                    
+
                     // NSDataを使って画像データを読み込む
                     if let imageData = NSData(contentsOf: selectedFile),
                        let nsImage = NSImage(data: imageData as Data) {
@@ -108,7 +108,7 @@ import SwiftUI
                         }
                     } else {
                         print("❌ ImagePickerSheet (macOS): Failed to load image via NSData")
-                        
+
                         // フォールバック: NSImage(contentsOf:)を試す
                         if let nsImage = NSImage(contentsOf: selectedFile) {
                             print("🖼️ ImagePickerSheet (macOS): Image loaded successfully via NSImage(contentsOf:) - size: \(nsImage.size)")

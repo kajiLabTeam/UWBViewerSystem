@@ -104,9 +104,9 @@ public struct FloorMapInfo: Codable {
     public let width: Double
     public let depth: Double
     public let createdAt: Date
-    
+
     // imageプロパティはCodableに含めない（ファイルシステムに別途保存）
-    
+
     public init(id: String, name: String, buildingName: String, width: Double, depth: Double, createdAt: Date) {
         self.id = id
         self.name = name
@@ -119,38 +119,38 @@ public struct FloorMapInfo: Codable {
 
 // FloorMapInfo用のプラットフォーム固有拡張
 #if os(macOS)
-extension FloorMapInfo {
-    public var image: NSImage? {
-        get {
-            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
-            if FileManager.default.fileExists(atPath: imageURL.path) {
-                return NSImage(contentsOf: imageURL)
+    extension FloorMapInfo {
+        public var image: NSImage? {
+            get {
+                let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
+                if FileManager.default.fileExists(atPath: imageURL.path) {
+                    return NSImage(contentsOf: imageURL)
+                }
+                return nil
             }
-            return nil
-        }
-        set {
-            // 画像の設定は別のメソッドで処理
+            set {
+                // 画像の設定は別のメソッドで処理
+            }
         }
     }
-}
 #elseif os(iOS)
-extension FloorMapInfo {
-    public var image: UIImage? {
-        get {
-            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
-            if FileManager.default.fileExists(atPath: imageURL.path),
-               let data = try? Data(contentsOf: imageURL) {
-                return UIImage(data: data)
+    extension FloorMapInfo {
+        public var image: UIImage? {
+            get {
+                let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
+                if FileManager.default.fileExists(atPath: imageURL.path),
+                   let data = try? Data(contentsOf: imageURL) {
+                    return UIImage(data: data)
+                }
+                return nil
             }
-            return nil
-        }
-        set {
-            // 画像の設定は別のメソッドで処理
+            set {
+                // 画像の設定は別のメソッドで処理
+            }
         }
     }
-}
 #endif
 
 // MARK: - システムキャリブレーション
@@ -174,7 +174,6 @@ public struct SystemCalibrationResult: Codable {
         self.errorMessage = errorMessage
     }
 }
-
 
 // MARK: - 実世界位置
 

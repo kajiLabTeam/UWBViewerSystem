@@ -100,7 +100,7 @@ struct AntennaPositioningView: View {
                     print("🔘 Next button clicked")
                     let saveSuccess = viewModel.saveAntennaPositionsForFlow()
                     print("🔘 Save result: \(saveSuccess)")
-                    
+
                     if saveSuccess {
                         print("🔘 Calling flowNavigator.proceedToNextStep()")
                         flowNavigator.proceedToNextStep()
@@ -132,19 +132,19 @@ struct AntennaPositioningView: View {
 
 struct MapCanvasSection: View {
     @ObservedObject var viewModel: AntennaPositioningViewModel
-    
+
     // フロアマップのスケールを計算（メートル/ピクセル）
     private var mapScale: Double {
         viewModel.mapScale
     }
-    
+
     // 15cmのアンテナサイズをピクセルに変換
     private var antennaSizeInPixels: CGFloat {
         let sizeInPixels = CGFloat(0.15 / mapScale) // 0.15m = 15cm
         print("🎯 Antenna size calculation: 0.15m / \(mapScale)m/px = \(sizeInPixels)px")
         return sizeInPixels
     }
-    
+
     // センサー範囲（50m）をピクセルに変換
     private var sensorRangeInPixels: CGFloat {
         CGFloat(50.0 / mapScale) // 50mのセンサー範囲
@@ -232,9 +232,9 @@ struct AntennaDeviceListSection: View {
             HStack {
                 Text("アンテナデバイス")
                     .font(.headline)
-                
+
                 Spacer()
-                
+
                 Button(action: {
                     newDeviceName = ""
                     showingAddDeviceAlert = true
@@ -266,14 +266,14 @@ struct AntennaDeviceListSection: View {
         .frame(width: 300)
         .alert("新しいデバイスを追加", isPresented: $showingAddDeviceAlert) {
             TextField("デバイス名", text: $newDeviceName)
-            
+
             Button("追加") {
                 if !newDeviceName.isEmpty {
                     viewModel.addNewDevice(name: newDeviceName)
                 }
             }
             .disabled(newDeviceName.isEmpty)
-            
+
             Button("キャンセル", role: .cancel) { }
         } message: {
             Text("アンテナデバイスの名前を入力してください。")
@@ -344,20 +344,20 @@ struct InstructionsSection: View {
 struct SensorRangeView: View {
     let rotation: Double
     let sensorRange: CGFloat
-    
+
     var body: some View {
         GeometryReader { geometry in
             Path { path in
                 let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
                 let radius = min(geometry.size.width, geometry.size.height) / 2
-                
+
                 // センサー範囲: -60度から+60度（120度の扇形）
                 let startAngle = -60.0
                 let endAngle = 60.0
-                
+
                 // 中心点から開始
                 path.move(to: center)
-                
+
                 // 扇形を描画（SwiftUIの角度は時計回りで、0度が上）
                 path.addArc(
                     center: center,
@@ -366,7 +366,7 @@ struct SensorRangeView: View {
                     endAngle: .degrees(endAngle - 90),
                     clockwise: false
                 )
-                
+
                 // 中心点に戻る
                 path.closeSubpath()
             }
@@ -385,10 +385,10 @@ struct SensorRangeView: View {
                 Path { path in
                     let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
                     let radius = min(geometry.size.width, geometry.size.height) / 2
-                    
+
                     let startAngle = -60.0
                     let endAngle = 60.0
-                    
+
                     path.move(to: center)
                     path.addArc(
                         center: center,
@@ -417,7 +417,7 @@ struct PositionAntennaMarker: View {
 
     @State private var dragOffset = CGSize.zero
     @State private var showRotationControls = false
-    
+
     // アンテナアイコンの最小/最大サイズを制限
     private var displayAntennaSize: CGFloat {
         let clampedSize = min(max(antennaSize, 20), 80) // 最小20px、最大80px
@@ -431,7 +431,7 @@ struct PositionAntennaMarker: View {
             SensorRangeView(rotation: antenna.rotation, sensorRange: sensorRange)
                 .frame(width: sensorRange, height: sensorRange)
                 .allowsHitTesting(false)
-            
+
             VStack(spacing: 4) {
                 ZStack {
                     // アンテナ背景円（15cmの実寸サイズ、但し最小/最大サイズ制限あり）
@@ -460,7 +460,7 @@ struct PositionAntennaMarker: View {
                         showRotationControls.toggle()
                     }
                 }
-                
+
                 // アンテナ名表示
                 Text(antenna.deviceName)
                     .font(.caption)
@@ -674,7 +674,7 @@ struct AntennaDeviceRowWithActions: View {
     let rotation: Double?
     let isPositioned: Bool
     let onRemove: () -> Void
-    
+
     @State private var showingRemoveAlert = false
 
     var body: some View {
@@ -739,7 +739,7 @@ struct AntennaDeviceRowWithActions: View {
                             .foregroundColor(.orange)
                     }
                 }
-                
+
                 Button(action: {
                     showingRemoveAlert = true
                 }) {

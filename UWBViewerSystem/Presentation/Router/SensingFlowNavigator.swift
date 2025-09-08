@@ -22,7 +22,7 @@ class SensingFlowNavigator: ObservableObject {
         self.router = router ?? NavigationRouterModel()
         loadFlowState()
     }
-    
+
     /// 外部からRouterを設定するメソッド
     func setRouter(_ router: NavigationRouterModel) {
         self.router = router
@@ -38,7 +38,7 @@ class SensingFlowNavigator: ObservableObject {
     /// 次のステップに進む
     func proceedToNextStep() {
         print("🚀 proceedToNextStep: Current step = \(currentStep.rawValue)")
-        
+
         // 現在のステップの完了条件をチェック
         guard canProceedFromCurrentStep() else {
             lastError = currentStep.incompletionError
@@ -61,7 +61,7 @@ class SensingFlowNavigator: ObservableObject {
 
         let nextStep = SensingFlowStep.allCases[currentIndex + 1]
         print("➡️ proceedToNextStep: Moving to next step = \(nextStep.rawValue)")
-        
+
         currentStep = nextStep
         updateProgress()
         saveFlowState()
@@ -353,23 +353,23 @@ enum SensingFlowStep: String, CaseIterable {
         }
 
         print("📍 checkAntennaConfigurationCompletion: Found \(antennas.count) antennas")
-        
+
         // デフォルト位置(50,50)以外に配置されたアンテナを確認
         let positionedAntennas = antennas.filter { antenna in
             antenna.position.x != 50.0 || antenna.position.y != 50.0
         }
-        
+
         print("📍 checkAntennaConfigurationCompletion: \(positionedAntennas.count) antennas are positioned")
-        
+
         // 最低2つのアンテナが配置されている必要がある
         let hasEnoughAntennas = positionedAntennas.count >= 2
-        
+
         if hasEnoughAntennas {
             print("✅ checkAntennaConfigurationCompletion: Antenna configuration is complete")
         } else {
             print("❌ checkAntennaConfigurationCompletion: Need at least 2 positioned antennas, got \(positionedAntennas.count)")
         }
-        
+
         return hasEnoughAntennas
     }
 

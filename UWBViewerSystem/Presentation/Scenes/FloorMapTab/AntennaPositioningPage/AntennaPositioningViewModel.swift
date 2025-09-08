@@ -20,7 +20,7 @@ class AntennaPositioningViewModel: ObservableObject {
     #endif
     // mapData: IndoorMapDataは現在利用できないため、一時的にコメントアウト
     // var mapData: IndoorMapData?
-    
+
     // フロアマップのスケール（メートル/ピクセル）
     var mapScale: Double {
         // UserDefaultsからフロアマップ情報を取得
@@ -28,16 +28,16 @@ class AntennaPositioningViewModel: ObservableObject {
               let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) else {
             return 0.01 // デフォルト値: 1ピクセル = 1cm
         }
-        
+
         // マップキャンバスのサイズは400x400ピクセル
         let canvasSize: Double = 400.0
-        
+
         // より大きい辺を基準にスケールを計算（アスペクト比を考慮）
         let maxRealSize = max(floorMapInfo.width, floorMapInfo.depth)
         let scale = maxRealSize / canvasSize
-        
+
         print("🗺️ MapScale calculation: width=\(floorMapInfo.width)m, depth=\(floorMapInfo.depth)m, maxSize=\(maxRealSize)m, canvasSize=\(canvasSize)px, scale=\(scale)m/px")
-        
+
         return scale
     }
 
@@ -72,18 +72,18 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func loadMapData() {
         print("📍 AntennaPositioningViewModel: loadMapData called")
-        
+
         // currentFloorMapInfoから読み込む
         if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
            let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) {
             print("📍 AntennaPositioningViewModel: FloorMapInfo loaded - \(floorMapInfo.name)")
-            
+
             // 保存された画像を読み込む
             let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             let imageURL = documentsDirectory.appendingPathComponent("\(floorMapInfo.id).jpg")
-            
+
             print("📍 AntennaPositioningViewModel: Looking for image at: \(imageURL.path)")
-            
+
             // 新しいFloorMapInfo構造を使用して画像を読み込む
             mapImage = floorMapInfo.image
             if mapImage != nil {
@@ -190,7 +190,7 @@ class AntennaPositioningViewModel: ObservableObject {
         }
         updateCanProceed()
     }
-    
+
     func addNewDevice(name: String) {
         let newDevice = AndroidDevice(
             id: UUID().uuidString,
@@ -198,9 +198,9 @@ class AntennaPositioningViewModel: ObservableObject {
             isConnected: false,
             isNearbyDevice: false
         )
-        
+
         selectedDevices.append(newDevice)
-        
+
         let newAntennaPosition = AntennaPosition(
             id: newDevice.id,
             deviceName: newDevice.name,
@@ -208,25 +208,25 @@ class AntennaPositioningViewModel: ObservableObject {
             rotation: 0.0,
             color: colors[antennaPositions.count % colors.count]
         )
-        
+
         antennaPositions.append(newAntennaPosition)
-        
+
         saveSelectedDevices()
         updateCanProceed()
-        
+
         print("🎯 新しいデバイスを追加しました: \(name)")
     }
-    
+
     func removeDevice(_ deviceId: String) {
         selectedDevices.removeAll { $0.id == deviceId }
         antennaPositions.removeAll { $0.id == deviceId }
-        
+
         saveSelectedDevices()
         updateCanProceed()
-        
+
         print("🗑️ デバイスを削除しました: \(deviceId)")
     }
-    
+
     private func saveSelectedDevices() {
         if let encoded = try? JSONEncoder().encode(selectedDevices) {
             UserDefaults.standard.set(encoded, forKey: "SelectedUWBDevices")
@@ -253,15 +253,15 @@ class AntennaPositioningViewModel: ObservableObject {
     func saveAntennaPositionsForFlow() -> Bool {
         print("🔄 saveAntennaPositionsForFlow: Starting save process")
         print("🔄 saveAntennaPositionsForFlow: Total antennas = \(antennaPositions.count)")
-        
+
         // 配置されたアンテナの数をチェック
         let positionedAntennas = antennaPositions.filter { $0.position != CGPoint(x: 50, y: 50) }
         print("🔄 saveAntennaPositionsForFlow: Positioned antennas = \(positionedAntennas.count)")
-        
+
         for (index, antenna) in antennaPositions.enumerated() {
             print("🔄 Antenna \(index): \(antenna.deviceName) at (\(antenna.position.x), \(antenna.position.y))")
         }
-        
+
         guard positionedAntennas.count >= 2 else {
             print("❌ saveAntennaPositionsForFlow: Need at least 2 positioned antennas, got \(positionedAntennas.count)")
             return false

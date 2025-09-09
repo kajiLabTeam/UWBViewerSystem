@@ -68,13 +68,25 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func setModelContext(_ context: ModelContext) {
+        // 同じModelContextが設定されている場合は何もしない
+        if modelContext === context {
+            print("🔄 FloorMapViewModel: 同じModelContextのため処理をスキップ")
+            return
+        }
+        
         modelContext = context
         if #available(macOS 14, iOS 17, *) {
             swiftDataRepository = SwiftDataRepository(modelContext: context)
         }
+        print("🔄 FloorMapViewModel: 新しいModelContextが設定されました、データを再読み込み")
         loadFloorMaps()
     }
 
+    func refreshData() {
+        print("🔄 FloorMapViewModel: refreshData called (外部から呼び出し)")
+        loadFloorMaps()
+    }
+    
     func loadFloorMaps() {
         print("🗂️ FloorMapViewModel: loadFloorMaps called")
 
@@ -115,22 +127,26 @@ class FloorMapViewModel: ObservableObject {
 
                 await MainActor.run {
                     self.floorMaps = floorMaps
+                    print("✅ FloorMapViewModel: フロアマップ一覧をUIに反映: \(floorMaps.count)件")
 
                     // アクティブなフロアマップを設定
                     if let activeId = getCurrentActiveFloorMapId(),
                        let index = self.floorMaps.firstIndex(where: { $0.id == activeId }) {
                         self.floorMaps[index].isActive = true
                         selectedFloorMap = self.floorMaps[index]
+                        print("🔄 アクティブなフロアマップを復元: \(selectedFloorMap?.name ?? "Unknown")")
                     } else if !self.floorMaps.isEmpty {
                         self.floorMaps[0].isActive = true
                         selectedFloorMap = self.floorMaps[0]
+                        print("🔄 デフォルトで最初のフロアマップを選択: \(selectedFloorMap?.name ?? "Unknown")")
                     }
 
                     updateUserDefaults()
                 }
             } catch {
-                print("❌ SwiftDataからの読み込みエラー: \(error)")
+                print("❌ SwiftDataからのフロアマップ読み込みエラー: \(error)")
                 await MainActor.run {
+                    print("🔄 フォールバックデータを読み込み中...")
                     loadFallbackData()
                 }
             }
@@ -139,19 +155,35 @@ class FloorMapViewModel: ObservableObject {
 
     private func loadFallbackData() {
         print("🔄 FloorMapViewModel: Loading fallback data")
-        // UserDefaultsから現在のフロアマップ情報を読み込む
-        if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-           let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) {
+        
+        // UserDefaultsの状態を確認
+        print("🔍 UserDefaults確認:")
+        if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo") {
+            print("   currentFloorMapInfo exists (\(data.count) bytes)")
+            if let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) {
+                print("   FloorMapInfo decoded successfully:")
+                print("     ID: \(floorMapInfo.id)")
+                print("     Name: \(floorMapInfo.name)")
+                print("     Building: \(floorMapInfo.buildingName)")
 
-            let floorMap = FloorMap(from: floorMapInfo, antennaCount: 0, isActive: true)
-            floorMaps = [floorMap]
-            selectedFloorMap = floorMap
-            updateUserDefaults()
+                let floorMap = FloorMap(from: floorMapInfo, antennaCount: 0, isActive: true)
+                floorMaps = [floorMap]
+                selectedFloorMap = floorMap
+                updateUserDefaults()
+                print("✅ フォールバックデータから1件のフロアマップを復元")
+            } else {
+                print("❌ currentFloorMapInfoのデコードに失敗")
+                floorMaps = []
+                selectedFloorMap = nil
+                UserDefaults.standard.set(false, forKey: "hasFloorMapConfigured")
+            }
         } else {
+            print("   currentFloorMapInfo not found")
             // 完全にデータがない場合は空の状態に
             floorMaps = []
             selectedFloorMap = nil
             UserDefaults.standard.set(false, forKey: "hasFloorMapConfigured")
+            print("💭 フォールバックデータなし、空の状態に設定")
         }
     }
 

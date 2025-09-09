@@ -215,23 +215,24 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     public func saveRealtimeData(_ data: RealtimeData, sessionId: String) async throws {
         let persistentData = data.toPersistent()
 
-        // セッションとの関連付け
-        let sessionPredicate = #Predicate<PersistentSensingSession> { $0.id == sessionId }
-        let sessionDescriptor = FetchDescriptor<PersistentSensingSession>(predicate: sessionPredicate)
-        let sessions = try modelContext.fetch(sessionDescriptor)
+        // リレーションシップを削除したため、セッション関連付けはコメントアウト
+        // let sessionPredicate = #Predicate<PersistentSensingSession> { $0.id == sessionId }
+        // let sessionDescriptor = FetchDescriptor<PersistentSensingSession>(predicate: sessionPredicate)
+        // let sessions = try modelContext.fetch(sessionDescriptor)
 
-        if let session = sessions.first {
-            persistentData.session = session
-        }
+        // if let session = sessions.first {
+        //     persistentData.session = session
+        // }
 
         modelContext.insert(persistentData)
         try modelContext.save()
     }
 
     public func loadRealtimeData(for sessionId: String) async throws -> [RealtimeData] {
-        let predicate = #Predicate<PersistentRealtimeData> { $0.session?.id == sessionId }
+        // リレーションシップを削除したため、簡易的に全てのデータを返す（将来的にsessionIdフィールドで絞り込む）
+        // let predicate = #Predicate<PersistentRealtimeData> { $0.session?.id == sessionId }
         let descriptor = FetchDescriptor<PersistentRealtimeData>(
-            predicate: predicate,
+            // predicate: predicate,
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
 
@@ -323,6 +324,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         let persistentFloorMap = floorMap.toPersistent()
         modelContext.insert(persistentFloorMap)
         try modelContext.save()
+        
+        // 保存の確認のためログ出力
+        print("📊 SwiftDataRepository: フロアマップ保存完了 - ID: \(floorMap.id), Name: \(floorMap.name)")
     }
 
     public func loadAllFloorMaps() async throws -> [FloorMapInfo] {
@@ -331,7 +335,14 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         )
 
         let persistentFloorMaps = try modelContext.fetch(descriptor)
-        return persistentFloorMaps.map { $0.toEntity() }
+        let floorMaps = persistentFloorMaps.map { $0.toEntity() }
+        
+        print("📊 SwiftDataRepository: フロアマップ読み込み完了 - \(floorMaps.count)件")
+        for floorMap in floorMaps {
+            print("  - ID: \(floorMap.id), Name: \(floorMap.name)")
+        }
+        
+        return floorMaps
     }
 
     public func loadFloorMap(by id: String) async throws -> FloorMapInfo? {

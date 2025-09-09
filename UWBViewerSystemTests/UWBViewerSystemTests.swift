@@ -197,6 +197,44 @@ struct SwiftDataRepositoryTests {
         let deletedProgress = try await repository.loadProjectProgress(by: testProgress.id)
         #expect(deletedProgress == nil)
     }
+
+    @Test("フロアマップ保存・読み込みテスト")
+    @MainActor
+    func testFloorMapSaveAndLoad() async throws {
+        let repository = try createInMemoryRepository()
+
+        // テストデータを作成
+        let testFloorMap = FloorMapInfo(
+            id: "test_floor_1",
+            name: "テストフロア",
+            buildingName: "テストビル",
+            width: 10.0,
+            depth: 15.0,
+            createdAt: Date()
+        )
+
+        // 保存
+        try await repository.saveFloorMap(testFloorMap)
+
+        // ID指定で読み込み
+        let loadedFloorMap = try await repository.loadFloorMap(by: testFloorMap.id)
+        #expect(loadedFloorMap != nil)
+        #expect(loadedFloorMap?.id == testFloorMap.id)
+        #expect(loadedFloorMap?.name == testFloorMap.name)
+        #expect(loadedFloorMap?.buildingName == testFloorMap.buildingName)
+        #expect(loadedFloorMap?.width == testFloorMap.width)
+        #expect(loadedFloorMap?.depth == testFloorMap.depth)
+
+        // 全件取得
+        let allFloorMaps = try await repository.loadAllFloorMaps()
+        #expect(allFloorMaps.count == 1)
+        #expect(allFloorMaps.first?.id == testFloorMap.id)
+
+        // 削除
+        try await repository.deleteFloorMap(by: testFloorMap.id)
+        let deletedFloorMap = try await repository.loadFloorMap(by: testFloorMap.id)
+        #expect(deletedFloorMap == nil)
+    }
 }
 
 // MARK: - ViewModel Tests with Mock Repository

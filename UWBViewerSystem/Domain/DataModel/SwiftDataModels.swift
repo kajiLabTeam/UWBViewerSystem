@@ -11,28 +11,23 @@ public final class PersistentSensingSession {
     public var startTime: Date
     public var endTime: Date?
     public var isActive: Bool
-    public var antennaPositions: [PersistentAntennaPosition]
-    public var antennaPairings: [PersistentAntennaPairing]
-    public var realtimeDataEntries: [PersistentRealtimeData]
+    // リレーションシップを一旦削除してシンプル化
+    // public var antennaPositions: [PersistentAntennaPosition]
+    // public var antennaPairings: [PersistentAntennaPairing]
+    // public var realtimeDataEntries: [PersistentRealtimeData]
 
     public init(
         id: String = UUID().uuidString,
         name: String,
         startTime: Date = Date(),
         endTime: Date? = nil,
-        isActive: Bool = true,
-        antennaPositions: [PersistentAntennaPosition] = [],
-        antennaPairings: [PersistentAntennaPairing] = [],
-        realtimeDataEntries: [PersistentRealtimeData] = []
+        isActive: Bool = true
     ) {
         self.id = id
         self.name = name
         self.startTime = startTime
         self.endTime = endTime
         self.isActive = isActive
-        self.antennaPositions = antennaPositions
-        self.antennaPairings = antennaPairings
-        self.realtimeDataEntries = realtimeDataEntries
     }
 
     // Entity層への変換メソッド
@@ -58,7 +53,7 @@ public final class PersistentAntennaPosition {
     public var z: Double
     public var rotation: Double  // 新規追加: アンテナの向き（角度）
     public var floorMapId: String  // どのフロアマップに属するかを識別
-    public var session: PersistentSensingSession?
+    // public var session: PersistentSensingSession?  // リレーションシップを一旦削除
 
     public init(
         id: String = UUID().uuidString,
@@ -68,8 +63,7 @@ public final class PersistentAntennaPosition {
         y: Double,
         z: Double,
         rotation: Double = 0.0,
-        floorMapId: String,
-        session: PersistentSensingSession? = nil
+        floorMapId: String
     ) {
         self.id = id
         self.antennaId = antennaId
@@ -79,7 +73,6 @@ public final class PersistentAntennaPosition {
         self.z = z
         self.rotation = rotation
         self.floorMapId = floorMapId
-        self.session = session
     }
 
     public func toEntity() -> AntennaPositionData {
@@ -107,7 +100,7 @@ public final class PersistentAntennaPairing {
     public var deviceName: String
     public var isConnected: Bool
     public var pairedAt: Date
-    public var session: PersistentSensingSession?
+    // public var session: PersistentSensingSession?  // リレーションシップを一旦削除
 
     public init(
         id: String = UUID().uuidString,
@@ -119,8 +112,7 @@ public final class PersistentAntennaPairing {
         deviceId: String,
         deviceName: String,
         isConnected: Bool = false,
-        pairedAt: Date = Date(),
-        session: PersistentSensingSession? = nil
+        pairedAt: Date = Date()
     ) {
         self.id = id
         self.antennaId = antennaId
@@ -132,7 +124,6 @@ public final class PersistentAntennaPairing {
         self.deviceName = deviceName
         self.isConnected = isConnected
         self.pairedAt = pairedAt
-        self.session = session
     }
 
     public func toEntity() -> AntennaPairing {
@@ -162,7 +153,7 @@ public final class PersistentRealtimeData {
     public var nlos: Int
     public var rssi: Double
     public var seqCount: Int
-    public var session: PersistentSensingSession?
+    // public var session: PersistentSensingSession?  // リレーションシップを一旦削除
 
     public init(
         id: UUID = UUID(),
@@ -174,7 +165,7 @@ public final class PersistentRealtimeData {
         nlos: Int,
         rssi: Double,
         seqCount: Int,
-        session: PersistentSensingSession? = nil
+        // session: PersistentSensingSession? = nil  // リレーションシップを一旦削除
     ) {
         self.id = id
         self.deviceName = deviceName
@@ -185,7 +176,7 @@ public final class PersistentRealtimeData {
         self.nlos = nlos
         self.rssi = rssi
         self.seqCount = seqCount
-        self.session = session
+        // self.session = session  // リレーションシップを一旦削除
     }
 
     public func toEntity() -> RealtimeData {

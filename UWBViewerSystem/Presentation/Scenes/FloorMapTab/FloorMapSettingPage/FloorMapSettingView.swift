@@ -298,8 +298,10 @@ struct FloorMapSettingView: View {
                 .cornerRadius(8)
 
                 Button("次へ") {
-                    if viewModel.saveFloorMapSettings() {
-                        flowNavigator.proceedToNextStep()
+                    Task {
+                        if await viewModel.saveFloorMapSettings() {
+                            flowNavigator.proceedToNextStep()
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)

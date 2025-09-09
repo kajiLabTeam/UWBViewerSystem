@@ -35,7 +35,19 @@ struct FloorMapView: View {
                 }
             }
             .onAppear {
+                print("📱 FloorMapView (macOS): onAppear called")
                 viewModel.setModelContext(modelContext)
+                
+                // データが空の場合は少し遅れて再読み込み
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if viewModel.floorMaps.isEmpty {
+                        print("🔄 フロアマップが空のため再読み込み")
+                        viewModel.loadFloorMaps()
+                    }
+                }
+            }
+            .onChange(of: modelContext) { _, newContext in
+                viewModel.setModelContext(newContext)
             }
         #else
             NavigationView {
@@ -56,7 +68,19 @@ struct FloorMapView: View {
                 .navigationTitle("フロアマップ")
                 .navigationBarTitleDisplayMode(.large)
                 .onAppear {
+                    print("📱 FloorMapView (iOS): onAppear called")
                     viewModel.setModelContext(modelContext)
+                    
+                    // データが空の場合は少し遅れて再読み込み
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if viewModel.floorMaps.isEmpty {
+                            print("🔄 フロアマップが空のため再読み込み")
+                            viewModel.loadFloorMaps()
+                        }
+                    }
+                }
+                .onChange(of: modelContext) { _, newContext in
+                    viewModel.setModelContext(newContext)
                 }
             }
         #endif

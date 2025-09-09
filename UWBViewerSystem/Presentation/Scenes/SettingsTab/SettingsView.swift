@@ -69,6 +69,129 @@ struct SettingsView: View {
         .background(Color.purple.opacity(0.1))
         .cornerRadius(12)
     }
+    
+    private var connectionSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("接続設定")
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            VStack(spacing: 0) {
+                SettingsRow(
+                    icon: "wifi",
+                    title: "ペアリング設定",
+                    subtitle: "Android端末との接続",
+                    showChevron: true
+                ) {
+                    #if os(macOS)
+                        viewModel.selectSettingDetail(.pairingSettings)
+                    #else
+                        router.push(.pairingSettingPage)
+                    #endif
+                }
+
+                Divider()
+                    .padding(.leading, 44)
+
+                SettingsRow(
+                    icon: "network",
+                    title: "接続管理",
+                    subtitle: "現在の接続状態",
+                    showChevron: true
+                ) {
+                    #if os(macOS)
+                        viewModel.selectSettingDetail(.connectionManagement)
+                    #else
+                        router.push(.connectionManagementPage)
+                    #endif
+                }
+            }
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
+        }
+    }
+    
+    private var dataManagementSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("データ管理")
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            VStack(spacing: 0) {
+                SettingsRow(
+                    icon: "externaldrive",
+                    title: "データエクスポート",
+                    subtitle: "センシングデータの書き出し",
+                    showChevron: true
+                ) {
+                    #if os(macOS)
+                        viewModel.selectSettingDetail(.dataExport)
+                    #else
+                        // データエクスポート処理 (未実装)
+                    #endif
+                }
+
+                Divider()
+                    .padding(.leading, 44)
+
+                SettingsRow(
+                    icon: "trash",
+                    title: "キャッシュクリア",
+                    subtitle: "一時データの削除",
+                    showChevron: true
+                ) {
+                    #if os(macOS)
+                        viewModel.selectSettingDetail(.cacheManagement)
+                    #else
+                        // キャッシュクリア処理 (未実装)
+                    #endif
+                }
+            }
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
+        }
+    }
+    
+    private var advancedSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("詳細設定")
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            VStack(spacing: 0) {
+                SettingsRow(
+                    icon: "antenna.radiowaves.left.and.right",
+                    title: "アンテナ設定",
+                    subtitle: "配置とキャリブレーション",
+                    showChevron: true
+                ) {
+                    #if os(macOS)
+                        viewModel.selectSettingDetail(.antennaSettings)
+                    #else
+                        router.push(.fieldSettingPage)
+                    #endif
+                }
+
+                Divider()
+                    .padding(.leading, 44)
+
+                SettingsRow(
+                    icon: "megaphone",
+                    title: "広告設定",
+                    subtitle: "デバイス広告機能",
+                    showChevron: true
+                ) {
+                    #if os(macOS)
+                        viewModel.selectSettingDetail(.advertiserSettings)
+                    #else
+                        router.push(.advertiserPage)
+                    #endif
+                }
+            }
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
+        }
+    }
 
     private var aboutSection: some View {
         VStack(alignment: .leading, spacing: 12) {

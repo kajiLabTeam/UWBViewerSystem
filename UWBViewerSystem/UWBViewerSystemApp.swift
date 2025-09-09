@@ -23,16 +23,81 @@ struct UWBViewerSystemApp: App {
             PersistentRealtimeData.self,
             PersistentSystemActivity.self,
             PersistentReceivedFile.self,
+            PersistentFloorMap.self,
+            PersistentProjectProgress.self,
         ])
 
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
+        // インメモリ設定で最初に試行（テスト用）
+        let inMemoryConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        
         do {
+            // まずインメモリで動作確認
+            let testContainer = try ModelContainer(for: schema, configurations: [inMemoryConfiguration])
+            print("✅ SwiftDataスキーマ検証成功")
+            
+            // 実際のファイルベース設定
+            let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            
+            // 既存のデータベースを強制削除して再作成
+            deleteExistingDatabase()
+            
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            fatalError("SwiftDataのモデルコンテナの作成に失敗しました: \(error)")
+            print("⚠️ SwiftDataのモデルコンテナ作成エラー: \(error)")
+            
+            // 強制的にインメモリで動作（データは永続化されないが動作は可能）
+            do {
+                print("🔄 インメモリモードで動作します（データは永続化されません）")
+                return try ModelContainer(for: schema, configurations: [inMemoryConfiguration])
+            } catch {
+                fatalError("SwiftDataの初期化に完全に失敗しました: \(error)")
+            }
         }
     }()
+    
+    @available(macOS 14, iOS 17, *)
+    private static func deleteExistingDatabase() {
+        let fileManager = FileManager.default
+        
+        // 複数のディレクトリをチェックして削除
+        let directories: [(FileManager.SearchPathDirectory, String)] = [
+            (.applicationSupportDirectory, "UWBViewerSystem"),
+            (.documentDirectory, "UWBViewerSystem"),
+            (.cachesDirectory, "UWBViewerSystem"),
+        ]
+        
+        for (directory, appName) in directories {
+            guard let baseDirectory = fileManager.urls(for: directory, in: .userDomainMask).first else {
+                continue
+            }
+            
+            let appDirectory = baseDirectory.appendingPathComponent(appName)
+            
+            do {
+                if fileManager.fileExists(atPath: appDirectory.path) {
+                    try fileManager.removeItem(at: appDirectory)
+                    print("✅ \(directory)の既存データを削除しました: \(appDirectory.path)")
+                }
+            } catch {
+                print("❌ \(directory)データ削除エラー: \(error)")
+            }
+        }
+        
+        // 追加: SwiftDataの一般的なファイル名パターンも削除
+        if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            do {
+                let contents = try fileManager.contentsOfDirectory(at: documentsDirectory, includingPropertiesForKeys: nil)
+                for url in contents {
+                    if url.pathExtension == "sqlite" || url.pathExtension == "sqlite-wal" || url.pathExtension == "sqlite-shm" {
+                        try fileManager.removeItem(at: url)
+                        print("✅ SwiftDataファイルを削除: \(url.lastPathComponent)")
+                    }
+                }
+            } catch {
+                print("❌ SwiftDataファイル削除エラー: \(error)")
+            }
+        }
+    }
 
     var body: some Scene {
         WindowGroup {

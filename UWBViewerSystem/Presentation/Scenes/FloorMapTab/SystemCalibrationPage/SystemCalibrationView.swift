@@ -149,7 +149,7 @@ struct SystemCalibrationView: View {
             }
         }
         .padding()
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.secondary.opacity(0.1))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -180,7 +180,7 @@ struct SystemCalibrationView: View {
             }
         }
         .padding()
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.secondary.opacity(0.1))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -227,7 +227,7 @@ struct SystemCalibrationView: View {
             }
         }
         .padding()
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.secondary.opacity(0.1))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -317,7 +317,7 @@ struct SystemCalibrationView: View {
             .disabled(viewModel.calibrationStatus == .running)
         }
         .padding()
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.secondary.opacity(0.1))
         .cornerRadius(12)
         .shadow(radius: 2)
     }

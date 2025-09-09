@@ -592,7 +592,7 @@
 			repositoryURL = "https://github.com/google/nearby";
 			requirement = {
 				kind = revision;
-				revision = "b90f1d3";
+				revision = b90f1d3;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

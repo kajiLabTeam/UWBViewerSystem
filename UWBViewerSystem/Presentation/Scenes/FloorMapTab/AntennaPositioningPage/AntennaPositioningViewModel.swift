@@ -336,11 +336,12 @@ class AntennaPositioningViewModel: ObservableObject {
     // MARK: - SwiftData関連メソッド
 
     private func loadAntennaPositionsFromSwiftData() {
-        guard let repository = swiftDataRepository else { return }
+        guard let repository = swiftDataRepository,
+              let floorMapInfo = floorMapInfo else { return }
 
         Task {
             do {
-                let positions = try await repository.loadAntennaPositions()
+                let positions = try await repository.loadAntennaPositions(for: floorMapInfo.id)
                 await MainActor.run {
                     // SwiftDataから読み込んだ位置情報を現在のantennaPositionsに適用
                     for position in positions {
@@ -360,7 +361,7 @@ class AntennaPositioningViewModel: ObservableObject {
                         }
                     }
                     updateCanProceed()
-                    print("📱 SwiftDataからアンテナ位置を読み込み完了: \(positions.count)件")
+                    print("📱 SwiftDataからアンテナ位置を読み込み完了: \(positions.count)件 for floorMap: \(floorMapInfo.id)")
                 }
             } catch {
                 print("❌ SwiftDataからの読み込みエラー: \(error)")
@@ -369,7 +370,8 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     private func saveAntennaPositionToSwiftData(_ antennaPosition: AntennaPosition) {
-        guard let repository = swiftDataRepository else { return }
+        guard let repository = swiftDataRepository,
+              let floorMapInfo = floorMapInfo else { return }
 
         Task {
             do {
@@ -382,12 +384,13 @@ class AntennaPositioningViewModel: ObservableObject {
                     antennaId: antennaPosition.id,
                     antennaName: antennaPosition.deviceName,
                     position: Point3D(x: realWorldX, y: realWorldY, z: 0.0),
-                    rotation: antennaPosition.rotation
+                    rotation: antennaPosition.rotation,
+                    floorMapId: floorMapInfo.id
                 )
 
                 // 既存のレコードがあるかチェックして更新 or 新規作成
                 try await repository.saveAntennaPosition(positionData)
-                print("💾 SwiftDataにアンテナ位置を保存: \(antennaPosition.deviceName)")
+                print("💾 SwiftDataにアンテナ位置を保存: \(antennaPosition.deviceName) for floorMap: \(floorMapInfo.id)")
             } catch {
                 print("❌ SwiftDataへの保存エラー: \(error)")
             }
@@ -402,12 +405,15 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     func saveAntennaPositions() {
+        guard let floorMapInfo = floorMapInfo else { return }
+        
         let positionData = antennaPositions.map { antenna in
             AntennaPositionData(
                 antennaId: antenna.id,
                 antennaName: antenna.deviceName,
                 position: Point3D(x: antenna.position.x, y: antenna.position.y, z: 0.0),
-                rotation: antenna.rotation
+                rotation: antenna.rotation,
+                floorMapId: floorMapInfo.id
             )
         }
 
@@ -440,6 +446,9 @@ class AntennaPositioningViewModel: ObservableObject {
         // データを保存
         print("💾 saveAntennaPositionsForFlow: Saving antenna positions")
         saveAntennaPositions()
+        
+        // プロジェクト進行状況を更新
+        updateProjectProgress(toStep: .antennaConfiguration)
 
         print("✅ saveAntennaPositionsForFlow: Save completed successfully")
         return true
@@ -461,6 +470,39 @@ class AntennaPositioningViewModel: ObservableObject {
         let realY = Double(screenPosition.y) * scaleY
 
         return RealWorldPosition(x: realX, y: realY, z: 0)
+    }
+    
+    // MARK: - プロジェクト進行状況更新
+    
+    private func updateProjectProgress(toStep step: SetupStep) {
+        guard let repository = swiftDataRepository,
+              let floorMapInfo = floorMapInfo else { return }
+        
+        Task {
+            do {
+                // 既存の進行状況を取得
+                var projectProgress = try await repository.loadProjectProgress(for: floorMapInfo.id)
+                
+                if projectProgress == nil {
+                    // 進行状況が存在しない場合は新規作成
+                    projectProgress = ProjectProgress(
+                        floorMapId: floorMapInfo.id,
+                        currentStep: step
+                    )
+                } else {
+                    // 既存の進行状況を更新
+                    projectProgress!.currentStep = step
+                    projectProgress!.completedSteps.insert(step)
+                    projectProgress!.updatedAt = Date()
+                }
+                
+                try await repository.updateProjectProgress(projectProgress!)
+                print("✅ プロジェクト進行状況を更新: \(step.displayName)")
+                
+            } catch {
+                print("❌ プロジェクト進行状況の更新エラー: \(error)")
+            }
+        }
     }
 }
 

@@ -178,7 +178,7 @@ struct FloorMapSettingView: View {
             }
         }
         .padding()
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.secondary.opacity(0.1))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -250,7 +250,7 @@ struct FloorMapSettingView: View {
             }
         }
         .padding()
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.secondary.opacity(0.1))
         .cornerRadius(12)
         .shadow(radius: 2)
     }
@@ -276,7 +276,7 @@ struct FloorMapSettingView: View {
             }
         }
         .padding()
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Color.secondary.opacity(0.1))
         .cornerRadius(12)
         .shadow(radius: 2)
     }

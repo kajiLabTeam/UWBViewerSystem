@@ -117,6 +117,81 @@ public struct FloorMapInfo: Codable {
     }
 }
 
+// MARK: - プロジェクト進行状況管理
+
+/// セットアップフローのステップを定義
+public enum SetupStep: String, Codable, CaseIterable {
+    case floorMapSetting = "floor_map_setting"        // フロアマップ設定
+    case antennaConfiguration = "antenna_configuration" // アンテナ配置
+    case devicePairing = "device_pairing"             // デバイスペアリング
+    case dataCollection = "data_collection"           // データ収集
+    case completed = "completed"                      // 完了
+
+    public var displayName: String {
+        switch self {
+        case .floorMapSetting:
+            return "フロアマップ設定"
+        case .antennaConfiguration:
+            return "アンテナ配置"
+        case .devicePairing:
+            return "デバイスペアリング"
+        case .dataCollection:
+            return "データ収集"
+        case .completed:
+            return "完了"
+        }
+    }
+
+    public var order: Int {
+        switch self {
+        case .floorMapSetting: return 1
+        case .antennaConfiguration: return 2
+        case .devicePairing: return 3
+        case .dataCollection: return 4
+        case .completed: return 5
+        }
+    }
+}
+
+/// プロジェクトの進行状況を表すデータ構造
+public struct ProjectProgress: Codable {
+    public let id: String
+    public let floorMapId: String
+    public var currentStep: SetupStep
+    public var completedSteps: Set<SetupStep>
+    public var stepData: [String: Data] // 各ステップの詳細データ
+    public let createdAt: Date
+    public var updatedAt: Date
+
+    public init(
+        id: String = UUID().uuidString,
+        floorMapId: String,
+        currentStep: SetupStep = .floorMapSetting,
+        completedSteps: Set<SetupStep> = [],
+        stepData: [String: Data] = [:],
+        createdAt: Date = Date(),
+        updatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.floorMapId = floorMapId
+        self.currentStep = currentStep
+        self.completedSteps = completedSteps
+        self.stepData = stepData
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    public var completionPercentage: Double {
+        let totalSteps = SetupStep.allCases.count - 1 // completedを除く
+        let completed = completedSteps.filter { $0 != .completed }.count
+        return Double(completed) / Double(totalSteps)
+    }
+
+    public var isCompleted: Bool {
+        return currentStep == .completed
+    }
+}
+
 // FloorMapInfo用のプラットフォーム固有拡張
 #if os(macOS)
     extension FloorMapInfo {

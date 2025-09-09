@@ -46,6 +46,10 @@ struct AntennaPositioningView: View {
             flowNavigator.currentStep = .antennaConfiguration
             flowNavigator.setRouter(router)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .init("FloorMapChanged"))) { _ in
+            // フロアマップが変更された時にデータを再読み込み
+            viewModel.loadMapAndDevices()
+        }
     }
 
     // MARK: - Header Section

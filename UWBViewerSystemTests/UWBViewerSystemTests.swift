@@ -28,7 +28,9 @@ struct SwiftDataRepositoryTests {
             PersistentAntennaPosition.self,
             PersistentAntennaPairing.self,
             PersistentRealtimeData.self,
-            PersistentSystemActivity.self
+            PersistentSystemActivity.self,
+            PersistentFloorMap.self,
+            PersistentProjectProgress.self
         ])
 
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
@@ -122,7 +124,8 @@ struct SwiftDataRepositoryTests {
             antennaId: "antenna_1",
             antennaName: "Test Antenna Position",
             position: Point3D(x: 10.0, y: 20.0, z: 30.0),
-            rotation: 45.0
+            rotation: 45.0,
+            floorMapId: "test_floor_1"
         )
 
         // 保存
@@ -143,6 +146,57 @@ struct SwiftDataRepositoryTests {
         let emptyPositions = try await repository.loadAntennaPositions()
         #expect(emptyPositions.isEmpty)
     }
+    
+    @Test("プロジェクト進行状況保存・読み込みテスト")
+    @MainActor
+    func testProjectProgressSaveAndLoad() async throws {
+        let repository = try createInMemoryRepository()
+        
+        // テストデータを作成
+        let testProgress = ProjectProgress(
+            id: "test_progress_1",
+            floorMapId: "test_floor_1",
+            currentStep: .antennaConfiguration,
+            completedSteps: [.floorMapSetting, .antennaConfiguration]
+        )
+        
+        // 保存
+        try await repository.saveProjectProgress(testProgress)
+        
+        // ID指定で読み込み
+        let loadedProgress = try await repository.loadProjectProgress(by: testProgress.id)
+        #expect(loadedProgress != nil)
+        #expect(loadedProgress?.id == testProgress.id)
+        #expect(loadedProgress?.floorMapId == testProgress.floorMapId)
+        #expect(loadedProgress?.currentStep == testProgress.currentStep)
+        #expect(loadedProgress?.completedSteps == testProgress.completedSteps)
+        
+        // フロアマップID指定で読み込み
+        let progressByFloorMap = try await repository.loadProjectProgress(for: testProgress.floorMapId)
+        #expect(progressByFloorMap?.id == testProgress.id)
+        
+        // 全件取得
+        let allProgress = try await repository.loadAllProjectProgress()
+        #expect(allProgress.count == 1)
+        #expect(allProgress.first?.id == testProgress.id)
+        
+        // 更新テスト
+        var updatedProgress = testProgress
+        updatedProgress.currentStep = .devicePairing
+        updatedProgress.completedSteps.insert(.devicePairing)
+        updatedProgress.updatedAt = Date()
+        
+        try await repository.updateProjectProgress(updatedProgress)
+        
+        let updatedLoadedProgress = try await repository.loadProjectProgress(by: testProgress.id)
+        #expect(updatedLoadedProgress?.currentStep == .devicePairing)
+        #expect(updatedLoadedProgress?.completedSteps.contains(.devicePairing) == true)
+        
+        // 削除
+        try await repository.deleteProjectProgress(by: testProgress.id)
+        let deletedProgress = try await repository.loadProjectProgress(by: testProgress.id)
+        #expect(deletedProgress == nil)
+    }
 }
 
 // MARK: - ViewModel Tests with Mock Repository
@@ -152,6 +206,7 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     private var pairings: [AntennaPairing] = []
     private var positions: [AntennaPositionData] = []
     private var floorMaps: [FloorMapInfo] = []
+    private var projectProgresses: [ProjectProgress] = []
 
     func saveSensingSession(_ session: SensingSession) async throws {
         sessions.append(session)
@@ -200,6 +255,10 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     func loadAntennaPositions() async throws -> [AntennaPositionData] {
         positions.sorted { $0.antennaName < $1.antennaName }
     }
+    
+    func loadAntennaPositions(for floorMapId: String) async throws -> [AntennaPositionData] {
+        positions.filter { $0.floorMapId == floorMapId }.sorted { $0.antennaName < $1.antennaName }
+    }
 
     func deleteAntennaPosition(by id: String) async throws {
         positions.removeAll { $0.id == id }
@@ -244,6 +303,34 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
 
     func setActiveFloorMap(id: String) async throws {
         // テスト用なので実装省略
+    }
+    
+    func saveProjectProgress(_ progress: ProjectProgress) async throws {
+        projectProgresses.append(progress)
+    }
+    
+    func loadProjectProgress(by id: String) async throws -> ProjectProgress? {
+        projectProgresses.first { $0.id == id }
+    }
+    
+    func loadProjectProgress(for floorMapId: String) async throws -> ProjectProgress? {
+        projectProgresses.first { $0.floorMapId == floorMapId }
+    }
+    
+    func loadAllProjectProgress() async throws -> [ProjectProgress] {
+        projectProgresses.sorted { $0.updatedAt > $1.updatedAt }
+    }
+    
+    func deleteProjectProgress(by id: String) async throws {
+        projectProgresses.removeAll { $0.id == id }
+    }
+    
+    func updateProjectProgress(_ progress: ProjectProgress) async throws {
+        if let index = projectProgresses.firstIndex(where: { $0.id == progress.id }) {
+            projectProgresses[index] = progress
+        } else {
+            projectProgresses.append(progress)
+        }
     }
 }
 

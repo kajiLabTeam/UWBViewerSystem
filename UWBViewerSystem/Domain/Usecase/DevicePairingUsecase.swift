@@ -62,7 +62,8 @@ class DevicePairingUsecase: ObservableObject {
                     let position = AntennaPositionData(
                         antennaId: antenna.id,
                         antennaName: antenna.name,
-                        position: antenna.coordinates
+                        position: antenna.coordinates,
+                        floorMapId: "" // TODO: 適切なfloorMapIdを設定
                     )
                     try await swiftDataRepository.saveAntennaPosition(position)
                 }

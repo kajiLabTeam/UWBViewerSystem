@@ -57,6 +57,7 @@ public final class PersistentAntennaPosition {
     public var y: Double
     public var z: Double
     public var rotation: Double  // 新規追加: アンテナの向き（角度）
+    public var floorMapId: String  // どのフロアマップに属するかを識別
     public var session: PersistentSensingSession?
 
     public init(
@@ -67,6 +68,7 @@ public final class PersistentAntennaPosition {
         y: Double,
         z: Double,
         rotation: Double = 0.0,
+        floorMapId: String,
         session: PersistentSensingSession? = nil
     ) {
         self.id = id
@@ -76,6 +78,7 @@ public final class PersistentAntennaPosition {
         self.y = y
         self.z = z
         self.rotation = rotation
+        self.floorMapId = floorMapId
         self.session = session
     }
 
@@ -85,7 +88,8 @@ public final class PersistentAntennaPosition {
             antennaId: antennaId,
             antennaName: antennaName,
             position: Point3D(x: x, y: y, z: z),
-            rotation: rotation
+            rotation: rotation,
+            floorMapId: floorMapId
         )
     }
 }
@@ -142,7 +146,7 @@ public final class PersistentAntennaPairing {
             name: deviceName,
             isConnected: isConnected
         )
-        return AntennaPairing(antenna: antenna, device: device)
+        return AntennaPairing(id: id, antenna: antenna, device: device, pairedAt: pairedAt)
     }
 }
 
@@ -284,6 +288,66 @@ public final class PersistentSystemActivity {
     }
 }
 
+@available(macOS 14, iOS 17, *)
+@Model
+public final class PersistentProjectProgress {
+    public var id: String
+    public var floorMapId: String
+    public var currentStep: String
+    public var completedStepsData: Data // Set<SetupStep>をJSONで保存
+    public var stepData: Data // [String: Data]をJSONで保存
+    public var createdAt: Date
+    public var updatedAt: Date
+
+    public init(
+        id: String = UUID().uuidString,
+        floorMapId: String,
+        currentStep: String = "floor_map_setting",
+        completedStepsData: Data = Data(),
+        stepData: Data = Data(),
+        createdAt: Date = Date(),
+        updatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.floorMapId = floorMapId
+        self.currentStep = currentStep
+        self.completedStepsData = completedStepsData
+        self.stepData = stepData
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    public func toEntity() -> ProjectProgress {
+        let decoder = JSONDecoder()
+        
+        // completedStepsの復元
+        var completedSteps: Set<SetupStep> = []
+        if !completedStepsData.isEmpty {
+            if let stepStrings = try? decoder.decode([String].self, from: completedStepsData) {
+                completedSteps = Set(stepStrings.compactMap { SetupStep(rawValue: $0) })
+            }
+        }
+        
+        // stepDataの復元
+        var projectStepData: [String: Data] = [:]
+        if !stepData.isEmpty {
+            if let decodedStepData = try? decoder.decode([String: Data].self, from: stepData) {
+                projectStepData = decodedStepData
+            }
+        }
+
+        return ProjectProgress(
+            id: id,
+            floorMapId: floorMapId,
+            currentStep: SetupStep(rawValue: currentStep) ?? .floorMapSetting,
+            completedSteps: completedSteps,
+            stepData: projectStepData,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+    }
+}
+
 // PersistentReceivedFileは単体ファイルで定義済み
 
 // MARK: - Entity拡張（SwiftDataモデルへの変換）
@@ -309,7 +373,8 @@ extension AntennaPositionData {
             x: position.x,
             y: position.y,
             z: position.z,
-            rotation: rotation
+            rotation: rotation,
+            floorMapId: floorMapId
         )
     }
 }
@@ -331,6 +396,7 @@ extension FloorMapInfo {
 extension AntennaPairing {
     public func toPersistent() -> PersistentAntennaPairing {
         PersistentAntennaPairing(
+            id: id,
             antennaId: antenna.id,
             antennaName: antenna.name,
             antennaX: antenna.coordinates.x,
@@ -370,6 +436,29 @@ extension SystemActivity {
             status: status.rawValue,
             timestamp: timestamp,
             metadata: metadataData
+        )
+    }
+}
+
+extension ProjectProgress {
+    public func toPersistent() -> PersistentProjectProgress {
+        let encoder = JSONEncoder()
+        
+        // completedStepsをData型に変換
+        let stepStrings = completedSteps.map { $0.rawValue }
+        let completedStepsData = (try? encoder.encode(stepStrings)) ?? Data()
+        
+        // stepDataをData型に変換
+        let stepDataEncoded = (try? encoder.encode(stepData)) ?? Data()
+        
+        return PersistentProjectProgress(
+            id: id,
+            floorMapId: floorMapId,
+            currentStep: currentStep.rawValue,
+            completedStepsData: completedStepsData,
+            stepData: stepDataEncoded,
+            createdAt: createdAt,
+            updatedAt: updatedAt
         )
     }
 }

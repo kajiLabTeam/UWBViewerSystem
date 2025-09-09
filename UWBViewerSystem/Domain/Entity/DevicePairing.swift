@@ -32,6 +32,13 @@ public struct AntennaPairing: Identifiable, Codable {
         self.device = device
         pairedAt = Date()
     }
+
+    init(id: String, antenna: AntennaInfo, device: AndroidDevice, pairedAt: Date) {
+        self.id = id
+        self.antenna = antenna
+        self.device = device
+        self.pairedAt = pairedAt
+    }
 }
 
 // AntennaInfo、Point3DはCommonTypes.swiftで定義済み

@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct FloorMapView: View {
     @StateObject private var viewModel = FloorMapViewModel()

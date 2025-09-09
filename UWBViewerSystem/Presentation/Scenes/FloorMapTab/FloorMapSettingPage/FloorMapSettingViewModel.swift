@@ -1,6 +1,6 @@
 import Foundation
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 #if canImport(UIKit)
     import UIKit
@@ -134,7 +134,7 @@ class FloorMapSettingViewModel: ObservableObject {
 
         do {
             try saveFloorMapInfo(floorMapInfo)
-            
+
             // SwiftDataにも保存
             Task { @MainActor in
                 do {
@@ -146,7 +146,7 @@ class FloorMapSettingViewModel: ObservableObject {
                     print("❌ SwiftDataへの保存エラー: \(error)")
                 }
             }
-            
+
             isLoading = false
             return true
         } catch {

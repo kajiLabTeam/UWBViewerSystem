@@ -38,7 +38,7 @@ public protocol SwiftDataRepositoryProtocol {
     func loadReceivedFiles() async throws -> [ReceivedFile]
     func deleteReceivedFile(by id: UUID) async throws
     func deleteAllReceivedFiles() async throws
-    
+
     // フロアマップ関連
     func saveFloorMap(_ floorMap: FloorMapInfo) async throws
     func loadAllFloorMaps() async throws -> [FloorMapInfo]
@@ -296,52 +296,52 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         }
         try modelContext.save()
     }
-    
+
     // MARK: - フロアマップ関連
-    
+
     public func saveFloorMap(_ floorMap: FloorMapInfo) async throws {
         let persistentFloorMap = floorMap.toPersistent()
         modelContext.insert(persistentFloorMap)
         try modelContext.save()
     }
-    
+
     public func loadAllFloorMaps() async throws -> [FloorMapInfo] {
         let descriptor = FetchDescriptor<PersistentFloorMap>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        
+
         let persistentFloorMaps = try modelContext.fetch(descriptor)
         return persistentFloorMaps.map { $0.toEntity() }
     }
-    
+
     public func loadFloorMap(by id: String) async throws -> FloorMapInfo? {
         let predicate = #Predicate<PersistentFloorMap> { $0.id == id }
         let descriptor = FetchDescriptor<PersistentFloorMap>(predicate: predicate)
-        
+
         let floorMaps = try modelContext.fetch(descriptor)
         return floorMaps.first?.toEntity()
     }
-    
+
     public func deleteFloorMap(by id: String) async throws {
         let predicate = #Predicate<PersistentFloorMap> { $0.id == id }
         let descriptor = FetchDescriptor<PersistentFloorMap>(predicate: predicate)
-        
+
         let floorMaps = try modelContext.fetch(descriptor)
         for floorMap in floorMaps {
             modelContext.delete(floorMap)
         }
         try modelContext.save()
     }
-    
+
     public func setActiveFloorMap(id: String) async throws {
         // すべてのフロアマップを非アクティブに
         let allDescriptor = FetchDescriptor<PersistentFloorMap>()
         let allFloorMaps = try modelContext.fetch(allDescriptor)
-        
+
         for floorMap in allFloorMaps {
             floorMap.isActive = (floorMap.id == id)
         }
-        
+
         try modelContext.save()
     }
 }

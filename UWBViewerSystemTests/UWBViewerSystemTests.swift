@@ -224,24 +224,24 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     func loadReceivedFiles() async throws -> [ReceivedFile] { [] }
     func deleteReceivedFile(by id: UUID) async throws {}
     func deleteAllReceivedFiles() async throws {}
-    
+
     // フロアマップ関連実装
     func saveFloorMap(_ floorMap: FloorMapInfo) async throws {
         floorMaps.append(floorMap)
     }
-    
+
     func loadAllFloorMaps() async throws -> [FloorMapInfo] {
         floorMaps.sorted { $0.createdAt > $1.createdAt }
     }
-    
+
     func loadFloorMap(by id: String) async throws -> FloorMapInfo? {
         floorMaps.first { $0.id == id }
     }
-    
+
     func deleteFloorMap(by id: String) async throws {
         floorMaps.removeAll { $0.id == id }
     }
-    
+
     func setActiveFloorMap(id: String) async throws {
         // テスト用なので実装省略
     }

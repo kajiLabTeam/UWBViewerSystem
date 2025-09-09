@@ -1,6 +1,6 @@
 import Foundation
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 #if os(macOS)
     import AppKit
@@ -21,7 +21,7 @@ class AntennaPositioningViewModel: ObservableObject {
     #endif
     // mapData: IndoorMapDataは現在利用できないため、一時的にコメントアウト
     // var mapData: IndoorMapData?
-    
+
     // SwiftData関連
     private var modelContext: ModelContext?
     private var swiftDataRepository: SwiftDataRepository?
@@ -34,7 +34,7 @@ class AntennaPositioningViewModel: ObservableObject {
         }
         return info
     }
-    
+
     // フロアマップのアスペクト比（width/depth）
     var floorMapAspectRatio: Double {
         guard let info = floorMapInfo else { return 1.0 }
@@ -61,7 +61,7 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     private let colors: [Color] = [.red, .blue, .green, .orange, .purple, .pink, .cyan, .yellow]
-    
+
     // 初期化
     func setModelContext(_ context: ModelContext) {
         modelContext = context
@@ -73,8 +73,8 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func updateCanProceed() {
         // 初期位置（正規化座標で0.125, 0.125）から移動されたアンテナをカウント
-        let positionedAntennas = antennaPositions.filter { 
-            $0.normalizedPosition != CGPoint(x: 0.125, y: 0.125) 
+        let positionedAntennas = antennaPositions.filter {
+            $0.normalizedPosition != CGPoint(x: 0.125, y: 0.125)
         }
         canProceedValue = positionedAntennas.count >= 3
     }
@@ -145,17 +145,17 @@ class AntennaPositioningViewModel: ObservableObject {
         if let index = antennaPositions.firstIndex(where: { $0.id == antennaId }) {
             antennaPositions[index].position = position
             updateCanProceed()
-            
+
             // UserDefaultsに保存
             saveAntennaPositions()
-            
+
             // SwiftDataに自動保存
             saveAntennaPositionToSwiftData(antennaPositions[index])
 
             print("🎯 アンテナ[\(antennaId)]の位置を更新: (\(position.x), \(position.y))")
         }
     }
-    
+
     // 正規化座標を使用した位置更新メソッド
     func updateAntennaPosition(_ antennaId: String, normalizedPosition: CGPoint) {
         if let index = antennaPositions.firstIndex(where: { $0.id == antennaId }) {
@@ -166,10 +166,10 @@ class AntennaPositioningViewModel: ObservableObject {
                 y: normalizedPosition.y * 400
             )
             updateCanProceed()
-            
+
             // UserDefaultsに保存
             saveAntennaPositions()
-            
+
             // SwiftDataに自動保存
             saveAntennaPositionToSwiftData(antennaPositions[index])
 
@@ -180,10 +180,10 @@ class AntennaPositioningViewModel: ObservableObject {
     func updateAntennaRotation(_ antennaId: String, rotation: Double) {
         if let index = antennaPositions.firstIndex(where: { $0.id == antennaId }) {
             antennaPositions[index].rotation = rotation
-            
+
             // UserDefaultsに保存
             saveAntennaPositions()
-            
+
             // SwiftDataに自動保存
             saveAntennaPositionToSwiftData(antennaPositions[index])
 
@@ -206,7 +206,7 @@ class AntennaPositioningViewModel: ObservableObject {
         // フロアマップのアスペクト比を考慮した基準キャンバスサイズを設定
         let baseSize: CGFloat = 400
         let aspectRatio = floorMapAspectRatio
-        
+
         let canvasSize: CGSize
         if aspectRatio > 1.0 {
             // 横長
@@ -215,7 +215,7 @@ class AntennaPositioningViewModel: ObservableObject {
             // 縦長または正方形
             canvasSize = CGSize(width: baseSize * aspectRatio, height: baseSize)
         }
-        
+
         let margin: CGFloat = 60
         let availableWidth = canvasSize.width - (margin * 2)
         let availableHeight = canvasSize.height - (margin * 2)
@@ -289,7 +289,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
     func addNewDevice(name: String) {
         print("🔄 addNewDevice: Starting to add device '\(name)'")
-        
+
         let newDevice = AndroidDevice(
             id: UUID().uuidString,
             name: name,
@@ -316,7 +316,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
         saveSelectedDevices()
         print("🔄 addNewDevice: Selected devices saved to UserDefaults")
-        
+
         updateCanProceed()
         print("🔄 addNewDevice: updateCanProceed called, canProceedValue: \(canProceedValue)")
 
@@ -332,12 +332,12 @@ class AntennaPositioningViewModel: ObservableObject {
 
         print("🗑️ デバイスを削除しました: \(deviceId)")
     }
-    
+
     // MARK: - SwiftData関連メソッド
-    
+
     private func loadAntennaPositionsFromSwiftData() {
         guard let repository = swiftDataRepository else { return }
-        
+
         Task {
             do {
                 let positions = try await repository.loadAntennaPositions()
@@ -348,7 +348,7 @@ class AntennaPositioningViewModel: ObservableObject {
                             // スケール変換: 実世界座標からピクセル座標へ
                             let pixelX = CGFloat(position.position.x / mapScale)
                             let pixelY = CGFloat(position.position.y / mapScale)
-                            
+
                             // 基準キャンバスサイズでの位置を設定
                             antennaPositions[index].position = CGPoint(x: pixelX, y: pixelY)
                             // 正規化座標も更新
@@ -367,16 +367,16 @@ class AntennaPositioningViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func saveAntennaPositionToSwiftData(_ antennaPosition: AntennaPosition) {
         guard let repository = swiftDataRepository else { return }
-        
+
         Task {
             do {
                 // ピクセル座標を実世界座標に変換
                 let realWorldX = Double(antennaPosition.position.x) * mapScale
                 let realWorldY = Double(antennaPosition.position.y) * mapScale
-                
+
                 let positionData = AntennaPositionData(
                     id: antennaPosition.id,
                     antennaId: antennaPosition.id,
@@ -384,7 +384,7 @@ class AntennaPositioningViewModel: ObservableObject {
                     position: Point3D(x: realWorldX, y: realWorldY, z: 0.0),
                     rotation: antennaPosition.rotation
                 )
-                
+
                 // 既存のレコードがあるかチェックして更新 or 新規作成
                 try await repository.saveAntennaPosition(positionData)
                 print("💾 SwiftDataにアンテナ位置を保存: \(antennaPosition.deviceName)")
@@ -473,33 +473,33 @@ struct AntennaPosition: Identifiable {
     var normalizedPosition: CGPoint // 正規化された座標（0-1の範囲、キャンバスサイズ非依存）
     var rotation: Double = 0.0
     let color: Color
-    
+
     // 初期化時に正規化座標を基準キャンバスサイズから計算
     init(id: String, deviceName: String, position: CGPoint, rotation: Double = 0.0, color: Color, baseCanvasSize: CGSize = CGSize(width: 400, height: 400)) {
         self.id = id
         self.deviceName = deviceName
         self.position = position
-        self.normalizedPosition = CGPoint(
+        normalizedPosition = CGPoint(
             x: position.x / baseCanvasSize.width,
             y: position.y / baseCanvasSize.height
         )
         self.rotation = rotation
         self.color = color
     }
-    
+
     // 正規化座標から初期化
     init(id: String, deviceName: String, normalizedPosition: CGPoint, rotation: Double = 0.0, color: Color, canvasSize: CGSize) {
         self.id = id
         self.deviceName = deviceName
         self.normalizedPosition = normalizedPosition
-        self.position = CGPoint(
+        position = CGPoint(
             x: normalizedPosition.x * canvasSize.width,
             y: normalizedPosition.y * canvasSize.height
         )
         self.rotation = rotation
         self.color = color
     }
-    
+
     // ViewでAntennaPosition作成用の初期化（位置と正規化位置を直接指定）
     init(id: String, deviceName: String, position: CGPoint, normalizedPosition: CGPoint, rotation: Double = 0.0, color: Color) {
         self.id = id

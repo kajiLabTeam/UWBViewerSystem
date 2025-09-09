@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct AntennaPositioningView: View {
     @EnvironmentObject var router: NavigationRouterModel
@@ -147,7 +147,7 @@ struct MapCanvasSection: View {
         let baseCanvasSize: Double = 400.0 // 基準キャンバスサイズ
         let actualCanvasSize = min(canvasSize.width, canvasSize.height)
         let scale = Double(actualCanvasSize) / baseCanvasSize
-        
+
         let sizeInPixels = CGFloat(0.15 / mapScale * scale) // 0.15m = 15cm
         print("🎯 Antenna size calculation: canvas=\(actualCanvasSize)px, scale=\(scale), size=\(sizeInPixels)px")
         return sizeInPixels
@@ -158,13 +158,13 @@ struct MapCanvasSection: View {
         let baseCanvasSize: Double = 400.0 // 基準キャンバスサイズ
         let actualCanvasSize = min(canvasSize.width, canvasSize.height)
         let scale = Double(actualCanvasSize) / baseCanvasSize
-        
+
         return CGFloat(50.0 / mapScale * scale) // 50mのセンサー範囲
     }
 
     // 正規化された座標（0-1）を実際のキャンバス座標に変換
     private func normalizedToCanvas(_ normalizedPoint: CGPoint, canvasSize: CGSize) -> CGPoint {
-        return CGPoint(
+        CGPoint(
             x: normalizedPoint.x * canvasSize.width,
             y: normalizedPoint.y * canvasSize.height
         )
@@ -172,19 +172,19 @@ struct MapCanvasSection: View {
 
     // 実際のキャンバス座標を正規化された座標（0-1）に変換
     private func canvasToNormalized(_ canvasPoint: CGPoint, canvasSize: CGSize) -> CGPoint {
-        return CGPoint(
+        CGPoint(
             x: canvasPoint.x / canvasSize.width,
             y: canvasPoint.y / canvasSize.height
         )
     }
-    
+
     // アスペクト比を考慮した実際の画像表示領域を計算
     private func calculateActualImageFrame(canvasSize: CGSize, imageAspectRatio: Double) -> CGRect {
         let canvasAspectRatio = Double(canvasSize.width / canvasSize.height)
-        
+
         var imageWidth: CGFloat
         var imageHeight: CGFloat
-        
+
         if imageAspectRatio > canvasAspectRatio {
             // 画像の方が横長 → 横幅がフィット
             imageWidth = canvasSize.width
@@ -194,27 +194,27 @@ struct MapCanvasSection: View {
             imageHeight = canvasSize.height
             imageWidth = imageHeight * CGFloat(imageAspectRatio)
         }
-        
+
         let offsetX = (canvasSize.width - imageWidth) / 2
         let offsetY = (canvasSize.height - imageHeight) / 2
-        
+
         let frame = CGRect(x: offsetX, y: offsetY, width: imageWidth, height: imageHeight)
         print("🖼️ Image frame calculation: canvas=\(canvasSize), aspectRatio=\(imageAspectRatio), frame=\(frame)")
-        
+
         return frame
     }
-    
+
     // 正規化座標を実際の画像表示座標に変換
     private func normalizedToImageCoordinate(_ normalizedPoint: CGPoint, imageFrame: CGRect) -> CGPoint {
-        return CGPoint(
+        CGPoint(
             x: imageFrame.origin.x + normalizedPoint.x * imageFrame.width,
             y: imageFrame.origin.y + normalizedPoint.y * imageFrame.height
         )
     }
-    
+
     // 実際の画像表示座標を正規化座標に変換
     private func imageCoordinateToNormalized(_ imagePoint: CGPoint, imageFrame: CGRect) -> CGPoint {
-        return CGPoint(
+        CGPoint(
             x: (imagePoint.x - imageFrame.origin.x) / imageFrame.width,
             y: (imagePoint.y - imageFrame.origin.y) / imageFrame.height
         )
@@ -229,7 +229,7 @@ struct MapCanvasSection: View {
                 let currentCanvasSize = geometry.size
                 let imageAspectRatio = viewModel.floorMapAspectRatio
                 let actualImageFrame = calculateActualImageFrame(canvasSize: currentCanvasSize, imageAspectRatio: imageAspectRatio)
-                
+
                 ZStack {
                     // マップ背景
                     if let mapImage = viewModel.mapImage {
@@ -277,7 +277,7 @@ struct MapCanvasSection: View {
                             rotation: antenna.rotation,
                             color: antenna.color
                         )
-                        
+
                         PositionAntennaMarker(
                             antenna: displayAntenna,
                             antennaSize: antennaSizeInPixels(for: actualImageFrame.size),

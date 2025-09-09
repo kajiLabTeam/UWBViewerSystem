@@ -1,6 +1,6 @@
 import Foundation
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct FloorMap: Identifiable {
     let id: String
@@ -13,16 +13,16 @@ struct FloorMap: Identifiable {
     var formattedSize: String {
         String(format: "%.1f × %.1f m", width, height)
     }
-    
+
     init(from floorMapInfo: FloorMapInfo, antennaCount: Int = 0, isActive: Bool = false) {
-        self.id = floorMapInfo.id
-        self.name = floorMapInfo.name
+        id = floorMapInfo.id
+        name = floorMapInfo.name
         self.antennaCount = antennaCount
-        self.width = floorMapInfo.width
-        self.height = floorMapInfo.depth
+        width = floorMapInfo.width
+        height = floorMapInfo.depth
         self.isActive = isActive
     }
-    
+
     init(id: String, name: String, antennaCount: Int, width: Double, height: Double, isActive: Bool) {
         self.id = id
         self.name = name
@@ -37,14 +37,14 @@ struct FloorMap: Identifiable {
 class FloorMapViewModel: ObservableObject {
     @Published var floorMaps: [FloorMap] = []
     @Published var selectedFloorMap: FloorMap?
-    
+
     private var modelContext: ModelContext?
     private var swiftDataRepository: SwiftDataRepository?
 
     init() {
         print("🚀 FloorMapViewModel: init called")
     }
-    
+
     func setModelContext(_ context: ModelContext) {
         modelContext = context
         if #available(macOS 14, iOS 17, *) {
@@ -55,26 +55,26 @@ class FloorMapViewModel: ObservableObject {
 
     func loadFloorMaps() {
         print("🗂️ FloorMapViewModel: loadFloorMaps called")
-        
+
         guard let repository = swiftDataRepository else {
             print("❌ FloorMapViewModel: SwiftDataRepository not available, using fallback data")
             loadFallbackData()
             return
         }
-        
+
         Task {
             do {
                 let floorMapInfos = try await repository.loadAllFloorMaps()
                 print("📱 SwiftDataからフロアマップを読み込み: \(floorMapInfos.count)件")
-                
+
                 await MainActor.run {
                     // SwiftDataからのデータを使用してFloorMapを構築
                     var floorMaps: [FloorMap] = []
-                    
+
                     for floorMapInfo in floorMapInfos {
                         // アンテナ数をカウント（TODO: 実際のアンテナ数を取得）
                         let antennaCount = getAntennaCount(for: floorMapInfo.id)
-                        
+
                         let floorMap = FloorMap(
                             from: floorMapInfo,
                             antennaCount: antennaCount,
@@ -82,9 +82,9 @@ class FloorMapViewModel: ObservableObject {
                         )
                         floorMaps.append(floorMap)
                     }
-                    
+
                     self.floorMaps = floorMaps
-                    
+
                     // アクティブなフロアマップを設定
                     if let activeId = getCurrentActiveFloorMapId(),
                        let index = self.floorMaps.firstIndex(where: { $0.id == activeId }) {
@@ -94,7 +94,7 @@ class FloorMapViewModel: ObservableObject {
                         self.floorMaps[0].isActive = true
                         selectedFloorMap = self.floorMaps[0]
                     }
-                    
+
                     updateUserDefaults()
                 }
             } catch {
@@ -105,13 +105,13 @@ class FloorMapViewModel: ObservableObject {
             }
         }
     }
-    
+
     private func loadFallbackData() {
         print("🔄 FloorMapViewModel: Loading fallback data")
         // UserDefaultsから現在のフロアマップ情報を読み込む
         if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
            let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) {
-            
+
             let floorMap = FloorMap(from: floorMapInfo, antennaCount: 0, isActive: true)
             floorMaps = [floorMap]
             selectedFloorMap = floorMap
@@ -123,12 +123,12 @@ class FloorMapViewModel: ObservableObject {
             UserDefaults.standard.set(false, forKey: "hasFloorMapConfigured")
         }
     }
-    
+
     private func getAntennaCount(for floorMapId: String) -> Int {
         // TODO: SwiftDataからアンテナ位置データを取得して数をカウント
-        return 0
+        0
     }
-    
+
     private func getCurrentActiveFloorMapId() -> String? {
         if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
            let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) {
@@ -136,7 +136,7 @@ class FloorMapViewModel: ObservableObject {
         }
         return nil
     }
-    
+
     private func updateUserDefaults() {
         if !floorMaps.isEmpty {
             UserDefaults.standard.set(true, forKey: "hasFloorMapConfigured")

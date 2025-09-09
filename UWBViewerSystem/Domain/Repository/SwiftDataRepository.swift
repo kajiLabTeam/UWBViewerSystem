@@ -38,6 +38,13 @@ public protocol SwiftDataRepositoryProtocol {
     func loadReceivedFiles() async throws -> [ReceivedFile]
     func deleteReceivedFile(by id: UUID) async throws
     func deleteAllReceivedFiles() async throws
+    
+    // フロアマップ関連
+    func saveFloorMap(_ floorMap: FloorMapInfo) async throws
+    func loadAllFloorMaps() async throws -> [FloorMapInfo]
+    func loadFloorMap(by id: String) async throws -> FloorMapInfo?
+    func deleteFloorMap(by id: String) async throws
+    func setActiveFloorMap(id: String) async throws
 }
 
 @MainActor
@@ -289,6 +296,54 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         }
         try modelContext.save()
     }
+    
+    // MARK: - フロアマップ関連
+    
+    public func saveFloorMap(_ floorMap: FloorMapInfo) async throws {
+        let persistentFloorMap = floorMap.toPersistent()
+        modelContext.insert(persistentFloorMap)
+        try modelContext.save()
+    }
+    
+    public func loadAllFloorMaps() async throws -> [FloorMapInfo] {
+        let descriptor = FetchDescriptor<PersistentFloorMap>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        
+        let persistentFloorMaps = try modelContext.fetch(descriptor)
+        return persistentFloorMaps.map { $0.toEntity() }
+    }
+    
+    public func loadFloorMap(by id: String) async throws -> FloorMapInfo? {
+        let predicate = #Predicate<PersistentFloorMap> { $0.id == id }
+        let descriptor = FetchDescriptor<PersistentFloorMap>(predicate: predicate)
+        
+        let floorMaps = try modelContext.fetch(descriptor)
+        return floorMaps.first?.toEntity()
+    }
+    
+    public func deleteFloorMap(by id: String) async throws {
+        let predicate = #Predicate<PersistentFloorMap> { $0.id == id }
+        let descriptor = FetchDescriptor<PersistentFloorMap>(predicate: predicate)
+        
+        let floorMaps = try modelContext.fetch(descriptor)
+        for floorMap in floorMaps {
+            modelContext.delete(floorMap)
+        }
+        try modelContext.save()
+    }
+    
+    public func setActiveFloorMap(id: String) async throws {
+        // すべてのフロアマップを非アクティブに
+        let allDescriptor = FetchDescriptor<PersistentFloorMap>()
+        let allFloorMaps = try modelContext.fetch(allDescriptor)
+        
+        for floorMap in allFloorMaps {
+            floorMap.isActive = (floorMap.id == id)
+        }
+        
+        try modelContext.save()
+    }
 }
 
 // MARK: - Dummy Repository for Initialization
@@ -322,4 +377,9 @@ public class DummySwiftDataRepository: SwiftDataRepositoryProtocol {
     public func loadReceivedFiles() async throws -> [ReceivedFile] { [] }
     public func deleteReceivedFile(by id: UUID) async throws {}
     public func deleteAllReceivedFiles() async throws {}
+    public func saveFloorMap(_ floorMap: FloorMapInfo) async throws {}
+    public func loadAllFloorMaps() async throws -> [FloorMapInfo] { [] }
+    public func loadFloorMap(by id: String) async throws -> FloorMapInfo? { nil }
+    public func deleteFloorMap(by id: String) async throws {}
+    public func setActiveFloorMap(id: String) async throws {}
 }

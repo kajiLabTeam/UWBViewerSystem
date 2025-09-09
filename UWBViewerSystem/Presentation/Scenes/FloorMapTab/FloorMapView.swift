@@ -1,8 +1,10 @@
 import SwiftUI
+import SwiftData
 
 struct FloorMapView: View {
     @StateObject private var viewModel = FloorMapViewModel()
     @EnvironmentObject var router: NavigationRouterModel
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         #if os(macOS)
@@ -33,7 +35,7 @@ struct FloorMapView: View {
                 }
             }
             .onAppear {
-                viewModel.loadFloorMaps()
+                viewModel.setModelContext(modelContext)
             }
         #else
             NavigationView {
@@ -54,7 +56,7 @@ struct FloorMapView: View {
                 .navigationTitle("フロアマップ")
                 .navigationBarTitleDisplayMode(.large)
                 .onAppear {
-                    viewModel.loadFloorMaps()
+                    viewModel.setModelContext(modelContext)
                 }
             }
         #endif

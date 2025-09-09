@@ -1,9 +1,11 @@
 import SwiftUI
+import SwiftData
 
 struct AntennaPositioningView: View {
     @EnvironmentObject var router: NavigationRouterModel
     @StateObject private var viewModel = AntennaPositioningViewModel()
     @StateObject private var flowNavigator = SensingFlowNavigator()
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,6 +41,7 @@ struct AntennaPositioningView: View {
         .background(Color(UIColor.systemBackground))
         #endif
         .onAppear {
+            viewModel.setModelContext(modelContext)
             viewModel.loadMapAndDevices()
             flowNavigator.currentStep = .antennaConfiguration
             flowNavigator.setRouter(router)
@@ -132,22 +135,89 @@ struct AntennaPositioningView: View {
 
 struct MapCanvasSection: View {
     @ObservedObject var viewModel: AntennaPositioningViewModel
+    @State private var canvasSize: CGSize = CGSize(width: 400, height: 400)
 
     // フロアマップのスケールを計算（メートル/ピクセル）
     private var mapScale: Double {
         viewModel.mapScale
     }
 
-    // 15cmのアンテナサイズをピクセルに変換
-    private var antennaSizeInPixels: CGFloat {
-        let sizeInPixels = CGFloat(0.15 / mapScale) // 0.15m = 15cm
-        print("🎯 Antenna size calculation: 0.15m / \(mapScale)m/px = \(sizeInPixels)px")
+    // 15cmのアンテナサイズをピクセルに変換（キャンバスサイズに基づく）
+    private func antennaSizeInPixels(for canvasSize: CGSize) -> CGFloat {
+        let baseCanvasSize: Double = 400.0 // 基準キャンバスサイズ
+        let actualCanvasSize = min(canvasSize.width, canvasSize.height)
+        let scale = Double(actualCanvasSize) / baseCanvasSize
+        
+        let sizeInPixels = CGFloat(0.15 / mapScale * scale) // 0.15m = 15cm
+        print("🎯 Antenna size calculation: canvas=\(actualCanvasSize)px, scale=\(scale), size=\(sizeInPixels)px")
         return sizeInPixels
     }
 
-    // センサー範囲（50m）をピクセルに変換
-    private var sensorRangeInPixels: CGFloat {
-        CGFloat(50.0 / mapScale) // 50mのセンサー範囲
+    // センサー範囲（50m）をピクセルに変換（キャンバスサイズに基づく）
+    private func sensorRangeInPixels(for canvasSize: CGSize) -> CGFloat {
+        let baseCanvasSize: Double = 400.0 // 基準キャンバスサイズ
+        let actualCanvasSize = min(canvasSize.width, canvasSize.height)
+        let scale = Double(actualCanvasSize) / baseCanvasSize
+        
+        return CGFloat(50.0 / mapScale * scale) // 50mのセンサー範囲
+    }
+
+    // 正規化された座標（0-1）を実際のキャンバス座標に変換
+    private func normalizedToCanvas(_ normalizedPoint: CGPoint, canvasSize: CGSize) -> CGPoint {
+        return CGPoint(
+            x: normalizedPoint.x * canvasSize.width,
+            y: normalizedPoint.y * canvasSize.height
+        )
+    }
+
+    // 実際のキャンバス座標を正規化された座標（0-1）に変換
+    private func canvasToNormalized(_ canvasPoint: CGPoint, canvasSize: CGSize) -> CGPoint {
+        return CGPoint(
+            x: canvasPoint.x / canvasSize.width,
+            y: canvasPoint.y / canvasSize.height
+        )
+    }
+    
+    // アスペクト比を考慮した実際の画像表示領域を計算
+    private func calculateActualImageFrame(canvasSize: CGSize, imageAspectRatio: Double) -> CGRect {
+        let canvasAspectRatio = Double(canvasSize.width / canvasSize.height)
+        
+        var imageWidth: CGFloat
+        var imageHeight: CGFloat
+        
+        if imageAspectRatio > canvasAspectRatio {
+            // 画像の方が横長 → 横幅がフィット
+            imageWidth = canvasSize.width
+            imageHeight = imageWidth / CGFloat(imageAspectRatio)
+        } else {
+            // 画像の方が縦長（または同じ） → 縦幅がフィット
+            imageHeight = canvasSize.height
+            imageWidth = imageHeight * CGFloat(imageAspectRatio)
+        }
+        
+        let offsetX = (canvasSize.width - imageWidth) / 2
+        let offsetY = (canvasSize.height - imageHeight) / 2
+        
+        let frame = CGRect(x: offsetX, y: offsetY, width: imageWidth, height: imageHeight)
+        print("🖼️ Image frame calculation: canvas=\(canvasSize), aspectRatio=\(imageAspectRatio), frame=\(frame)")
+        
+        return frame
+    }
+    
+    // 正規化座標を実際の画像表示座標に変換
+    private func normalizedToImageCoordinate(_ normalizedPoint: CGPoint, imageFrame: CGRect) -> CGPoint {
+        return CGPoint(
+            x: imageFrame.origin.x + normalizedPoint.x * imageFrame.width,
+            y: imageFrame.origin.y + normalizedPoint.y * imageFrame.height
+        )
+    }
+    
+    // 実際の画像表示座標を正規化座標に変換
+    private func imageCoordinateToNormalized(_ imagePoint: CGPoint, imageFrame: CGRect) -> CGPoint {
+        return CGPoint(
+            x: (imagePoint.x - imageFrame.origin.x) / imageFrame.width,
+            y: (imagePoint.y - imageFrame.origin.y) / imageFrame.height
+        )
     }
 
     var body: some View {
@@ -155,55 +225,79 @@ struct MapCanvasSection: View {
             Text("フロアマップ")
                 .font(.headline)
 
-            ZStack {
-                // マップ背景
-                if let mapImage = viewModel.mapImage {
-                    #if os(macOS)
-                        Image(nsImage: mapImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .background(Color(NSColor.controlColor))
-                            .cornerRadius(8)
-                    #elseif os(iOS)
-                        Image(uiImage: mapImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .background(Color(UIColor.systemGray6))
-                            .cornerRadius(8)
-                    #endif
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                    #if os(macOS)
-                        .fill(Color(NSColor.controlColor))
-                    #elseif os(iOS)
-                        .fill(Color(UIColor.systemGray5))
-                    #endif
-                        .overlay(
-                            VStack {
-                                Image(systemName: "map")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.secondary)
-                                Text("マップが読み込まれていません")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+            GeometryReader { geometry in
+                let currentCanvasSize = geometry.size
+                let imageAspectRatio = viewModel.floorMapAspectRatio
+                let actualImageFrame = calculateActualImageFrame(canvasSize: currentCanvasSize, imageAspectRatio: imageAspectRatio)
+                
+                ZStack {
+                    // マップ背景
+                    if let mapImage = viewModel.mapImage {
+                        #if os(macOS)
+                            Image(nsImage: mapImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .background(Color(NSColor.controlColor))
+                                .cornerRadius(8)
+                        #elseif os(iOS)
+                            Image(uiImage: mapImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .background(Color(UIColor.systemGray6))
+                                .cornerRadius(8)
+                        #endif
+                    } else {
+                        RoundedRectangle(cornerRadius: 8)
+                        #if os(macOS)
+                            .fill(Color(NSColor.controlColor))
+                        #elseif os(iOS)
+                            .fill(Color(UIColor.systemGray5))
+                        #endif
+                            .overlay(
+                                VStack {
+                                    Image(systemName: "map")
+                                        .font(.largeTitle)
+                                        .foregroundColor(.secondary)
+                                    Text("マップが読み込まれていません")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            )
+                    }
+
+                    // アンテナ位置
+                    ForEach(viewModel.antennaPositions) { antenna in
+                        // 正規化座標を実際の画像表示座標に変換
+                        let displayPosition = normalizedToImageCoordinate(antenna.normalizedPosition, imageFrame: actualImageFrame)
+                        let displayAntenna = AntennaPosition(
+                            id: antenna.id,
+                            deviceName: antenna.deviceName,
+                            position: displayPosition,
+                            normalizedPosition: antenna.normalizedPosition,
+                            rotation: antenna.rotation,
+                            color: antenna.color
+                        )
+                        
+                        PositionAntennaMarker(
+                            antenna: displayAntenna,
+                            antennaSize: antennaSizeInPixels(for: actualImageFrame.size),
+                            sensorRange: sensorRangeInPixels(for: actualImageFrame.size),
+                            onPositionChanged: { newPosition in
+                                let normalizedPosition = imageCoordinateToNormalized(newPosition, imageFrame: actualImageFrame)
+                                viewModel.updateAntennaPosition(antenna.id, normalizedPosition: normalizedPosition)
+                            },
+                            onRotationChanged: { newRotation in
+                                viewModel.updateAntennaRotation(antenna.id, rotation: newRotation)
                             }
                         )
+                        .zIndex(100) // アンテナマーカーを前面に配置
+                    }
                 }
-
-                // アンテナ位置
-                ForEach(viewModel.antennaPositions) { antenna in
-                    PositionAntennaMarker(
-                        antenna: antenna,
-                        antennaSize: antennaSizeInPixels,
-                        sensorRange: sensorRangeInPixels,
-                        onPositionChanged: { newPosition in
-                            viewModel.updateAntennaPosition(antenna.id, position: newPosition)
-                        },
-                        onRotationChanged: { newRotation in
-                            viewModel.updateAntennaRotation(antenna.id, rotation: newRotation)
-                        }
-                    )
-                    .zIndex(100) // アンテナマーカーを前面に配置
+                .onAppear {
+                    canvasSize = currentCanvasSize
+                }
+                .onChange(of: geometry.size) { _, newSize in
+                    canvasSize = newSize
                 }
             }
             .frame(maxWidth: .infinity)
@@ -236,6 +330,7 @@ struct AntennaDeviceListSection: View {
                 Spacer()
 
                 Button(action: {
+                    print("🔘 Plus button clicked - showing add device alert")
                     newDeviceName = ""
                     showingAddDeviceAlert = true
                 }) {
@@ -269,7 +364,11 @@ struct AntennaDeviceListSection: View {
 
             Button("追加") {
                 if !newDeviceName.isEmpty {
+                    print("🔘 Alert: Adding device with name: \(newDeviceName)")
                     viewModel.addNewDevice(name: newDeviceName)
+                    newDeviceName = ""  // リセット
+                } else {
+                    print("❌ Alert: Device name is empty")
                 }
             }
             .disabled(newDeviceName.isEmpty)

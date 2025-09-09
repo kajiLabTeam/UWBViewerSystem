@@ -201,6 +201,48 @@ public final class PersistentRealtimeData {
 
 @available(macOS 14, iOS 17, *)
 @Model
+public final class PersistentFloorMap {
+    public var id: String
+    public var name: String
+    public var buildingName: String
+    public var width: Double
+    public var depth: Double
+    public var createdAt: Date
+    public var isActive: Bool
+    public var antennaPositions: [PersistentAntennaPosition] = []
+
+    public init(
+        id: String = UUID().uuidString,
+        name: String,
+        buildingName: String,
+        width: Double,
+        depth: Double,
+        createdAt: Date = Date(),
+        isActive: Bool = false
+    ) {
+        self.id = id
+        self.name = name
+        self.buildingName = buildingName
+        self.width = width
+        self.depth = depth
+        self.createdAt = createdAt
+        self.isActive = isActive
+    }
+
+    public func toEntity() -> FloorMapInfo {
+        FloorMapInfo(
+            id: id,
+            name: name,
+            buildingName: buildingName,
+            width: width,
+            depth: depth,
+            createdAt: createdAt
+        )
+    }
+}
+
+@available(macOS 14, iOS 17, *)
+@Model
 public final class PersistentSystemActivity {
     public var id: String
     public var activityType: String
@@ -268,6 +310,20 @@ extension AntennaPositionData {
             y: position.y,
             z: position.z,
             rotation: rotation
+        )
+    }
+}
+
+extension FloorMapInfo {
+    public func toPersistent() -> PersistentFloorMap {
+        PersistentFloorMap(
+            id: id,
+            name: name,
+            buildingName: buildingName,
+            width: width,
+            depth: depth,
+            createdAt: createdAt,
+            isActive: false
         )
     }
 }

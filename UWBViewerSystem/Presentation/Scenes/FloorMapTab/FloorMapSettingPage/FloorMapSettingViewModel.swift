@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import SwiftData
 
 #if canImport(UIKit)
     import UIKit
@@ -11,6 +12,9 @@ import SwiftUI
 @MainActor
 class FloorMapSettingViewModel: ObservableObject {
     // MARK: - Published Properties
+
+    private var modelContext: ModelContext?
+    private var swiftDataRepository: SwiftDataRepository?
 
     #if canImport(UIKit)
         #if os(iOS)
@@ -64,6 +68,13 @@ class FloorMapSettingViewModel: ObservableObject {
         print("🚀 FloorMapSettingViewModel: init called")
         setupFloorPresets()
         print("🚀 FloorMapSettingViewModel: init completed")
+    }
+
+    func setModelContext(_ context: ModelContext) {
+        modelContext = context
+        if #available(macOS 14, iOS 17, *) {
+            swiftDataRepository = SwiftDataRepository(modelContext: context)
+        }
     }
 
     // MARK: - Public Methods
@@ -123,6 +134,19 @@ class FloorMapSettingViewModel: ObservableObject {
 
         do {
             try saveFloorMapInfo(floorMapInfo)
+            
+            // SwiftDataにも保存
+            Task { @MainActor in
+                do {
+                    if let repository = swiftDataRepository {
+                        try await repository.saveFloorMap(floorMapInfo)
+                        print("✅ フロアマップをSwiftDataに保存成功: \(floorMapInfo.name)")
+                    }
+                } catch {
+                    print("❌ SwiftDataへの保存エラー: \(error)")
+                }
+            }
+            
             isLoading = false
             return true
         } catch {

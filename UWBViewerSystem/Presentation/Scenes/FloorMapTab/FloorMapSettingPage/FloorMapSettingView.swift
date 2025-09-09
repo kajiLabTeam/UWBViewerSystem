@@ -40,6 +40,7 @@ struct FloorMapSettingView: View {
         }
         .onAppear {
             print("🏁 FloorMapSettingView: onAppear called")
+            viewModel.setModelContext(modelContext)
             viewModel.setupInitialData()
             flowNavigator.currentStep = .floorMapSetting
             // 共有のRouterをSensingFlowNavigatorに設定

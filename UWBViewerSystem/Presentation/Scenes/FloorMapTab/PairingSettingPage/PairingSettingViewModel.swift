@@ -45,7 +45,8 @@ class PairingSettingViewModel: ObservableObject {
     init(
         swiftDataRepository: SwiftDataRepositoryProtocol,
         nearbyRepository: NearbyRepository? = nil,
-        connectionUsecase: ConnectionManagementUsecase? = nil
+        connectionUsecase: ConnectionManagementUsecase? = nil,
+        autoLoadData: Bool = true
     ) {
         // DI対応: 必要な依存関係を注入または生成
         self.nearbyRepository = nearbyRepository ?? NearbyRepository()
@@ -57,8 +58,10 @@ class PairingSettingViewModel: ObservableObject {
         self.nearbyRepository.callback = self
 
         loadSampleAntennas()
-        Task {
-            await loadPairingData()
+        if autoLoadData {
+            Task {
+                await loadPairingData()
+            }
         }
     }
 
@@ -172,13 +175,6 @@ class PairingSettingViewModel: ObservableObject {
     // MARK: - Antenna Pairing
 
     func pairAntennaWithDevice(antenna: AntennaInfo, device: AndroidDevice) {
-        // 既存のペアリングをチェック
-        if antennaPairings.contains(where: { $0.antenna.id == antenna.id }) {
-            alertMessage = "このアンテナは既にペアリング済みです"
-            showingConnectionAlert = true
-            return
-        }
-
         // 1対1対応: 同じアンテナまたは同じ端末が既にペアリングされているかチェック
         if antennaPairings.contains(where: { $0.antenna.id == antenna.id }) {
             alertMessage = "\(antenna.name)は既に他の端末とペアリング済みです"

@@ -98,7 +98,7 @@ class AntennaPositioningViewModel: ObservableObject {
     private func loadSelectedDevices() {
         // まず、ペアリング情報から選択されたデバイスを読み込む
         loadDevicesFromPairingData()
-        
+
         // フォールバック: 従来のSelectedUWBDevicesから読み込む
         if selectedDevices.isEmpty {
             if let data = UserDefaults.standard.data(forKey: "SelectedUWBDevices"),
@@ -109,25 +109,25 @@ class AntennaPositioningViewModel: ObservableObject {
             }
         }
     }
-    
+
     /// ペアリング情報からデバイス一覧を構築
     private func loadDevicesFromPairingData() {
         guard let repository = swiftDataRepository else {
             print("❌ SwiftDataRepository が利用できません")
             return
         }
-        
+
         Task {
             do {
                 // まずペアリング情報を試行
                 let pairings = try await repository.loadAntennaPairings()
                 print("📱 SwiftDataからペアリング情報を読み込み: \(pairings.count)件")
-                
+
                 if !pairings.isEmpty {
                     await MainActor.run {
                         // 既存のリストをクリア
                         selectedDevices.removeAll()
-                        
+
                         // ペアリング済みデバイスを selectedDevices に設定
                         selectedDevices = pairings.map { pairing in
                             var device = pairing.device
@@ -135,9 +135,9 @@ class AntennaPositioningViewModel: ObservableObject {
                             device.name = pairing.antenna.name.isEmpty ? device.name : pairing.antenna.name
                             return device
                         }
-                        
+
                         print("✅ ペアリング情報から \(selectedDevices.count) 台のデバイスを読み込みました")
-                        
+
                         // アンテナ位置を再作成
                         createAntennaPositions()
                     }
@@ -154,7 +154,7 @@ class AntennaPositioningViewModel: ObservableObject {
             }
         }
     }
-    
+
     /// アンテナ位置データからデバイス一覧を構築
     private func loadDevicesFromAntennaPositions(repository: SwiftDataRepository) async {
         guard let floorMapInfo else {
@@ -163,15 +163,15 @@ class AntennaPositioningViewModel: ObservableObject {
             }
             return
         }
-        
+
         do {
             let antennaPositions = try await repository.loadAntennaPositions(for: floorMapInfo.id)
             print("📱 アンテナ位置データからデバイス一覧を構築: \(antennaPositions.count)件")
-            
+
             await MainActor.run {
                 // 既存のリストをクリア
                 selectedDevices.removeAll()
-                
+
                 // アンテナ位置データからデバイスを構築
                 selectedDevices = antennaPositions.map { position in
                     AndroidDevice(
@@ -181,9 +181,9 @@ class AntennaPositioningViewModel: ObservableObject {
                         isNearbyDevice: false
                     )
                 }
-                
+
                 print("✅ アンテナ位置データから \(selectedDevices.count) 台のデバイスを構築しました")
-                
+
                 // アンテナ位置を再作成
                 createAntennaPositions()
             }
@@ -194,7 +194,7 @@ class AntennaPositioningViewModel: ObservableObject {
             }
         }
     }
-    
+
     /// UserDefaultsから従来の方法でデバイスを読み込み
     private func loadSelectedDevicesFromUserDefaults() {
         if let data = UserDefaults.standard.data(forKey: "SelectedUWBDevices"),
@@ -243,7 +243,7 @@ class AntennaPositioningViewModel: ObservableObject {
             )
         }
         updateCanProceed()
-        
+
         // アンテナ位置作成後に保存データを適用
         loadAntennaPositionsFromSwiftData()
     }
@@ -391,7 +391,7 @@ class AntennaPositioningViewModel: ObservableObject {
             antennaPositions[index].position = resetPosition
             antennaPositions[index].normalizedPosition = CGPoint(x: 0.125, y: 0.125) // 50/400 = 0.125
             antennaPositions[index].rotation = 0.0
-            
+
             // SwiftDataの位置もリセット
             saveAntennaPositionToSwiftData(antennaPositions[index])
         }
@@ -441,37 +441,37 @@ class AntennaPositioningViewModel: ObservableObject {
 
         saveSelectedDevices()
         updateCanProceed()
-        
+
         // SwiftDataからも削除
         deleteAntennaPositionFromSwiftData(deviceId)
 
         print("🗑️ デバイスを削除しました: \(deviceId)")
     }
-    
+
     /// すべてのデバイスを削除
     func removeAllDevices() {
         print("🗑️ 全てのデバイスを削除開始")
-        
+
         // ローカルデータを削除
         selectedDevices.removeAll()
         antennaPositions.removeAll()
-        
+
         saveSelectedDevices()
         updateCanProceed()
-        
+
         // SwiftDataからも全て削除
         deleteAllAntennaPositionsFromSwiftData()
-        
+
         print("🗑️ 全てのデバイスを削除しました")
     }
-    
+
     /// SwiftDataからアンテナ位置を削除
     private func deleteAntennaPositionFromSwiftData(_ antennaId: String) {
         guard let repository = swiftDataRepository else {
             print("❌ SwiftDataRepository が利用できません（deleteAntennaPositionFromSwiftData）")
             return
         }
-        
+
         Task {
             do {
                 try await repository.deleteAntennaPosition(by: antennaId)
@@ -481,7 +481,7 @@ class AntennaPositioningViewModel: ObservableObject {
             }
         }
     }
-    
+
     /// すべてのアンテナ位置をSwiftDataから削除
     private func deleteAllAntennaPositionsFromSwiftData() {
         guard let repository = swiftDataRepository,
@@ -489,17 +489,17 @@ class AntennaPositioningViewModel: ObservableObject {
             print("❌ SwiftDataRepository または FloorMapInfo が利用できません（deleteAllAntennaPositionsFromSwiftData）")
             return
         }
-        
+
         Task {
             do {
                 // 現在のフロアマップのアンテナ位置を全て削除
                 let positions = try await repository.loadAntennaPositions(for: floorMapInfo.id)
                 print("🗑️ 現在のフロアマップのアンテナ位置を全削除: \(positions.count)件")
-                
+
                 for position in positions {
                     try await repository.deleteAntennaPosition(by: position.antennaId)
                 }
-                
+
                 print("🗑️ SwiftDataから全アンテナ位置を削除完了")
             } catch {
                 print("❌ SwiftDataからの全アンテナ位置削除エラー: \(error)")
@@ -514,7 +514,7 @@ class AntennaPositioningViewModel: ObservableObject {
             print("❌ SwiftDataRepository が利用できません（loadAntennaPositionsFromSwiftData）")
             return
         }
-        
+
         guard let floorMapInfo else {
             print("❌ FloorMapInfo が取得できません（loadAntennaPositionsFromSwiftData）")
             return
@@ -526,10 +526,10 @@ class AntennaPositioningViewModel: ObservableObject {
             do {
                 let positions = try await repository.loadAntennaPositions(for: floorMapInfo.id)
                 print("📱 SwiftDataからアンテナ位置データを取得: \(positions.count)件")
-                
+
                 await MainActor.run {
                     var appliedCount = 0
-                    
+
                     // SwiftDataから読み込んだ位置情報を現在のantennaPositionsに適用
                     for position in positions {
                         if let index = antennaPositions.firstIndex(where: { $0.id == position.antennaId }) {
@@ -545,7 +545,7 @@ class AntennaPositioningViewModel: ObservableObject {
                                 y: pixelY / 400.0
                             )
                             antennaPositions[index].rotation = position.rotation
-                            
+
                             appliedCount += 1
                             print("✅ アンテナ[\(position.antennaId)]の位置を復元: (\(pixelX), \(pixelY))")
                         } else {
@@ -554,7 +554,7 @@ class AntennaPositioningViewModel: ObservableObject {
                     }
                     updateCanProceed()
                     print("📱 SwiftDataからアンテナ位置を読み込み完了: \(appliedCount)/\(positions.count)件適用 for floorMap: \(floorMapInfo.id)")
-                    
+
                     // デバッグ情報: 現在のantennaPositions状態
                     print("🔍 現在のantennaPositions状態:")
                     for (index, antenna) in antennaPositions.enumerated() {
@@ -570,16 +570,16 @@ class AntennaPositioningViewModel: ObservableObject {
             }
         }
     }
-    
+
     /// UserDefaultsからアンテナ位置を読み込む（フォールバック）
     private func loadAntennaPositionsFromUserDefaults() {
         print("🔄 UserDefaultsからアンテナ位置を読み込み開始")
-        
+
         if let data = UserDefaults.standard.data(forKey: "configuredAntennaPositions"),
            let positionData = try? JSONDecoder().decode([AntennaPositionData].self, from: data) {
-            
+
             var appliedCount = 0
-            
+
             for position in positionData {
                 if let index = antennaPositions.firstIndex(where: { $0.id == position.antennaId }) {
                     // UserDefaultsから直接ピクセル座標として読み込み（スケール変換なし）
@@ -592,12 +592,12 @@ class AntennaPositioningViewModel: ObservableObject {
                         y: pixelY / 400.0
                     )
                     antennaPositions[index].rotation = position.rotation
-                    
+
                     appliedCount += 1
                     print("✅ UserDefaults: アンテナ[\(position.antennaId)]の位置を復元: (\(pixelX), \(pixelY))")
                 }
             }
-            
+
             updateCanProceed()
             print("📱 UserDefaultsからアンテナ位置を読み込み完了: \(appliedCount)/\(positionData.count)件適用")
         } else {

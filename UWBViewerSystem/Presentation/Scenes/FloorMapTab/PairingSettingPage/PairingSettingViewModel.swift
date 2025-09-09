@@ -78,7 +78,7 @@ class PairingSettingViewModel: ObservableObject {
     private func loadSampleAntennas() {
         // まず、保存されたアンテナ位置情報から読み込む
         loadAntennasFromPositionData()
-        
+
         // データがない場合は従来の方法で読み込む
         if selectedAntennas.isEmpty {
             // FieldSettingViewModelから保存されたアンテナ設定を読み込み
@@ -100,7 +100,7 @@ class PairingSettingViewModel: ObservableObject {
             print("📱 デフォルトアンテナを作成: \(selectedAntennas.count)台")
         }
     }
-    
+
     /// 保存されたアンテナ位置データから読み込む
     private func loadAntennasFromPositionData() {
         Task {
@@ -108,7 +108,7 @@ class PairingSettingViewModel: ObservableObject {
                 // SwiftDataからアンテナ位置データを読み込み
                 if let floorMapInfo = getCurrentFloorMapInfo() {
                     let positionData = try await swiftDataRepository.loadAntennaPositions(for: floorMapInfo.id)
-                    
+
                     await MainActor.run {
                         selectedAntennas = positionData.map { position in
                             AntennaInfo(
@@ -128,7 +128,7 @@ class PairingSettingViewModel: ObservableObject {
             }
         }
     }
-    
+
     /// UserDefaultsから従来の方法でアンテナを読み込み
     private func loadAntennasFromUserDefaults() {
         // configuredAntennaPositionsから読み込み
@@ -144,7 +144,7 @@ class PairingSettingViewModel: ObservableObject {
             print("📱 configuredAntennaPositionsからアンテナを読み込み: \(selectedAntennas.count)台")
             return
         }
-        
+
         // FieldAntennaConfigurationから読み込み
         if let data = UserDefaults.standard.data(forKey: "FieldAntennaConfiguration"),
            let decoded = try? JSONDecoder().decode([AntennaInfo].self, from: data) {
@@ -152,7 +152,7 @@ class PairingSettingViewModel: ObservableObject {
             print("📱 FieldAntennaConfigurationからアンテナを読み込み: \(selectedAntennas.count)台")
         }
     }
-    
+
     /// 現在のフロアマップ情報を取得
     private func getCurrentFloorMapInfo() -> FloorMapInfo? {
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),

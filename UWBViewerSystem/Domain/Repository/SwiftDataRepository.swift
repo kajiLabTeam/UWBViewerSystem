@@ -150,7 +150,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let positions = try modelContext.fetch(descriptor)
         print("🗑️ SwiftDataRepository: アンテナID[\(id)]で検索、\(positions.count)件見つかりました")
-        
+
         for position in positions {
             print("🗑️ SwiftDataRepository: 削除中 - ID: \(position.id), AntennaID: \(position.antennaId), Name: \(position.antennaName)")
             modelContext.delete(position)

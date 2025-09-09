@@ -106,7 +106,7 @@ struct AntennaPositioningView: View {
                 .foregroundColor(.orange)
                 .background(Color.orange.opacity(0.1))
                 .cornerRadius(8)
-                
+
                 Button("全削除") {
                     viewModel.removeAllDevices()
                 }

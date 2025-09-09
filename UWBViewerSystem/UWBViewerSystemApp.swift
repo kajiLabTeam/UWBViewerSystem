@@ -32,7 +32,7 @@ struct UWBViewerSystemApp: App {
             // まず既存のデータベースを強制削除
             print("🗑️ 既存のデータベースを削除してスキーマをリセット")
             deleteExistingDatabase()
-            
+
             // データベースファイルの場所を表示
             if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
                 print("📁 Documents Directory: \(documentsDirectory.path)")
@@ -40,43 +40,43 @@ struct UWBViewerSystemApp: App {
             if let applicationSupportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
                 print("📁 Application Support Directory: \(applicationSupportDirectory.path)")
             }
-            
+
             // ApplicationSupportディレクトリの作成を確実に行う
             let fileManager = FileManager.default
             if let appSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
                 let bundleID = Bundle.main.bundleIdentifier ?? "net.harutiro.UWBViewerSystem"
                 let appDirectory = appSupportURL.appendingPathComponent(bundleID)
-                
+
                 if !fileManager.fileExists(atPath: appDirectory.path) {
                     try fileManager.createDirectory(at: appDirectory, withIntermediateDirectories: true)
                     print("📁 ApplicationSupport ディレクトリを作成: \(appDirectory.path)")
                 }
-                
+
                 // カスタムModelConfigurationでファイル場所を指定
                 let customURL = appDirectory.appendingPathComponent("SwiftData.sqlite")
                 let modelConfiguration = ModelConfiguration(url: customURL)
                 let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
                 print("✅ SwiftDataファイルベース永続化で初期化成功 (カスタムパス)")
-                
+
                 return container
             } else {
                 // フォールバック: デフォルトファイルベース設定で直接作成を試行
                 let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
                 let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
                 print("✅ SwiftDataファイルベース永続化で初期化成功 (デフォルトパス)")
-                
+
                 return container
             }
         } catch {
             print("⚠️ SwiftDataのモデルコンテナ作成エラー: \(error)")
-            
+
             // スキーマ関連のエラーの場合のみデータベースを削除して再試行
-            if error.localizedDescription.contains("SwiftDataError") || 
-               error.localizedDescription.contains("model") || 
-               error.localizedDescription.contains("schema") {
+            if error.localizedDescription.contains("SwiftDataError") ||
+                error.localizedDescription.contains("model") ||
+                error.localizedDescription.contains("schema") {
                 print("🔄 スキーマエラーのため既存データベースを削除して再作成します")
                 deleteExistingDatabase()
-                
+
                 do {
                     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
                     return try ModelContainer(for: schema, configurations: [modelConfiguration])
@@ -170,11 +170,11 @@ struct UWBViewerSystemApp: App {
     @MainActor
     private func debugDatabaseContents() async {
         print("🔍 === DATABASE DEBUG START ===")
-        
+
         // データベースファイルの場所を確認
         if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             print("📁 Documents Directory: \(documentsDirectory.path)")
-            
+
             // SwiftDataファイルを探す
             do {
                 let contents = try FileManager.default.contentsOfDirectory(at: documentsDirectory, includingPropertiesForKeys: [.fileSizeKey, .creationDateKey])
@@ -189,9 +189,9 @@ struct UWBViewerSystemApp: App {
                 print("❌ Documents Directory読み取りエラー: \(error)")
             }
         }
-        
+
         let swiftDataRepository = SwiftDataRepository(modelContext: sharedModelContainer.mainContext)
-        
+
         do {
             // フロアマップの確認
             let floorMaps = try await swiftDataRepository.loadAllFloorMaps()
@@ -203,7 +203,7 @@ struct UWBViewerSystemApp: App {
                 print("      Size: \(floorMap.width) × \(floorMap.depth)")
                 print("      Created: \(floorMap.createdAt)")
             }
-            
+
             // プロジェクト進行状況の確認
             let projectProgresses = try await swiftDataRepository.loadAllProjectProgress()
             print("📊 データベース内のプロジェクト進行状況: \(projectProgresses.count)件")
@@ -213,7 +213,7 @@ struct UWBViewerSystemApp: App {
                 print("      CurrentStep: \(progress.currentStep.displayName)")
                 print("      CompletedSteps: \(progress.completedSteps.map { $0.displayName }.joined(separator: ", "))")
             }
-            
+
             // アンテナ位置の確認
             let antennaPositions = try await swiftDataRepository.loadAntennaPositions()
             print("📊 データベース内のアンテナ位置: \(antennaPositions.count)件")
@@ -223,11 +223,11 @@ struct UWBViewerSystemApp: App {
                 print("      Name: \(position.antennaName)")
                 print("      Position: (\(position.position.x), \(position.position.y), \(position.position.z))")
             }
-            
+
         } catch {
             print("❌ データベースデバッグ中にエラーが発生: \(error)")
         }
-        
+
         print("🔍 === DATABASE DEBUG END ===")
     }
 }

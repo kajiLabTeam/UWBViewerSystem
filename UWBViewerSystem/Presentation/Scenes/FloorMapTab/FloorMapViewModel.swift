@@ -73,7 +73,7 @@ class FloorMapViewModel: ObservableObject {
             print("🔄 FloorMapViewModel: 同じModelContextのため処理をスキップ")
             return
         }
-        
+
         modelContext = context
         if #available(macOS 14, iOS 17, *) {
             swiftDataRepository = SwiftDataRepository(modelContext: context)
@@ -86,7 +86,7 @@ class FloorMapViewModel: ObservableObject {
         print("🔄 FloorMapViewModel: refreshData called (外部から呼び出し)")
         loadFloorMaps()
     }
-    
+
     func loadFloorMaps() {
         print("🗂️ FloorMapViewModel: loadFloorMaps called")
 
@@ -155,7 +155,7 @@ class FloorMapViewModel: ObservableObject {
 
     private func loadFallbackData() {
         print("🔄 FloorMapViewModel: Loading fallback data")
-        
+
         // UserDefaultsの状態を確認
         print("🔍 UserDefaults確認:")
         if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo") {

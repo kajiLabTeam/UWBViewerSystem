@@ -324,7 +324,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         let persistentFloorMap = floorMap.toPersistent()
         modelContext.insert(persistentFloorMap)
         try modelContext.save()
-        
+
         // 保存の確認のためログ出力
         print("📊 SwiftDataRepository: フロアマップ保存完了 - ID: \(floorMap.id), Name: \(floorMap.name)")
     }
@@ -336,12 +336,12 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let persistentFloorMaps = try modelContext.fetch(descriptor)
         let floorMaps = persistentFloorMaps.map { $0.toEntity() }
-        
+
         print("📊 SwiftDataRepository: フロアマップ読み込み完了 - \(floorMaps.count)件")
         for floorMap in floorMaps {
             print("  - ID: \(floorMap.id), Name: \(floorMap.name)")
         }
-        
+
         return floorMaps
     }
 

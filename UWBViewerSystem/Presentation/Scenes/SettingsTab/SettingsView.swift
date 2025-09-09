@@ -69,7 +69,7 @@ struct SettingsView: View {
         .background(Color.purple.opacity(0.1))
         .cornerRadius(12)
     }
-    
+
     private var connectionSettingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("接続設定")
@@ -110,7 +110,7 @@ struct SettingsView: View {
             .cornerRadius(12)
         }
     }
-    
+
     private var dataManagementSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("データ管理")
@@ -151,7 +151,7 @@ struct SettingsView: View {
             .cornerRadius(12)
         }
     }
-    
+
     private var advancedSettingsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("詳細設定")

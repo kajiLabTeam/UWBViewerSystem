@@ -46,7 +46,7 @@ public protocol SwiftDataRepositoryProtocol {
     func loadFloorMap(by id: String) async throws -> FloorMapInfo?
     func deleteFloorMap(by id: String) async throws
     func setActiveFloorMap(id: String) async throws
-    
+
     // プロジェクト進行状況関連
     func saveProjectProgress(_ progress: ProjectProgress) async throws
     func loadProjectProgress(by id: String) async throws -> ProjectProgress?
@@ -131,7 +131,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         let persistentPositions = try modelContext.fetch(descriptor)
         return persistentPositions.map { $0.toEntity() }
     }
-    
+
     public func loadAntennaPositions(for floorMapId: String) async throws -> [AntennaPositionData] {
         let predicate = #Predicate<PersistentAntennaPosition> { $0.floorMapId == floorMapId }
         let descriptor = FetchDescriptor<PersistentAntennaPosition>(
@@ -364,72 +364,72 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         try modelContext.save()
     }
-    
+
     // MARK: - プロジェクト進行状況関連
-    
+
     public func saveProjectProgress(_ progress: ProjectProgress) async throws {
         let persistentProgress = progress.toPersistent()
         modelContext.insert(persistentProgress)
         try modelContext.save()
     }
-    
+
     public func loadProjectProgress(by id: String) async throws -> ProjectProgress? {
         let predicate = #Predicate<PersistentProjectProgress> { $0.id == id }
         let descriptor = FetchDescriptor<PersistentProjectProgress>(predicate: predicate)
-        
+
         let progresses = try modelContext.fetch(descriptor)
         return progresses.first?.toEntity()
     }
-    
+
     public func loadProjectProgress(for floorMapId: String) async throws -> ProjectProgress? {
         let predicate = #Predicate<PersistentProjectProgress> { $0.floorMapId == floorMapId }
         let descriptor = FetchDescriptor<PersistentProjectProgress>(
             predicate: predicate,
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
-        
+
         let progresses = try modelContext.fetch(descriptor)
         return progresses.first?.toEntity()
     }
-    
+
     public func loadAllProjectProgress() async throws -> [ProjectProgress] {
         let descriptor = FetchDescriptor<PersistentProjectProgress>(
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
-        
+
         let persistentProgresses = try modelContext.fetch(descriptor)
         return persistentProgresses.map { $0.toEntity() }
     }
-    
+
     public func deleteProjectProgress(by id: String) async throws {
         let predicate = #Predicate<PersistentProjectProgress> { $0.id == id }
         let descriptor = FetchDescriptor<PersistentProjectProgress>(predicate: predicate)
-        
+
         let progresses = try modelContext.fetch(descriptor)
         for progress in progresses {
             modelContext.delete(progress)
         }
         try modelContext.save()
     }
-    
+
     public func updateProjectProgress(_ progress: ProjectProgress) async throws {
         let predicate = #Predicate<PersistentProjectProgress> { $0.id == progress.id }
         let descriptor = FetchDescriptor<PersistentProjectProgress>(predicate: predicate)
-        
+
         let existingProgresses = try modelContext.fetch(descriptor)
         if let existingProgress = existingProgresses.first {
             // 既存のプロジェクト進行状況を更新
             existingProgress.currentStep = progress.currentStep.rawValue
             existingProgress.updatedAt = progress.updatedAt
-            
+
             // completedStepsの更新
             let encoder = JSONEncoder()
             let stepStrings = progress.completedSteps.map { $0.rawValue }
             existingProgress.completedStepsData = (try? encoder.encode(stepStrings)) ?? Data()
-            
+
             // stepDataの更新
             existingProgress.stepData = (try? encoder.encode(progress.stepData)) ?? Data()
-            
+
             try modelContext.save()
         } else {
             // 存在しない場合は新規作成

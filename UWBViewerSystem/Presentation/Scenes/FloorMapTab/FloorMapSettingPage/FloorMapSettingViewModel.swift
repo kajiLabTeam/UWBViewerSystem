@@ -141,14 +141,14 @@ class FloorMapSettingViewModel: ObservableObject {
                     if let repository = swiftDataRepository {
                         try await repository.saveFloorMap(floorMapInfo)
                         print("✅ フロアマップをSwiftDataに保存成功: \(floorMapInfo.name)")
-                        
+
                         // プロジェクト進行状況を初期化して保存
                         let projectProgress = ProjectProgress(
                             floorMapId: floorMapInfo.id,
                             currentStep: .floorMapSetting,
                             completedSteps: [.floorMapSetting] // フロアマップ設定完了
                         )
-                        
+
                         try await repository.saveProjectProgress(projectProgress)
                         print("✅ プロジェクト進行状況を保存成功: \(projectProgress.currentStep.displayName)")
                     }

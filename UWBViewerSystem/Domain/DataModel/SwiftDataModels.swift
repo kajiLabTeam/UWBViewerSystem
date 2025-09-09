@@ -319,7 +319,7 @@ public final class PersistentProjectProgress {
 
     public func toEntity() -> ProjectProgress {
         let decoder = JSONDecoder()
-        
+
         // completedStepsの復元
         var completedSteps: Set<SetupStep> = []
         if !completedStepsData.isEmpty {
@@ -327,7 +327,7 @@ public final class PersistentProjectProgress {
                 completedSteps = Set(stepStrings.compactMap { SetupStep(rawValue: $0) })
             }
         }
-        
+
         // stepDataの復元
         var projectStepData: [String: Data] = [:]
         if !stepData.isEmpty {
@@ -443,14 +443,14 @@ extension SystemActivity {
 extension ProjectProgress {
     public func toPersistent() -> PersistentProjectProgress {
         let encoder = JSONEncoder()
-        
+
         // completedStepsをData型に変換
         let stepStrings = completedSteps.map { $0.rawValue }
         let completedStepsData = (try? encoder.encode(stepStrings)) ?? Data()
-        
+
         // stepDataをData型に変換
         let stepDataEncoded = (try? encoder.encode(stepData)) ?? Data()
-        
+
         return PersistentProjectProgress(
             id: id,
             floorMapId: floorMapId,

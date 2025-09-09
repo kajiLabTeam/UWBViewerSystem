@@ -29,22 +29,22 @@ struct UWBViewerSystemApp: App {
 
         // インメモリ設定で最初に試行（テスト用）
         let inMemoryConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        
+
         do {
             // まずインメモリで動作確認
             let testContainer = try ModelContainer(for: schema, configurations: [inMemoryConfiguration])
             print("✅ SwiftDataスキーマ検証成功")
-            
+
             // 実際のファイルベース設定
             let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-            
+
             // 既存のデータベースを強制削除して再作成
             deleteExistingDatabase()
-            
+
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
             print("⚠️ SwiftDataのモデルコンテナ作成エラー: \(error)")
-            
+
             // 強制的にインメモリで動作（データは永続化されないが動作は可能）
             do {
                 print("🔄 インメモリモードで動作します（データは永続化されません）")
@@ -54,25 +54,25 @@ struct UWBViewerSystemApp: App {
             }
         }
     }()
-    
+
     @available(macOS 14, iOS 17, *)
     private static func deleteExistingDatabase() {
         let fileManager = FileManager.default
-        
+
         // 複数のディレクトリをチェックして削除
         let directories: [(FileManager.SearchPathDirectory, String)] = [
             (.applicationSupportDirectory, "UWBViewerSystem"),
             (.documentDirectory, "UWBViewerSystem"),
             (.cachesDirectory, "UWBViewerSystem"),
         ]
-        
+
         for (directory, appName) in directories {
             guard let baseDirectory = fileManager.urls(for: directory, in: .userDomainMask).first else {
                 continue
             }
-            
+
             let appDirectory = baseDirectory.appendingPathComponent(appName)
-            
+
             do {
                 if fileManager.fileExists(atPath: appDirectory.path) {
                     try fileManager.removeItem(at: appDirectory)
@@ -82,7 +82,7 @@ struct UWBViewerSystemApp: App {
                 print("❌ \(directory)データ削除エラー: \(error)")
             }
         }
-        
+
         // 追加: SwiftDataの一般的なファイル名パターンも削除
         if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
             do {

@@ -188,7 +188,7 @@ public struct ProjectProgress: Codable {
     }
 
     public var isCompleted: Bool {
-        return currentStep == .completed
+        currentStep == .completed
     }
 }
 

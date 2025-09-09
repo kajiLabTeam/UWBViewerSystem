@@ -337,7 +337,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func loadAntennaPositionsFromSwiftData() {
         guard let repository = swiftDataRepository,
-              let floorMapInfo = floorMapInfo else { return }
+              let floorMapInfo else { return }
 
         Task {
             do {
@@ -371,7 +371,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func saveAntennaPositionToSwiftData(_ antennaPosition: AntennaPosition) {
         guard let repository = swiftDataRepository,
-              let floorMapInfo = floorMapInfo else { return }
+              let floorMapInfo else { return }
 
         Task {
             do {
@@ -405,8 +405,8 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     func saveAntennaPositions() {
-        guard let floorMapInfo = floorMapInfo else { return }
-        
+        guard let floorMapInfo else { return }
+
         let positionData = antennaPositions.map { antenna in
             AntennaPositionData(
                 antennaId: antenna.id,
@@ -446,7 +446,7 @@ class AntennaPositioningViewModel: ObservableObject {
         // データを保存
         print("💾 saveAntennaPositionsForFlow: Saving antenna positions")
         saveAntennaPositions()
-        
+
         // プロジェクト進行状況を更新
         updateProjectProgress(toStep: .antennaConfiguration)
 
@@ -471,18 +471,18 @@ class AntennaPositioningViewModel: ObservableObject {
 
         return RealWorldPosition(x: realX, y: realY, z: 0)
     }
-    
+
     // MARK: - プロジェクト進行状況更新
-    
+
     private func updateProjectProgress(toStep step: SetupStep) {
         guard let repository = swiftDataRepository,
-              let floorMapInfo = floorMapInfo else { return }
-        
+              let floorMapInfo else { return }
+
         Task {
             do {
                 // 既存の進行状況を取得
                 var projectProgress = try await repository.loadProjectProgress(for: floorMapInfo.id)
-                
+
                 if projectProgress == nil {
                     // 進行状況が存在しない場合は新規作成
                     projectProgress = ProjectProgress(
@@ -495,10 +495,10 @@ class AntennaPositioningViewModel: ObservableObject {
                     projectProgress!.completedSteps.insert(step)
                     projectProgress!.updatedAt = Date()
                 }
-                
+
                 try await repository.updateProjectProgress(projectProgress!)
                 print("✅ プロジェクト進行状況を更新: \(step.displayName)")
-                
+
             } catch {
                 print("❌ プロジェクト進行状況の更新エラー: \(error)")
             }

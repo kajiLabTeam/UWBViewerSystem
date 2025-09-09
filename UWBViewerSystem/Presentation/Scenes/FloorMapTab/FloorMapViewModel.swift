@@ -14,11 +14,11 @@ struct FloorMap: Identifiable {
     var formattedSize: String {
         String(format: "%.1f × %.1f m", width, height)
     }
-    
+
     var progressPercentage: Double {
         projectProgress?.completionPercentage ?? 0.0
     }
-    
+
     var currentStepDisplayName: String {
         projectProgress?.currentStep.displayName ?? "未開始"
     }
@@ -42,7 +42,7 @@ struct FloorMap: Identifiable {
         self.isActive = isActive
         self.projectProgress = projectProgress
     }
-    
+
     func toFloorMapInfo() -> FloorMapInfo {
         FloorMapInfo(
             id: id,
@@ -95,7 +95,7 @@ class FloorMapViewModel: ObservableObject {
                 for floorMapInfo in floorMapInfos {
                     // アンテナ数をカウント（TODO: 実際のアンテナ数を取得）
                     let antennaCount = getAntennaCount(for: floorMapInfo.id)
-                    
+
                     // プロジェクト進行状況を取得
                     var projectProgress: ProjectProgress?
                     do {
@@ -181,16 +181,16 @@ class FloorMapViewModel: ObservableObject {
             floorMaps[i].isActive = (floorMaps[i].id == map.id)
         }
         selectedFloorMap = map
-        
+
         // UserDefaultsのcurrentFloorMapInfoを更新
         updateCurrentFloorMapInfo(map.toFloorMapInfo())
     }
-    
+
     private func updateCurrentFloorMapInfo(_ floorMapInfo: FloorMapInfo) {
         if let encoded = try? JSONEncoder().encode(floorMapInfo) {
             UserDefaults.standard.set(encoded, forKey: "currentFloorMapInfo")
             print("📍 FloorMapViewModel: currentFloorMapInfo updated to: \(floorMapInfo.name)")
-            
+
             // フロアマップ変更を通知
             NotificationCenter.default.post(name: .init("FloorMapChanged"), object: floorMapInfo)
         }

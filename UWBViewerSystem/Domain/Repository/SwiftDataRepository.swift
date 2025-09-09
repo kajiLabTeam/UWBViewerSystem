@@ -144,14 +144,19 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func deleteAntennaPosition(by id: String) async throws {
-        let predicate = #Predicate<PersistentAntennaPosition> { $0.id == id }
+        // antennaIdで検索
+        let predicate = #Predicate<PersistentAntennaPosition> { $0.antennaId == id }
         let descriptor = FetchDescriptor<PersistentAntennaPosition>(predicate: predicate)
 
         let positions = try modelContext.fetch(descriptor)
+        print("🗑️ SwiftDataRepository: アンテナID[\(id)]で検索、\(positions.count)件見つかりました")
+        
         for position in positions {
+            print("🗑️ SwiftDataRepository: 削除中 - ID: \(position.id), AntennaID: \(position.antennaId), Name: \(position.antennaName)")
             modelContext.delete(position)
         }
         try modelContext.save()
+        print("🗑️ SwiftDataRepository: アンテナ位置削除完了")
     }
 
     public func updateAntennaPosition(_ position: AntennaPositionData) async throws {

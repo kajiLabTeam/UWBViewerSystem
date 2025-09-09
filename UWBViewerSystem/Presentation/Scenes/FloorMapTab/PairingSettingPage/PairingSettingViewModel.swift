@@ -76,21 +76,90 @@ class PairingSettingViewModel: ObservableObject {
     // MARK: - Data Management
 
     private func loadSampleAntennas() {
-        // FieldSettingViewModelから保存されたアンテナ設定を読み込み
-        if let data = UserDefaults.standard.data(forKey: "FieldAntennaConfiguration") {
-            let decoder = JSONDecoder()
-            if let decoded = try? decoder.decode([AntennaInfo].self, from: data) {
-                selectedAntennas = decoded
-                return
+        // まず、保存されたアンテナ位置情報から読み込む
+        loadAntennasFromPositionData()
+        
+        // データがない場合は従来の方法で読み込む
+        if selectedAntennas.isEmpty {
+            // FieldSettingViewModelから保存されたアンテナ設定を読み込み
+            if let data = UserDefaults.standard.data(forKey: "FieldAntennaConfiguration") {
+                let decoder = JSONDecoder()
+                if let decoded = try? decoder.decode([AntennaInfo].self, from: data) {
+                    selectedAntennas = decoded
+                    print("📱 FieldAntennaConfigurationからアンテナを読み込み: \(selectedAntennas.count)台")
+                    return
+                }
+            }
+
+            // 保存データがない場合はデフォルトのアンテナを作成
+            selectedAntennas = [
+                AntennaInfo(id: "antenna_1", name: "アンテナ 1", coordinates: Point3D(x: 50, y: 100, z: 0)),
+                AntennaInfo(id: "antenna_2", name: "アンテナ 2", coordinates: Point3D(x: 200, y: 100, z: 0)),
+                AntennaInfo(id: "antenna_3", name: "アンテナ 3", coordinates: Point3D(x: 125, y: 200, z: 0)),
+            ]
+            print("📱 デフォルトアンテナを作成: \(selectedAntennas.count)台")
+        }
+    }
+    
+    /// 保存されたアンテナ位置データから読み込む
+    private func loadAntennasFromPositionData() {
+        Task {
+            do {
+                // SwiftDataからアンテナ位置データを読み込み
+                if let floorMapInfo = getCurrentFloorMapInfo() {
+                    let positionData = try await swiftDataRepository.loadAntennaPositions(for: floorMapInfo.id)
+                    
+                    await MainActor.run {
+                        selectedAntennas = positionData.map { position in
+                            AntennaInfo(
+                                id: position.antennaId,
+                                name: position.antennaName,
+                                coordinates: position.position
+                            )
+                        }
+                        print("✅ SwiftDataからアンテナ位置情報を読み込み: \(selectedAntennas.count)台")
+                    }
+                }
+            } catch {
+                print("❌ アンテナ位置データの読み込みエラー: \(error)")
+                await MainActor.run {
+                    loadAntennasFromUserDefaults()
+                }
             }
         }
-
-        // 保存データがない場合はデフォルトのアンテナを作成
-        selectedAntennas = [
-            AntennaInfo(id: "antenna_1", name: "アンテナ 1", coordinates: Point3D(x: 50, y: 100, z: 0)),
-            AntennaInfo(id: "antenna_2", name: "アンテナ 2", coordinates: Point3D(x: 200, y: 100, z: 0)),
-            AntennaInfo(id: "antenna_3", name: "アンテナ 3", coordinates: Point3D(x: 125, y: 200, z: 0)),
-        ]
+    }
+    
+    /// UserDefaultsから従来の方法でアンテナを読み込み
+    private func loadAntennasFromUserDefaults() {
+        // configuredAntennaPositionsから読み込み
+        if let data = UserDefaults.standard.data(forKey: "configuredAntennaPositions"),
+           let positionData = try? JSONDecoder().decode([AntennaPositionData].self, from: data) {
+            selectedAntennas = positionData.map { position in
+                AntennaInfo(
+                    id: position.antennaId,
+                    name: position.antennaName,
+                    coordinates: position.position
+                )
+            }
+            print("📱 configuredAntennaPositionsからアンテナを読み込み: \(selectedAntennas.count)台")
+            return
+        }
+        
+        // FieldAntennaConfigurationから読み込み
+        if let data = UserDefaults.standard.data(forKey: "FieldAntennaConfiguration"),
+           let decoded = try? JSONDecoder().decode([AntennaInfo].self, from: data) {
+            selectedAntennas = decoded
+            print("📱 FieldAntennaConfigurationからアンテナを読み込み: \(selectedAntennas.count)台")
+        }
+    }
+    
+    /// 現在のフロアマップ情報を取得
+    private func getCurrentFloorMapInfo() -> FloorMapInfo? {
+        guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
+              let info = try? JSONDecoder().decode(FloorMapInfo.self, from: data) else {
+            return nil
+        }
+        return info
     }
 
     private func loadPairingData() async {
@@ -322,6 +391,20 @@ class PairingSettingViewModel: ObservableObject {
         let pairedDeviceIds = antennaPairings.map { $0.device.id }
         if let encoded = try? JSONEncoder().encode(pairedDeviceIds) {
             UserDefaults.standard.set(encoded, forKey: "pairedDevices")
+        }
+
+        // ペアリング済みデバイス一覧をSelectedUWBDevicesとしても保存（AntennaPositioningViewModelとの互換性確保）
+        let pairedDevices = antennaPairings.map { $0.device }
+        if let deviceData = try? JSONEncoder().encode(pairedDevices) {
+            UserDefaults.standard.set(deviceData, forKey: "SelectedUWBDevices")
+            print("💾 ペアリング済みデバイス一覧をSelectedUWBDevicesに保存: \(pairedDevices.count)台")
+        }
+
+        // アンテナ情報もFieldAntennaConfigurationとして保存
+        let antennaInfos = antennaPairings.map { $0.antenna }
+        if let antennaData = try? JSONEncoder().encode(antennaInfos) {
+            UserDefaults.standard.set(antennaData, forKey: "FieldAntennaConfiguration")
+            print("💾 アンテナ情報をFieldAntennaConfigurationに保存: \(antennaInfos.count)台")
         }
 
         return true

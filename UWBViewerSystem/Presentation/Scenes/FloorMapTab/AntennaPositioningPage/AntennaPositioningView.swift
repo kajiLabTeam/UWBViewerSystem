@@ -46,8 +46,12 @@ struct AntennaPositioningView: View {
             flowNavigator.currentStep = .antennaConfiguration
             flowNavigator.setRouter(router)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .init("FloorMapChanged"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .init("FloorMapChanged"))) { notification in
             // フロアマップが変更された時にデータを再読み込み
+            print("📢 AntennaPositioningView: FloorMapChanged通知を受信")
+            if let floorMapInfo = notification.object as? FloorMapInfo {
+                print("📢 新しいフロアマップ: \(floorMapInfo.name) (ID: \(floorMapInfo.id))")
+            }
             viewModel.loadMapAndDevices()
         }
     }
@@ -101,6 +105,15 @@ struct AntennaPositioningView: View {
                 .padding()
                 .foregroundColor(.orange)
                 .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+                
+                Button("全削除") {
+                    viewModel.removeAllDevices()
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.red)
+                .background(Color.red.opacity(0.1))
                 .cornerRadius(8)
 
                 Button("次へ") {

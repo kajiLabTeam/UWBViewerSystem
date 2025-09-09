@@ -68,7 +68,9 @@ class AntennaPositioningViewModel: ObservableObject {
         if #available(macOS 14, iOS 17, *) {
             swiftDataRepository = SwiftDataRepository(modelContext: context)
         }
-        loadAntennaPositionsFromSwiftData()
+        // SwiftDataRepository設定後にデータを再読み込み
+        loadMapAndDevices()
+        // loadAntennaPositionsFromSwiftDataはcreateAntennaPositions内で呼び出すため、ここでは呼ばない
     }
 
     private func updateCanProceed() {
@@ -94,10 +96,112 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     private func loadSelectedDevices() {
+        // まず、ペアリング情報から選択されたデバイスを読み込む
+        loadDevicesFromPairingData()
+        
+        // フォールバック: 従来のSelectedUWBDevicesから読み込む
+        if selectedDevices.isEmpty {
+            if let data = UserDefaults.standard.data(forKey: "SelectedUWBDevices"),
+               let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
+            {
+                selectedDevices = decoded
+                print("📱 フォールバック: SelectedUWBDevicesからデバイスを読み込み: \(selectedDevices.count)台")
+            }
+        }
+    }
+    
+    /// ペアリング情報からデバイス一覧を構築
+    private func loadDevicesFromPairingData() {
+        guard let repository = swiftDataRepository else {
+            print("❌ SwiftDataRepository が利用できません")
+            return
+        }
+        
+        Task {
+            do {
+                // まずペアリング情報を試行
+                let pairings = try await repository.loadAntennaPairings()
+                print("📱 SwiftDataからペアリング情報を読み込み: \(pairings.count)件")
+                
+                if !pairings.isEmpty {
+                    await MainActor.run {
+                        // 既存のリストをクリア
+                        selectedDevices.removeAll()
+                        
+                        // ペアリング済みデバイスを selectedDevices に設定
+                        selectedDevices = pairings.map { pairing in
+                            var device = pairing.device
+                            // アンテナ情報も含めてデバイス名を更新（アンテナ名があれば使用）
+                            device.name = pairing.antenna.name.isEmpty ? device.name : pairing.antenna.name
+                            return device
+                        }
+                        
+                        print("✅ ペアリング情報から \(selectedDevices.count) 台のデバイスを読み込みました")
+                        
+                        // アンテナ位置を再作成
+                        createAntennaPositions()
+                    }
+                } else {
+                    // ペアリング情報がない場合はアンテナ位置データから構築
+                    await loadDevicesFromAntennaPositions(repository: repository)
+                }
+            } catch {
+                print("❌ ペアリング情報の読み込みエラー: \(error)")
+                await MainActor.run {
+                    // エラーの場合は従来の方法にフォールバック
+                    loadSelectedDevicesFromUserDefaults()
+                }
+            }
+        }
+    }
+    
+    /// アンテナ位置データからデバイス一覧を構築
+    private func loadDevicesFromAntennaPositions(repository: SwiftDataRepository) async {
+        guard let floorMapInfo else {
+            await MainActor.run {
+                loadSelectedDevicesFromUserDefaults()
+            }
+            return
+        }
+        
+        do {
+            let antennaPositions = try await repository.loadAntennaPositions(for: floorMapInfo.id)
+            print("📱 アンテナ位置データからデバイス一覧を構築: \(antennaPositions.count)件")
+            
+            await MainActor.run {
+                // 既存のリストをクリア
+                selectedDevices.removeAll()
+                
+                // アンテナ位置データからデバイスを構築
+                selectedDevices = antennaPositions.map { position in
+                    AndroidDevice(
+                        id: position.antennaId,
+                        name: position.antennaName,
+                        isConnected: false,
+                        isNearbyDevice: false
+                    )
+                }
+                
+                print("✅ アンテナ位置データから \(selectedDevices.count) 台のデバイスを構築しました")
+                
+                // アンテナ位置を再作成
+                createAntennaPositions()
+            }
+        } catch {
+            print("❌ アンテナ位置データの読み込みエラー: \(error)")
+            await MainActor.run {
+                loadSelectedDevicesFromUserDefaults()
+            }
+        }
+    }
+    
+    /// UserDefaultsから従来の方法でデバイスを読み込み
+    private func loadSelectedDevicesFromUserDefaults() {
         if let data = UserDefaults.standard.data(forKey: "SelectedUWBDevices"),
            let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
         {
             selectedDevices = decoded
+            print("📱 UserDefaultsからデバイスを読み込み: \(selectedDevices.count)台")
         }
     }
 
@@ -132,13 +236,16 @@ class AntennaPositioningViewModel: ObservableObject {
             AntennaPosition(
                 id: device.id,
                 deviceName: device.name,
-                position: CGPoint(x: 50, y: 50),  // デフォルト位置
+                position: CGPoint(x: 50, y: 50),  // デフォルト位置（後で保存データで上書き）
                 rotation: 0.0,
                 color: colors[index % colors.count],
                 baseCanvasSize: CGSize(width: 400, height: 400) // 基準キャンバスサイズ
             )
         }
         updateCanProceed()
+        
+        // アンテナ位置作成後に保存データを適用
+        loadAntennaPositionsFromSwiftData()
     }
 
     func updateAntennaPosition(_ antennaId: String, position: CGPoint) {
@@ -283,8 +390,13 @@ class AntennaPositioningViewModel: ObservableObject {
             let resetPosition = CGPoint(x: 50, y: 50)
             antennaPositions[index].position = resetPosition
             antennaPositions[index].normalizedPosition = CGPoint(x: 0.125, y: 0.125) // 50/400 = 0.125
+            antennaPositions[index].rotation = 0.0
+            
+            // SwiftDataの位置もリセット
+            saveAntennaPositionToSwiftData(antennaPositions[index])
         }
         updateCanProceed()
+        print("🔄 全てのアンテナ位置をリセットしました")
     }
 
     func addNewDevice(name: String) {
@@ -329,20 +441,95 @@ class AntennaPositioningViewModel: ObservableObject {
 
         saveSelectedDevices()
         updateCanProceed()
+        
+        // SwiftDataからも削除
+        deleteAntennaPositionFromSwiftData(deviceId)
 
         print("🗑️ デバイスを削除しました: \(deviceId)")
+    }
+    
+    /// すべてのデバイスを削除
+    func removeAllDevices() {
+        print("🗑️ 全てのデバイスを削除開始")
+        
+        // ローカルデータを削除
+        selectedDevices.removeAll()
+        antennaPositions.removeAll()
+        
+        saveSelectedDevices()
+        updateCanProceed()
+        
+        // SwiftDataからも全て削除
+        deleteAllAntennaPositionsFromSwiftData()
+        
+        print("🗑️ 全てのデバイスを削除しました")
+    }
+    
+    /// SwiftDataからアンテナ位置を削除
+    private func deleteAntennaPositionFromSwiftData(_ antennaId: String) {
+        guard let repository = swiftDataRepository else {
+            print("❌ SwiftDataRepository が利用できません（deleteAntennaPositionFromSwiftData）")
+            return
+        }
+        
+        Task {
+            do {
+                try await repository.deleteAntennaPosition(by: antennaId)
+                print("🗑️ SwiftDataからアンテナ位置を削除しました: \(antennaId)")
+            } catch {
+                print("❌ SwiftDataからのアンテナ位置削除エラー: \(error)")
+            }
+        }
+    }
+    
+    /// すべてのアンテナ位置をSwiftDataから削除
+    private func deleteAllAntennaPositionsFromSwiftData() {
+        guard let repository = swiftDataRepository,
+              let floorMapInfo else {
+            print("❌ SwiftDataRepository または FloorMapInfo が利用できません（deleteAllAntennaPositionsFromSwiftData）")
+            return
+        }
+        
+        Task {
+            do {
+                // 現在のフロアマップのアンテナ位置を全て削除
+                let positions = try await repository.loadAntennaPositions(for: floorMapInfo.id)
+                print("🗑️ 現在のフロアマップのアンテナ位置を全削除: \(positions.count)件")
+                
+                for position in positions {
+                    try await repository.deleteAntennaPosition(by: position.antennaId)
+                }
+                
+                print("🗑️ SwiftDataから全アンテナ位置を削除完了")
+            } catch {
+                print("❌ SwiftDataからの全アンテナ位置削除エラー: \(error)")
+            }
+        }
     }
 
     // MARK: - SwiftData関連メソッド
 
     private func loadAntennaPositionsFromSwiftData() {
-        guard let repository = swiftDataRepository,
-              let floorMapInfo else { return }
+        guard let repository = swiftDataRepository else {
+            print("❌ SwiftDataRepository が利用できません（loadAntennaPositionsFromSwiftData）")
+            return
+        }
+        
+        guard let floorMapInfo else {
+            print("❌ FloorMapInfo が取得できません（loadAntennaPositionsFromSwiftData）")
+            return
+        }
+
+        print("🔄 SwiftDataからアンテナ位置を読み込み開始: floorMapId=\(floorMapInfo.id)")
 
         Task {
             do {
                 let positions = try await repository.loadAntennaPositions(for: floorMapInfo.id)
+                print("📱 SwiftDataからアンテナ位置データを取得: \(positions.count)件")
+                
                 await MainActor.run {
+                    var appliedCount = 0
+                    
                     // SwiftDataから読み込んだ位置情報を現在のantennaPositionsに適用
                     for position in positions {
                         if let index = antennaPositions.firstIndex(where: { $0.id == position.antennaId }) {
@@ -358,14 +545,63 @@ class AntennaPositioningViewModel: ObservableObject {
                                 y: pixelY / 400.0
                             )
                             antennaPositions[index].rotation = position.rotation
+                            
+                            appliedCount += 1
+                            print("✅ アンテナ[\(position.antennaId)]の位置を復元: (\(pixelX), \(pixelY))")
+                        } else {
+                            print("⚠️ アンテナID[\(position.antennaId)]が現在のリストに見つかりません")
                         }
                     }
                     updateCanProceed()
-                    print("📱 SwiftDataからアンテナ位置を読み込み完了: \(positions.count)件 for floorMap: \(floorMapInfo.id)")
+                    print("📱 SwiftDataからアンテナ位置を読み込み完了: \(appliedCount)/\(positions.count)件適用 for floorMap: \(floorMapInfo.id)")
+                    
+                    // デバッグ情報: 現在のantennaPositions状態
+                    print("🔍 現在のantennaPositions状態:")
+                    for (index, antenna) in antennaPositions.enumerated() {
+                        print("  [\(index)] \(antenna.deviceName): (\(antenna.position.x), \(antenna.position.y)) - normalized: (\(antenna.normalizedPosition.x), \(antenna.normalizedPosition.y))")
+                    }
                 }
             } catch {
                 print("❌ SwiftDataからの読み込みエラー: \(error)")
+                await MainActor.run {
+                    // SwiftDataが失敗した場合はUserDefaultsからフォールバック読み込み
+                    loadAntennaPositionsFromUserDefaults()
+                }
             }
+        }
+    }
+    
+    /// UserDefaultsからアンテナ位置を読み込む（フォールバック）
+    private func loadAntennaPositionsFromUserDefaults() {
+        print("🔄 UserDefaultsからアンテナ位置を読み込み開始")
+        
+        if let data = UserDefaults.standard.data(forKey: "configuredAntennaPositions"),
+           let positionData = try? JSONDecoder().decode([AntennaPositionData].self, from: data) {
+            
+            var appliedCount = 0
+            
+            for position in positionData {
+                if let index = antennaPositions.firstIndex(where: { $0.id == position.antennaId }) {
+                    // UserDefaultsから直接ピクセル座標として読み込み（スケール変換なし）
+                    let pixelX = CGFloat(position.position.x)
+                    let pixelY = CGFloat(position.position.y)
+
+                    antennaPositions[index].position = CGPoint(x: pixelX, y: pixelY)
+                    antennaPositions[index].normalizedPosition = CGPoint(
+                        x: pixelX / 400.0,
+                        y: pixelY / 400.0
+                    )
+                    antennaPositions[index].rotation = position.rotation
+                    
+                    appliedCount += 1
+                    print("✅ UserDefaults: アンテナ[\(position.antennaId)]の位置を復元: (\(pixelX), \(pixelY))")
+                }
+            }
+            
+            updateCanProceed()
+            print("📱 UserDefaultsからアンテナ位置を読み込み完了: \(appliedCount)/\(positionData.count)件適用")
+        } else {
+            print("❌ UserDefaultsにconfiguredAntennaPositionsが見つかりません")
         }
     }
 

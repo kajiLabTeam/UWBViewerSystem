@@ -10,33 +10,31 @@ struct FloorMapSettingView: View {
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // フロープログレス表示
-                SensingFlowProgressView(navigator: flowNavigator)
+        VStack(spacing: 0) {
+            // フロープログレス表示
+            SensingFlowProgressView(navigator: flowNavigator)
 
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // ヘッダー
-                        headerSection
+            ScrollView {
+                VStack(spacing: 24) {
+                    // ヘッダー
+                    headerSection
 
-                        // フロアマップ設定セクション
-                        floorMapSection
+                    // フロアマップ設定セクション
+                    floorMapSection
 
-                        // 基本情報設定セクション
-                        basicInfoSection
+                    // 基本情報設定セクション
+                    basicInfoSection
 
-                        // プリセット選択セクション
-                        presetSection
+                    // プリセット選択セクション
+                    presetSection
 
-                        Spacer(minLength: 80)
-                    }
-                    .padding()
+                    Spacer(minLength: 80)
                 }
-
-                // ナビゲーションボタン
-                navigationButtons
+                .padding()
             }
+
+            // ナビゲーションボタン
+            navigationButtons
         }
         .onAppear {
             print("🏁 FloorMapSettingView: onAppear called")

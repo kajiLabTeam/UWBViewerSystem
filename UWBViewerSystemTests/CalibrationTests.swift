@@ -1,5 +1,5 @@
-import XCTest
 @testable import UWBViewerSystem
+import XCTest
 
 /// キャリブレーション機能のテストケース
 final class CalibrationTests: XCTestCase {
@@ -395,11 +395,11 @@ class MockCalibrationTestRepository: DataRepositoryProtocol {
     }
 
     func loadCalibrationData() async throws -> [CalibrationData] {
-        return Array(calibrationDataStorage.values)
+        Array(calibrationDataStorage.values)
     }
 
     func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        return calibrationDataStorage[antennaId]
+        calibrationDataStorage[antennaId]
     }
 
     func deleteCalibrationData(for antennaId: String) async throws {
@@ -414,6 +414,6 @@ class MockCalibrationTestRepository: DataRepositoryProtocol {
     func loadBoolSetting(key: String) -> Bool { false }
     func saveRecentSystemActivities(_ activities: [SystemActivity]) {}
     func loadRecentSystemActivities() -> [SystemActivity]? { nil }
-    func saveData<T: Codable>(_ data: T, forKey key: String) throws {}
+    func saveData(_ data: some Codable, forKey key: String) throws {}
     func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? { nil }
 }

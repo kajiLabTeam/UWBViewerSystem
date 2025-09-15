@@ -115,7 +115,7 @@ public class AffineTransform {
     ///   - transform: アフィン変換行列
     /// - Returns: 実世界座標の配列
     public static func mapToRealWorld(mapPoints: [Point3D], using transform: AffineTransformMatrix) -> [Point3D] {
-        return mapPoints.map { mapToRealWorld(mapPoint: $0, using: transform) }
+        mapPoints.map { mapToRealWorld(mapPoint: $0, using: transform) }
     }
 
     // MARK: - プライベートメソッド
@@ -135,7 +135,7 @@ public class AffineTransform {
         // 座標値が有効範囲内かチェック
         for point in points {
             guard point.mapCoordinate.x.isFinite && point.mapCoordinate.y.isFinite &&
-                  point.realWorldCoordinate.x.isFinite && point.realWorldCoordinate.y.isFinite else {
+                point.realWorldCoordinate.x.isFinite && point.realWorldCoordinate.y.isFinite else {
                 throw AffineTransformError.invalidInput("座標値が無効です")
             }
         }
@@ -398,7 +398,7 @@ public extension AffineTransformMatrix {
 
     /// 行列を文字列で表示（デバッグ用）
     var matrixDescription: String {
-        return """
+        """
         [[ \(String(format: "%.3f", a))  \(String(format: "%.3f", c))  \(String(format: "%.3f", tx)) ]
          [ \(String(format: "%.3f", b))  \(String(format: "%.3f", d))  \(String(format: "%.3f", ty)) ]
          [ 0.000  0.000  1.000 ]]

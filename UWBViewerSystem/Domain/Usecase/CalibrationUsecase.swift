@@ -51,7 +51,7 @@ public class CalibrationUsecase: ObservableObject {
     /// - Parameter antennaId: アンテナID
     /// - Returns: キャリブレーションデータ（存在しない場合は新規作成）
     public func getCalibrationData(for antennaId: String) -> CalibrationData {
-        return currentCalibrationData[antennaId] ?? CalibrationData(antennaId: antennaId)
+        currentCalibrationData[antennaId] ?? CalibrationData(antennaId: antennaId)
     }
 
     /// キャリブレーション点を追加
@@ -191,13 +191,13 @@ public class CalibrationUsecase: ObservableObject {
     ///   - antennaId: アンテナID
     /// - Returns: キャリブレーション済み座標配列
     public func applyCalibratedTransform(to points: [Point3D], for antennaId: String) -> [Point3D] {
-        return points.map { applyCalibratedTransform(to: $0, for: antennaId) }
+        points.map { applyCalibratedTransform(to: $0, for: antennaId) }
     }
 
     /// キャリブレーションデータをクリア
     /// - Parameter antennaId: アンテナID（nilの場合はすべてクリア）
     public func clearCalibrationData(for antennaId: String? = nil) {
-        if let antennaId = antennaId {
+        if let antennaId {
             // 特定のアンテナのデータをクリア
             currentCalibrationData[antennaId] = CalibrationData(antennaId: antennaId)
             Task {
@@ -218,7 +218,7 @@ public class CalibrationUsecase: ObservableObject {
     /// - Parameter antennaId: アンテナID
     /// - Returns: 精度情報
     public func getCalibrationAccuracy(for antennaId: String) -> Double? {
-        return currentCalibrationData[antennaId]?.accuracy
+        currentCalibrationData[antennaId]?.accuracy
     }
 
     /// キャリブレーションが有効かどうかを判定

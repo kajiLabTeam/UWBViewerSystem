@@ -1,5 +1,5 @@
-import Foundation
 import Accelerate
+import Foundation
 
 /// 最小二乗法を使用したアンテナキャリブレーション機能
 public class LeastSquaresCalibration {
@@ -113,7 +113,7 @@ public class LeastSquaresCalibration {
     ///   - transform: 変換行列
     /// - Returns: 変換後の座標配列
     public static func applyCalibration(to points: [Point3D], using transform: CalibrationTransform) -> [Point3D] {
-        return points.map { applyCalibration(to: $0, using: transform) }
+        points.map { applyCalibration(to: $0, using: transform) }
     }
 
     // MARK: - プライベートメソッド

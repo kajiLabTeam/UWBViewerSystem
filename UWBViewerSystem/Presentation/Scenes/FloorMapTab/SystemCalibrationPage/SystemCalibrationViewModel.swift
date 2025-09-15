@@ -22,6 +22,7 @@ class SystemCalibrationViewModel: ObservableObject {
     @Published private var completedSteps: Set<SystemCalibrationStep> = []
 
     // MARK: - 新しいキャリブレーション機能
+
     @Published var calibrationUsecase: CalibrationUsecase
     @Published var selectedAntennaId: String = ""
     @Published var availableAntennas: [AntennaInfo] = []
@@ -32,6 +33,7 @@ class SystemCalibrationViewModel: ObservableObject {
     @Published var calibrationStatistics: CalibrationStatistics?
 
     // MARK: - 統合キャリブレーションワークフロー
+
     @Published var calibrationDataFlow: CalibrationDataFlow?
     @Published var observationUsecase: ObservationDataUsecase?
     @Published var showIntegratedCalibrationSheet: Bool = false
@@ -89,7 +91,7 @@ class SystemCalibrationViewModel: ObservableObject {
 
     init(dataRepository: DataRepositoryProtocol = DataRepository()) {
         self.dataRepository = dataRepository
-        self.calibrationUsecase = CalibrationUsecase(dataRepository: dataRepository)
+        calibrationUsecase = CalibrationUsecase(dataRepository: dataRepository)
         setupObservers()
         loadSettings()
         loadAvailableAntennas()
@@ -324,7 +326,7 @@ class SystemCalibrationViewModel: ObservableObject {
         let uwbManager = UWBDataManager()
         observationUsecase = ObservationDataUsecase(dataRepository: dataRepository, uwbManager: uwbManager)
 
-        guard let observationUsecase = observationUsecase else { return }
+        guard let observationUsecase else { return }
 
         calibrationDataFlow = CalibrationDataFlow(
             dataRepository: dataRepository,
@@ -338,8 +340,8 @@ class SystemCalibrationViewModel: ObservableObject {
 
     /// データフローオブザーバーのセットアップ
     private func setupDataFlowObservers() {
-        guard let calibrationDataFlow = calibrationDataFlow,
-              let observationUsecase = observationUsecase else { return }
+        guard let calibrationDataFlow,
+              let observationUsecase else { return }
 
         // ワークフローの進行状況を監視
         calibrationDataFlow.$workflowProgress
@@ -460,7 +462,7 @@ class SystemCalibrationViewModel: ObservableObject {
 
     /// ワークフローの状態検証
     func validateWorkflowState() -> CalibrationWorkflowValidation? {
-        return calibrationDataFlow?.validateCurrentState()
+        calibrationDataFlow?.validateCurrentState()
     }
 
     /// ワークフローをリセット
@@ -475,7 +477,7 @@ class SystemCalibrationViewModel: ObservableObject {
 
     /// 現在のワークフロー状態を取得
     var workflowStatusText: String {
-        return workflowStatus.displayText
+        workflowStatus.displayText
     }
 
     /// ワークフローが実行可能かチェック

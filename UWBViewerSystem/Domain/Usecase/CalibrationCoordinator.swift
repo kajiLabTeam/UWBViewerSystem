@@ -79,10 +79,10 @@ public class CalibrationCoordinator: ObservableObject {
             self.floorMapId = floorMapId
             self.calibrationType = calibrationType
             self.currentStep = currentStep
-            self.completedSteps = []
-            self.isCompleted = false
-            self.startedAt = Date()
-            self.updatedAt = Date()
+            completedSteps = []
+            isCompleted = false
+            startedAt = Date()
+            updatedAt = Date()
         }
     }
 
@@ -164,7 +164,7 @@ public class CalibrationCoordinator: ObservableObject {
         progress.completedSteps.insert(step)
         progress.updatedAt = Date()
 
-        if let accuracy = accuracy {
+        if let accuracy {
             progress.accuracyScore = accuracy
         }
 
@@ -231,12 +231,12 @@ public class CalibrationCoordinator: ObservableObject {
 
     /// キャリブレーション進捗情報を取得
     public func getProgress(for antennaId: String) -> CalibrationProgress? {
-        return currentProgress[antennaId]
+        currentProgress[antennaId]
     }
 
     /// すべての進捗情報を取得
     public func getAllProgress() -> [CalibrationProgress] {
-        return Array(currentProgress.values)
+        Array(currentProgress.values)
     }
 
     /// キャリブレーション中止

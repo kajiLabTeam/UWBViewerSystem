@@ -4,9 +4,9 @@ import SwiftData
 import SwiftUI
 
 #if canImport(UIKit)
-import UIKit
+    import UIKit
 #elseif canImport(AppKit)
-import AppKit
+    import AppKit
 #endif
 
 /// シンプルな3ステップキャリブレーション画面のViewModel
@@ -50,9 +50,9 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// フロアマップ画像
     #if canImport(UIKit)
-    @Published var floorMapImage: UIImage?
+        @Published var floorMapImage: UIImage?
     #elseif canImport(AppKit)
-    @Published var floorMapImage: NSImage?
+        @Published var floorMapImage: NSImage?
     #endif
 
     /// 配置済みアンテナ位置データ
@@ -100,17 +100,17 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// 戻るボタンが有効かどうか
     var canGoBack: Bool {
-        return currentStep > 0 && !isCalibrating
+        currentStep > 0 && !isCalibrating
     }
 
     /// キャリブレーション実行可能かどうか
     var canStartCalibration: Bool {
-        return currentStep == 2 && !selectedAntennaId.isEmpty && referencePoints.count >= 3 && !isCalibrating
+        currentStep == 2 && !selectedAntennaId.isEmpty && referencePoints.count >= 3 && !isCalibrating
     }
 
     /// 進行状況のパーセンテージ表示
     var progressPercentage: String {
-        return "\(Int(calibrationProgress * 100))%"
+        "\(Int(calibrationProgress * 100))%"
     }
 
     /// キャリブレーション結果の精度テキスト
@@ -138,7 +138,7 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     init(dataRepository: DataRepositoryProtocol = DataRepository()) {
         self.dataRepository = dataRepository
-        self.calibrationUsecase = CalibrationUsecase(dataRepository: dataRepository)
+        calibrationUsecase = CalibrationUsecase(dataRepository: dataRepository)
 
         loadInitialData()
         setupDataObserver()
@@ -341,21 +341,21 @@ class SimpleCalibrationViewModel: ObservableObject {
                     print("📊 画像データサイズ: \(imageData.count) bytes")
 
                     #if canImport(UIKit)
-                    if let image = UIImage(data: imageData) {
-                        print("✅ UIImage作成成功: \(image.size)")
-                        floorMapImage = image
-                        return
-                    } else {
-                        print("❌ UIImageの作成に失敗")
-                    }
+                        if let image = UIImage(data: imageData) {
+                            print("✅ UIImage作成成功: \(image.size)")
+                            floorMapImage = image
+                            return
+                        } else {
+                            print("❌ UIImageの作成に失敗")
+                        }
                     #elseif canImport(AppKit)
-                    if let image = NSImage(data: imageData) {
-                        print("✅ NSImage作成成功: \(image.size)")
-                        floorMapImage = image
-                        return
-                    } else {
-                        print("❌ NSImageの作成に失敗")
-                    }
+                        if let image = NSImage(data: imageData) {
+                            print("✅ NSImage作成成功: \(image.size)")
+                            floorMapImage = image
+                            return
+                        } else {
+                            print("❌ NSImageの作成に失敗")
+                        }
                     #endif
                 } catch {
                     print("❌ ファイル読み込みエラー: \(error)")
@@ -524,4 +524,3 @@ class SimpleCalibrationViewModel: ObservableObject {
         isCalibrating = false
     }
 }
-

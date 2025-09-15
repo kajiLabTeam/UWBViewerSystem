@@ -1,9 +1,9 @@
 import SwiftUI
 
 #if os(iOS)
-typealias PlatformImage = UIImage
+    typealias PlatformImage = UIImage
 #else
-typealias PlatformImage = NSImage
+    typealias PlatformImage = NSImage
 #endif
 
 /// マップ上での基準座標指定によるキャリブレーション画面
@@ -17,7 +17,7 @@ struct MapBasedCalibrationView: View {
     init(antennaId: String, floorMapId: String) {
         self.antennaId = antennaId
         self.floorMapId = floorMapId
-        self._viewModel = StateObject(wrappedValue: MapBasedCalibrationViewModel(
+        _viewModel = StateObject(wrappedValue: MapBasedCalibrationViewModel(
             antennaId: antennaId,
             floorMapId: floorMapId
         ))
@@ -38,37 +38,37 @@ struct MapBasedCalibrationView: View {
             }
             .navigationTitle("マップキャリブレーション")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+                .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完了") {
-                        Task {
-                            await viewModel.saveCalibration()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("キャンセル") {
                             dismiss()
                         }
                     }
-                    .disabled(!viewModel.canComplete)
+
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完了") {
+                            Task {
+                                await viewModel.saveCalibration()
+                                dismiss()
+                            }
+                        }
+                        .disabled(!viewModel.canComplete)
+                    }
                 }
-            }
-            .alert("エラー", isPresented: $viewModel.showError) {
-                Button("OK") { }
-            } message: {
-                Text(viewModel.errorMessage)
-            }
-            .alert("キャリブレーション完了", isPresented: $viewModel.showSuccess) {
-                Button("OK") {
-                    dismiss()
+                .alert("エラー", isPresented: $viewModel.showError) {
+                    Button("OK") { }
+                } message: {
+                    Text(viewModel.errorMessage)
                 }
-            } message: {
-                Text("アフィン変換による座標変換が設定されました。\n精度: \(String(format: "%.3f", viewModel.calibrationAccuracy ?? 0.0))m")
-            }
+                .alert("キャリブレーション完了", isPresented: $viewModel.showSuccess) {
+                    Button("OK") {
+                        dismiss()
+                    }
+                } message: {
+                    Text("アフィン変換による座標変換が設定されました。\n精度: \(String(format: "%.3f", viewModel.calibrationAccuracy ?? 0.0))m")
+                }
         }
         .onAppear {
             viewModel.loadFloorMapImage()
@@ -113,43 +113,43 @@ struct MapBasedCalibrationView: View {
                     ZStack {
                         // マップ画像
                         #if os(iOS)
-                        Image(uiImage: mapImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: imageSize.width, height: imageSize.height)
-                            .offset(imageOffset)
-                            .onTapGesture { location in
-                                // タップ位置を画像座標系に変換
-                                let imageLocation = viewModel.convertTapToImageCoordinates(
-                                    tapLocation: location,
-                                    containerSize: geometry.size,
-                                    imageSize: imageSize,
-                                    imageOffset: imageOffset
-                                )
+                            Image(uiImage: mapImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: imageSize.width, height: imageSize.height)
+                                .offset(imageOffset)
+                                .onTapGesture { location in
+                                    // タップ位置を画像座標系に変換
+                                    let imageLocation = viewModel.convertTapToImageCoordinates(
+                                        tapLocation: location,
+                                        containerSize: geometry.size,
+                                        imageSize: imageSize,
+                                        imageOffset: imageOffset
+                                    )
 
-                                if let imageLocation = imageLocation {
-                                    viewModel.handleMapTap(at: imageLocation)
+                                    if let imageLocation {
+                                        viewModel.handleMapTap(at: imageLocation)
+                                    }
                                 }
-                            }
                         #else
-                        Image(nsImage: mapImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: imageSize.width, height: imageSize.height)
-                            .offset(imageOffset)
-                            .onTapGesture { location in
-                                // タップ位置を画像座標系に変換
-                                let imageLocation = viewModel.convertTapToImageCoordinates(
-                                    tapLocation: location,
-                                    containerSize: geometry.size,
-                                    imageSize: imageSize,
-                                    imageOffset: imageOffset
-                                )
+                            Image(nsImage: mapImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: imageSize.width, height: imageSize.height)
+                                .offset(imageOffset)
+                                .onTapGesture { location in
+                                    // タップ位置を画像座標系に変換
+                                    let imageLocation = viewModel.convertTapToImageCoordinates(
+                                        tapLocation: location,
+                                        containerSize: geometry.size,
+                                        imageSize: imageSize,
+                                        imageOffset: imageOffset
+                                    )
 
-                                if let imageLocation = imageLocation {
-                                    viewModel.handleMapTap(at: imageLocation)
+                                    if let imageLocation {
+                                        viewModel.handleMapTap(at: imageLocation)
+                                    }
                                 }
-                            }
                         #endif
 
                         // キャリブレーション点マーカー
@@ -221,27 +221,27 @@ struct MapBasedCalibrationView: View {
                     Text("X (m)")
                     TextField("0.0", text: $viewModel.inputX)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        #if os(iOS)
+                    #if os(iOS)
                         .keyboardType(.decimalPad)
-                        #endif
+                    #endif
                 }
 
                 VStack(alignment: .leading) {
                     Text("Y (m)")
                     TextField("0.0", text: $viewModel.inputY)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        #if os(iOS)
+                    #if os(iOS)
                         .keyboardType(.decimalPad)
-                        #endif
+                    #endif
                 }
 
                 VStack(alignment: .leading) {
                     Text("Z (m)")
                     TextField("0.0", text: $viewModel.inputZ)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                        #if os(iOS)
+                    #if os(iOS)
                         .keyboardType(.decimalPad)
-                        #endif
+                    #endif
                 }
             }
         }
@@ -404,9 +404,9 @@ struct MapCalibrationPointRow: View {
 // MARK: - Preview
 
 #if DEBUG
-struct MapBasedCalibrationView_Previews: PreviewProvider {
-    static var previews: some View {
-        MapBasedCalibrationView(antennaId: "antenna1", floorMapId: "floor1")
+    struct MapBasedCalibrationView_Previews: PreviewProvider {
+        static var previews: some View {
+            MapBasedCalibrationView(antennaId: "antenna1", floorMapId: "floor1")
+        }
     }
-}
 #endif

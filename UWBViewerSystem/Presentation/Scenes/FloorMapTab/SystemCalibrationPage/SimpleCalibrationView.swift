@@ -339,7 +339,6 @@ struct SimpleCalibrationView: View {
         )
     }
 
-
     private var calibrationExecutionContent: some View {
         VStack(spacing: 24) {
             VStack(alignment: .leading, spacing: 16) {

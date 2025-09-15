@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 // MARK: - FloorMapCanvas - 共通のフロアマップ表示コンポーネント
 
@@ -13,7 +13,7 @@ struct FloorMapCanvas<Content: View>: View {
 
     // フロアマップのスケールを計算（ピクセル/メートル）
     private var mapScale: Double {
-        guard let floorMapInfo = floorMapInfo else { return 100.0 }
+        guard let floorMapInfo else { return 100.0 }
         let canvasWidth = Double(canvasSize.width)
         let mapWidthInMeters = floorMapInfo.width
         return canvasWidth / mapWidthInMeters
@@ -77,7 +77,7 @@ struct FloorMapCanvas<Content: View>: View {
     }
 
     private func handleMapTap(location: CGPoint, geometry: FloorMapCanvasGeometry) {
-        guard let onMapTap = onMapTap else { return }
+        guard let onMapTap else { return }
 
         // タップ位置が画像エリア内かチェック
         if geometry.imageFrame.contains(location) {
@@ -88,7 +88,7 @@ struct FloorMapCanvas<Content: View>: View {
             // フロアマップサイズに基づいて実世界座標に変換
             // Y座標を反転して実世界座標系に合わせる
             let realWorldLocation: CGPoint
-            if let floorMapInfo = floorMapInfo {
+            if let floorMapInfo {
                 realWorldLocation = CGPoint(
                     x: normalizedX * floorMapInfo.width,
                     y: (1.0 - normalizedY) * floorMapInfo.depth  // Y座標を反転
@@ -131,7 +131,7 @@ struct FloorMapCanvasGeometry {
 
     // 実世界座標から正規化座標に変換
     func realWorldToNormalized(_ realWorldPoint: CGPoint) -> CGPoint {
-        guard let floorMapInfo = floorMapInfo else {
+        guard let floorMapInfo else {
             // フォールバック: 実世界座標をスケール変換してピクセル座標に変換後、正規化
             let pixelX = realWorldPoint.x * 100.0  // デフォルトスケール 100px/m
             let pixelY = realWorldPoint.y * 100.0
@@ -153,7 +153,7 @@ struct FloorMapCanvasGeometry {
 
     // 正規化座標から実世界座標に変換
     func normalizedToRealWorld(_ normalizedPoint: CGPoint) -> CGPoint {
-        guard let floorMapInfo = floorMapInfo else {
+        guard let floorMapInfo else {
             // フォールバック
             return CGPoint(
                 x: normalizedPoint.x * 10,
@@ -196,17 +196,17 @@ struct FloorMapBackground: View {
     var body: some View {
         if let mapImage = image {
             #if os(macOS)
-            Image(nsImage: mapImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .background(Color(NSColor.controlColor))
-                .cornerRadius(8)
+                Image(nsImage: mapImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .background(Color(NSColor.controlColor))
+                    .cornerRadius(8)
             #elseif os(iOS)
-            Image(uiImage: mapImage)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .background(Color(UIColor.systemGray6))
-                .cornerRadius(8)
+                Image(uiImage: mapImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .background(Color(UIColor.systemGray6))
+                    .cornerRadius(8)
             #endif
         } else {
             RoundedRectangle(cornerRadius: 8)
@@ -221,7 +221,7 @@ struct FloorMapBackground: View {
                             .font(.largeTitle)
                             .foregroundColor(.secondary)
 
-                        if let floorMapInfo = floorMapInfo {
+                        if let floorMapInfo {
                             Text(floorMapInfo.name)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -247,7 +247,7 @@ struct FloorMapBackground: View {
 // MARK: - 使用例のための型定義
 
 #if os(macOS)
-typealias FloorMapImage = NSImage
+    typealias FloorMapImage = NSImage
 #elseif os(iOS)
-typealias FloorMapImage = UIImage
+    typealias FloorMapImage = UIImage
 #endif

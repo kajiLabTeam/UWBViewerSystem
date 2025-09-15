@@ -329,7 +329,6 @@ struct InstructionsSection: View {
     }
 }
 
-
 // MARK: - Enhanced Antenna Device Row with Rotation Info
 
 struct AntennaDeviceRow: View {

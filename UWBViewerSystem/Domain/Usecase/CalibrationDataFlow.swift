@@ -43,7 +43,7 @@ public class CalibrationDataFlow: ObservableObject {
         updateProgress()
 
         print("📍 基準座標を収集: \(points.count)個の点")
-        points.forEach { point in
+        for point in points {
             print("  - 座標: (\(point.realWorldCoordinate.x), \(point.realWorldCoordinate.y), \(point.realWorldCoordinate.z))")
         }
     }
@@ -119,7 +119,7 @@ public class CalibrationDataFlow: ObservableObject {
             for session in observationSessions.values {
                 let validObservations = session.observations.filter { observation in
                     observation.quality.strength > 0.5 &&  // 品質閾値
-                    observation.quality.isLineOfSight       // 見通し線が取れている
+                        observation.quality.isLineOfSight       // 見通し線が取れている
                 }
 
                 for observation in validObservations {
@@ -314,7 +314,7 @@ public class CalibrationDataFlow: ObservableObject {
     }
 
     private func createCalibrationPoints(for antennaId: String, from mappings: [ReferenceObservationMapping]) -> [CalibrationPoint] {
-        return mappings.compactMap { mapping in
+        mappings.compactMap { mapping in
             // そのアンテナの観測データのみを抽出
             let antennaObservations = mapping.observations.filter { $0.antennaId == antennaId }
             guard !antennaObservations.isEmpty else { return nil }

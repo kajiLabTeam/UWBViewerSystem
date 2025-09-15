@@ -1,5 +1,5 @@
-import Testing
 import Foundation
+import Testing
 @testable import UWBViewerSystem
 
 /// キャリブレーションデータフローのテストスイート
@@ -23,7 +23,7 @@ struct CalibrationDataFlowTests {
     }
 
     private func createTestReferencePoints() -> [MapCalibrationPoint] {
-        return [
+        [
             MapCalibrationPoint(
                 mapCoordinate: Point3D(x: 100, y: 100, z: 0),
                 realWorldCoordinate: Point3D(x: 1.0, y: 1.0, z: 0.0),
@@ -46,7 +46,7 @@ struct CalibrationDataFlowTests {
     }
 
     private func createTestObservationPoints() -> [ObservationPoint] {
-        return [
+        [
             ObservationPoint(
                 antennaId: "antenna1",
                 position: Point3D(x: 1.1, y: 1.1, z: 0.1),
@@ -215,7 +215,7 @@ struct CalibrationDataFlowTests {
         let validation = await dataFlow.validateCurrentState()
 
         #expect(validation.canProceed == false)
-        #expect(validation.issues.count > 0)
+        #expect(!validation.issues.isEmpty)
         #expect(validation.issues.contains { $0.contains("基準点が不足") })
     }
 
@@ -317,36 +317,36 @@ struct CalibrationDataFlowTests {
 /// モックデータリポジトリ
 class MockCalibrationDataRepository: DataRepositoryProtocol {
     func saveCalibrationData(_ data: CalibrationData) async throws {}
-    func loadCalibrationData() async throws -> [CalibrationData] { return [] }
-    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? { return nil }
+    func loadCalibrationData() async throws -> [CalibrationData] { [] }
+    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? { nil }
     func deleteCalibrationData(for antennaId: String) async throws {}
     func deleteAllCalibrationData() async throws {}
 
     func saveFieldAntennaConfiguration(_ antennas: [AntennaInfo]) {}
     func loadFieldAntennaConfiguration() -> [AntennaInfo]? {
-        return [
+        [
             AntennaInfo(id: "antenna1", name: "アンテナ1", coordinates: Point3D(x: 0, y: 0, z: 0))
         ]
     }
 
     func saveRecentSensingSessions(_ sessions: [SensingSession]) {}
-    func loadRecentSensingSessions() -> [SensingSession] { return [] }
+    func loadRecentSensingSessions() -> [SensingSession] { [] }
 
     // 不足しているメソッドを追加
     func saveAntennaPositions(_ positions: [AntennaPositionData]) {}
-    func loadAntennaPositions() -> [AntennaPositionData]? { return nil }
+    func loadAntennaPositions() -> [AntennaPositionData]? { nil }
     func saveAntennaPairings(_ pairings: [AntennaPairing]) {}
-    func loadAntennaPairings() -> [AntennaPairing]? { return nil }
+    func loadAntennaPairings() -> [AntennaPairing]? { nil }
     func saveHasDeviceConnected(_ connected: Bool) {}
-    func loadHasDeviceConnected() -> Bool { return false }
+    func loadHasDeviceConnected() -> Bool { false }
     func saveCalibrationResults(_ results: Data) {}
-    func loadCalibrationResults() -> Data? { return nil }
+    func loadCalibrationResults() -> Data? { nil }
     func saveBoolSetting(key: String, value: Bool) {}
-    func loadBoolSetting(key: String) -> Bool { return false }
+    func loadBoolSetting(key: String) -> Bool { false }
     func saveRecentSystemActivities(_ activities: [SystemActivity]) {}
-    func loadRecentSystemActivities() -> [SystemActivity]? { return nil }
-    func saveData<T: Codable>(_ data: T, forKey key: String) throws {}
-    func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? { return nil }
+    func loadRecentSystemActivities() -> [SystemActivity]? { nil }
+    func saveData(_ data: some Codable, forKey key: String) throws {}
+    func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? { nil }
 }
 
 /// モックUWBデータマネージャー
@@ -376,12 +376,12 @@ class MockUWBDataManager: UWBDataManager {
     }
 
     public override func getLatestObservations(for sessionId: String) async -> [ObservationPoint] {
-        return []
+        []
     }
 
     // テスト用メソッド
     func simulateObservation(_ observation: ObservationPoint) {
-        self.mockLatestObservation = observation
+        mockLatestObservation = observation
         // 親クラスのプロパティも更新
         latestObservation = observation
     }

@@ -1,5 +1,5 @@
-import SwiftUI
 import Foundation
+import SwiftUI
 
 /// マップベースキャリブレーション画面のViewModel
 @MainActor
@@ -8,9 +8,9 @@ class MapBasedCalibrationViewModel: ObservableObject {
     // MARK: - 公開プロパティ
 
     #if os(iOS)
-    @Published var floorMapImage: UIImage?
+        @Published var floorMapImage: UIImage?
     #else
-    @Published var floorMapImage: NSImage?
+        @Published var floorMapImage: NSImage?
     #endif
     @Published var calibrationPoints: [MapCalibrationPoint] = []
     @Published var currentPointIndex: Int = 0
@@ -49,7 +49,7 @@ class MapBasedCalibrationViewModel: ObservableObject {
     }
 
     var canComplete: Bool {
-        return calibrationPoints.count >= 3 && currentCalibrationData?.affineTransform != nil
+        calibrationPoints.count >= 3 && currentCalibrationData?.affineTransform != nil
     }
 
     // MARK: - 初期化

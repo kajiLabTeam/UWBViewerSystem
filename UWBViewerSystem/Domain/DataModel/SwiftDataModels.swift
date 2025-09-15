@@ -381,7 +381,7 @@ public final class PersistentCalibrationData {
 
         // CalibrationTransformの復元
         var transform: CalibrationTransform?
-        if let transformData = transformData, !transformData.isEmpty {
+        if let transformData, !transformData.isEmpty {
             transform = try? decoder.decode(CalibrationTransform.self, from: transformData)
         }
 
@@ -519,7 +519,7 @@ extension CalibrationData {
 
         // CalibrationTransformをData型に変換
         var transformData: Data?
-        if let transform = transform {
+        if let transform {
             transformData = try? encoder.encode(transform)
         }
 

@@ -127,7 +127,7 @@ public class DataRepository: DataRepositoryProtocol {
         userDefaults.set(encoded, forKey: "CalibrationData_\(data.antennaId)")
 
         // 全体のキャリブレーションデータリストも更新
-        var allData = (try? await loadCalibrationData()) ?? []
+        var allData = await (try? loadCalibrationData()) ?? []
         allData.removeAll { $0.antennaId == data.antennaId }
         allData.append(data)
 
@@ -153,7 +153,7 @@ public class DataRepository: DataRepositoryProtocol {
         userDefaults.removeObject(forKey: "CalibrationData_\(antennaId)")
 
         // 全体のリストからも削除
-        var allData = (try? await loadCalibrationData()) ?? []
+        var allData = await (try? loadCalibrationData()) ?? []
         allData.removeAll { $0.antennaId == antennaId }
 
         if allData.isEmpty {
@@ -165,7 +165,7 @@ public class DataRepository: DataRepositoryProtocol {
     }
 
     public func deleteAllCalibrationData() async throws {
-        let allData = (try? await loadCalibrationData()) ?? []
+        let allData = await (try? loadCalibrationData()) ?? []
 
         // 個別のキャリブレーションデータを全て削除
         for data in allData {

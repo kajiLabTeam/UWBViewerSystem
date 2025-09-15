@@ -686,39 +686,39 @@ struct ManualCalibrationSheet: View {
                 .padding()
             }
             .navigationTitle("")
-#if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-#endif
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-#if os(iOS)
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("キャンセル") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
+            #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
+                .navigationBarBackButtonHidden(true)
+                .toolbar {
+                    #if os(iOS)
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("キャンセル") {
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                        }
 
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("完了") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                    .fontWeight(.semibold)
-                }
-#elseif os(macOS)
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("完了") {
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                            .fontWeight(.semibold)
+                        }
+                    #elseif os(macOS)
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("キャンセル") {
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                        }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完了") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                    .fontWeight(.semibold)
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("完了") {
+                                presentationMode.wrappedValue.dismiss()
+                            }
+                            .fontWeight(.semibold)
+                        }
+                    #endif
                 }
-#endif
-            }
         }
     }
 
@@ -757,9 +757,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.referenceX)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-#if os(iOS)
+                        #if os(iOS)
                             .keyboardType(.decimalPad)
-#endif
+                        #endif
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -767,9 +767,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.referenceY)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-#if os(iOS)
+                        #if os(iOS)
                             .keyboardType(.decimalPad)
-#endif
+                        #endif
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -777,9 +777,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.referenceZ)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-#if os(iOS)
+                        #if os(iOS)
                             .keyboardType(.decimalPad)
-#endif
+                        #endif
                     }
                 }
             }
@@ -795,9 +795,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.measuredX)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-#if os(iOS)
+                        #if os(iOS)
                             .keyboardType(.decimalPad)
-#endif
+                        #endif
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -805,9 +805,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.measuredY)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-#if os(iOS)
+                        #if os(iOS)
                             .keyboardType(.decimalPad)
-#endif
+                        #endif
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -815,9 +815,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.measuredZ)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-#if os(iOS)
+                        #if os(iOS)
                             .keyboardType(.decimalPad)
-#endif
+                        #endif
                     }
                 }
             }
@@ -839,13 +839,13 @@ struct ManualCalibrationSheet: View {
 
     private var canAddPoint: Bool {
         !viewModel.referenceX.isEmpty &&
-        !viewModel.referenceY.isEmpty &&
-        !viewModel.measuredX.isEmpty &&
-        !viewModel.measuredY.isEmpty &&
-        Double(viewModel.referenceX) != nil &&
-        Double(viewModel.referenceY) != nil &&
-        Double(viewModel.measuredX) != nil &&
-        Double(viewModel.measuredY) != nil
+            !viewModel.referenceY.isEmpty &&
+            !viewModel.measuredX.isEmpty &&
+            !viewModel.measuredY.isEmpty &&
+            Double(viewModel.referenceX) != nil &&
+            Double(viewModel.referenceY) != nil &&
+            Double(viewModel.measuredX) != nil &&
+            Double(viewModel.measuredY) != nil
     }
 }
 

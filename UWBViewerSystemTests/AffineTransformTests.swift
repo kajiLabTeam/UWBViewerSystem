@@ -1,5 +1,5 @@
-import XCTest
 @testable import UWBViewerSystem
+import XCTest
 
 /// アフィン変換機能のテスト
 final class AffineTransformTests: XCTestCase {

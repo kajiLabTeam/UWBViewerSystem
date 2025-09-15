@@ -1,5 +1,5 @@
-import Testing
 import Foundation
+import Testing
 @testable import UWBViewerSystem
 
 /// 観測データUseCaseのテストスイート
@@ -17,7 +17,7 @@ struct ObservationDataUsecaseTests {
     }
 
     private func createTestObservationPoints() -> [ObservationPoint] {
-        return [
+        [
             ObservationPoint(
                 antennaId: "antenna1",
                 position: Point3D(x: 1.0, y: 1.0, z: 0.1),
@@ -162,8 +162,8 @@ struct ObservationDataUsecaseTests {
 
         #expect(evaluation.isAcceptable == false)
         #expect(evaluation.qualityScore < 0.5)
-        #expect(evaluation.issues.count > 0)
-        #expect(evaluation.recommendations.count > 0)
+        #expect(!evaluation.issues.isEmpty)
+        #expect(!evaluation.recommendations.isEmpty)
     }
 
     @Test("nLoS検出テスト")
@@ -328,7 +328,7 @@ struct ObservationDataUsecaseTests {
         try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
 
         // リアルタイムデータが更新されていることを確認
-        #expect(usecase.realtimeObservations.count > 0)
+        #expect(!usecase.realtimeObservations.isEmpty)
     }
 
     @Test("リアルタイムデータ上限テスト")
@@ -365,35 +365,34 @@ struct ObservationDataUsecaseTests {
 /// モック観測データリポジトリ
 class MockObservationDataRepository: DataRepositoryProtocol {
     func saveCalibrationData(_ data: CalibrationData) async throws {}
-    func loadCalibrationData() async throws -> [CalibrationData] { return [] }
-    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? { return nil }
+    func loadCalibrationData() async throws -> [CalibrationData] { [] }
+    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? { nil }
     func deleteCalibrationData(for antennaId: String) async throws {}
     func deleteAllCalibrationData() async throws {}
 
     func saveFieldAntennaConfiguration(_ antennas: [AntennaInfo]) {}
     func loadFieldAntennaConfiguration() -> [AntennaInfo]? {
-        return [
+        [
             AntennaInfo(id: "antenna1", name: "アンテナ1", coordinates: Point3D(x: 0, y: 0, z: 0))
         ]
     }
 
     func saveRecentSensingSessions(_ sessions: [SensingSession]) {}
-    func loadRecentSensingSessions() -> [SensingSession] { return [] }
+    func loadRecentSensingSessions() -> [SensingSession] { [] }
 
     // 不足しているメソッドを追加
     func saveAntennaPositions(_ positions: [AntennaPositionData]) {}
-    func loadAntennaPositions() -> [AntennaPositionData]? { return nil }
+    func loadAntennaPositions() -> [AntennaPositionData]? { nil }
     func saveAntennaPairings(_ pairings: [AntennaPairing]) {}
-    func loadAntennaPairings() -> [AntennaPairing]? { return nil }
+    func loadAntennaPairings() -> [AntennaPairing]? { nil }
     func saveHasDeviceConnected(_ connected: Bool) {}
-    func loadHasDeviceConnected() -> Bool { return false }
+    func loadHasDeviceConnected() -> Bool { false }
     func saveCalibrationResults(_ results: Data) {}
-    func loadCalibrationResults() -> Data? { return nil }
+    func loadCalibrationResults() -> Data? { nil }
     func saveBoolSetting(key: String, value: Bool) {}
-    func loadBoolSetting(key: String) -> Bool { return false }
+    func loadBoolSetting(key: String) -> Bool { false }
     func saveRecentSystemActivities(_ activities: [SystemActivity]) {}
-    func loadRecentSystemActivities() -> [SystemActivity]? { return nil }
-    func saveData<T: Codable>(_ data: T, forKey key: String) throws {}
-    func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? { return nil }
+    func loadRecentSystemActivities() -> [SystemActivity]? { nil }
+    func saveData(_ data: some Codable, forKey key: String) throws {}
+    func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? { nil }
 }
-

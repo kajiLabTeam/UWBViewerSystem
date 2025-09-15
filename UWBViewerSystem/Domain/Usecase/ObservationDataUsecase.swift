@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 
 /// 観測データ収集を管理するUseCase
 @MainActor
@@ -148,7 +148,7 @@ public class ObservationDataUsecase: ObservableObject {
     /// - Parameter observation: 観測データ点
     /// - Returns: 品質評価結果
     public func evaluateDataQuality(_ observation: ObservationPoint) -> DataQualityEvaluation {
-        return qualityMonitor.evaluate(observation)
+        qualityMonitor.evaluate(observation)
     }
 
     /// セッションの品質統計を取得
@@ -163,7 +163,7 @@ public class ObservationDataUsecase: ObservableObject {
     /// - Parameter observations: 観測データ配列
     /// - Returns: nLoS検出結果
     public func detectNonLineOfSight(_ observations: [ObservationPoint]) -> NLoSDetectionResult {
-        return qualityMonitor.detectNLoS(observations)
+        qualityMonitor.detectNLoS(observations)
     }
 
     // MARK: - データアクセス
@@ -171,7 +171,7 @@ public class ObservationDataUsecase: ObservableObject {
     /// 保存された観測セッション一覧を取得
     public func loadSavedSessions() async throws -> [ObservationSession] {
         // TODO: DataRepositoryに観測セッション用のメソッドを追加する必要があります
-        return []
+        []
     }
 
     /// 観測データをフィルタリング
@@ -194,7 +194,7 @@ public class ObservationDataUsecase: ObservableObject {
             }
 
             // 時間範囲フィルタ
-            if let timeRange = timeRange {
+            if let timeRange {
                 return timeRange.contains(observation.timestamp)
             }
 
@@ -322,7 +322,7 @@ public class UWBDataManager: ObservableObject {
 
     public func getLatestObservations(for sessionId: String) async -> [ObservationPoint] {
         // 実際の実装では、UWBデバイスから最新データを取得
-        return []
+        []
     }
 
     private func startSimulation(for antennaId: String, sessionId: String) {

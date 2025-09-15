@@ -118,7 +118,7 @@ public struct FloorMapInfo: Codable {
 
     // アスペクト比を計算
     public var aspectRatio: Double {
-        return depth > 0 ? width / depth : 1.0
+        depth > 0 ? width / depth : 1.0
     }
 }
 
@@ -478,12 +478,12 @@ public struct CalibrationData: Codable, Identifiable, Equatable {
 
     /// キャリブレーション完了しているか
     public var isCalibrated: Bool {
-        return transform != nil && calibrationPoints.count >= 3
+        transform != nil && calibrationPoints.count >= 3
     }
 
     /// キャリブレーション精度を取得
     public var accuracy: Double? {
-        return transform?.accuracy
+        transform?.accuracy
     }
 }
 
@@ -608,13 +608,13 @@ public struct AffineTransformMatrix: Codable, Equatable {
 
     /// 行列の行列式（スケール成分の確認用）
     public var determinant: Double {
-        return a * d - b * c
+        a * d - b * c
     }
 
     /// 変換が有効かチェック
     public var isValid: Bool {
-        return abs(determinant) > 1e-10 &&
-               [a, b, c, d, tx, ty, scaleZ, translateZ].allSatisfy { $0.isFinite }
+        abs(determinant) > 1e-10 &&
+            [a, b, c, d, tx, ty, scaleZ, translateZ].allSatisfy { $0.isFinite }
     }
 }
 
@@ -651,12 +651,12 @@ public struct MapCalibrationData: Codable, Identifiable, Equatable {
 
     /// キャリブレーション完了しているか（3点設定済み）
     public var isCalibrated: Bool {
-        return affineTransform != nil && calibrationPoints.count == 3
+        affineTransform != nil && calibrationPoints.count == 3
     }
 
     /// キャリブレーション精度を取得
     public var accuracy: Double? {
-        return affineTransform?.accuracy
+        affineTransform?.accuracy
     }
 }
 
@@ -673,7 +673,7 @@ extension Point3D {
 
     /// ベクトルの長さを計算
     public var magnitude: Double {
-        return sqrt(x * x + y * y + z * z)
+        sqrt(x * x + y * y + z * z)
     }
 
     /// 正規化されたベクトルを取得
@@ -685,16 +685,16 @@ extension Point3D {
 
     /// ベクトルの加算
     public static func + (lhs: Point3D, rhs: Point3D) -> Point3D {
-        return Point3D(x: lhs.x + rhs.x, y: lhs.y + rhs.y, z: lhs.z + rhs.z)
+        Point3D(x: lhs.x + rhs.x, y: lhs.y + rhs.y, z: lhs.z + rhs.z)
     }
 
     /// ベクトルの減算
     public static func - (lhs: Point3D, rhs: Point3D) -> Point3D {
-        return Point3D(x: lhs.x - rhs.x, y: lhs.y - rhs.y, z: lhs.z - rhs.z)
+        Point3D(x: lhs.x - rhs.x, y: lhs.y - rhs.y, z: lhs.z - rhs.z)
     }
 
     /// スカラー倍
     public static func * (lhs: Point3D, rhs: Double) -> Point3D {
-        return Point3D(x: lhs.x * rhs, y: lhs.y * rhs, z: lhs.z * rhs)
+        Point3D(x: lhs.x * rhs, y: lhs.y * rhs, z: lhs.z * rhs)
     }
 }

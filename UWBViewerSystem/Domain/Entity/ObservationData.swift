@@ -91,11 +91,11 @@ public struct ObservationSession: Codable, Identifiable, Equatable {
         self.id = id
         self.name = name
         self.startTime = startTime
-        self.endTime = nil
+        endTime = nil
         self.antennaId = antennaId
         self.floorMapId = floorMapId
-        self.observations = []
-        self.status = .recording
+        observations = []
+        status = .recording
     }
 
     /// セッションの継続時間
@@ -202,11 +202,11 @@ public struct ReferenceObservationMapping: Codable, Identifiable, Equatable {
 
         // マッピング品質を計算（観測データの品質と一貫性から）
         if observations.isEmpty {
-            self.mappingQuality = 0.0
+            mappingQuality = 0.0
         } else {
             let avgQuality = observations.map { $0.quality.strength }.reduce(0, +) / Double(observations.count)
             let positionVariance = calculatePositionVariance(observations.map { $0.position })
-            self.mappingQuality = avgQuality * (1.0 - min(positionVariance / 10.0, 1.0))  // 10m以上の分散で品質0
+            mappingQuality = avgQuality * (1.0 - min(positionVariance / 10.0, 1.0))  // 10m以上の分散で品質0
         }
     }
 
@@ -249,7 +249,7 @@ private func calculatePositionVariance(_ positions: [Point3D]) -> Double {
         let dx = position.x - avgX
         let dy = position.y - avgY
         let dz = position.z - avgZ
-        return dx*dx + dy*dy + dz*dz
+        return dx * dx + dy * dy + dz * dz
     }.reduce(0, +) / Double(positions.count)
 
     return sqrt(variance)

@@ -385,11 +385,11 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     func loadCalibrationData() async throws -> [CalibrationData] {
-        return calibrationData.sorted { $0.updatedAt > $1.updatedAt }
+        calibrationData.sorted { $0.updatedAt > $1.updatedAt }
     }
 
     func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        return calibrationData.first { $0.antennaId == antennaId }
+        calibrationData.first { $0.antennaId == antennaId }
     }
 
     func deleteCalibrationData(for antennaId: String) async throws {
@@ -401,6 +401,7 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     // MARK: - マップベースキャリブレーション関連
+
     func saveMapCalibrationData(_ data: MapCalibrationData) async throws {
         if let index = mapCalibrationData.firstIndex(where: { $0.antennaId == data.antennaId && $0.floorMapId == data.floorMapId }) {
             mapCalibrationData[index] = data
@@ -410,11 +411,11 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     func loadMapCalibrationData() async throws -> [MapCalibrationData] {
-        return mapCalibrationData
+        mapCalibrationData
     }
 
     func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData? {
-        return mapCalibrationData.first { $0.antennaId == antennaId && $0.floorMapId == floorMapId }
+        mapCalibrationData.first { $0.antennaId == antennaId && $0.floorMapId == floorMapId }
     }
 
     func deleteMapCalibrationData(for antennaId: String, floorMapId: String) async throws {
@@ -426,22 +427,24 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     // MARK: - システムアクティビティ関連
+
     func saveRecentSystemActivities(_ activities: [SystemActivity]) {
         systemActivities = activities
     }
 
     func loadRecentSystemActivities() -> [SystemActivity]? {
-        return systemActivities
+        systemActivities
     }
 
     // MARK: - 一般的なデータ保存
-    func saveData<T: Codable>(_ data: T, forKey key: String) throws {
+
+    func saveData(_ data: some Codable, forKey key: String) throws {
         // テスト用のダミー実装
     }
 
     func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
         // テスト用のダミー実装
-        return nil
+        nil
     }
 }
 

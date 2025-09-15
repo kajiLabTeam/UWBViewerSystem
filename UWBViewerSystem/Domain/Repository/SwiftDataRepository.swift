@@ -63,6 +63,7 @@ public protocol SwiftDataRepositoryProtocol {
     func deleteAllCalibrationData() async throws
 
     // MARK: - マップベースキャリブレーション関連
+
     func saveMapCalibrationData(_ data: MapCalibrationData) async throws
     func loadMapCalibrationData() async throws -> [MapCalibrationData]
     func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData?

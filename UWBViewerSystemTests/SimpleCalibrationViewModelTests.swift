@@ -1,9 +1,9 @@
-import Testing
 import Foundation
+import Testing
 #if canImport(UIKit)
-import UIKit
+    import UIKit
 #elseif canImport(AppKit)
-import AppKit
+    import AppKit
 #endif
 @testable import UWBViewerSystem
 
@@ -14,7 +14,7 @@ struct SimpleCalibrationViewModelTests {
 
     @MainActor
     private func createTestViewModel() -> SimpleCalibrationViewModel {
-        return SimpleCalibrationViewModel()
+        SimpleCalibrationViewModel()
     }
 
     @MainActor
@@ -34,7 +34,7 @@ struct SimpleCalibrationViewModelTests {
     }
 
     private func createTestFloorMapInfo() -> FloorMapInfo {
-        return FloorMapInfo(
+        FloorMapInfo(
             id: "test-floor-map",
             name: "テストフロアマップ",
             buildingName: "テストビル",
@@ -109,9 +109,9 @@ struct SimpleCalibrationViewModelTests {
 
         // 検証: 画像がnilであること
         #if canImport(UIKit)
-        await #expect(viewModel.floorMapImage == nil)
+            await #expect(viewModel.floorMapImage == nil)
         #elseif canImport(AppKit)
-        await #expect(viewModel.floorMapImage == nil)
+            await #expect(viewModel.floorMapImage == nil)
         #endif
     }
 
@@ -152,9 +152,9 @@ struct SimpleCalibrationViewModelTests {
         // 初期状態の検証
         await #expect(viewModel.currentFloorMapInfo == nil)
         #if canImport(UIKit)
-        await #expect(viewModel.floorMapImage == nil)
+            await #expect(viewModel.floorMapImage == nil)
         #elseif canImport(AppKit)
-        await #expect(viewModel.floorMapImage == nil)
+            await #expect(viewModel.floorMapImage == nil)
         #endif
         await #expect(viewModel.referencePoints.isEmpty)
     }
@@ -208,9 +208,9 @@ struct SimpleCalibrationViewModelTests {
 
         // Step 5: 画像の状態を確認（ファイルが存在しないため、nilが期待される）
         #if canImport(UIKit)
-        await #expect(viewModel.floorMapImage == nil)
+            await #expect(viewModel.floorMapImage == nil)
         #elseif canImport(AppKit)
-        await #expect(viewModel.floorMapImage == nil)
+            await #expect(viewModel.floorMapImage == nil)
         #endif
     }
 
@@ -222,9 +222,9 @@ struct SimpleCalibrationViewModelTests {
 
         // プラットフォーム固有の画像プロパティの型を確認
         #if canImport(UIKit)
-        let _: UIImage? = await viewModel.floorMapImage
+            let _: UIImage? = await viewModel.floorMapImage
         #elseif canImport(AppKit)
-        let _: NSImage? = await viewModel.floorMapImage
+            let _: NSImage? = await viewModel.floorMapImage
         #endif
 
         // テストが通ることで、適切な型が定義されていることを確認

@@ -1,5 +1,5 @@
-import SwiftUI
 import Combine
+import SwiftUI
 
 /// 統合キャリブレーションワークフロービュー
 struct IntegratedCalibrationWorkflowView: View {
@@ -35,24 +35,24 @@ struct IntegratedCalibrationWorkflowView: View {
             }
             .navigationTitle("統合キャリブレーション")
             #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+                .navigationBarTitleDisplayMode(.inline)
             #endif
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") {
-                        viewModel.resetIntegratedCalibration()
-                        dismiss()
+                .navigationBarBackButtonHidden(true)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("キャンセル") {
+                            viewModel.resetIntegratedCalibration()
+                            dismiss()
+                        }
                     }
-                }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("検証") {
-                        showValidationResults.toggle()
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("検証") {
+                            showValidationResults.toggle()
+                        }
+                        .foregroundColor(.blue)
                     }
-                    .foregroundColor(.blue)
                 }
-            }
         }
     }
 

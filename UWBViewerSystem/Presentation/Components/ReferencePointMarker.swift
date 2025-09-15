@@ -58,7 +58,7 @@ struct ReferencePointMarker: View {
             }
             .gesture(
                 isDraggable ?
-                DragGesture()
+                    DragGesture()
                     .onChanged { value in
                         dragOffset = value.translation
                     }
@@ -107,7 +107,7 @@ struct ReferencePointList: View {
 
                     Spacer()
 
-                    if let onClear = onClear {
+                    if let onClear {
                         Button("クリア", action: onClear)
                             .font(.caption)
                             .foregroundColor(.red)

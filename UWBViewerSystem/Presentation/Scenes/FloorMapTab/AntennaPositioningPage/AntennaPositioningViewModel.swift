@@ -28,7 +28,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
     // 共通コンポーネント用のcurrentFloorMapInfoプロパティ
     var currentFloorMapInfo: FloorMapInfo? {
-        return floorMapInfo
+        floorMapInfo
     }
 
     // フロアマップの情報を取得

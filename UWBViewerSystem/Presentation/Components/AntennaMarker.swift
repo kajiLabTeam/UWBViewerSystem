@@ -119,7 +119,7 @@ struct AntennaMarker: View {
         .zIndex(isSelected ? 100 : 10)
         .gesture(
             isDraggable ?
-            DragGesture()
+                DragGesture()
                 .onChanged { value in
                     dragOffset = value.translation
                 }
@@ -142,9 +142,9 @@ struct AntennaMarker: View {
 
     private var backgroundFillColor: Color {
         #if os(macOS)
-        return Color(NSColor.controlBackgroundColor).opacity(0.9)
+            return Color(NSColor.controlBackgroundColor).opacity(0.9)
         #elseif os(iOS)
-        return Color(UIColor.systemBackground).opacity(0.9)
+            return Color(UIColor.systemBackground).opacity(0.9)
         #endif
     }
 }
@@ -275,11 +275,11 @@ struct AntennaRotationControl: View {
         }
         .padding(8)
         #if os(macOS)
-        .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-        .background(Color(UIColor.systemBackground))
+            .background(Color(UIColor.systemBackground))
         #endif
-        .cornerRadius(8)
-        .shadow(radius: 4)
+            .cornerRadius(8)
+            .shadow(radius: 4)
     }
 }

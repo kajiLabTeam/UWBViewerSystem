@@ -21,10 +21,39 @@ class SystemCalibrationViewModel: ObservableObject {
     // キャリブレーションステップの完了状況
     @Published private var completedSteps: Set<SystemCalibrationStep> = []
 
+    // MARK: - 新しいキャリブレーション機能
+    @Published var calibrationUsecase: CalibrationUsecase
+    @Published var selectedAntennaId: String = ""
+    @Published var availableAntennas: [AntennaInfo] = []
+    @Published var showManualCalibrationSheet: Bool = false
+    @Published var showMapBasedCalibrationSheet: Bool = false
+    @Published var calibrationPoints: [CalibrationPoint] = []
+    @Published var currentCalibrationData: CalibrationData?
+    @Published var calibrationStatistics: CalibrationStatistics?
+
+    // MARK: - 統合キャリブレーションワークフロー
+    @Published var calibrationDataFlow: CalibrationDataFlow?
+    @Published var observationUsecase: ObservationDataUsecase?
+    @Published var showIntegratedCalibrationSheet: Bool = false
+    @Published var workflowProgress: Double = 0.0
+    @Published var workflowStatus: CalibrationWorkflowStatus = .idle
+    @Published var referencePointsCount: Int = 0
+    @Published var observationSessionsCount: Int = 0
+    @Published var isObservationCollecting: Bool = false
+
+    // 手動キャリブレーション用
+    @Published var referenceX: String = ""
+    @Published var referenceY: String = ""
+    @Published var referenceZ: String = "0"
+    @Published var measuredX: String = ""
+    @Published var measuredY: String = ""
+    @Published var measuredZ: String = "0"
+
     // MARK: - Private Properties
 
     private var calibrationTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
+    private let dataRepository: DataRepositoryProtocol
 
     // MARK: - Computed Properties
 
@@ -58,9 +87,13 @@ class SystemCalibrationViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init() {
+    init(dataRepository: DataRepositoryProtocol = DataRepository()) {
+        self.dataRepository = dataRepository
+        self.calibrationUsecase = CalibrationUsecase(dataRepository: dataRepository)
         setupObservers()
         loadSettings()
+        loadAvailableAntennas()
+        setupIntegratedCalibration()
     }
 
     deinit {
@@ -119,9 +152,342 @@ class SystemCalibrationViewModel: ObservableObject {
     }
 
     func openManualCalibration() {
-        // 手動キャリブレーション画面への遷移
-        // TODO: 手動キャリブレーション画面の実装
-        showError("手動キャリブレーション機能は準備中です")
+        if !selectedAntennaId.isEmpty {
+            loadCalibrationDataForSelectedAntenna()
+            showManualCalibrationSheet = true
+        } else {
+            showError("アンテナを選択してください")
+        }
+    }
+
+    func openMapBasedCalibration() {
+        if !selectedAntennaId.isEmpty {
+            // フロアマップIDを取得
+            guard let floorMapId = getCurrentFloorMapId() else {
+                showError("フロアマップが設定されていません")
+                return
+            }
+            showMapBasedCalibrationSheet = true
+        } else {
+            showError("アンテナを選択してください")
+        }
+    }
+
+    func getCurrentFloorMapId() -> String? {
+        guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
+              let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) else {
+            return nil
+        }
+        return floorMapInfo.id
+    }
+
+    // MARK: - 新しいキャリブレーション機能メソッド
+
+    func loadAvailableAntennas() {
+        // データリポジトリからアンテナ情報を読み込み
+        availableAntennas = dataRepository.loadFieldAntennaConfiguration() ?? []
+        if !availableAntennas.isEmpty && selectedAntennaId.isEmpty {
+            selectedAntennaId = availableAntennas.first?.id ?? ""
+        }
+        updateCalibrationStatistics()
+    }
+
+    func loadCalibrationDataForSelectedAntenna() {
+        guard !selectedAntennaId.isEmpty else { return }
+        currentCalibrationData = calibrationUsecase.getCalibrationData(for: selectedAntennaId)
+        calibrationPoints = currentCalibrationData?.calibrationPoints ?? []
+    }
+
+    func addCalibrationPoint() {
+        guard !selectedAntennaId.isEmpty,
+              let refX = Double(referenceX),
+              let refY = Double(referenceY),
+              let refZ = Double(referenceZ),
+              let measX = Double(measuredX),
+              let measY = Double(measuredY),
+              let measZ = Double(measuredZ) else {
+            showError("座標値を正しく入力してください")
+            return
+        }
+
+        let referencePosition = Point3D(x: refX, y: refY, z: refZ)
+        let measuredPosition = Point3D(x: measX, y: measY, z: measZ)
+
+        calibrationUsecase.addCalibrationPoint(
+            for: selectedAntennaId,
+            referencePosition: referencePosition,
+            measuredPosition: measuredPosition
+        )
+
+        // 入力フィールドをクリア
+        clearInputFields()
+
+        // データを再読み込み
+        loadCalibrationDataForSelectedAntenna()
+
+        // 統計情報を更新
+        updateCalibrationStatistics()
+    }
+
+    func removeCalibrationPoint(pointId: String) {
+        calibrationUsecase.removeCalibrationPoint(for: selectedAntennaId, pointId: pointId)
+        loadCalibrationDataForSelectedAntenna()
+        updateCalibrationStatistics()
+    }
+
+    func performLeastSquaresCalibration() {
+        guard !selectedAntennaId.isEmpty else {
+            showError("アンテナを選択してください")
+            return
+        }
+
+        guard let calibrationData = currentCalibrationData,
+              calibrationData.calibrationPoints.count >= 3 else {
+            showError("キャリブレーションには最低3つの測定点が必要です")
+            return
+        }
+
+        isLoading = true
+
+        Task {
+            await calibrationUsecase.performCalibration(for: selectedAntennaId)
+
+            await MainActor.run {
+                isLoading = false
+
+                if let result = calibrationUsecase.lastCalibrationResult {
+                    if result.success {
+                        showSuccessAlert = true
+                        loadCalibrationDataForSelectedAntenna()
+                        updateCalibrationStatistics()
+                    } else {
+                        showError(result.errorMessage ?? "キャリブレーションに失敗しました")
+                    }
+                }
+            }
+        }
+    }
+
+    func performAllCalibrations() {
+        guard !availableAntennas.isEmpty else {
+            showError("アンテナが設定されていません")
+            return
+        }
+
+        isLoading = true
+
+        Task {
+            await calibrationUsecase.performAllCalibrations()
+
+            await MainActor.run {
+                isLoading = false
+                updateCalibrationStatistics()
+
+                if calibrationUsecase.calibrationStatus == .completed {
+                    showSuccessAlert = true
+                } else if calibrationUsecase.calibrationStatus == .failed {
+                    showError(calibrationUsecase.errorMessage ?? "キャリブレーションに失敗しました")
+                }
+            }
+        }
+    }
+
+    func clearCalibrationData() {
+        calibrationUsecase.clearCalibrationData(for: selectedAntennaId)
+        loadCalibrationDataForSelectedAntenna()
+        updateCalibrationStatistics()
+    }
+
+    func clearAllCalibrationData() {
+        calibrationUsecase.clearCalibrationData()
+        loadCalibrationDataForSelectedAntenna()
+        updateCalibrationStatistics()
+    }
+
+    func updateCalibrationStatistics() {
+        calibrationStatistics = calibrationUsecase.getCalibrationStatistics()
+    }
+
+    private func clearInputFields() {
+        referenceX = ""
+        referenceY = ""
+        referenceZ = "0"
+        measuredX = ""
+        measuredY = ""
+        measuredZ = "0"
+    }
+
+    // MARK: - 統合キャリブレーションワークフロー
+
+    /// 統合キャリブレーション機能のセットアップ
+    private func setupIntegratedCalibration() {
+        let uwbManager = UWBDataManager()
+        observationUsecase = ObservationDataUsecase(dataRepository: dataRepository, uwbManager: uwbManager)
+
+        guard let observationUsecase = observationUsecase else { return }
+
+        calibrationDataFlow = CalibrationDataFlow(
+            dataRepository: dataRepository,
+            calibrationUsecase: calibrationUsecase,
+            observationUsecase: observationUsecase
+        )
+
+        // データフローの状態を監視
+        setupDataFlowObservers()
+    }
+
+    /// データフローオブザーバーのセットアップ
+    private func setupDataFlowObservers() {
+        guard let calibrationDataFlow = calibrationDataFlow,
+              let observationUsecase = observationUsecase else { return }
+
+        // ワークフローの進行状況を監視
+        calibrationDataFlow.$workflowProgress
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.workflowProgress, on: self)
+            .store(in: &cancellables)
+
+        calibrationDataFlow.$currentWorkflow
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.workflowStatus, on: self)
+            .store(in: &cancellables)
+
+        calibrationDataFlow.$referencePoints
+            .map { $0.count }
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.referencePointsCount, on: self)
+            .store(in: &cancellables)
+
+        calibrationDataFlow.$observationSessions
+            .map { $0.count }
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.observationSessionsCount, on: self)
+            .store(in: &cancellables)
+
+        // 観測データ収集状態を監視
+        observationUsecase.$isCollecting
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.isObservationCollecting, on: self)
+            .store(in: &cancellables)
+    }
+
+    /// 統合キャリブレーションワークフローを開始
+    func startIntegratedCalibration() {
+        guard !selectedAntennaId.isEmpty else {
+            showError("アンテナを選択してください")
+            return
+        }
+
+        showIntegratedCalibrationSheet = true
+    }
+
+    /// マップから基準座標を設定
+    func setReferencePointsFromMap(_ points: [MapCalibrationPoint]) {
+        calibrationDataFlow?.collectReferencePoints(from: points)
+    }
+
+    /// 手動で基準座標を追加
+    func addManualReferencePoint() {
+        guard let refX = Double(referenceX),
+              let refY = Double(referenceY),
+              let refZ = Double(referenceZ) else {
+            showError("基準座標を正しく入力してください")
+            return
+        }
+
+        let position = Point3D(x: refX, y: refY, z: refZ)
+        calibrationDataFlow?.addReferencePoint(position: position, name: "手動設定_\(Date().timeIntervalSince1970)")
+
+        // 入力フィールドをクリア
+        referenceX = ""
+        referenceY = ""
+        referenceZ = "0"
+    }
+
+    /// 観測データ収集を開始
+    func startObservationCollection() {
+        guard !selectedAntennaId.isEmpty else {
+            showError("アンテナを選択してください")
+            return
+        }
+
+        Task {
+            await calibrationDataFlow?.startObservationData(for: selectedAntennaId)
+        }
+    }
+
+    /// 観測データ収集を停止
+    func stopObservationCollection() {
+        guard !selectedAntennaId.isEmpty else { return }
+
+        Task {
+            await calibrationDataFlow?.stopObservationData(for: selectedAntennaId)
+        }
+    }
+
+    /// 完全なキャリブレーションワークフローを実行
+    func executeIntegratedCalibration() {
+        isLoading = true
+
+        Task {
+            // まず観測データと基準データをマッピング
+            let mappings = calibrationDataFlow?.mapObservationsToReferences() ?? []
+            print("📊 作成されたマッピング数: \(mappings.count)")
+
+            // キャリブレーション実行
+            if let result = await calibrationDataFlow?.executeCalibration() {
+                await MainActor.run {
+                    isLoading = false
+
+                    if result.success {
+                        showSuccessAlert = true
+                        // キャリブレーション統計を更新
+                        updateCalibrationStatistics()
+                        print("✅ 統合キャリブレーション完了")
+                    } else {
+                        showError(result.errorMessage ?? "統合キャリブレーションに失敗しました")
+                        print("❌ 統合キャリブレーション失敗: \(result.errorMessage ?? "不明なエラー")")
+                    }
+                }
+            } else {
+                await MainActor.run {
+                    isLoading = false
+                    showError("キャリブレーションデータフローが初期化されていません")
+                }
+            }
+        }
+    }
+
+    /// ワークフローの状態検証
+    func validateWorkflowState() -> CalibrationWorkflowValidation? {
+        return calibrationDataFlow?.validateCurrentState()
+    }
+
+    /// ワークフローをリセット
+    func resetIntegratedCalibration() {
+        calibrationDataFlow?.resetWorkflow()
+        workflowProgress = 0.0
+        workflowStatus = .idle
+        referencePointsCount = 0
+        observationSessionsCount = 0
+        isObservationCollecting = false
+    }
+
+    /// 現在のワークフロー状態を取得
+    var workflowStatusText: String {
+        return workflowStatus.displayText
+    }
+
+    /// ワークフローが実行可能かチェック
+    var canExecuteWorkflow: Bool {
+        let validation = validateWorkflowState()
+        return validation?.canProceed ?? false
+    }
+
+    /// ワークフローの進行状況テキスト
+    var workflowProgressText: String {
+        let percentage = Int(workflowProgress * 100)
+        return "\(percentage)% 完了"
     }
 
     // MARK: - Private Methods

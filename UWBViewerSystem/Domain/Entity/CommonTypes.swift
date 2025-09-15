@@ -382,3 +382,314 @@ public struct Message: Identifiable {
         self.isOutgoing = isOutgoing
     }
 }
+
+// MARK: - キャリブレーション関連
+
+/// キャリブレーション用の測定点データ
+public struct CalibrationPoint: Codable, Identifiable, Equatable {
+    public let id: String
+    public let referencePosition: Point3D  // 正解座標（実際の位置）
+    public let measuredPosition: Point3D   // 測定座標（センサーが測定した位置）
+    public let timestamp: Date
+    public let antennaId: String
+
+    public init(
+        id: String = UUID().uuidString,
+        referencePosition: Point3D,
+        measuredPosition: Point3D,
+        timestamp: Date = Date(),
+        antennaId: String
+    ) {
+        self.id = id
+        self.referencePosition = referencePosition
+        self.measuredPosition = measuredPosition
+        self.timestamp = timestamp
+        self.antennaId = antennaId
+    }
+}
+
+/// キャリブレーション変換行列データ
+public struct CalibrationTransform: Codable, Equatable {
+    /// 平行移動ベクトル
+    public let translation: Point3D
+    /// 回転角度（ラジアン）
+    public let rotation: Double
+    /// スケール係数
+    public let scale: Point3D
+    /// 変換行列作成時刻
+    public let timestamp: Date
+    /// 変換精度（RMSE）
+    public let accuracy: Double
+
+    public init(
+        translation: Point3D,
+        rotation: Double,
+        scale: Point3D,
+        timestamp: Date = Date(),
+        accuracy: Double
+    ) {
+        self.translation = translation
+        self.rotation = rotation
+        self.scale = scale
+        self.timestamp = timestamp
+        self.accuracy = accuracy
+    }
+
+    public static let identity = CalibrationTransform(
+        translation: .zero,
+        rotation: 0.0,
+        scale: Point3D(x: 1.0, y: 1.0, z: 1.0),
+        accuracy: 0.0
+    )
+}
+
+/// アンテナごとのキャリブレーションデータ
+public struct CalibrationData: Codable, Identifiable, Equatable {
+    public let id: String
+    public let antennaId: String
+    public var calibrationPoints: [CalibrationPoint]
+    public var transform: CalibrationTransform?
+    public let createdAt: Date
+    public var updatedAt: Date
+    public var isActive: Bool
+
+    public init(
+        id: String = UUID().uuidString,
+        antennaId: String,
+        calibrationPoints: [CalibrationPoint] = [],
+        transform: CalibrationTransform? = nil,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        isActive: Bool = true
+    ) {
+        self.id = id
+        self.antennaId = antennaId
+        self.calibrationPoints = calibrationPoints
+        self.transform = transform
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.isActive = isActive
+    }
+
+    /// キャリブレーション完了しているか
+    public var isCalibrated: Bool {
+        return transform != nil && calibrationPoints.count >= 3
+    }
+
+    /// キャリブレーション精度を取得
+    public var accuracy: Double? {
+        return transform?.accuracy
+    }
+}
+
+/// キャリブレーション処理の結果
+public struct CalibrationResult: Codable {
+    public let success: Bool
+    public let transform: CalibrationTransform?
+    public let errorMessage: String?
+    public let processedPoints: [CalibrationPoint]
+    public let timestamp: Date
+
+    public init(
+        success: Bool,
+        transform: CalibrationTransform? = nil,
+        errorMessage: String? = nil,
+        processedPoints: [CalibrationPoint] = [],
+        timestamp: Date = Date()
+    ) {
+        self.success = success
+        self.transform = transform
+        self.errorMessage = errorMessage
+        self.processedPoints = processedPoints
+        self.timestamp = timestamp
+    }
+}
+
+/// キャリブレーション状態を表す列挙型
+public enum CalibrationStatus: String, Codable, CaseIterable {
+    case notStarted = "not_started"           // 未開始
+    case collecting = "collecting"            // データ収集中
+    case calculating = "calculating"          // 計算中
+    case completed = "completed"              // 完了
+    case failed = "failed"                    // 失敗
+
+    public var displayName: String {
+        switch self {
+        case .notStarted:
+            return "未開始"
+        case .collecting:
+            return "データ収集中"
+        case .calculating:
+            return "計算中"
+        case .completed:
+            return "完了"
+        case .failed:
+            return "失敗"
+        }
+    }
+}
+
+/// マップベースキャリブレーション用のデータ点
+public struct MapCalibrationPoint: Codable, Identifiable, Equatable {
+    public let id: String
+    public let mapCoordinate: Point3D      // マップ上の座標（ピクセル座標系）
+    public let realWorldCoordinate: Point3D // 実世界座標（メートル）
+    public let antennaId: String
+    public let timestamp: Date
+    public let pointIndex: Int             // 基準点のインデックス（1-3）
+
+    public init(
+        id: String = UUID().uuidString,
+        mapCoordinate: Point3D,
+        realWorldCoordinate: Point3D,
+        antennaId: String,
+        timestamp: Date = Date(),
+        pointIndex: Int
+    ) {
+        self.id = id
+        self.mapCoordinate = mapCoordinate
+        self.realWorldCoordinate = realWorldCoordinate
+        self.antennaId = antennaId
+        self.timestamp = timestamp
+        self.pointIndex = pointIndex
+    }
+}
+
+/// アフィン変換行列構造体
+public struct AffineTransformMatrix: Codable, Equatable {
+    /// 2D変換行列 (3x3行列の上2行を表現)
+    /// [a c tx]
+    /// [b d ty]
+    /// [0 0  1]
+    public let a: Double  // X軸スケール・X軸回転成分
+    public let b: Double  // Y軸回転成分
+    public let c: Double  // X軸回転成分
+    public let d: Double  // Y軸スケール・Y軸回転成分
+    public let tx: Double // X軸平行移動
+    public let ty: Double // Y軸平行移動
+
+    /// Z軸変換（3D用）
+    public let scaleZ: Double
+    public let translateZ: Double
+
+    /// 変換精度
+    public let accuracy: Double
+    public let timestamp: Date
+
+    public init(
+        a: Double, b: Double, c: Double, d: Double,
+        tx: Double, ty: Double,
+        scaleZ: Double = 1.0, translateZ: Double = 0.0,
+        accuracy: Double = 0.0,
+        timestamp: Date = Date()
+    ) {
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+        self.tx = tx
+        self.ty = ty
+        self.scaleZ = scaleZ
+        self.translateZ = translateZ
+        self.accuracy = accuracy
+        self.timestamp = timestamp
+    }
+
+    /// 単位行列
+    public static let identity = AffineTransformMatrix(
+        a: 1.0, b: 0.0, c: 0.0, d: 1.0,
+        tx: 0.0, ty: 0.0
+    )
+
+    /// 行列の行列式（スケール成分の確認用）
+    public var determinant: Double {
+        return a * d - b * c
+    }
+
+    /// 変換が有効かチェック
+    public var isValid: Bool {
+        return abs(determinant) > 1e-10 &&
+               [a, b, c, d, tx, ty, scaleZ, translateZ].allSatisfy { $0.isFinite }
+    }
+}
+
+/// マップベースキャリブレーションデータ
+public struct MapCalibrationData: Codable, Identifiable, Equatable {
+    public let id: String
+    public let antennaId: String
+    public let floorMapId: String
+    public var calibrationPoints: [MapCalibrationPoint]  // 3つの基準座標
+    public var affineTransform: AffineTransformMatrix?
+    public let createdAt: Date
+    public var updatedAt: Date
+    public var isActive: Bool
+
+    public init(
+        id: String = UUID().uuidString,
+        antennaId: String,
+        floorMapId: String,
+        calibrationPoints: [MapCalibrationPoint] = [],
+        affineTransform: AffineTransformMatrix? = nil,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        isActive: Bool = true
+    ) {
+        self.id = id
+        self.antennaId = antennaId
+        self.floorMapId = floorMapId
+        self.calibrationPoints = calibrationPoints
+        self.affineTransform = affineTransform
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.isActive = isActive
+    }
+
+    /// キャリブレーション完了しているか（3点設定済み）
+    public var isCalibrated: Bool {
+        return affineTransform != nil && calibrationPoints.count == 3
+    }
+
+    /// キャリブレーション精度を取得
+    public var accuracy: Double? {
+        return affineTransform?.accuracy
+    }
+}
+
+// MARK: - Point3D拡張（キャリブレーション用）
+
+extension Point3D {
+    /// 2点間の距離を計算
+    public func distance(to other: Point3D) -> Double {
+        let dx = x - other.x
+        let dy = y - other.y
+        let dz = z - other.z
+        return sqrt(dx * dx + dy * dy + dz * dz)
+    }
+
+    /// ベクトルの長さを計算
+    public var magnitude: Double {
+        return sqrt(x * x + y * y + z * z)
+    }
+
+    /// 正規化されたベクトルを取得
+    public var normalized: Point3D {
+        let mag = magnitude
+        guard mag > 0 else { return .zero }
+        return Point3D(x: x / mag, y: y / mag, z: z / mag)
+    }
+
+    /// ベクトルの加算
+    public static func + (lhs: Point3D, rhs: Point3D) -> Point3D {
+        return Point3D(x: lhs.x + rhs.x, y: lhs.y + rhs.y, z: lhs.z + rhs.z)
+    }
+
+    /// ベクトルの減算
+    public static func - (lhs: Point3D, rhs: Point3D) -> Point3D {
+        return Point3D(x: lhs.x - rhs.x, y: lhs.y - rhs.y, z: lhs.z - rhs.z)
+    }
+
+    /// スカラー倍
+    public static func * (lhs: Point3D, rhs: Double) -> Point3D {
+        return Point3D(x: lhs.x * rhs, y: lhs.y * rhs, z: lhs.z * rhs)
+    }
+}

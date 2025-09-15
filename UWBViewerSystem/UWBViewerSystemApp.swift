@@ -23,6 +23,8 @@ struct UWBViewerSystemApp: App {
             PersistentSensingSession.self,
             PersistentSystemActivity.self,
             PersistentReceivedFile.self,
+            PersistentCalibrationData.self,
+            PersistentMapCalibrationData.self,
         ])
 
         // インメモリ設定で最初に試行（テスト用）

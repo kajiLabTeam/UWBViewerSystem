@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 /// システムキャリブレーション画面
-/// 新しいセンシングフローの4番目のステップ
+/// 新しいセンシングフローの4番目の画面
 struct SystemCalibrationView: View {
     @ObservedObject var viewModel: SystemCalibrationViewModel
     @StateObject private var flowNavigator = SensingFlowNavigator()
@@ -23,7 +23,7 @@ struct SystemCalibrationView: View {
                 // フロープログレス表示
                 SensingFlowProgressView(navigator: flowNavigator)
 
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
                         // ヘッダー
                         headerSection
@@ -36,6 +36,9 @@ struct SystemCalibrationView: View {
 
                         // 自動キャリブレーション設定
                         autoCalibrationSection
+
+                        // 新しいキャリブレーション機能
+                        leastSquaresCalibrationSection
 
                         // キャリブレーション実行
                         calibrationControlSection
@@ -63,6 +66,17 @@ struct SystemCalibrationView: View {
             Button("確認", role: .cancel) {}
         } message: {
             Text("システムキャリブレーションが正常に完了しました")
+        }
+        .sheet(isPresented: $viewModel.showManualCalibrationSheet) {
+            ManualCalibrationSheet(viewModel: viewModel)
+        }
+        .sheet(isPresented: $viewModel.showMapBasedCalibrationSheet) {
+            if let floorMapId = viewModel.getCurrentFloorMapId() {
+                MapBasedCalibrationView(antennaId: viewModel.selectedAntennaId, floorMapId: floorMapId)
+            }
+        }
+        .sheet(isPresented: $viewModel.showIntegratedCalibrationSheet) {
+            IntegratedCalibrationWorkflowView(viewModel: viewModel)
         }
     }
 
@@ -315,6 +329,177 @@ struct SystemCalibrationView: View {
                 .cornerRadius(12)
             }
             .disabled(viewModel.calibrationStatus == .running)
+
+            // マップベースキャリブレーションボタン
+            Button(action: viewModel.openMapBasedCalibration) {
+                HStack {
+                    Image(systemName: "map")
+                    Text("マップベースキャリブレーション")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.green)
+                .background(Color.green.opacity(0.1))
+                .cornerRadius(12)
+            }
+            .disabled(viewModel.calibrationStatus == .running)
+        }
+        .padding()
+        .background(Color.secondary.opacity(0.1))
+        .cornerRadius(12)
+        .shadow(radius: 2)
+    }
+
+    // MARK: - 最小二乗法キャリブレーション
+
+    private var leastSquaresCalibrationSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("最小二乗法キャリブレーション")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            // アンテナ選択
+            VStack(alignment: .leading, spacing: 8) {
+                Text("対象アンテナ")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Picker("アンテナ選択", selection: $viewModel.selectedAntennaId) {
+                    ForEach(viewModel.availableAntennas) { antenna in
+                        Text(antenna.name).tag(antenna.id)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .onChange(of: viewModel.selectedAntennaId) {
+                    viewModel.loadCalibrationDataForSelectedAntenna()
+                }
+            }
+
+            // キャリブレーション統計情報
+            if let statistics = viewModel.calibrationStatistics {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("キャリブレーション状況")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("完了率")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(Int(statistics.completionPercentage))%")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        }
+
+                        Spacer()
+
+                        VStack(alignment: .trailing) {
+                            Text("平均精度")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(String(format: "%.2f", statistics.averageAccuracy))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        }
+                    }
+                }
+            }
+
+            // 統合キャリブレーションワークフロー
+            VStack(alignment: .leading, spacing: 12) {
+                Text("統合キャリブレーションワークフロー")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.purple)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("基準点数: \(viewModel.referencePointsCount)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("観測セッション: \(viewModel.observationSessionsCount)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text("状態: \(viewModel.workflowStatusText)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        if viewModel.workflowProgress > 0 {
+                            Text(viewModel.workflowProgressText)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+
+                if viewModel.isObservationCollecting {
+                    HStack {
+                        Image(systemName: "dot.radiowaves.left.and.right")
+                            .foregroundColor(.green)
+                        Text("観測データ収集中...")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                        Spacer()
+                    }
+                }
+
+                Button(action: viewModel.startIntegratedCalibration) {
+                    HStack {
+                        Image(systemName: "waveform.path.ecg")
+                        Text("統合ワークフロー開始")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .foregroundColor(.white)
+                    .background(Color.purple)
+                    .cornerRadius(8)
+                }
+                .disabled(viewModel.selectedAntennaId.isEmpty)
+            }
+
+            Divider()
+
+            // 従来のキャリブレーションボタン
+            VStack(alignment: .leading, spacing: 12) {
+                Text("従来の手動キャリブレーション")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                HStack(spacing: 12) {
+                    Button(action: {
+                        viewModel.performLeastSquaresCalibration()
+                    }) {
+                        HStack {
+                            Image(systemName: "target")
+                            Text("個別実行")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .foregroundColor(.white)
+                        .background(Color.green)
+                        .cornerRadius(8)
+                    }
+                    .disabled(viewModel.selectedAntennaId.isEmpty)
+
+                    Button(action: viewModel.performAllCalibrations) {
+                        HStack {
+                            Image(systemName: "target")
+                            Text("全実行")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .foregroundColor(.white)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                    }
+                    .disabled(viewModel.availableAntennas.isEmpty)
+                }
+            }
         }
         .padding()
         .background(Color.secondary.opacity(0.1))
@@ -325,32 +510,38 @@ struct SystemCalibrationView: View {
     // MARK: - Navigation Buttons
 
     private var navigationButtons: some View {
-        VStack(spacing: 12) {
-            Divider()
-
-            HStack(spacing: 16) {
-                Button("戻る") {
-                    flowNavigator.goToPreviousStep()
+        HStack(spacing: 16) {
+            Button(action: {
+                flowNavigator.goToPreviousStep()
+            }) {
+                HStack {
+                    Image(systemName: "chevron.left")
+                    Text("戻る")
                 }
-                .frame(maxWidth: .infinity)
                 .padding()
-                .foregroundColor(.secondary)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(8)
-
-                Button("次へ") {
-                    flowNavigator.proceedToNextStep()
-                }
                 .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.white)
-                .background(viewModel.canProceedToNext ? Color.blue : Color.gray)
-                .cornerRadius(8)
-                .disabled(!viewModel.canProceedToNext)
+                .background(Color.secondary.opacity(0.2))
+                .foregroundColor(.primary)
+                .cornerRadius(12)
             }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
+
+            Button(action: {
+                flowNavigator.proceedToNextStep()
+            }) {
+                HStack {
+                    Text("次へ")
+                    Image(systemName: "chevron.right")
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .disabled(!viewModel.canProceedToNext)
         }
+        .padding()
+        .background(Color.clear)
     }
 
     // MARK: - Computed Properties
@@ -373,7 +564,7 @@ struct SystemCalibrationView: View {
     private var statusColor: Color {
         switch viewModel.calibrationStatus {
         case .idle:
-            return .secondary
+            return .gray
         case .running:
             return .blue
         case .paused:
@@ -457,6 +648,240 @@ struct CalibrationStepRow: View {
         } else {
             return .secondary
         }
+    }
+}
+
+// MARK: - Manual Calibration Sheet
+
+struct ManualCalibrationSheet: View {
+    @ObservedObject var viewModel: SystemCalibrationViewModel
+    @Environment(\.presentationMode) var presentationMode
+
+    var body: some View {
+        NavigationView {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    // ヘッダー
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("手動キャリブレーション")
+                            .font(.title2)
+                            .fontWeight(.bold)
+
+                        Text("正確な座標で測定することで、システムの精度を向上できます")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // 現在のキャリブレーション点
+                    if !viewModel.calibrationPoints.isEmpty {
+                        calibrationPointsList
+                    }
+
+                    // 新しい測定点の追加
+                    newCalibrationPointSection
+
+                    Spacer(minLength: 50)
+                }
+                .padding()
+            }
+            .navigationTitle("")
+#if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+#endif
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+#if os(iOS)
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("キャンセル") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完了") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+#elseif os(macOS)
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完了") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+#endif
+            }
+        }
+    }
+
+    private var calibrationPointsList: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("登録済み測定点")
+                .font(.headline)
+
+            LazyVStack(spacing: 8) {
+                ForEach(viewModel.calibrationPoints) { point in
+                    CalibrationPointRow(
+                        point: point,
+                        onDelete: { viewModel.removeCalibrationPoint(pointId: point.id) }
+                    )
+                }
+            }
+        }
+        .padding()
+        .background(Color.secondary.opacity(0.1))
+        .cornerRadius(12)
+    }
+
+    private var newCalibrationPointSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("新しい測定点を追加")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("正解座標（実際の位置）")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("X (m)")
+                            .font(.caption)
+                        TextField("0.0", text: $viewModel.referenceX)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Y (m)")
+                            .font(.caption)
+                        TextField("0.0", text: $viewModel.referenceY)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Z (m)")
+                            .font(.caption)
+                        TextField("0.0", text: $viewModel.referenceZ)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("測定座標（センサー値）")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("X (m)")
+                            .font(.caption)
+                        TextField("0.0", text: $viewModel.measuredX)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Y (m)")
+                            .font(.caption)
+                        TextField("0.0", text: $viewModel.measuredY)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Z (m)")
+                            .font(.caption)
+                        TextField("0.0", text: $viewModel.measuredZ)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+#if os(iOS)
+                            .keyboardType(.decimalPad)
+#endif
+                    }
+                }
+            }
+
+            Button("測定点を追加") {
+                viewModel.addCalibrationPoint()
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .foregroundColor(.white)
+            .background(canAddPoint ? Color.blue : Color.gray)
+            .cornerRadius(8)
+            .disabled(!canAddPoint)
+        }
+        .padding()
+        .background(Color.secondary.opacity(0.1))
+        .cornerRadius(12)
+    }
+
+    private var canAddPoint: Bool {
+        !viewModel.referenceX.isEmpty &&
+        !viewModel.referenceY.isEmpty &&
+        !viewModel.measuredX.isEmpty &&
+        !viewModel.measuredY.isEmpty &&
+        Double(viewModel.referenceX) != nil &&
+        Double(viewModel.referenceY) != nil &&
+        Double(viewModel.measuredX) != nil &&
+        Double(viewModel.measuredY) != nil
+    }
+}
+
+// MARK: - Calibration Point Row
+
+struct CalibrationPointRow: View {
+    let point: CalibrationPoint
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("正解: (\(String(format: "%.2f", point.referencePosition.x)), \(String(format: "%.2f", point.referencePosition.y)), \(String(format: "%.2f", point.referencePosition.z)))")
+                    .font(.caption)
+                    .foregroundColor(.primary)
+
+                Text("測定: (\(String(format: "%.2f", point.measuredPosition.x)), \(String(format: "%.2f", point.measuredPosition.y)), \(String(format: "%.2f", point.measuredPosition.z)))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Text("誤差: \(String(format: "%.3f", point.referencePosition.distance(to: point.measuredPosition)))m")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
+
+            Spacer()
+
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(8)
+        .shadow(radius: 1)
     }
 }
 

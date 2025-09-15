@@ -245,6 +245,9 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     private var positions: [AntennaPositionData] = []
     private var floorMaps: [FloorMapInfo] = []
     private var projectProgresses: [ProjectProgress] = []
+    private var calibrationData: [CalibrationData] = []
+    private var mapCalibrationData: [MapCalibrationData] = []
+    private var systemActivities: [SystemActivity] = []
 
     func saveSensingSession(_ session: SensingSession) async throws {
         sessions.append(session)
@@ -369,6 +372,76 @@ class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
         } else {
             projectProgresses.append(progress)
         }
+    }
+
+    // MARK: - キャリブレーション関連
+
+    func saveCalibrationData(_ data: CalibrationData) async throws {
+        if let index = calibrationData.firstIndex(where: { $0.antennaId == data.antennaId }) {
+            calibrationData[index] = data
+        } else {
+            calibrationData.append(data)
+        }
+    }
+
+    func loadCalibrationData() async throws -> [CalibrationData] {
+        return calibrationData.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
+        return calibrationData.first { $0.antennaId == antennaId }
+    }
+
+    func deleteCalibrationData(for antennaId: String) async throws {
+        calibrationData.removeAll { $0.antennaId == antennaId }
+    }
+
+    func deleteAllCalibrationData() async throws {
+        calibrationData.removeAll()
+    }
+
+    // MARK: - マップベースキャリブレーション関連
+    func saveMapCalibrationData(_ data: MapCalibrationData) async throws {
+        if let index = mapCalibrationData.firstIndex(where: { $0.antennaId == data.antennaId && $0.floorMapId == data.floorMapId }) {
+            mapCalibrationData[index] = data
+        } else {
+            mapCalibrationData.append(data)
+        }
+    }
+
+    func loadMapCalibrationData() async throws -> [MapCalibrationData] {
+        return mapCalibrationData
+    }
+
+    func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData? {
+        return mapCalibrationData.first { $0.antennaId == antennaId && $0.floorMapId == floorMapId }
+    }
+
+    func deleteMapCalibrationData(for antennaId: String, floorMapId: String) async throws {
+        mapCalibrationData.removeAll { $0.antennaId == antennaId && $0.floorMapId == floorMapId }
+    }
+
+    func deleteAllMapCalibrationData() async throws {
+        mapCalibrationData.removeAll()
+    }
+
+    // MARK: - システムアクティビティ関連
+    func saveRecentSystemActivities(_ activities: [SystemActivity]) {
+        systemActivities = activities
+    }
+
+    func loadRecentSystemActivities() -> [SystemActivity]? {
+        return systemActivities
+    }
+
+    // MARK: - 一般的なデータ保存
+    func saveData<T: Codable>(_ data: T, forKey key: String) throws {
+        // テスト用のダミー実装
+    }
+
+    func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
+        // テスト用のダミー実装
+        return nil
     }
 }
 

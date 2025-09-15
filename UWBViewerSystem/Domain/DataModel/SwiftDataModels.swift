@@ -341,6 +341,62 @@ public final class PersistentProjectProgress {
 
 // PersistentReceivedFileは単体ファイルで定義済み
 
+@available(macOS 14, iOS 17, *)
+@Model
+public final class PersistentCalibrationData {
+    public var id: String
+    public var antennaId: String
+    public var calibrationPointsData: Data  // [CalibrationPoint]をJSONで保存
+    public var transformData: Data?  // CalibrationTransformをJSONで保存
+    public var createdAt: Date
+    public var updatedAt: Date
+    public var isActive: Bool
+
+    public init(
+        id: String = UUID().uuidString,
+        antennaId: String,
+        calibrationPointsData: Data = Data(),
+        transformData: Data? = nil,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        isActive: Bool = true
+    ) {
+        self.id = id
+        self.antennaId = antennaId
+        self.calibrationPointsData = calibrationPointsData
+        self.transformData = transformData
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.isActive = isActive
+    }
+
+    public func toEntity() -> CalibrationData {
+        let decoder = JSONDecoder()
+
+        // CalibrationPointsの復元
+        var calibrationPoints: [CalibrationPoint] = []
+        if !calibrationPointsData.isEmpty {
+            calibrationPoints = (try? decoder.decode([CalibrationPoint].self, from: calibrationPointsData)) ?? []
+        }
+
+        // CalibrationTransformの復元
+        var transform: CalibrationTransform?
+        if let transformData = transformData, !transformData.isEmpty {
+            transform = try? decoder.decode(CalibrationTransform.self, from: transformData)
+        }
+
+        return CalibrationData(
+            id: id,
+            antennaId: antennaId,
+            calibrationPoints: calibrationPoints,
+            transform: transform,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            isActive: isActive
+        )
+    }
+}
+
 // MARK: - Entity拡張（SwiftDataモデルへの変換）
 
 extension SensingSession {
@@ -450,6 +506,119 @@ extension ProjectProgress {
             stepData: stepDataEncoded,
             createdAt: createdAt,
             updatedAt: updatedAt
+        )
+    }
+}
+
+extension CalibrationData {
+    public func toPersistent() -> PersistentCalibrationData {
+        let encoder = JSONEncoder()
+
+        // CalibrationPointsをData型に変換
+        let calibrationPointsData = (try? encoder.encode(calibrationPoints)) ?? Data()
+
+        // CalibrationTransformをData型に変換
+        var transformData: Data?
+        if let transform = transform {
+            transformData = try? encoder.encode(transform)
+        }
+
+        return PersistentCalibrationData(
+            id: id,
+            antennaId: antennaId,
+            calibrationPointsData: calibrationPointsData,
+            transformData: transformData,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            isActive: isActive
+        )
+    }
+}
+
+/// マップベースキャリブレーションデータの永続化モデル
+@Model
+public final class PersistentMapCalibrationData {
+    public var id: String
+    public var antennaId: String
+    public var floorMapId: String
+    public var calibrationPointsData: Data  // [MapCalibrationPoint]をJSONで保存
+    public var affineTransformData: Data?   // AffineTransformMatrixをJSONで保存
+    public var createdAt: Date
+    public var updatedAt: Date
+    public var isActive: Bool
+
+    public init(
+        id: String,
+        antennaId: String,
+        floorMapId: String,
+        calibrationPointsData: Data = Data(),
+        affineTransformData: Data? = nil,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date(),
+        isActive: Bool = true
+    ) {
+        self.id = id
+        self.antennaId = antennaId
+        self.floorMapId = floorMapId
+        self.calibrationPointsData = calibrationPointsData
+        self.affineTransformData = affineTransformData
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.isActive = isActive
+    }
+
+    /// PersistentからEntityへの変換
+    public func toEntity() -> MapCalibrationData {
+        let decoder = JSONDecoder()
+
+        // MapCalibrationPointsの復元
+        var calibrationPoints: [MapCalibrationPoint] = []
+        if !calibrationPointsData.isEmpty {
+            calibrationPoints = (try? decoder.decode([MapCalibrationPoint].self, from: calibrationPointsData)) ?? []
+        }
+
+        // AffineTransformMatrixの復元
+        var affineTransform: AffineTransformMatrix?
+        if let transformData = affineTransformData {
+            affineTransform = try? decoder.decode(AffineTransformMatrix.self, from: transformData)
+        }
+
+        return MapCalibrationData(
+            id: id,
+            antennaId: antennaId,
+            floorMapId: floorMapId,
+            calibrationPoints: calibrationPoints,
+            affineTransform: affineTransform,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            isActive: isActive
+        )
+    }
+}
+
+/// MapCalibrationDataのPersistent変換拡張
+extension MapCalibrationData {
+    public func toPersistent() -> PersistentMapCalibrationData {
+        let encoder = JSONEncoder()
+
+        // MapCalibrationPointsをData型に変換
+        let calibrationPointsData = (try? encoder.encode(calibrationPoints)) ?? Data()
+
+        // AffineTransformMatrixをData型に変換
+        var affineTransformData: Data?
+        if let transform = affineTransform {
+            affineTransformData = try? encoder.encode(transform)
+        }
+
+        return PersistentMapCalibrationData(
+            id: id,
+            antennaId: antennaId,
+            floorMapId: floorMapId,
+            calibrationPointsData: calibrationPointsData,
+            affineTransformData: affineTransformData,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            isActive: isActive
         )
     }
 }

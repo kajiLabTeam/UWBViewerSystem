@@ -23,6 +23,13 @@ public protocol DataRepositoryProtocol {
     func saveCalibrationResults(_ results: Data)
     func loadCalibrationResults() -> Data?
 
+    // 新しいキャリブレーション機能
+    func saveCalibrationData(_ data: CalibrationData) async throws
+    func loadCalibrationData() async throws -> [CalibrationData]
+    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData?
+    func deleteCalibrationData(for antennaId: String) async throws
+    func deleteAllCalibrationData() async throws
+
     // 設定関連
     func saveBoolSetting(key: String, value: Bool)
     func loadBoolSetting(key: String) -> Bool
@@ -111,6 +118,62 @@ public class DataRepository: DataRepositoryProtocol {
 
     public func loadCalibrationResults() -> Data? {
         userDefaults.data(forKey: "CalibrationResults")
+    }
+
+    // MARK: - 新しいキャリブレーション機能
+
+    public func saveCalibrationData(_ data: CalibrationData) async throws {
+        let encoded = try JSONEncoder().encode(data)
+        userDefaults.set(encoded, forKey: "CalibrationData_\(data.antennaId)")
+
+        // 全体のキャリブレーションデータリストも更新
+        var allData = (try? await loadCalibrationData()) ?? []
+        allData.removeAll { $0.antennaId == data.antennaId }
+        allData.append(data)
+
+        let allEncoded = try JSONEncoder().encode(allData)
+        userDefaults.set(allEncoded, forKey: "AllCalibrationData")
+    }
+
+    public func loadCalibrationData() async throws -> [CalibrationData] {
+        guard let data = userDefaults.data(forKey: "AllCalibrationData") else {
+            return []
+        }
+        return try JSONDecoder().decode([CalibrationData].self, from: data)
+    }
+
+    public func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
+        guard let data = userDefaults.data(forKey: "CalibrationData_\(antennaId)") else {
+            return nil
+        }
+        return try JSONDecoder().decode(CalibrationData.self, from: data)
+    }
+
+    public func deleteCalibrationData(for antennaId: String) async throws {
+        userDefaults.removeObject(forKey: "CalibrationData_\(antennaId)")
+
+        // 全体のリストからも削除
+        var allData = (try? await loadCalibrationData()) ?? []
+        allData.removeAll { $0.antennaId == antennaId }
+
+        if allData.isEmpty {
+            userDefaults.removeObject(forKey: "AllCalibrationData")
+        } else {
+            let allEncoded = try JSONEncoder().encode(allData)
+            userDefaults.set(allEncoded, forKey: "AllCalibrationData")
+        }
+    }
+
+    public func deleteAllCalibrationData() async throws {
+        let allData = (try? await loadCalibrationData()) ?? []
+
+        // 個別のキャリブレーションデータを全て削除
+        for data in allData {
+            userDefaults.removeObject(forKey: "CalibrationData_\(data.antennaId)")
+        }
+
+        // 全体のリストも削除
+        userDefaults.removeObject(forKey: "AllCalibrationData")
     }
 
     // MARK: - 設定関連

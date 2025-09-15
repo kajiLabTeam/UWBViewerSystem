@@ -54,6 +54,20 @@ public protocol SwiftDataRepositoryProtocol {
     func loadAllProjectProgress() async throws -> [ProjectProgress]
     func deleteProjectProgress(by id: String) async throws
     func updateProjectProgress(_ progress: ProjectProgress) async throws
+
+    // キャリブレーション関連
+    func saveCalibrationData(_ data: CalibrationData) async throws
+    func loadCalibrationData() async throws -> [CalibrationData]
+    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData?
+    func deleteCalibrationData(for antennaId: String) async throws
+    func deleteAllCalibrationData() async throws
+
+    // MARK: - マップベースキャリブレーション関連
+    func saveMapCalibrationData(_ data: MapCalibrationData) async throws
+    func loadMapCalibrationData() async throws -> [MapCalibrationData]
+    func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData?
+    func deleteMapCalibrationData(for antennaId: String, floorMapId: String) async throws
+    func deleteAllMapCalibrationData() async throws
 }
 
 @MainActor
@@ -452,6 +466,159 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             try await saveProjectProgress(progress)
         }
     }
+
+    // MARK: - キャリブレーション関連
+
+    public func saveCalibrationData(_ data: CalibrationData) async throws {
+        // 既存のデータがあるかチェック
+        let predicate = #Predicate<PersistentCalibrationData> { $0.antennaId == data.antennaId }
+        let descriptor = FetchDescriptor<PersistentCalibrationData>(predicate: predicate)
+
+        let existingData = try modelContext.fetch(descriptor).first
+
+        if let existing = existingData {
+            // 既存データを更新
+            let encoder = JSONEncoder()
+
+            existing.calibrationPointsData = (try? encoder.encode(data.calibrationPoints)) ?? Data()
+
+            if let transform = data.transform {
+                existing.transformData = try? encoder.encode(transform)
+            } else {
+                existing.transformData = nil
+            }
+
+            existing.updatedAt = data.updatedAt
+            existing.isActive = data.isActive
+
+            try modelContext.save()
+        } else {
+            // 新規作成
+            let persistentData = data.toPersistent()
+            modelContext.insert(persistentData)
+            try modelContext.save()
+        }
+    }
+
+    public func loadCalibrationData() async throws -> [CalibrationData] {
+        let descriptor = FetchDescriptor<PersistentCalibrationData>(
+            predicate: #Predicate { $0.isActive == true },
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+
+        let persistentData = try modelContext.fetch(descriptor)
+        return persistentData.map { $0.toEntity() }
+    }
+
+    public func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
+        let predicate = #Predicate<PersistentCalibrationData> {
+            $0.antennaId == antennaId && $0.isActive == true
+        }
+        let descriptor = FetchDescriptor<PersistentCalibrationData>(predicate: predicate)
+
+        let persistentData = try modelContext.fetch(descriptor)
+        return persistentData.first?.toEntity()
+    }
+
+    public func deleteCalibrationData(for antennaId: String) async throws {
+        let predicate = #Predicate<PersistentCalibrationData> { $0.antennaId == antennaId }
+        let descriptor = FetchDescriptor<PersistentCalibrationData>(predicate: predicate)
+
+        let dataToDelete = try modelContext.fetch(descriptor)
+        for data in dataToDelete {
+            modelContext.delete(data)
+        }
+        try modelContext.save()
+    }
+
+    public func deleteAllCalibrationData() async throws {
+        let descriptor = FetchDescriptor<PersistentCalibrationData>()
+        let allData = try modelContext.fetch(descriptor)
+
+        for data in allData {
+            modelContext.delete(data)
+        }
+        try modelContext.save()
+    }
+
+    // MARK: - マップベースキャリブレーション関連
+
+    public func saveMapCalibrationData(_ data: MapCalibrationData) async throws {
+        // 既存データをチェック
+        let predicate = #Predicate<PersistentMapCalibrationData> {
+            $0.antennaId == data.antennaId && $0.floorMapId == data.floorMapId
+        }
+        let descriptor = FetchDescriptor<PersistentMapCalibrationData>(predicate: predicate)
+
+        let existingData = try modelContext.fetch(descriptor)
+
+        if let existing = existingData.first {
+            // 既存データを更新
+            let encoder = JSONEncoder()
+            existing.calibrationPointsData = (try? encoder.encode(data.calibrationPoints)) ?? Data()
+
+            if let transform = data.affineTransform {
+                existing.affineTransformData = try? encoder.encode(transform)
+            } else {
+                existing.affineTransformData = nil
+            }
+            existing.updatedAt = data.updatedAt
+            existing.isActive = data.isActive
+        } else {
+            // 新規データを挿入
+            let persistentData = data.toPersistent()
+            modelContext.insert(persistentData)
+        }
+
+        try modelContext.save()
+
+        print("🗄️ SwiftDataRepository: マップキャリブレーションデータ保存完了 - アンテナ: \(data.antennaId), フロアマップ: \(data.floorMapId)")
+    }
+
+    public func loadMapCalibrationData() async throws -> [MapCalibrationData] {
+        let descriptor = FetchDescriptor<PersistentMapCalibrationData>(
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+
+        let persistentData = try modelContext.fetch(descriptor)
+        let mapCalibrationData = persistentData.map { $0.toEntity() }
+
+        print("🗄️ SwiftDataRepository: マップキャリブレーションデータ読み込み完了 - \(mapCalibrationData.count)件")
+        return mapCalibrationData
+    }
+
+    public func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData? {
+        let predicate = #Predicate<PersistentMapCalibrationData> {
+            $0.antennaId == antennaId && $0.floorMapId == floorMapId
+        }
+        let descriptor = FetchDescriptor<PersistentMapCalibrationData>(predicate: predicate)
+
+        let results = try modelContext.fetch(descriptor)
+        return results.first?.toEntity()
+    }
+
+    public func deleteMapCalibrationData(for antennaId: String, floorMapId: String) async throws {
+        let predicate = #Predicate<PersistentMapCalibrationData> {
+            $0.antennaId == antennaId && $0.floorMapId == floorMapId
+        }
+        let descriptor = FetchDescriptor<PersistentMapCalibrationData>(predicate: predicate)
+
+        let dataToDelete = try modelContext.fetch(descriptor)
+        for data in dataToDelete {
+            modelContext.delete(data)
+        }
+        try modelContext.save()
+    }
+
+    public func deleteAllMapCalibrationData() async throws {
+        let descriptor = FetchDescriptor<PersistentMapCalibrationData>()
+        let allData = try modelContext.fetch(descriptor)
+
+        for data in allData {
+            modelContext.delete(data)
+        }
+        try modelContext.save()
+    }
 }
 
 // MARK: - Dummy Repository for Initialization
@@ -497,4 +664,18 @@ public class DummySwiftDataRepository: SwiftDataRepositoryProtocol {
     public func loadAllProjectProgress() async throws -> [ProjectProgress] { [] }
     public func deleteProjectProgress(by id: String) async throws {}
     public func updateProjectProgress(_ progress: ProjectProgress) async throws {}
+
+    // キャリブレーション関連
+    public func saveCalibrationData(_ data: CalibrationData) async throws {}
+    public func loadCalibrationData() async throws -> [CalibrationData] { [] }
+    public func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? { nil }
+    public func deleteCalibrationData(for antennaId: String) async throws {}
+    public func deleteAllCalibrationData() async throws {}
+
+    // マップベースキャリブレーション関連
+    public func saveMapCalibrationData(_ data: MapCalibrationData) async throws {}
+    public func loadMapCalibrationData() async throws -> [MapCalibrationData] { [] }
+    public func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData? { nil }
+    public func deleteMapCalibrationData(for antennaId: String, floorMapId: String) async throws {}
+    public func deleteAllMapCalibrationData() async throws {}
 }

@@ -115,6 +115,11 @@ public struct FloorMapInfo: Codable {
         self.depth = depth
         self.createdAt = createdAt
     }
+
+    // アスペクト比を計算
+    public var aspectRatio: Double {
+        return depth > 0 ? width / depth : 1.0
+    }
 }
 
 // MARK: - プロジェクト進行状況管理

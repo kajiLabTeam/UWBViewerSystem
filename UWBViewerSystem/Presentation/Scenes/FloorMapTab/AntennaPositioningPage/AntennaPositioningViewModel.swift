@@ -26,6 +26,11 @@ class AntennaPositioningViewModel: ObservableObject {
     private var modelContext: ModelContext?
     private var swiftDataRepository: SwiftDataRepository?
 
+    // 共通コンポーネント用のcurrentFloorMapInfoプロパティ
+    var currentFloorMapInfo: FloorMapInfo? {
+        return floorMapInfo
+    }
+
     // フロアマップの情報を取得
     var floorMapInfo: FloorMapInfo? {
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),

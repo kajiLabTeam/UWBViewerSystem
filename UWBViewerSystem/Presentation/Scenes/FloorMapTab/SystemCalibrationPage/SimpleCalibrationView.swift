@@ -29,8 +29,10 @@ struct SimpleCalibrationView: View {
                 .padding()
             }
         }
-        
         .onAppear {
+            // SwiftDataのModelContextを設定
+            viewModel.setModelContext(modelContext)
+
             viewModel.loadInitialData()
             viewModel.reloadData() // 常に最新のフロアマップデータを取得
             flowNavigator.currentStep = .systemCalibration
@@ -217,6 +219,17 @@ struct SimpleCalibrationView: View {
 
     private var coordinateSelectionContent: some View {
         VStack(alignment: .leading, spacing: 16) {
+            coordinateSelectionHeader
+            floorMapDisplayView
+            referencePointsList
+        }
+        .padding()
+        .background(Color.secondary.opacity(0.05))
+        .cornerRadius(12)
+    }
+
+    private var coordinateSelectionHeader: some View {
+        VStack(alignment: .leading, spacing: 16) {
             Text("基準座標設定")
                 .font(.headline)
                 .foregroundColor(.primary)
@@ -227,147 +240,105 @@ struct SimpleCalibrationView: View {
                     .foregroundColor(.secondary)
 
                 if !viewModel.antennaPositions.isEmpty {
-                    HStack {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(.blue)
-                            .font(.caption)
-
-                        Text("青色のアンテナが選択中、灰色のアンテナが他の配置済みアンテナです")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    antennaInfoHint
                 }
-            }
-
-            // フロアマップビュー
-            ZStack {
-                // 背景
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.2))
-                    .frame(height: 300)
-
-                if let floorMapImage = viewModel.floorMapImage {
-                    // フロアマップ画像がある場合
-                    #if canImport(UIKit)
-                    Image(uiImage: floorMapImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(height: 300)
-                        .clipped()
-                    #elseif canImport(AppKit)
-                    Image(nsImage: floorMapImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(height: 300)
-                        .clipped()
-                    #endif
-                } else {
-                    // フロアマップ画像がない場合のプレースホルダー
-                    VStack(spacing: 8) {
-                        Image(systemName: "map")
-                            .font(.largeTitle)
-                            .foregroundColor(.secondary)
-
-                        if let floorMapInfo = viewModel.currentFloorMapInfo {
-                            Text(floorMapInfo.name)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-
-                            Text("画像ファイルが見つかりません")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        } else {
-                            Text("フロアマップが設定されていません")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-
-                            Text("フロアマップタブで設定してください")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-
-                        Text("タップして座標を設定")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                // 配置済みアンテナの表示
-                ForEach(viewModel.antennaPositions) { antenna in
-                    CalibrationAntennaMarker(
-                        antenna: antenna,
-                        isSelected: antenna.antennaId == viewModel.selectedAntennaId,
-                        mapSize: CGSize(width: 300, height: 300) // マップ表示サイズに調整
-                    )
-                }
-
-                // 設定済み基準点の表示
-                ForEach(0..<viewModel.referencePoints.count, id: \.self) { index in
-                    let point = viewModel.referencePoints[index]
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 12, height: 12)
-                        .overlay(
-                            Text("\(index + 1)")
-                                .font(.caption2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                        )
-                        .position(
-                            x: CGFloat(point.x * 10),
-                            y: CGFloat(point.y * 10)
-                        )
-                }
-            }
-            .cornerRadius(12)
-            .onTapGesture { location in
-                if viewModel.referencePoints.count < 3 {
-                    let point = Point3D(
-                        x: Double(location.x / 10),
-                        y: Double(location.y / 10),
-                        z: 0.0
-                    )
-                    viewModel.addReferencePoint(point)
-                }
-            }
-
-            // 設定済み座標の表示
-            if !viewModel.referencePoints.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("設定済み座標")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-
-                    ForEach(0..<viewModel.referencePoints.count, id: \.self) { index in
-                        let point = viewModel.referencePoints[index]
-                        HStack {
-                            Text("座標 \(index + 1)")
-                                .font(.caption)
-
-                            Spacer()
-
-                            Text(String(format: "(%.1f, %.1f, %.1f)", point.x, point.y, point.z))
-                                .font(.caption)
-                                .fontDesign(.monospaced)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color.secondary.opacity(0.1))
-                        .cornerRadius(8)
-                    }
-                }
-
-                Button("座標をクリア") {
-                    viewModel.clearReferencePoints()
-                }
-                .foregroundColor(.red)
-                .font(.caption)
             }
         }
-        .padding()
-        .background(Color.secondary.opacity(0.05))
-        .cornerRadius(12)
     }
+
+    private var antennaInfoHint: some View {
+        HStack {
+            Image(systemName: "info.circle")
+                .foregroundColor(.blue)
+                .font(.caption)
+
+            Text("青色のアンテナが選択中、灰色のアンテナが他の配置済みアンテナです")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var floorMapDisplayView: some View {
+        FloorMapCanvas(
+            floorMapImage: viewModel.floorMapImage,
+            floorMapInfo: viewModel.currentFloorMapInfo,
+            onMapTap: handleMapTap
+        ) { geometry in
+            // アンテナ表示
+            ForEach(viewModel.antennaPositions) { antenna in
+                let antennaDisplayData = AntennaDisplayData(
+                    id: antenna.antennaId,
+                    name: antenna.antennaName,
+                    rotation: antenna.rotation,
+                    color: antenna.antennaId == viewModel.selectedAntennaId ? .blue : .gray
+                )
+
+                let normalizedPosition = geometry.realWorldToNormalized(
+                    CGPoint(x: antenna.position.x, y: antenna.position.y)
+                )
+                let displayPosition = geometry.normalizedToImageCoordinate(normalizedPosition)
+
+                AntennaMarker(
+                    antenna: antennaDisplayData,
+                    position: displayPosition,
+                    size: geometry.antennaSizeInPixels(),
+                    sensorRange: geometry.sensorRangeInPixels(),
+                    isSelected: antenna.antennaId == viewModel.selectedAntennaId,
+                    isDraggable: false,
+                    showRotationControls: false
+                )
+            }
+
+            // 基準点表示
+            ForEach(Array(viewModel.referencePoints.enumerated()), id: \.offset) { index, point in
+                let referencePointData = ReferencePointDisplayData(
+                    id: "\(index)",
+                    label: "\(index + 1)",
+                    color: .red,
+                    coordinates: point
+                )
+
+                let normalizedPoint = geometry.realWorldToNormalized(
+                    CGPoint(x: point.x, y: point.y)
+                )
+                let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                ReferencePointMarker(
+                    point: referencePointData,
+                    position: displayPosition
+                )
+            }
+        }
+    }
+
+    private func handleMapTap(at location: CGPoint) {
+        if viewModel.referencePoints.count < 3 {
+            let point = Point3D(
+                x: Double(location.x),
+                y: Double(location.y),
+                z: 0.0
+            )
+            viewModel.addReferencePoint(point)
+        }
+    }
+
+    private var referencePointsList: some View {
+        let referencePointsData = viewModel.referencePoints.enumerated().map { index, point in
+            ReferencePointDisplayData(
+                id: "\(index)",
+                label: "\(index + 1)",
+                color: .red,
+                coordinates: point
+            )
+        }
+
+        return ReferencePointList(
+            points: referencePointsData,
+            onClear: { viewModel.clearReferencePoints() },
+            onPointTap: nil
+        )
+    }
+
 
     private var calibrationExecutionContent: some View {
         VStack(spacing: 24) {
@@ -484,68 +455,6 @@ struct SimpleCalibrationView: View {
                 .cornerRadius(12)
             }
         }
-    }
-}
-
-// MARK: - Preview
-
-// MARK: - Calibration Antenna Marker
-
-struct CalibrationAntennaMarker: View {
-    let antenna: AntennaPositionData
-    let isSelected: Bool
-    let mapSize: CGSize
-
-    // アンテナの位置をマップ座標に変換（簡単な正規化）
-    private var displayPosition: CGPoint {
-        // アンテナ位置データから実際の表示位置を計算
-        // ここでは簡易的な実装として、フロアマップのサイズに基づいて正規化
-        CGPoint(
-            x: min(max(antenna.position.x * 30, 0), mapSize.width),
-            y: min(max(antenna.position.y * 30, 0), mapSize.height)
-        )
-    }
-
-    var body: some View {
-        VStack(spacing: 2) {
-            ZStack {
-                // アンテナ背景円
-                Circle()
-                    .fill(isSelected ? Color.blue : Color.gray)
-                    .frame(width: 24, height: 24)
-                    .shadow(radius: isSelected ? 3 : 1)
-
-                // アンテナアイコン（回転対応）
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.system(size: 12))
-                    .foregroundColor(.white)
-                    .rotationEffect(.degrees(antenna.rotation))
-
-                // 向きを示す矢印（選択時または回転がある場合）
-                if isSelected || antenna.rotation != 0 {
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 8))
-                        .foregroundColor(.yellow)
-                        .offset(y: -18)
-                        .rotationEffect(.degrees(antenna.rotation))
-                }
-            }
-
-            // アンテナ名表示
-            Text(antenna.antennaName)
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 1)
-                .background(
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(isSelected ? Color.blue.opacity(0.8) : Color.gray.opacity(0.8))
-                )
-                .foregroundColor(.white)
-        }
-        .position(displayPosition)
-        .scaleEffect(isSelected ? 1.2 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 }
 

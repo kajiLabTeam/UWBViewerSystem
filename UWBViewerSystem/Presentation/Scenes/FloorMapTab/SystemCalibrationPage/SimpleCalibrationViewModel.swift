@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SwiftData
 import SwiftUI
 
 #if canImport(UIKit)
@@ -63,6 +64,7 @@ class SimpleCalibrationViewModel: ObservableObject {
     private let calibrationUsecase: CalibrationUsecase
     private var cancellables = Set<AnyCancellable>()
     private var calibrationTimer: Timer?
+    private var swiftDataRepository: SwiftDataRepository?
 
     // MARK: - Computed Properties
 
@@ -148,6 +150,16 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     // MARK: - Public Methods
 
+    /// SwiftDataのModelContextを設定
+    func setModelContext(_ context: ModelContext) {
+        swiftDataRepository = SwiftDataRepository(modelContext: context)
+
+        // SwiftDataRepository設定後にアンテナ位置データを再読み込み
+        Task { @MainActor in
+            await loadAntennaPositionsFromSwiftData()
+        }
+    }
+
     /// 初期データの読み込み
     func loadInitialData() {
         loadAvailableAntennas()
@@ -157,8 +169,10 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// データの再読み込み（外部から呼び出し可能）
     func reloadData() {
+        print("🔄 reloadData() 呼び出し")
         loadCurrentFloorMapData()
         loadAntennaPositions()
+        print("🔍 reloadData完了時の画像状態: \(floorMapImage != nil ? "画像あり" : "画像なし")")
     }
 
     /// 次のステップに進む
@@ -271,6 +285,7 @@ class SimpleCalibrationViewModel: ObservableObject {
 
             currentFloorMapId = floorMapInfo.id
             currentFloorMapInfo = floorMapInfo
+            print("🔄 フロアマップ情報を設定し、画像読み込みを開始")
             loadFloorMapImage(for: floorMapInfo.id)
         } catch {
             print("❌ フロアマップ情報のデコードに失敗: \(error)")
@@ -284,12 +299,14 @@ class SimpleCalibrationViewModel: ObservableObject {
     /// フロアマップ画像を読み込み
     private func loadFloorMapImage(for floorMapId: String) {
         print("🖼️ フロアマップ画像読み込み開始: \(floorMapId)")
+        print("🔍 currentFloorMapInfo: \(currentFloorMapInfo?.name ?? "nil")")
 
         // FloorMapInfoのimageプロパティを使用して統一された方法で読み込む
         if let floorMapInfo = currentFloorMapInfo,
            let image = floorMapInfo.image {
-            print("✅ FloorMapInfo.imageプロパティから画像を取得成功")
+            print("✅ FloorMapInfo.imageプロパティから画像を取得成功: \(image.size)")
             floorMapImage = image
+            print("✅ floorMapImageプロパティに設定完了")
             return
         }
 
@@ -357,10 +374,51 @@ class SimpleCalibrationViewModel: ObservableObject {
         print("❌ すべての場所でフロアマップ画像が見つかりませんでした")
     }
 
+    /// SwiftDataからアンテナ位置データを読み込み
+    private func loadAntennaPositionsFromSwiftData() async {
+        print("📍 SwiftDataからアンテナ位置データ読み込み開始")
+
+        guard let repository = swiftDataRepository else {
+            print("❌ SwiftDataRepository が利用できません")
+            antennaPositions = []
+            return
+        }
+
+        guard let floorMapId = currentFloorMapInfo?.id else {
+            print("❌ フロアマップIDが設定されていません")
+            antennaPositions = []
+            return
+        }
+
+        do {
+            let positions = try await repository.loadAntennaPositions(for: floorMapId)
+            antennaPositions = positions
+            print("✅ SwiftDataからアンテナ位置データ読み込み完了: \(positions.count)個")
+
+            for position in positions {
+                print("   - \(position.antennaName) (ID: \(position.antennaId))")
+                print("     位置: (\(position.position.x), \(position.position.y), \(position.position.z))")
+                print("     向き: \(position.rotation)°")
+            }
+        } catch {
+            print("❌ SwiftDataからのアンテナ位置データ読み込みに失敗: \(error)")
+            antennaPositions = []
+        }
+    }
+
     /// アンテナ位置データを読み込み
     private func loadAntennaPositions() {
         print("📍 アンテナ位置データ読み込み開始")
 
+        // SwiftDataRepositoryが利用可能な場合はそちらを優先
+        if let _ = swiftDataRepository {
+            Task { @MainActor in
+                await loadAntennaPositionsFromSwiftData()
+            }
+            return
+        }
+
+        // フォールバック: DataRepositoryを使用
         guard let floorMapId = currentFloorMapInfo?.id else {
             print("❌ フロアマップIDが設定されていません")
             antennaPositions = []
@@ -371,7 +429,7 @@ class SimpleCalibrationViewModel: ObservableObject {
             // 現在のフロアマップに関連するアンテナ位置のみをフィルタ
             let filteredPositions = positions.filter { $0.floorMapId == floorMapId }
             antennaPositions = filteredPositions
-            print("✅ アンテナ位置データ読み込み完了: \(filteredPositions.count)個")
+            print("✅ アンテナ位置データ読み込み完了 (UserDefaults): \(filteredPositions.count)個")
 
             for position in filteredPositions {
                 print("   - \(position.antennaName) (ID: \(position.antennaId))")

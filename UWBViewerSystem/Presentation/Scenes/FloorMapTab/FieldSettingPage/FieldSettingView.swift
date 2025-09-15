@@ -133,7 +133,7 @@ struct FieldSettingView: View {
 
     private func antennaOverlay(for geometry: GeometryProxy) -> some View {
         ForEach(viewModel.antennas) { antenna in
-            AntennaMarker(antenna: antenna)
+            FieldAntennaMarker(antenna: antenna)
                 .position(
                     x: antenna.position.x * geometry.size.width,
                     y: antenna.position.y * geometry.size.height
@@ -270,7 +270,7 @@ struct FieldSettingView: View {
     }
 }
 
-struct AntennaMarker: View {
+struct FieldAntennaMarker: View {
     let antenna: FieldAntennaInfo
 
     var body: some View {

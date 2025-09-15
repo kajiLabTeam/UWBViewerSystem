@@ -56,20 +56,26 @@ struct FloorMapCanvas<Content: View>: View {
             )
 
             ZStack {
+                // タップ領域を先に配置
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture(coordinateSpace: .local) { location in
+                        handleMapTap(location: location, geometry: canvasGeometry)
+                    }
+
                 // マップ背景
                 FloorMapBackground(image: floorMapImage, floorMapInfo: floorMapInfo)
+                    .allowsHitTesting(false)
 
                 // コンテンツ（アンテナ、基準点など）
                 content(canvasGeometry)
+                    .allowsHitTesting(false)
             }
             .onAppear {
                 canvasSize = currentCanvasSize
             }
             .onChange(of: geometry.size) { _, newSize in
                 canvasSize = newSize
-            }
-            .onTapGesture(coordinateSpace: .local) { location in
-                handleMapTap(location: location, geometry: canvasGeometry)
             }
         }
         .frame(height: 300)

@@ -1,0 +1,162 @@
+# Serena Configuration File for UWB Viewer System
+
+# プロジェクト基本情報
+project:
+  name: "UWB Viewer System"
+  description: "UWB技術を活用した位置測定・センシングシステムのiOS/macOSアプリケーション"
+  language: "Swift"
+  framework: "SwiftUI"
+  architecture: "Clean Architecture + MVVM"
+
+# 言語とプラットフォーム設定
+language:
+  primary: "Swift"
+  version: "5.9+"
+  platforms:
+    - "iOS 17.0+"
+    - "macOS 14.0+"
+
+# コード解析設定
+code_analysis:
+  # 解析対象のファイル拡張子
+  file_extensions:
+    - ".swift"
+
+  # 解析から除外するディレクトリ
+  exclude_dirs:
+    - ".build"
+    - "DerivedData"
+    - "BuildTools/.build"
+    - ".swiftpm"
+    - "report"
+
+  # 解析から除外するファイルパターン
+  exclude_patterns:
+    - "*.generated.swift"
+    - "*Tests.swift"
+    - "Mock*.swift"
+
+# シンボル検索設定
+symbol_search:
+  # Swift特有のシンボルパターン
+  patterns:
+    class: "class\\s+\\w+"
+    struct: "struct\\s+\\w+"
+    enum: "enum\\s+\\w+"
+    protocol: "protocol\\s+\\w+"
+    extension: "extension\\s+\\w+"
+    func: "func\\s+\\w+"
+    var: "var\\s+\\w+"
+    let: "let\\s+\\w+"
+
+  # シンボルの優先度
+  priority:
+    - "protocol"
+    - "class"
+    - "struct"
+    - "enum"
+    - "func"
+
+# メモリー管理設定
+memory:
+  # メモリーファイルの最大文字数
+  max_chars_per_file: 10000
+
+  # 自動的に作成されるメモリーファイル
+  auto_create:
+    - "project_overview"
+    - "suggested_commands"
+    - "coding_style_and_conventions"
+    - "task_completion_checklist"
+
+  # メモリーファイルの更新頻度
+  update_frequency: "on_significant_change"
+
+# プロジェクト固有の設定
+project_specific:
+  # 主要なディレクトリ構造
+  main_directories:
+    domain: "UWBViewerSystem/Domain"
+    presentation: "UWBViewerSystem/Presentation"
+    devices: "UWBViewerSystem/Devices"
+    tests: "UWBViewerSystemTests"
+
+  # 重要なエントリーポイント
+  entry_points:
+    app: "UWBViewerSystem/UWBViewerSystemApp.swift"
+    repository: "UWBViewerSystem/Domain/Repository/SwiftDataRepository.swift"
+    models: "UWBViewerSystem/Domain/DataModel/SwiftDataModels.swift"
+
+  # ビルドとテストコマンド
+  commands:
+    build: "swift build"
+    test: "swift test"
+    format: "make format"
+    clean: "swift package clean"
+    xcode_build: "xcodebuild -project UWBViewerSystem.xcodeproj -scheme UWBViewerSystem build"
+
+# 検索とインデックス設定
+search:
+  # インデックス作成時の設定
+  indexing:
+    enabled: true
+    update_on_file_change: true
+    max_file_size_kb: 500
+
+  # 検索時のデフォルト設定
+  defaults:
+    case_sensitive: false
+    whole_word: false
+    regex_enabled: true
+    max_results: 100
+
+# パフォーマンス設定
+performance:
+  # 並列処理
+  parallel_processing: true
+  max_threads: 4
+
+  # キャッシュ設定
+  cache:
+    enabled: true
+    ttl_minutes: 30
+    max_size_mb: 100
+
+# デバッグ設定
+debug:
+  # ログレベル (debug, info, warning, error)
+  log_level: "info"
+
+  # デバッグ出力
+  verbose: false
+
+  # プロファイリング
+  profiling: false
+
+# 統合ツール設定
+integrations:
+  # Swift Package Manager
+  spm:
+    enabled: true
+    manifest: "Package.swift"
+
+  # Xcode
+  xcode:
+    enabled: true
+    project: "UWBViewerSystem.xcodeproj"
+    scheme: "UWBViewerSystem"
+
+  # Git
+  git:
+    enabled: true
+    hooks_path: ".githooks"
+
+  # フォーマッター
+  formatter:
+    tool: "swift-format"
+    config: ".swift-format"
+    alternative_config: ".swiftformat"
+
+# バージョン情報
+version: "1.0.0"
+last_updated: "2024-12-15"

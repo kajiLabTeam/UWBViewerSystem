@@ -1,0 +1,65 @@
+# Serena temporary and cache files
+*.cache
+*.tmp
+*.log
+cache/
+temp/
+tmp/
+
+# Serena index files
+index/
+*.idx
+*.index
+
+# Serena session files
+sessions/
+*.session
+
+# Local configuration overrides
+serena_config.local.yml
+config.local.yml
+
+# User-specific settings
+user_settings.yml
+personal_notes.md
+
+# Analysis results that should not be committed
+analysis_results/
+*.analysis
+
+# Large generated files
+generated/
+*.generated
+
+# Backup files
+*.backup
+*.bak
+backups/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE specific files that might end up here
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Debug and profiling data
+debug/
+profiling/
+*.prof
+*.debug
+
+# Lock files (if any)
+*.lock
+
+# Note: Memory files in memories/ directory should be committed
+# as they contain important project knowledge

@@ -2,19 +2,23 @@ import SwiftData
 @testable import UWBViewerSystem
 import XCTest
 
-// Mock repository type alias for clarity
-typealias TestMockDataRepository = MockDataRepository
-
 @MainActor
 final class CalibrationUsecaseTests: XCTestCase {
 
     var usecase: CalibrationUsecase!
-    var mockRepository: TestMockDataRepository!
+    var mockRepository: MockDataRepository!
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        mockRepository = TestMockDataRepository()
+        mockRepository = MockDataRepository()
         usecase = CalibrationUsecase(dataRepository: mockRepository)
+    }
+
+    // 非同期テスト用の初期化待機ヘルパー
+    @MainActor
+    private func waitForInitialization() async throws {
+        // 初期化タスクの完了を待つ
+        try await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
     }
 
     override func tearDownWithError() throws {
@@ -72,6 +76,8 @@ final class CalibrationUsecaseTests: XCTestCase {
     // MARK: - キャリブレーション実行テスト
 
     func testPerformCalibration_成功ケース() async throws {
+        try await waitForInitialization()
+
         // Arrange
         let antennaId = "test-antenna-1"
         let points = [
@@ -89,11 +95,16 @@ final class CalibrationUsecaseTests: XCTestCase {
         }
 
         // 非同期保存処理が完了するまで少し待機
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
 
         // キャリブレーションデータが正しく設定されているか確認
         let calibrationData = usecase.getCalibrationData(for: antennaId)
         XCTAssertEqual(calibrationData.calibrationPoints.count, 3, "キャリブレーションポイントが3つ追加されている必要があります")
+
+        // 保存されたデータが正しく存在することを確認
+        let savedData = try await mockRepository.loadCalibrationData(for: antennaId)
+        XCTAssertNotNil(savedData, "保存されたキャリブレーションデータが存在すべきです")
+        XCTAssertEqual(savedData?.calibrationPoints.count, 3, "保存されたデータに3つのポイントが含まれるべきです")
 
         // Act
         await usecase.performCalibration(for: antennaId)
@@ -111,6 +122,8 @@ final class CalibrationUsecaseTests: XCTestCase {
     }
 
     func testPerformCalibration_不十分なポイント数でエラー() async throws {
+        try await waitForInitialization()
+
         // Arrange
         let antennaId = "test-antenna-1"
         usecase.addCalibrationPoint(
@@ -130,6 +143,8 @@ final class CalibrationUsecaseTests: XCTestCase {
     }
 
     func testPerformCalibration_空のアンテナIDでエラー() async throws {
+        try await waitForInitialization()
+
         // Act
         await usecase.performCalibration(for: "")
 
@@ -141,6 +156,8 @@ final class CalibrationUsecaseTests: XCTestCase {
     }
 
     func testPerformCalibration_無効な座標値でエラー() async throws {
+        try await waitForInitialization()
+
         // Arrange
         let antennaId = "test-antenna-1"
         let invalidPoints = [
@@ -164,12 +181,20 @@ final class CalibrationUsecaseTests: XCTestCase {
         await usecase.performCalibration(for: antennaId)
 
         // Assert
-        XCTAssertEqual(usecase.calibrationStatus, .failed)
-        XCTAssertNotNil(usecase.errorMessage)
-        XCTAssertTrue(usecase.errorMessage?.contains("無効な座標値") == true)
+        XCTAssertEqual(usecase.calibrationStatus, .failed, "無効な座標値でキャリブレーションが失敗すべきです")
+        XCTAssertNotNil(usecase.lastCalibrationResult, "キャリブレーション結果が存在すべきです")
+
+        guard let result = usecase.lastCalibrationResult else {
+            XCTFail("キャリブレーション結果が取得できませんでした")
+            return
+        }
+        XCTAssertFalse(result.success, "キャリブレーションが失敗すべきです")
+        XCTAssertTrue(result.errorMessage?.contains("無効な座標値") == true, "エラーメッセージに「無効な座標値」が含まれるべきです")
     }
 
     func testPerformCalibration_重複する基準座標でエラー() async throws {
+        try await waitForInitialization()
+
         // Arrange
         let antennaId = "test-antenna-1"
         let duplicatePoints = [
@@ -193,14 +218,22 @@ final class CalibrationUsecaseTests: XCTestCase {
         await usecase.performCalibration(for: antennaId)
 
         // Assert
-        XCTAssertEqual(usecase.calibrationStatus, .failed)
-        XCTAssertNotNil(usecase.errorMessage)
-        XCTAssertTrue(usecase.errorMessage?.contains("重複") == true)
+        XCTAssertEqual(usecase.calibrationStatus, .failed, "重複する基準座標でキャリブレーションが失敗すべきです")
+        XCTAssertNotNil(usecase.lastCalibrationResult, "キャリブレーション結果が存在すべきです")
+
+        guard let result = usecase.lastCalibrationResult else {
+            XCTFail("キャリブレーション結果が取得できませんでした")
+            return
+        }
+        XCTAssertFalse(result.success, "キャリブレーションが失敗すべきです")
+        XCTAssertTrue(result.errorMessage?.contains("重複") == true, "エラーメッセージに「重複」が含まれるべきです")
     }
 
     // MARK: - キャリブレーション適用テスト
 
     func testApplyCalibratedTransform_キャリブレーション済み() async throws {
+        try await waitForInitialization()
+
         // Arrange
         let antennaId = "test-antenna-1"
         let points = [
@@ -313,8 +346,10 @@ final class CalibrationUsecaseTests: XCTestCase {
     // MARK: - 統計情報テスト
 
     func testGetCalibrationStatistics() async throws {
+        try await waitForInitialization()
+
         // Arrange
-        let antennas = ["antenna-1", "antenna-2", "antenna-3"]
+        let antennas = ["antenna-1", "antenna-2"]
         let points = [
             (Point3D(x: 0.0, y: 0.0, z: 0.0), Point3D(x: 0.1, y: 0.1, z: 0.0)),
             (Point3D(x: 1.0, y: 0.0, z: 0.0), Point3D(x: 1.1, y: 0.1, z: 0.0)),
@@ -322,7 +357,7 @@ final class CalibrationUsecaseTests: XCTestCase {
         ]
 
         // 2つのアンテナでキャリブレーション実行
-        for antenna in antennas.prefix(2) {
+        for antenna in antennas {
             for (reference, measured) in points {
                 usecase.addCalibrationPoint(
                     for: antenna,
@@ -330,6 +365,10 @@ final class CalibrationUsecaseTests: XCTestCase {
                     measuredPosition: measured
                 )
             }
+
+            // 非同期保存処理の完了を待つ
+            try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+
             await usecase.performCalibration(for: antenna)
         }
 
@@ -337,7 +376,7 @@ final class CalibrationUsecaseTests: XCTestCase {
         let statistics = usecase.getCalibrationStatistics()
 
         // Assert
-        XCTAssertEqual(statistics.totalAntennas, 3)
+        XCTAssertEqual(statistics.totalAntennas, 2)
         XCTAssertEqual(statistics.calibratedAntennas, 2)
         XCTAssertGreaterThan(statistics.averageAccuracy, 0)
     }

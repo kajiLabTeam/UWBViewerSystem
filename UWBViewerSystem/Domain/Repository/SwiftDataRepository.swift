@@ -347,17 +347,17 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         }
 
         do {
-            // antennaIdで検索
-            let predicate = #Predicate<PersistentAntennaPosition> { $0.antennaId == id }
+            // idで検索（antennaIdではなく）
+            let predicate = #Predicate<PersistentAntennaPosition> { $0.id == id }
             let descriptor = FetchDescriptor<PersistentAntennaPosition>(predicate: predicate)
 
             let positions = try modelContext.fetch(descriptor)
 
             guard !positions.isEmpty else {
-                throw RepositoryError.notFound("指定されたアンテナID[\(id)]のデータが見つかりません")
+                throw RepositoryError.notFound("指定されたID[\(id)]のデータが見つかりません")
             }
 
-            print("🗑️ SwiftDataRepository: アンテナID[\(id)]で検索、\(positions.count)件見つかりました")
+            print("🗑️ SwiftDataRepository: ID[\(id)]で検索、\(positions.count)件見つかりました")
 
             if positions.count > 1 {
                 print("⚠️ 重複するアンテナ位置データが見つかりました: \(positions.count)件")

@@ -9,10 +9,14 @@ struct ObservationDataUsecaseTests {
     // MARK: - Test Setup
 
     @MainActor
-    private func createTestUsecase() -> (ObservationDataUsecase, MockUWBDataManager) {
+    private func createTestUsecase() async -> (ObservationDataUsecase, MockUWBDataManager) {
         let mockRepository = MockObservationDataRepository()
         let mockUWBManager = MockUWBDataManager()
         let usecase = ObservationDataUsecase(dataRepository: mockRepository, uwbManager: mockUWBManager)
+
+        // 初期化待機
+        try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
+
         return (usecase, mockUWBManager)
     }
 
@@ -50,7 +54,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測セッション開始")
     @MainActor
     func testStartObservationSession() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
 
@@ -64,7 +68,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測セッション停止")
     @MainActor
     func testStopObservationSession() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         // セッション開始
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
@@ -80,7 +84,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測セッション一時停止と再開")
     @MainActor
     func testPauseAndResumeObservationSession() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         // セッション開始
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
@@ -99,7 +103,7 @@ struct ObservationDataUsecaseTests {
     @Test("複数セッションの管理")
     @MainActor
     func testMultipleSessionManagement() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         // 複数セッション開始
         let _ = try await usecase.startObservationSession(for: "antenna1", name: "セッション1")
@@ -126,7 +130,7 @@ struct ObservationDataUsecaseTests {
     @Test("データ品質評価 - 高品質データ")
     @MainActor
     func testDataQualityEvaluationHighQuality() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         let highQualityObservation = ObservationPoint(
             antennaId: "antenna1",
@@ -147,7 +151,7 @@ struct ObservationDataUsecaseTests {
     @Test("データ品質評価 - 低品質データ")
     @MainActor
     func testDataQualityEvaluationLowQuality() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         let lowQualityObservation = ObservationPoint(
             antennaId: "antenna1",
@@ -169,7 +173,7 @@ struct ObservationDataUsecaseTests {
     @Test("nLoS検出テスト")
     @MainActor
     func testNLoSDetection() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
         let testObservations = createTestObservationPoints()
 
         let nlosResult = usecase.detectNonLineOfSight(testObservations)
@@ -184,7 +188,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測データフィルタリング - 品質閾値")
     @MainActor
     func testObservationFiltering() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
         let testObservations = createTestObservationPoints()
 
         // セッション作成とデータ追加（モック）
@@ -206,7 +210,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測データフィルタリング - 時間範囲")
     @MainActor
     func testObservationFilteringByTimeRange() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
         let now = Date()
         let oneMinuteAgo = now.addingTimeInterval(-60)
         let oneHourAgo = now.addingTimeInterval(-3600)
@@ -258,7 +262,7 @@ struct ObservationDataUsecaseTests {
     @Test("セッション品質統計計算")
     @MainActor
     func testSessionQualityStatistics() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
         let testObservations = createTestObservationPoints()
 
         // セッション作成とデータ追加
@@ -288,7 +292,7 @@ struct ObservationDataUsecaseTests {
     @Test("未接続状態でのセッション開始エラー")
     @MainActor
     func testStartSessionWithoutConnection() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         // 接続状態を未接続に変更
         usecase.connectionStatus = UWBConnectionStatus.disconnected
@@ -302,7 +306,7 @@ struct ObservationDataUsecaseTests {
     @Test("存在しないセッションの停止エラー")
     @MainActor
     func testStopNonexistentSession() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         // 存在しないセッションIDでの停止を試行
         await #expect(throws: ObservationError.self) {
@@ -315,7 +319,7 @@ struct ObservationDataUsecaseTests {
     @Test("リアルタイムデータ更新")
     @MainActor
     func testRealtimeDataUpdate() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         // セッション開始
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
@@ -346,7 +350,7 @@ struct ObservationDataUsecaseTests {
     @Test("リアルタイムデータ上限テスト")
     @MainActor
     func testRealtimeDataLimit() async throws {
-        let (usecase, mockUWBManager) = createTestUsecase()
+        let (usecase, mockUWBManager) = await createTestUsecase()
 
         // セッション開始
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
@@ -407,4 +411,64 @@ class MockObservationDataRepository: DataRepositoryProtocol {
     func loadRecentSystemActivities() -> [SystemActivity]? { nil }
     func saveData(_ data: some Codable, forKey key: String) throws {}
     func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? { nil }
+
+    // SwiftDataRepositoryProtocol メソッド
+    func saveSensingSession(_ session: SensingSession) async throws {}
+    func loadSensingSession(by id: String) async throws -> SensingSession? { nil }
+    func loadAllSensingSessions() async throws -> [SensingSession] { [] }
+    func deleteSensingSession(by id: String) async throws {}
+    func saveAntennaPosition(_ position: AntennaPositionData) async throws {}
+    func loadAntennaPositions(for floorMapId: String) async throws -> [AntennaPositionData] { [] }
+    func deleteAntennaPosition(by antennaId: String) async throws {}
+    func saveFloorMap(_ floorMap: FloorMapInfo) async throws {}
+    func loadFloorMap(by id: String) async throws -> FloorMapInfo? { nil }
+    func loadAllFloorMaps() async throws -> [FloorMapInfo] { [] }
+    func deleteFloorMap(by id: String) async throws {}
+    func saveMapCalibrationData(_ data: MapCalibrationData) async throws {}
+    func loadMapCalibrationData(for floorMapId: String) async throws -> MapCalibrationData? { nil }
+    func deleteMapCalibrationData(for floorMapId: String) async throws {}
+}
+
+/// モックUWBデータマネージャー
+@MainActor
+class MockUWBDataManager: UWBDataManager {
+    // @Publishedプロパティは新しく定義し、親クラスのものを隠す
+    @Published public var mockConnectionStatus: UWBConnectionStatus = .connected
+    @Published public var mockLatestObservation: ObservationPoint?
+
+    public override init() {
+        super.init()
+        // 初期状態でconnectedに設定
+        connectionStatus = .connected
+    }
+
+    public override func startDataCollection(for antennaId: String, sessionId: String) async throws {
+        mockConnectionStatus = .connected
+        // 親クラスのプロパティも更新
+        connectionStatus = .connected
+        // シミュレーションデータの生成は省略
+    }
+
+    public override func stopDataCollection(sessionId: String) async throws {
+        // 何もしない
+    }
+
+    public override func pauseDataCollection(sessionId: String) async throws {
+        // 何もしない
+    }
+
+    public override func resumeDataCollection(sessionId: String) async throws {
+        // 何もしない
+    }
+
+    public override func getLatestObservations(for sessionId: String) async -> [ObservationPoint] {
+        []
+    }
+
+    // テスト用メソッド
+    func simulateObservation(_ observation: ObservationPoint) {
+        mockLatestObservation = observation
+        // 親クラスのプロパティも更新
+        latestObservation = observation
+    }
 }

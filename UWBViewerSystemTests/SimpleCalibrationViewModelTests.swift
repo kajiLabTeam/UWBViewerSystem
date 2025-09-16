@@ -78,9 +78,9 @@ struct SimpleCalibrationViewModelTests {
         await viewModel.loadInitialData()
 
         // 検証
-        await #expect(viewModel.currentFloorMapInfo != nil)
-        await #expect(viewModel.currentFloorMapInfo?.id == "test-floor-map")
-        await #expect(viewModel.currentFloorMapInfo?.name == "テストフロアマップ")
+        #expect(await viewModel.currentFloorMapInfo != nil)
+        #expect(await viewModel.currentFloorMapInfo?.id == "test-floor-map")
+        #expect(await viewModel.currentFloorMapInfo?.name == "テストフロアマップ")
     }
 
     @Test("フロアマップデータ読み込み - 選択されたフロアマップIDがない場合")
@@ -94,7 +94,7 @@ struct SimpleCalibrationViewModelTests {
         try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
 
         // 検証: フロアマップ情報がnilであること
-        await #expect(viewModel.currentFloorMapInfo == nil)
+        #expect(await viewModel.currentFloorMapInfo == nil)
     }
 
     // MARK: - フロアマップ画像読み込みテスト
@@ -108,9 +108,9 @@ struct SimpleCalibrationViewModelTests {
 
         // 検証: 画像がnilであること
         #if canImport(UIKit)
-            await #expect(viewModel.floorMapImage == nil)
+            #expect(await viewModel.floorMapImage == nil)
         #elseif canImport(AppKit)
-            await #expect(viewModel.floorMapImage == nil)
+            #expect(await viewModel.floorMapImage == nil)
         #endif
     }
 
@@ -133,10 +133,10 @@ struct SimpleCalibrationViewModelTests {
         await viewModel.setReferencePoints(testPoints)
 
         // 検証
-        await #expect(viewModel.referencePoints.count == 3)
-        await #expect(viewModel.referencePoints[0].x == 1.0)
-        await #expect(viewModel.referencePoints[1].x == 2.0)
-        await #expect(viewModel.referencePoints[2].y == 2.0)
+        #expect(await viewModel.referencePoints.count == 3)
+        #expect(await viewModel.referencePoints[0].x == 1.0)
+        #expect(await viewModel.referencePoints[1].x == 2.0)
+        #expect(await viewModel.referencePoints[2].y == 2.0)
     }
 
     // MARK: - ViewModel初期化テスト
@@ -149,13 +149,13 @@ struct SimpleCalibrationViewModelTests {
         try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
 
         // 初期状態の検証
-        await #expect(viewModel.currentFloorMapInfo == nil)
+        #expect(await viewModel.currentFloorMapInfo == nil)
         #if canImport(UIKit)
-            await #expect(viewModel.floorMapImage == nil)
+            #expect(await viewModel.floorMapImage == nil)
         #elseif canImport(AppKit)
-            await #expect(viewModel.floorMapImage == nil)
+            #expect(await viewModel.floorMapImage == nil)
         #endif
-        await #expect(viewModel.referencePoints.isEmpty)
+        #expect(await viewModel.referencePoints.isEmpty)
     }
 
     // MARK: - エラーハンドリングテスト
@@ -175,7 +175,7 @@ struct SimpleCalibrationViewModelTests {
         try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
 
         // 検証: エラーが発生してもnilが設定されること
-        await #expect(viewModel.currentFloorMapInfo == nil)
+        #expect(await viewModel.currentFloorMapInfo == nil)
     }
 
     @Test("エラーハンドリング - 無効なフロアマップデータ")
@@ -211,18 +211,23 @@ struct SimpleCalibrationViewModelTests {
     func testCalibrationStartValidation() async throws {
         let viewModel = await createTestViewModel()
 
+        // currentStepを2に設定（キャリブレーション実行ステップ）
+        await MainActor.run {
+            viewModel.currentStep = 2
+        }
+
         // 条件1: アンテナが選択されていない場合
-        await #expect(viewModel.canStartCalibration == false)
+        #expect(await viewModel.canStartCalibration == false)
 
         // 条件2: アンテナは選択されているが基準点が不足している場合
         await viewModel.selectAntenna("test-antenna")
         await viewModel.addReferencePoint(Point3D(x: 1.0, y: 1.0, z: 0.0))
-        await #expect(viewModel.canStartCalibration == false)
+        #expect(await viewModel.canStartCalibration == false)
 
         // 条件3: 必要な基準点数が満たされた場合
         await viewModel.addReferencePoint(Point3D(x: 2.0, y: 1.0, z: 0.0))
         await viewModel.addReferencePoint(Point3D(x: 1.5, y: 2.0, z: 0.0))
-        await #expect(viewModel.canStartCalibration == true)
+        #expect(await viewModel.canStartCalibration == true)
     }
 
     @Test("エラーハンドリング - 重複する基準座標の検証")
@@ -243,8 +248,8 @@ struct SimpleCalibrationViewModelTests {
         await viewModel.startCalibration()
 
         // エラーメッセージが設定されることを確認
-        await #expect(!viewModel.errorMessage.isEmpty)
-        await #expect(viewModel.showErrorAlert == true)
+        #expect(!(await viewModel.errorMessage.isEmpty))
+        #expect(await viewModel.showErrorAlert == true)
     }
 
     @Test("エラーハンドリング - 無効な座標値の検証")
@@ -265,8 +270,8 @@ struct SimpleCalibrationViewModelTests {
         await viewModel.startCalibration()
 
         // エラーメッセージが設定されることを確認
-        await #expect(!viewModel.errorMessage.isEmpty)
-        await #expect(viewModel.showErrorAlert == true)
+        #expect(!(await viewModel.errorMessage.isEmpty))
+        #expect(await viewModel.showErrorAlert == true)
     }
 
     // MARK: - 統合テスト
@@ -282,7 +287,7 @@ struct SimpleCalibrationViewModelTests {
         await viewModel.loadInitialData()
 
         // Step 2: フロアマップ情報が正しく読み込まれることを確認
-        await #expect(viewModel.currentFloorMapInfo != nil)
+        #expect(await viewModel.currentFloorMapInfo != nil)
 
         // Step 3: 基準点を設定
         let testPoints = [
@@ -293,14 +298,14 @@ struct SimpleCalibrationViewModelTests {
         await viewModel.setReferencePoints(testPoints)
 
         // Step 4: 全体の状態を検証
-        await #expect(viewModel.currentFloorMapInfo?.id == "test-floor-map")
-        await #expect(viewModel.referencePoints.count == 2)
+        #expect(await viewModel.currentFloorMapInfo?.id == "test-floor-map")
+        #expect(await viewModel.referencePoints.count == 2)
 
         // Step 5: 画像の状態を確認（ファイルが存在しないため、nilが期待される）
         #if canImport(UIKit)
-            await #expect(viewModel.floorMapImage == nil)
+            #expect(await viewModel.floorMapImage == nil)
         #elseif canImport(AppKit)
-            await #expect(viewModel.floorMapImage == nil)
+            #expect(await viewModel.floorMapImage == nil)
         #endif
     }
 
@@ -318,7 +323,7 @@ struct SimpleCalibrationViewModelTests {
         #endif
 
         // テストが通ることで、適切な型が定義されていることを確認
-        Bool(true) // 型チェックのため必要
+        #expect(true) // 型チェックのため必要
     }
 
     // MARK: - リアルタイム更新テスト
@@ -328,7 +333,7 @@ struct SimpleCalibrationViewModelTests {
         let viewModel = await createIsolatedTestViewModel()
 
         // 初期状態ではフロアマップ情報がnilであることを確認
-        await #expect(viewModel.currentFloorMapInfo == nil)
+        #expect(await viewModel.currentFloorMapInfo == nil)
 
         // フロアマップ情報を設定
         let testFloorMapInfo = createTestFloorMapInfo()
@@ -354,3 +359,4 @@ struct SimpleCalibrationViewModelTests {
         cleanupTestEnvironment()
     }
 }
+

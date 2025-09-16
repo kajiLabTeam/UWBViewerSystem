@@ -102,7 +102,10 @@ struct SwiftDataRepositoryTests {
         // 読み込み
         let loadedPairings = try await repository.loadAntennaPairings()
         #expect(loadedPairings.count == 1)
-        let loadedPairing = loadedPairings.first!
+        guard let loadedPairing = loadedPairings.first else {
+            #expect(Bool(false), "読み込まれたペアリングデータが空です")
+            return
+        }
         #expect(loadedPairing.id == testPairing.id)
         #expect(loadedPairing.antenna.id == antenna.id)
         #expect(loadedPairing.device.id == device.id)
@@ -134,7 +137,10 @@ struct SwiftDataRepositoryTests {
         // 読み込み
         let loadedPositions = try await repository.loadAntennaPositions()
         #expect(loadedPositions.count == 1)
-        let loadedPosition = loadedPositions.first!
+        guard let loadedPosition = loadedPositions.first else {
+            #expect(Bool(false), "読み込まれたアンテナ位置データが空です")
+            return
+        }
         #expect(loadedPosition.id == testPosition.id)
         #expect(loadedPosition.antennaId == testPosition.antennaId)
         #expect(loadedPosition.antennaName == testPosition.antennaName)
@@ -239,221 +245,15 @@ struct SwiftDataRepositoryTests {
 
 // MARK: - ViewModel Tests with Mock Repository
 
-class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
-    private var sessions: [SensingSession] = []
-    private var pairings: [AntennaPairing] = []
-    private var positions: [AntennaPositionData] = []
-    private var floorMaps: [FloorMapInfo] = []
-    private var projectProgresses: [ProjectProgress] = []
-    private var calibrationData: [CalibrationData] = []
-    private var mapCalibrationData: [MapCalibrationData] = []
-    private var systemActivities: [SystemActivity] = []
-
-    func saveSensingSession(_ session: SensingSession) async throws {
-        sessions.append(session)
-    }
-
-    func loadSensingSession(by id: String) async throws -> SensingSession? {
-        sessions.first { $0.id == id }
-    }
-
-    func loadAllSensingSessions() async throws -> [SensingSession] {
-        sessions.sorted { $0.startTime > $1.startTime }
-    }
-
-    func deleteSensingSession(by id: String) async throws {
-        sessions.removeAll { $0.id == id }
-    }
-
-    func updateSensingSession(_ session: SensingSession) async throws {
-        if let index = sessions.firstIndex(where: { $0.id == session.id }) {
-            sessions[index] = session
-        }
-    }
-
-    func saveAntennaPairing(_ pairing: AntennaPairing) async throws {
-        pairings.append(pairing)
-    }
-
-    func loadAntennaPairings() async throws -> [AntennaPairing] {
-        pairings.sorted { $0.pairedAt > $1.pairedAt }
-    }
-
-    func deleteAntennaPairing(by id: String) async throws {
-        pairings.removeAll { $0.id == id }
-    }
-
-    func updateAntennaPairing(_ pairing: AntennaPairing) async throws {
-        if let index = pairings.firstIndex(where: { $0.id == pairing.id }) {
-            pairings[index] = pairing
-        }
-    }
-
-    func saveAntennaPosition(_ position: AntennaPositionData) async throws {
-        positions.append(position)
-    }
-
-    func loadAntennaPositions() async throws -> [AntennaPositionData] {
-        positions.sorted { $0.antennaName < $1.antennaName }
-    }
-
-    func loadAntennaPositions(for floorMapId: String) async throws -> [AntennaPositionData] {
-        positions.filter { $0.floorMapId == floorMapId }.sorted { $0.antennaName < $1.antennaName }
-    }
-
-    func deleteAntennaPosition(by id: String) async throws {
-        positions.removeAll { $0.id == id }
-    }
-
-    func updateAntennaPosition(_ position: AntennaPositionData) async throws {
-        if let index = positions.firstIndex(where: { $0.id == position.id }) {
-            positions[index] = position
-        }
-    }
-
-    // 他の実装はダミー
-    func saveRealtimeData(_ data: RealtimeData, sessionId: String) async throws {}
-    func loadRealtimeData(for sessionId: String) async throws -> [RealtimeData] { [] }
-    func deleteRealtimeData(by id: UUID) async throws {}
-    func saveSystemActivity(_ activity: SystemActivity) async throws {}
-    func loadRecentSystemActivities(limit: Int) async throws -> [SystemActivity] { [] }
-    func deleteOldSystemActivities(olderThan date: Date) async throws {}
-
-    // 受信ファイル関連ダミー実装
-    func saveReceivedFile(_ file: ReceivedFile) async throws {}
-    func loadReceivedFiles() async throws -> [ReceivedFile] { [] }
-    func deleteReceivedFile(by id: UUID) async throws {}
-    func deleteAllReceivedFiles() async throws {}
-
-    // フロアマップ関連実装
-    func saveFloorMap(_ floorMap: FloorMapInfo) async throws {
-        floorMaps.append(floorMap)
-    }
-
-    func loadAllFloorMaps() async throws -> [FloorMapInfo] {
-        floorMaps.sorted { $0.createdAt > $1.createdAt }
-    }
-
-    func loadFloorMap(by id: String) async throws -> FloorMapInfo? {
-        floorMaps.first { $0.id == id }
-    }
-
-    func deleteFloorMap(by id: String) async throws {
-        floorMaps.removeAll { $0.id == id }
-    }
-
-    func setActiveFloorMap(id: String) async throws {
-        // テスト用なので実装省略
-    }
-
-    func saveProjectProgress(_ progress: ProjectProgress) async throws {
-        projectProgresses.append(progress)
-    }
-
-    func loadProjectProgress(by id: String) async throws -> ProjectProgress? {
-        projectProgresses.first { $0.id == id }
-    }
-
-    func loadProjectProgress(for floorMapId: String) async throws -> ProjectProgress? {
-        projectProgresses.first { $0.floorMapId == floorMapId }
-    }
-
-    func loadAllProjectProgress() async throws -> [ProjectProgress] {
-        projectProgresses.sorted { $0.updatedAt > $1.updatedAt }
-    }
-
-    func deleteProjectProgress(by id: String) async throws {
-        projectProgresses.removeAll { $0.id == id }
-    }
-
-    func updateProjectProgress(_ progress: ProjectProgress) async throws {
-        if let index = projectProgresses.firstIndex(where: { $0.id == progress.id }) {
-            projectProgresses[index] = progress
-        } else {
-            projectProgresses.append(progress)
-        }
-    }
-
-    // MARK: - キャリブレーション関連
-
-    func saveCalibrationData(_ data: CalibrationData) async throws {
-        if let index = calibrationData.firstIndex(where: { $0.antennaId == data.antennaId }) {
-            calibrationData[index] = data
-        } else {
-            calibrationData.append(data)
-        }
-    }
-
-    func loadCalibrationData() async throws -> [CalibrationData] {
-        calibrationData.sorted { $0.updatedAt > $1.updatedAt }
-    }
-
-    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        calibrationData.first { $0.antennaId == antennaId }
-    }
-
-    func deleteCalibrationData(for antennaId: String) async throws {
-        calibrationData.removeAll { $0.antennaId == antennaId }
-    }
-
-    func deleteAllCalibrationData() async throws {
-        calibrationData.removeAll()
-    }
-
-    // MARK: - マップベースキャリブレーション関連
-
-    func saveMapCalibrationData(_ data: MapCalibrationData) async throws {
-        if let index = mapCalibrationData.firstIndex(where: { $0.antennaId == data.antennaId && $0.floorMapId == data.floorMapId }) {
-            mapCalibrationData[index] = data
-        } else {
-            mapCalibrationData.append(data)
-        }
-    }
-
-    func loadMapCalibrationData() async throws -> [MapCalibrationData] {
-        mapCalibrationData
-    }
-
-    func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData? {
-        mapCalibrationData.first { $0.antennaId == antennaId && $0.floorMapId == floorMapId }
-    }
-
-    func deleteMapCalibrationData(for antennaId: String, floorMapId: String) async throws {
-        mapCalibrationData.removeAll { $0.antennaId == antennaId && $0.floorMapId == floorMapId }
-    }
-
-    func deleteAllMapCalibrationData() async throws {
-        mapCalibrationData.removeAll()
-    }
-
-    // MARK: - システムアクティビティ関連
-
-    func saveRecentSystemActivities(_ activities: [SystemActivity]) {
-        systemActivities = activities
-    }
-
-    func loadRecentSystemActivities() -> [SystemActivity]? {
-        systemActivities
-    }
-
-    // MARK: - 一般的なデータ保存
-
-    func saveData(_ data: some Codable, forKey key: String) throws {
-        // テスト用のダミー実装
-    }
-
-    func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
-        // テスト用のダミー実装
-        nil
-    }
-}
+// MockSwiftDataRepositoryは TestHelpers/MockDataRepository.swift で定義済み
+typealias TestMockSwiftDataRepository = MockSwiftDataRepository
 
 struct PairingSettingViewModelTests {
 
     @Test("PairingSettingViewModel データ保存・読み込みテスト")
     @MainActor
     func testPairingDataSaveAndLoad() async throws {
-        let mockRepository = MockSwiftDataRepository()
+        let mockRepository = TestMockSwiftDataRepository()
         let viewModel = PairingSettingViewModel(swiftDataRepository: mockRepository, autoLoadData: false)
 
         // テストデータ準備
@@ -493,7 +293,7 @@ struct DataDisplayViewModelTests {
     @Test("DataDisplayViewModel 履歴データ読み込みテスト")
     @MainActor
     func testHistoryDataLoading() async throws {
-        let mockRepository = MockSwiftDataRepository()
+        let mockRepository = TestMockSwiftDataRepository()
         let viewModel = DataDisplayViewModel(swiftDataRepository: mockRepository)
 
         // テストセッションを追加

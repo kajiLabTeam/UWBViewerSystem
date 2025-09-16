@@ -2,6 +2,55 @@ import Combine
 import Foundation
 
 /// 観測データ収集を管理するUseCase
+// MARK: - Observation Errors
+
+/// 観測関連のエラー定義
+public enum ObservationError: LocalizedError {
+    case deviceNotConnected
+    case sessionNotFound(String)
+    case invalidInput(String)
+    case sessionStartFailed(String)
+    case sessionStopFailed(String)
+    case dataCollectionFailed(String)
+    case qualityCheckFailed(String)
+    
+    public var errorDescription: String? {
+        switch self {
+        case .deviceNotConnected:
+            return "UWBデバイスが接続されていません"
+        case .sessionNotFound(let sessionId):
+            return "セッションが見つかりません: \(sessionId)"
+        case .invalidInput(let message):
+            return "無効な入力: \(message)"
+        case .sessionStartFailed(let message):
+            return "セッション開始に失敗しました: \(message)"
+        case .sessionStopFailed(let message):
+            return "セッション停止に失敗しました: \(message)"
+        case .dataCollectionFailed(let message):
+            return "データ収集に失敗しました: \(message)"
+        case .qualityCheckFailed(let message):
+            return "データ品質チェックに失敗しました: \(message)"
+        }
+    }
+    
+    public var recoverySuggestion: String? {
+        switch self {
+        case .deviceNotConnected:
+            return "UWBデバイスの接続を確認してください。"
+        case .sessionNotFound:
+            return "有効なセッションを選択してください。"
+        case .invalidInput:
+            return "入力内容を確認してください。"
+        case .sessionStartFailed, .sessionStopFailed:
+            return "操作を再試行するか、デバイスの接続を確認してください。"
+        case .dataCollectionFailed:
+            return "デバイスの接続とセンサーの状態を確認してください。"
+        case .qualityCheckFailed:
+            return "測定環境や設定を見直してください。"
+        }
+    }
+}
+
 @MainActor
 public class ObservationDataUsecase: ObservableObject {
 
@@ -44,20 +93,40 @@ public class ObservationDataUsecase: ObservableObject {
     ///   - antennaId: 観測対象のアンテナID
     ///   - name: セッション名
     /// - Returns: 開始されたセッション
-    public func startObservationSession(for antennaId: String, name: String) async throws -> ObservationSession {
-        // UWB接続状態を確認
-        guard connectionStatus == .connected else {
-            throw ObservationError.deviceNotConnected
-        }
+    /// 観測セッションを開始
+/// - Parameters:
+///   - antennaId: 観測対象のアンテナID
+///   - name: セッション名
+/// - Returns: 開始されたセッション
+public func startObservationSession(for antennaId: String, name: String) async throws -> ObservationSession {
+    // 入力データの検証
+    guard !antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw ObservationError.invalidInput("アンテナIDが空です")
+    }
+    
+    guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw ObservationError.invalidInput("セッション名が空です")
+    }
+    
+    // UWB接続状態を確認
+    guard connectionStatus == .connected else {
+        throw ObservationError.deviceNotConnected
+    }
 
+    do {
         // 既存セッションが実行中の場合は停止
-        if let existingSession = currentSessions.values.first(where: { $0.antennaId == antennaId && $0.status == .recording }) {
+        let activeSession = currentSessions.values.first { session in
+            session.antennaId == antennaId && session.status == .recording
+        }
+        
+        if let existingSession = activeSession {
+            print("🔄 既存のアクティブセッションを停止します: \(existingSession.name)")
             _ = try await stopObservationSession(existingSession.id)
         }
 
         let session = ObservationSession(
-            name: name,
-            antennaId: antennaId,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            antennaId: antennaId.trimmingCharacters(in: .whitespacesAndNewlines),
             floorMapId: getCurrentFloorMapId()
         )
 
@@ -72,16 +141,32 @@ public class ObservationDataUsecase: ObservableObject {
 
         print("🚀 観測セッション開始: \(name) (アンテナ: \(antennaId))")
         return session
+        
+    } catch let error as ObservationError {
+        // 既に定義されたObservationErrorはそのまま再スロー
+        throw error
+    } catch {
+        // その他のエラーをObservationErrorでラップ
+        throw ObservationError.sessionStartFailed("セッション開始に失敗しました: \(error.localizedDescription)")
     }
+}
 
     /// 観測セッションを停止
     /// - Parameter sessionId: セッションID
     /// - Returns: 停止されたセッション
-    public func stopObservationSession(_ sessionId: String) async throws -> ObservationSession {
-        guard var session = currentSessions[sessionId] else {
-            throw ObservationError.sessionNotFound(sessionId)
-        }
+    /// 観測セッションを停止
+/// - Parameter sessionId: セッションID
+/// - Returns: 停止されたセッション
+public func stopObservationSession(_ sessionId: String) async throws -> ObservationSession {
+    guard !sessionId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw ObservationError.invalidInput("セッションIDが空です")
+    }
+    
+    guard var session = currentSessions[sessionId] else {
+        throw ObservationError.sessionNotFound(sessionId)
+    }
 
+    do {
         // UWBデータ収集を停止
         try await uwbManager.stopDataCollection(sessionId: sessionId)
 
@@ -103,7 +188,13 @@ public class ObservationDataUsecase: ObservableObject {
 
         print("⏹️ 観測セッション停止: \(session.name), データ点数: \(session.observations.count)")
         return session
+        
+    } catch let error as ObservationError {
+        throw error
+    } catch {
+        throw ObservationError.sessionStopFailed("セッション停止処理でエラーが発生しました: \(error.localizedDescription)")
     }
+}
 
     /// 全ての観測セッションを停止
     public func stopAllSessions() {
@@ -483,23 +574,3 @@ public struct NLoSDetectionResult {
     }
 }
 
-/// 観測エラー
-public enum ObservationError: Error, LocalizedError {
-    case deviceNotConnected
-    case sessionNotFound(String)
-    case dataCollectionFailed(String)
-    case invalidConfiguration
-
-    public var errorDescription: String? {
-        switch self {
-        case .deviceNotConnected:
-            return "UWBデバイスが接続されていません"
-        case .sessionNotFound(let sessionId):
-            return "セッションが見つかりません: \(sessionId)"
-        case .dataCollectionFailed(let reason):
-            return "データ収集に失敗しました: \(reason)"
-        case .invalidConfiguration:
-            return "設定が無効です"
-        }
-    }
-}

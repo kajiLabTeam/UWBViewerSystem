@@ -189,7 +189,10 @@ struct ObservationDataUsecaseTests {
 
         // セッション作成とデータ追加（モック）
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
-        var sessionWithData = usecase.currentSessions[session.id]!
+        guard var sessionWithData = usecase.currentSessions[session.id] else {
+            #expect(Bool(false), "セッションが見つかりません")
+            return
+        }
         sessionWithData.observations = testObservations
         usecase.currentSessions[session.id] = sessionWithData
 
@@ -231,7 +234,10 @@ struct ObservationDataUsecaseTests {
 
         // セッション作成とデータ追加
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
-        var sessionWithData = usecase.currentSessions[session.id]!
+        guard var sessionWithData = usecase.currentSessions[session.id] else {
+            #expect(Bool(false), "セッションが見つかりません")
+            return
+        }
         sessionWithData.observations = [recentObservation, oldObservation]
         usecase.currentSessions[session.id] = sessionWithData
 
@@ -257,18 +263,24 @@ struct ObservationDataUsecaseTests {
 
         // セッション作成とデータ追加
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
-        var sessionWithData = usecase.currentSessions[session.id]!
+        guard var sessionWithData = usecase.currentSessions[session.id] else {
+            #expect(Bool(false), "セッションが見つかりません")
+            return
+        }
         sessionWithData.observations = testObservations
         usecase.currentSessions[session.id] = sessionWithData
 
         let statistics = usecase.getSessionQualityStatistics(session.id)
 
-        #expect(statistics != nil)
-        #expect(statistics!.totalPoints == 3)
-        #expect(statistics!.validPoints == 2)  // 品質0.3を除く2つ
-        #expect(statistics!.averageQuality > 0.5)
-        #expect(statistics!.lineOfSightPercentage < 100.0)  // nLoSデータが含まれる
-        #expect(statistics!.qualityAssessment.isEmpty == false)
+        guard let statistics = statistics else {
+            #expect(Bool(false), "統計情報が取得できませんでした")
+            return
+        }
+        #expect(statistics.totalPoints == 3)
+        #expect(statistics.validPoints == 2)  // 品質0.3を除く2つ
+        #expect(statistics.averageQuality > 0.5)
+        #expect(statistics.lineOfSightPercentage < 100.0)  // nLoSデータが含まれる
+        #expect(statistics.qualityAssessment.isEmpty == false)
     }
 
     // MARK: - エラーハンドリングテスト

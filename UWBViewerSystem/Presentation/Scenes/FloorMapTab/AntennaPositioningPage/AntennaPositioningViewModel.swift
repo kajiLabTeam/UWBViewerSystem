@@ -116,49 +116,59 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     /// ペアリング情報からデバイス一覧を構築
-    private func loadDevicesFromPairingData() {
-        guard let repository = swiftDataRepository else {
-            print("❌ SwiftDataRepository が利用できません")
-            return
-        }
+    /// ペアリング情報からデバイス一覧を構築
+private func loadDevicesFromPairingData() {
+    guard let repository = swiftDataRepository else {
+        print("❌ SwiftDataRepository が利用できません")
+        handleError("データベースへの接続に失敗しました")
+        return
+    }
 
-        Task {
-            do {
-                // まずペアリング情報を試行
-                let pairings = try await repository.loadAntennaPairings()
-                print("📱 SwiftDataからペアリング情報を読み込み: \(pairings.count)件")
+    Task {
+        do {
+            // まずペアリング情報を試行
+            let pairings = try await repository.loadAntennaPairings()
+            print("📱 SwiftDataからペアリング情報を読み込み: \(pairings.count)件")
 
-                if !pairings.isEmpty {
-                    await MainActor.run {
-                        // 既存のリストをクリア
-                        selectedDevices.removeAll()
-
-                        // ペアリング済みデバイスを selectedDevices に設定
-                        selectedDevices = pairings.map { pairing in
-                            var device = pairing.device
-                            // アンテナ情報も含めてデバイス名を更新（アンテナ名があれば使用）
-                            device.name = pairing.antenna.name.isEmpty ? device.name : pairing.antenna.name
-                            return device
-                        }
-
-                        print("✅ ペアリング情報から \(selectedDevices.count) 台のデバイスを読み込みました")
-
-                        // アンテナ位置を再作成
-                        createAntennaPositions()
-                    }
-                } else {
-                    // ペアリング情報がない場合はアンテナ位置データから構築
-                    await loadDevicesFromAntennaPositions(repository: repository)
-                }
-            } catch {
-                print("❌ ペアリング情報の読み込みエラー: \(error)")
+            if !pairings.isEmpty {
                 await MainActor.run {
-                    // エラーの場合は従来の方法にフォールバック
-                    loadSelectedDevicesFromUserDefaults()
+                    // 既存のリストをクリア
+                    selectedDevices.removeAll()
+
+                    // ペアリング済みデバイスを selectedDevices に設定
+                    selectedDevices = pairings.compactMap { pairing in
+                        // データの妥当性をチェック
+                        guard !pairing.device.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                              !pairing.device.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                            print("⚠️ 無効なペアリングデータをスキップ: \(pairing)")
+                            return nil
+                        }
+                        
+                        var device = pairing.device
+                        // アンテナ情報も含めてデバイス名を更新（アンテナ名があれば使用）
+                        device.name = pairing.antenna.name.isEmpty ? device.name : pairing.antenna.name
+                        return device
+                    }
+
+                    print("✅ ペアリング情報から \(selectedDevices.count) 台のデバイスを読み込みました")
+
+                    // アンテナ位置を再作成
+                    createAntennaPositions()
                 }
+            } else {
+                // ペアリング情報がない場合はアンテナ位置データから構築
+                await loadDevicesFromAntennaPositions(repository: repository)
+            }
+        } catch {
+            print("❌ ペアリング情報の読み込みエラー: \(error)")
+            await MainActor.run {
+                handleError("ペアリング情報の読み込みに失敗しました: \(error.localizedDescription)")
+                // エラーの場合は従来の方法にフォールバック
+                loadSelectedDevicesFromUserDefaults()
             }
         }
     }
+}
 
     /// アンテナ位置データからデバイス一覧を構築
     private func loadDevicesFromAntennaPositions(repository: SwiftDataRepository) async {
@@ -742,6 +752,38 @@ class AntennaPositioningViewModel: ObservableObject {
 
             } catch {
                 print("❌ プロジェクト進行状況の更新エラー: \(error)")
+            }
+        }
+    }
+
+    
+    // MARK: - エラーハンドリング
+    
+    /// エラーハンドリング用のメソッド
+    private func handleError(_ message: String) {
+        print("❌ AntennaPositioningViewModel Error: \(message)")
+        // TODO: エラー状態をUIに反映する仕組みを追加
+        // 例: @Published var errorMessage: String? = nil
+        // errorMessage = message
+    }
+    
+    /// 安全な非同期タスク実行
+    private func safeAsyncTask<T>(
+        operation: @escaping () async throws -> T,
+        onSuccess: @escaping (T) -> Void = { _ in },
+        onFailure: @escaping (Error) -> Void = { _ in }
+    ) {
+        Task {
+            do {
+                let result = try await operation()
+                await MainActor.run {
+                    onSuccess(result)
+                }
+            } catch {
+                await MainActor.run {
+                    handleError(error.localizedDescription)
+                    onFailure(error)
+                }
             }
         }
     }

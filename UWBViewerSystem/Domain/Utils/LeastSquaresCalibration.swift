@@ -190,13 +190,23 @@ public class LeastSquaresCalibration {
         // 2x2行列のSVD分解（簡略化版）
         let rotation = try calculateOptimalRotation(H)
 
-        // スケール計算（各軸独立）
-        let scaleX = try calculateScale(measured: measured.map { $0.x }, reference: reference.map { $0.x })
-        let scaleY = try calculateScale(measured: measured.map { $0.y }, reference: reference.map { $0.y })
-        let scaleZ = measured.isEmpty ? 1.0 : try calculateScale(
-            measured: measured.map { $0.z },
-            reference: reference.map { $0.z }
-        )
+        // スケール計算（各軸独立、分散チェック付き）
+        func calculateScaleWithFallback(measured: [Double], reference: [Double]) -> Double {
+            let variance = measured.reduce(0.0) { $0 + $1 * $1 }
+            if variance > 1e-12 {
+                do {
+                    return try calculateScale(measured: measured, reference: reference)
+                } catch {
+                    return 1.0 // エラーが発生した場合はスケール1.0を使用
+                }
+            } else {
+                return 1.0 // 分散が不十分な場合はスケール1.0を使用
+            }
+        }
+
+        let scaleX = calculateScaleWithFallback(measured: measured.map { $0.x }, reference: reference.map { $0.x })
+        let scaleY = calculateScaleWithFallback(measured: measured.map { $0.y }, reference: reference.map { $0.y })
+        let scaleZ = calculateScaleWithFallback(measured: measured.map { $0.z }, reference: reference.map { $0.z })
 
         return (
             rotation: rotation,
@@ -228,7 +238,7 @@ public class LeastSquaresCalibration {
         let sumMeasuredSquared = measured.reduce(0.0) { $0 + $1 * $1 }
         let sumProduct = zip(measured, reference).reduce(0.0) { $0 + $1.0 * $1.1 }
 
-        guard sumMeasuredSquared > 1e-10 else {
+        guard sumMeasuredSquared > 1e-12 else {
             throw CalibrationError.invalidInput("測定データの分散が不十分です")
         }
 

@@ -3,6 +3,58 @@ import SwiftData
 
 // MARK: - SwiftData用Repository
 
+// MARK: - Repository Errors
+
+/// リポジトリ層のエラー定義
+public enum RepositoryError: LocalizedError {
+    case invalidData(String)
+    case duplicateEntry(String)
+    case notFound(String)
+    case saveFailed(String)
+    case deleteFailed(String)
+    case loadFailed(String)
+    case connectionFailed(String)
+    case transactionFailed(String)
+    
+    public var errorDescription: String? {
+        switch self {
+        case .invalidData(let message):
+            return "無効なデータ: \(message)"
+        case .duplicateEntry(let message):
+            return "重複エントリ: \(message)"
+        case .notFound(let message):
+            return "データが見つかりません: \(message)"
+        case .saveFailed(let message):
+            return "保存に失敗しました: \(message)"
+        case .deleteFailed(let message):
+            return "削除に失敗しました: \(message)"
+        case .loadFailed(let message):
+            return "読み込みに失敗しました: \(message)"
+        case .connectionFailed(let message):
+            return "接続に失敗しました: \(message)"
+        case .transactionFailed(let message):
+            return "トランザクション処理に失敗しました: \(message)"
+        }
+    }
+    
+    public var recoverySuggestion: String? {
+        switch self {
+        case .invalidData:
+            return "入力データを確認してください。"
+        case .duplicateEntry:
+            return "既存のデータを確認して重複を解消してください。"
+        case .notFound:
+            return "データが存在するか確認してください。"
+        case .saveFailed, .deleteFailed, .loadFailed:
+            return "操作を再試行するか、アプリケーションを再起動してください。"
+        case .connectionFailed:
+            return "データベース接続を確認してください。"
+        case .transactionFailed:
+            return "処理を再試行してください。"
+        }
+    }
+}
+
 public protocol SwiftDataRepositoryProtocol {
     // センシングセッション関連
     func saveSensingSession(_ session: SensingSession) async throws
@@ -69,6 +121,12 @@ public protocol SwiftDataRepositoryProtocol {
     func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData?
     func deleteMapCalibrationData(for antennaId: String, floorMapId: String) async throws
     func deleteAllMapCalibrationData() async throws
+
+    // MARK: - データ整合性機能
+
+    func cleanupDuplicateAntennaPositions() async throws -> Int
+    func cleanupAllDuplicateData() async throws -> [String: Int]
+    func validateDataIntegrity() async throws -> [String]
 }
 
 @MainActor
@@ -83,18 +141,52 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     // MARK: - センシングセッション関連
 
     public func saveSensingSession(_ session: SensingSession) async throws {
+    guard !session.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("センシングセッションIDが空です")
+    }
+    
+    guard !session.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("センシングセッション名が空です")
+    }
+    
+    do {
+        // 重複チェック
+        let existingSession = try await loadSensingSession(by: session.id)
+        if existingSession != nil {
+            throw RepositoryError.duplicateEntry("IDが重複するセンシングセッションが既に存在します: \(session.id)")
+        }
+        
         let persistentSession = session.toPersistent()
         modelContext.insert(persistentSession)
+        
         try modelContext.save()
+        print("✅ センシングセッション保存完了: \(session.name) (ID: \(session.id))")
+    } catch let error as RepositoryError {
+        throw error
+    } catch {
+        throw RepositoryError.saveFailed("センシングセッションの保存に失敗しました: \(error.localizedDescription)")
     }
+}
 
     public func loadSensingSession(by id: String) async throws -> SensingSession? {
+    guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("センシングセッションIDが空です")
+    }
+    
+    do {
         let predicate = #Predicate<PersistentSensingSession> { $0.id == id }
         let descriptor = FetchDescriptor<PersistentSensingSession>(predicate: predicate)
-
+        
         let sessions = try modelContext.fetch(descriptor)
+        if sessions.count > 1 {
+            print("⚠️ 重複するセンシングセッションが見つかりました: \(sessions.count)件")
+        }
+        
         return sessions.first?.toEntity()
+    } catch {
+        throw RepositoryError.loadFailed("センシングセッションの読み込みに失敗しました: \(error.localizedDescription)")
     }
+}
 
     public func loadAllSensingSessions() async throws -> [SensingSession] {
         let descriptor = FetchDescriptor<PersistentSensingSession>(
@@ -133,10 +225,80 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     // MARK: - アンテナ位置関連
 
     public func saveAntennaPosition(_ position: AntennaPositionData) async throws {
-        let persistentPosition = position.toPersistent()
-        modelContext.insert(persistentPosition)
-        try modelContext.save()
+    guard !position.antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("アンテナIDが空です")
     }
+    
+    guard !position.antennaName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("アンテナ名が空です")
+    }
+    
+    guard !position.floorMapId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("フロアマップIDが空です")
+    }
+    
+    do {
+        // 同じアンテナID + フロアマップIDの組み合わせをすべて検索
+        let predicate = #Predicate<PersistentAntennaPosition> {
+            $0.antennaId == position.antennaId && $0.floorMapId == position.floorMapId
+        }
+        let descriptor = FetchDescriptor<PersistentAntennaPosition>(predicate: predicate)
+        let existingPositions = try modelContext.fetch(descriptor)
+
+        if !existingPositions.isEmpty {
+            // 重複データが存在する場合
+            if existingPositions.count > 1 {
+                print("⚠️ 重複するアンテナ位置データが見つかりました: \(existingPositions.count)件。最新データ以外を削除します。")
+
+                // 最新データを保持し、他は削除
+                let sortedPositions = existingPositions.sorted { pos1, pos2 in
+                    // idの文字列比較で最新を判定（UUIDの場合、より良い方法があれば変更可能）
+                    return pos1.id > pos2.id
+                }
+
+                let latestPosition = sortedPositions.first!
+                let duplicatesToDelete = Array(sortedPositions.dropFirst())
+
+                for duplicate in duplicatesToDelete {
+                    print("🗑️ 重複データを削除: ID=\(duplicate.id), Name=\(duplicate.antennaName)")
+                    modelContext.delete(duplicate)
+                }
+
+                // 最新データを更新
+                latestPosition.antennaName = position.antennaName
+                latestPosition.x = position.position.x
+                latestPosition.y = position.position.y
+                latestPosition.z = position.position.z
+                latestPosition.rotation = position.rotation
+
+                try modelContext.save()
+                print("🔄 アンテナ位置を更新しました（重複削除後）: \(position.antennaName)")
+            } else {
+                // 単一の既存データを更新
+                let existingPosition = existingPositions.first!
+                existingPosition.antennaName = position.antennaName
+                existingPosition.x = position.position.x
+                existingPosition.y = position.position.y
+                existingPosition.z = position.position.z
+                existingPosition.rotation = position.rotation
+
+                try modelContext.save()
+                print("🔄 アンテナ位置を更新しました: \(position.antennaName)")
+            }
+        } else {
+            // 新規データとして保存
+            let persistentPosition = position.toPersistent()
+            modelContext.insert(persistentPosition)
+
+            try modelContext.save()
+            print("✅ アンテナ位置保存完了: \(position.antennaName) (ID: \(position.antennaId))")
+        }
+    } catch let error as RepositoryError {
+        throw error
+    } catch {
+        throw RepositoryError.saveFailed("アンテナ位置の保存に失敗しました: \(error.localizedDescription)")
+    }
+}
 
     public func loadAntennaPositions() async throws -> [AntennaPositionData] {
         let descriptor = FetchDescriptor<PersistentAntennaPosition>(
@@ -148,31 +310,72 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadAntennaPositions(for floorMapId: String) async throws -> [AntennaPositionData] {
+    guard !floorMapId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("フロアマップIDが空です")
+    }
+    
+    do {
         let predicate = #Predicate<PersistentAntennaPosition> { $0.floorMapId == floorMapId }
         let descriptor = FetchDescriptor<PersistentAntennaPosition>(
             predicate: predicate,
             sortBy: [SortDescriptor(\.antennaName)]
         )
-
+        
         let persistentPositions = try modelContext.fetch(descriptor)
-        return persistentPositions.map { $0.toEntity() }
+        let positions = persistentPositions.compactMap { persistentPosition -> AntennaPositionData? in
+            // データ整合性チェック
+            guard !persistentPosition.antennaId.isEmpty,
+                  !persistentPosition.antennaName.isEmpty,
+                  !persistentPosition.floorMapId.isEmpty else {
+                print("⚠️ 無効なアンテナ位置データをスキップしました: ID=\(persistentPosition.id)")
+                return nil
+            }
+            
+            return persistentPosition.toEntity()
+        }
+        
+        print("✅ アンテナ位置データ読み込み完了: \(positions.count)件 (フロアマップ: \(floorMapId))")
+        return positions
+    } catch {
+        throw RepositoryError.loadFailed("アンテナ位置データの読み込みに失敗しました: \(error.localizedDescription)")
     }
+}
 
     public func deleteAntennaPosition(by id: String) async throws {
+    guard !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("アンテナIDが空です")
+    }
+    
+    do {
         // antennaIdで検索
         let predicate = #Predicate<PersistentAntennaPosition> { $0.antennaId == id }
         let descriptor = FetchDescriptor<PersistentAntennaPosition>(predicate: predicate)
-
+        
         let positions = try modelContext.fetch(descriptor)
+        
+        guard !positions.isEmpty else {
+            throw RepositoryError.notFound("指定されたアンテナID[\(id)]のデータが見つかりません")
+        }
+        
         print("🗑️ SwiftDataRepository: アンテナID[\(id)]で検索、\(positions.count)件見つかりました")
-
+        
+        if positions.count > 1 {
+            print("⚠️ 重複するアンテナ位置データが見つかりました: \(positions.count)件")
+        }
+        
         for position in positions {
             print("🗑️ SwiftDataRepository: 削除中 - ID: \(position.id), AntennaID: \(position.antennaId), Name: \(position.antennaName)")
             modelContext.delete(position)
         }
+        
         try modelContext.save()
-        print("🗑️ SwiftDataRepository: アンテナ位置削除完了")
+        print("✅ アンテナ位置削除完了: \(positions.count)件")
+    } catch let error as RepositoryError {
+        throw error
+    } catch {
+        throw RepositoryError.deleteFailed("アンテナ位置の削除に失敗しました: \(error.localizedDescription)")
     }
+}
 
     public func updateAntennaPosition(_ position: AntennaPositionData) async throws {
         let predicate = #Predicate<PersistentAntennaPosition> { $0.id == position.id }
@@ -341,13 +544,36 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     // MARK: - フロアマップ関連
 
     public func saveFloorMap(_ floorMap: FloorMapInfo) async throws {
+    guard !floorMap.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("フロアマップIDが空です")
+    }
+    
+    guard !floorMap.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("フロアマップ名が空です")
+    }
+    
+    guard floorMap.width > 0 && floorMap.depth > 0 else {
+        throw RepositoryError.invalidData("フロアマップのサイズが無効です (width: \(floorMap.width), depth: \(floorMap.depth))")
+    }
+    
+    do {
+        // 重複チェック
+        let existingFloorMap = try await loadFloorMap(by: floorMap.id)
+        if existingFloorMap != nil {
+            throw RepositoryError.duplicateEntry("IDが重複するフロアマップが既に存在します: \(floorMap.id)")
+        }
+        
         let persistentFloorMap = floorMap.toPersistent()
         modelContext.insert(persistentFloorMap)
+        
         try modelContext.save()
-
-        // 保存の確認のためログ出力
-        print("📊 SwiftDataRepository: フロアマップ保存完了 - ID: \(floorMap.id), Name: \(floorMap.name)")
+        print("✅ フロアマップ保存完了 - ID: \(floorMap.id), Name: \(floorMap.name)")
+    } catch let error as RepositoryError {
+        throw error
+    } catch {
+        throw RepositoryError.saveFailed("フロアマップの保存に失敗しました: \(error.localizedDescription)")
     }
+}
 
     public func loadAllFloorMaps() async throws -> [FloorMapInfo] {
         let descriptor = FetchDescriptor<PersistentFloorMap>(
@@ -471,35 +697,51 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     // MARK: - キャリブレーション関連
 
     public func saveCalibrationData(_ data: CalibrationData) async throws {
+    guard !data.antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RepositoryError.invalidData("アンテナIDが空です")
+    }
+    
+    guard !data.calibrationPoints.isEmpty else {
+        throw RepositoryError.invalidData("キャリブレーションポイントが空です")
+    }
+    
+    do {
         // 既存のデータがあるかチェック
         let predicate = #Predicate<PersistentCalibrationData> { $0.antennaId == data.antennaId }
         let descriptor = FetchDescriptor<PersistentCalibrationData>(predicate: predicate)
-
+        
         let existingData = try modelContext.fetch(descriptor).first
-
+        
         if let existing = existingData {
             // 既存データを更新
             let encoder = JSONEncoder()
-
+            
             existing.calibrationPointsData = (try? encoder.encode(data.calibrationPoints)) ?? Data()
-
+            
             if let transform = data.transform {
                 existing.transformData = try? encoder.encode(transform)
             } else {
                 existing.transformData = nil
             }
-
+            
             existing.updatedAt = data.updatedAt
             existing.isActive = data.isActive
-
+            
             try modelContext.save()
+            print("🔄 キャリブレーションデータを更新しました: \(data.antennaId)")
         } else {
             // 新規作成
             let persistentData = data.toPersistent()
             modelContext.insert(persistentData)
             try modelContext.save()
+            print("✅ キャリブレーションデータ保存完了: \(data.antennaId)")
         }
+    } catch let error as RepositoryError {
+        throw error
+    } catch {
+        throw RepositoryError.saveFailed("キャリブレーションデータの保存に失敗しました: \(error.localizedDescription)")
     }
+}
 
     public func loadCalibrationData() async throws -> [CalibrationData] {
         let descriptor = FetchDescriptor<PersistentCalibrationData>(
@@ -620,6 +862,89 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         }
         try modelContext.save()
     }
+
+    // MARK: - データ整合性機能
+
+    /// 重複するアンテナ位置データをクリーンアップ
+    public func cleanupDuplicateAntennaPositions() async throws -> Int {
+        let descriptor = FetchDescriptor<PersistentAntennaPosition>()
+        let allPositions = try modelContext.fetch(descriptor)
+
+        // アンテナID + フロアマップIDでグループ化
+        let groupedPositions = Dictionary(grouping: allPositions) { position in
+            "\(position.antennaId)_\(position.floorMapId)"
+        }
+
+        var deletedCount = 0
+
+        for (key, positions) in groupedPositions {
+            if positions.count > 1 {
+                print("⚠️ 重複するアンテナ位置データを発見: \(key) - \(positions.count)件")
+
+                // 最新データを保持し、他は削除
+                let sortedPositions = positions.sorted { pos1, pos2 in
+                    return pos1.id > pos2.id
+                }
+
+                let duplicatesToDelete = Array(sortedPositions.dropFirst())
+
+                for duplicate in duplicatesToDelete {
+                    print("🗑️ 重複データを削除: ID=\(duplicate.id), AntennaID=\(duplicate.antennaId), Name=\(duplicate.antennaName)")
+                    modelContext.delete(duplicate)
+                    deletedCount += 1
+                }
+            }
+        }
+
+        if deletedCount > 0 {
+            try modelContext.save()
+            print("✅ 重複データクリーンアップ完了: \(deletedCount)件削除")
+        } else {
+            print("✅ 重複データは見つかりませんでした")
+        }
+
+        return deletedCount
+    }
+
+    /// 全てのデータタイプの重複をチェック・クリーンアップ
+    public func cleanupAllDuplicateData() async throws -> [String: Int] {
+        var results: [String: Int] = [:]
+
+        // アンテナ位置データの重複クリーンアップ
+        results["antennaPositions"] = try await cleanupDuplicateAntennaPositions()
+
+        // 他のデータタイプも必要に応じて追加可能
+
+        return results
+    }
+
+    /// データベースの整合性チェック
+    public func validateDataIntegrity() async throws -> [String] {
+        var issues: [String] = []
+
+        // アンテナ位置データの整合性チェック
+        let antennaPositions = try await loadAntennaPositions()
+        let duplicateGroups = Dictionary(grouping: antennaPositions) { position in
+            "\(position.antennaId)_\(position.floorMapId)"
+        }.filter { $1.count > 1 }
+
+        if !duplicateGroups.isEmpty {
+            issues.append("重複するアンテナ位置データ: \(duplicateGroups.count)グループ")
+        }
+
+        // 空の必須フィールドチェック
+        let invalidAntennaPositions = antennaPositions.filter { position in
+            position.antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            position.antennaName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            position.floorMapId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        if !invalidAntennaPositions.isEmpty {
+            issues.append("無効なアンテナ位置データ: \(invalidAntennaPositions.count)件")
+        }
+
+        return issues
+    }
 }
 
 // MARK: - Dummy Repository for Initialization
@@ -679,4 +1004,9 @@ public class DummySwiftDataRepository: SwiftDataRepositoryProtocol {
     public func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData? { nil }
     public func deleteMapCalibrationData(for antennaId: String, floorMapId: String) async throws {}
     public func deleteAllMapCalibrationData() async throws {}
+
+    // データ整合性機能
+    public func cleanupDuplicateAntennaPositions() async throws -> Int { 0 }
+    public func cleanupAllDuplicateData() async throws -> [String: Int] { [:] }
+    public func validateDataIntegrity() async throws -> [String] { [] }
 }

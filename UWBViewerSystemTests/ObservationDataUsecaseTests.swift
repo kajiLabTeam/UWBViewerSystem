@@ -272,7 +272,7 @@ struct ObservationDataUsecaseTests {
 
         let statistics = usecase.getSessionQualityStatistics(session.id)
 
-        guard let statistics = statistics else {
+        guard let statistics else {
             #expect(Bool(false), "統計情報が取得できませんでした")
             return
         }

@@ -1,6 +1,6 @@
-import XCTest
 import SwiftData
 @testable import UWBViewerSystem
+import XCTest
 
 @MainActor
 final class SwiftDataRepositoryXCTests: XCTestCase {
@@ -16,10 +16,10 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         container = try ModelContainer(
             for: PersistentSensingSession.self,
-                 PersistentAntennaPosition.self,
-                 PersistentCalibrationData.self,
-                 PersistentFloorMap.self,
-                 PersistentMapCalibrationData.self,
+            PersistentAntennaPosition.self,
+            PersistentCalibrationData.self,
+            PersistentFloorMap.self,
+            PersistentMapCalibrationData.self,
             configurations: config
         )
         modelContext = ModelContext(container)
@@ -36,7 +36,7 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
 
     override func tearDownWithError() throws {
         // テストデータをクリーンアップ
-        if let modelContext = modelContext {
+        if let modelContext {
             // 全てのデータを削除
             try modelContext.delete(model: PersistentSensingSession.self)
             try modelContext.delete(model: PersistentAntennaPosition.self)
@@ -69,7 +69,7 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         let loadedSession = try await repository.loadSensingSession(by: session.id)
 
         // Assert
-        guard let loadedSession = loadedSession else {
+        guard let loadedSession else {
             XCTFail("保存したセンシングセッションが読み込まれていません")
             return
         }
@@ -271,7 +271,7 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         let loadedFloorMap = try await repository.loadFloorMap(by: floorMap.id)
 
         // Assert
-        guard let loadedFloorMap = loadedFloorMap else {
+        guard let loadedFloorMap else {
             XCTFail("保存したフロアマップが読み込まれていません")
             return
         }
@@ -329,7 +329,7 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         let loadedData = try await repository.loadCalibrationData(for: "antenna-1")
 
         // Assert
-        guard let loadedData = loadedData else {
+        guard let loadedData else {
             XCTFail("保存したキャリブレーションデータが読み込まれていません")
             return
         }

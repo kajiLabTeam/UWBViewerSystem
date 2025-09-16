@@ -217,58 +217,58 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// キャリブレーションを開始
     /// キャリブレーションを開始
-func startCalibration() {
-    // 事前条件チェック
-    guard validateCalibrationPreConditions() else {
-        return
+    func startCalibration() {
+        // 事前条件チェック
+        guard validateCalibrationPreConditions() else {
+            return
+        }
+
+        isCalibrating = true
+        calibrationProgress = 0.0
+        calibrationResult = nil
+        errorMessage = ""
+
+        // 基準座標をキャリブレーション用の測定点として設定
+        setupCalibrationPoints()
+
+        // キャリブレーション実行
+        performCalibration()
     }
 
-    isCalibrating = true
-    calibrationProgress = 0.0
-    calibrationResult = nil
-    errorMessage = ""
-
-    // 基準座標をキャリブレーション用の測定点として設定
-    setupCalibrationPoints()
-
-    // キャリブレーション実行
-    performCalibration()
-}
-
-/// キャリブレーション開始前の条件をチェック
-private func validateCalibrationPreConditions() -> Bool {
-    guard canStartCalibration else {
-        showError("キャリブレーションを開始できません。必要な条件が満たされていません。")
-        return false
-    }
-    
-    guard !selectedAntennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-        showError("アンテナが選択されていません。")
-        return false
-    }
-    
-    guard referencePoints.count >= 3 else {
-        showError("基準座標が不足しています。少なくとも3点の設定が必要です。")
-        return false
-    }
-    
-    // 基準座標の妥当性チェック
-    for (index, point) in referencePoints.enumerated() {
-        guard point.x.isFinite && point.y.isFinite && point.z.isFinite else {
-            showError("基準座標\(index + 1)に無効な値が含まれています。")
+    /// キャリブレーション開始前の条件をチェック
+    private func validateCalibrationPreConditions() -> Bool {
+        guard canStartCalibration else {
+            showError("キャリブレーションを開始できません。必要な条件が満たされていません。")
             return false
         }
+
+        guard !selectedAntennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            showError("アンテナが選択されていません。")
+            return false
+        }
+
+        guard referencePoints.count >= 3 else {
+            showError("基準座標が不足しています。少なくとも3点の設定が必要です。")
+            return false
+        }
+
+        // 基準座標の妥当性チェック
+        for (index, point) in referencePoints.enumerated() {
+            guard point.x.isFinite && point.y.isFinite && point.z.isFinite else {
+                showError("基準座標\(index + 1)に無効な値が含まれています。")
+                return false
+            }
+        }
+
+        // 同一座標の重複チェック
+        let uniquePoints = Set(referencePoints.map { "\($0.x),\($0.y),\($0.z)" })
+        guard uniquePoints.count == referencePoints.count else {
+            showError("基準座標に重複があります。異なる座標を設定してください。")
+            return false
+        }
+
+        return true
     }
-    
-    // 同一座標の重複チェック
-    let uniquePoints = Set(referencePoints.map { "\($0.x),\($0.y),\($0.z)" })
-    guard uniquePoints.count == referencePoints.count else {
-        showError("基準座標に重複があります。異なる座標を設定してください。")
-        return false
-    }
-    
-    return true
-}
 
     /// キャリブレーション完了後にリセット
     func resetCalibration() {
@@ -299,59 +299,59 @@ private func validateCalibrationPreConditions() -> Bool {
 
     /// 現在のフロアマップデータを読み込み
     /// 現在のフロアマップデータを読み込み
-private func loadCurrentFloorMapData() {
-    print("📋 フロアマップデータ読み込み開始")
+    private func loadCurrentFloorMapData() {
+        print("📋 フロアマップデータ読み込み開始")
 
-    guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo") else {
-        print("❌ UserDefaults から currentFloorMapInfo が見つかりません")
-        handleError("フロアマップ情報が設定されていません。先にフロアマップを設定してください。")
-        // 現在の状態をクリア
-        clearFloorMapData()
-        return
-    }
-
-    print("✅ UserDefaults からデータを取得: \(data.count) bytes")
-
-    do {
-        let floorMapInfo = try JSONDecoder().decode(FloorMapInfo.self, from: data)
-        
-        // データの妥当性チェック
-        guard !floorMapInfo.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !floorMapInfo.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              floorMapInfo.width > 0,
-              floorMapInfo.depth > 0 else {
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(
-                    codingPath: [],
-                    debugDescription: "フロアマップデータが無効です"
-                )
-            )
+        guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo") else {
+            print("❌ UserDefaults から currentFloorMapInfo が見つかりません")
+            handleError("フロアマップ情報が設定されていません。先にフロアマップを設定してください。")
+            // 現在の状態をクリア
+            clearFloorMapData()
+            return
         }
-        
-        print("✅ フロアマップ情報のデコード成功:")
-        print("   ID: \(floorMapInfo.id)")
-        print("   名前: \(floorMapInfo.name)")
-        print("   ビル名: \(floorMapInfo.buildingName)")
-        print("   サイズ: \(floorMapInfo.width)x\(floorMapInfo.depth)")
 
-        currentFloorMapId = floorMapInfo.id
-        currentFloorMapInfo = floorMapInfo
-        print("🔄 フロアマップ情報を設定し、画像読み込みを開始")
-        loadFloorMapImage(for: floorMapInfo.id)
-    } catch {
-        print("❌ フロアマップ情報のデコードに失敗: \(error)")
-        handleError("フロアマップ情報の読み込みに失敗しました: \(error.localizedDescription)")
-        // エラー時の状態をクリア
-        clearFloorMapData()
+        print("✅ UserDefaults からデータを取得: \(data.count) bytes")
+
+        do {
+            let floorMapInfo = try JSONDecoder().decode(FloorMapInfo.self, from: data)
+
+            // データの妥当性チェック
+            guard !floorMapInfo.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  !floorMapInfo.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  floorMapInfo.width > 0,
+                  floorMapInfo.depth > 0 else {
+                throw DecodingError.dataCorrupted(
+                    DecodingError.Context(
+                        codingPath: [],
+                        debugDescription: "フロアマップデータが無効です"
+                    )
+                )
+            }
+
+            print("✅ フロアマップ情報のデコード成功:")
+            print("   ID: \(floorMapInfo.id)")
+            print("   名前: \(floorMapInfo.name)")
+            print("   ビル名: \(floorMapInfo.buildingName)")
+            print("   サイズ: \(floorMapInfo.width)x\(floorMapInfo.depth)")
+
+            currentFloorMapId = floorMapInfo.id
+            currentFloorMapInfo = floorMapInfo
+            print("🔄 フロアマップ情報を設定し、画像読み込みを開始")
+            loadFloorMapImage(for: floorMapInfo.id)
+        } catch {
+            print("❌ フロアマップ情報のデコードに失敗: \(error)")
+            handleError("フロアマップ情報の読み込みに失敗しました: \(error.localizedDescription)")
+            // エラー時の状態をクリア
+            clearFloorMapData()
+        }
     }
-}
 
-/// フロアマップデータをクリア
-private func clearFloorMapData() {
-    currentFloorMapId = ""
-    currentFloorMapInfo = nil
-    floorMapImage = nil
-}
+    /// フロアマップデータをクリア
+    private func clearFloorMapData() {
+        currentFloorMapId = ""
+        currentFloorMapInfo = nil
+        floorMapImage = nil
+    }
 
     /// フロアマップ画像を読み込み
     private func loadFloorMapImage(for floorMapId: String) {
@@ -586,7 +586,7 @@ private func clearFloorMapData() {
         print("❌ SimpleCalibrationViewModel Error: \(message)")
         showError(message)
     }
-    
+
     /// 安全な非同期タスク実行
     private func safeAsyncTask<T>(
         operation: @escaping () async throws -> T,

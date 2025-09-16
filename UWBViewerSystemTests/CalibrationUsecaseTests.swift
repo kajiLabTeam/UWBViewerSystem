@@ -1,6 +1,6 @@
-import XCTest
 import SwiftData
 @testable import UWBViewerSystem
+import XCTest
 
 // Mock repository type alias for clarity
 typealias TestMockDataRepository = MockDataRepository
@@ -358,4 +358,3 @@ final class CalibrationUsecaseTests: XCTestCase {
         }
     }
 }
-

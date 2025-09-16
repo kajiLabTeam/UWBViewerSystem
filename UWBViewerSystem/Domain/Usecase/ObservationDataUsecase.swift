@@ -2,6 +2,7 @@ import Combine
 import Foundation
 
 /// 観測データ収集を管理するUseCase
+
 // MARK: - Observation Errors
 
 /// 観測関連のエラー定義
@@ -13,7 +14,7 @@ public enum ObservationError: LocalizedError {
     case sessionStopFailed(String)
     case dataCollectionFailed(String)
     case qualityCheckFailed(String)
-    
+
     public var errorDescription: String? {
         switch self {
         case .deviceNotConnected:
@@ -32,7 +33,7 @@ public enum ObservationError: LocalizedError {
             return "データ品質チェックに失敗しました: \(message)"
         }
     }
-    
+
     public var recoverySuggestion: String? {
         switch self {
         case .deviceNotConnected:
@@ -94,107 +95,107 @@ public class ObservationDataUsecase: ObservableObject {
     ///   - name: セッション名
     /// - Returns: 開始されたセッション
     /// 観測セッションを開始
-/// - Parameters:
-///   - antennaId: 観測対象のアンテナID
-///   - name: セッション名
-/// - Returns: 開始されたセッション
-public func startObservationSession(for antennaId: String, name: String) async throws -> ObservationSession {
-    // 入力データの検証
-    guard !antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-        throw ObservationError.invalidInput("アンテナIDが空です")
-    }
-    
-    guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-        throw ObservationError.invalidInput("セッション名が空です")
-    }
-    
-    // UWB接続状態を確認
-    guard connectionStatus == .connected else {
-        throw ObservationError.deviceNotConnected
-    }
-
-    do {
-        // 既存セッションが実行中の場合は停止
-        let activeSession = currentSessions.values.first { session in
-            session.antennaId == antennaId && session.status == .recording
-        }
-        
-        if let existingSession = activeSession {
-            print("🔄 既存のアクティブセッションを停止します: \(existingSession.name)")
-            _ = try await stopObservationSession(existingSession.id)
+    /// - Parameters:
+    ///   - antennaId: 観測対象のアンテナID
+    ///   - name: セッション名
+    /// - Returns: 開始されたセッション
+    public func startObservationSession(for antennaId: String, name: String) async throws -> ObservationSession {
+        // 入力データの検証
+        guard !antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ObservationError.invalidInput("アンテナIDが空です")
         }
 
-        let session = ObservationSession(
-            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            antennaId: antennaId.trimmingCharacters(in: .whitespacesAndNewlines),
-            floorMapId: getCurrentFloorMapId()
-        )
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ObservationError.invalidInput("セッション名が空です")
+        }
 
-        currentSessions[session.id] = session
-        isCollecting = true
+        // UWB接続状態を確認
+        guard connectionStatus == .connected else {
+            throw ObservationError.deviceNotConnected
+        }
 
-        // UWBデータ収集を開始
-        try await uwbManager.startDataCollection(for: antennaId, sessionId: session.id)
+        do {
+            // 既存セッションが実行中の場合は停止
+            let activeSession = currentSessions.values.first { session in
+                session.antennaId == antennaId && session.status == .recording
+            }
 
-        // リアルタイムデータ更新タイマーを開始
-        startDataCollectionTimer(for: session.id)
+            if let existingSession = activeSession {
+                print("🔄 既存のアクティブセッションを停止します: \(existingSession.name)")
+                _ = try await stopObservationSession(existingSession.id)
+            }
 
-        print("🚀 観測セッション開始: \(name) (アンテナ: \(antennaId))")
-        return session
-        
-    } catch let error as ObservationError {
-        // 既に定義されたObservationErrorはそのまま再スロー
-        throw error
-    } catch {
-        // その他のエラーをObservationErrorでラップ
-        throw ObservationError.sessionStartFailed("セッション開始に失敗しました: \(error.localizedDescription)")
+            let session = ObservationSession(
+                name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                antennaId: antennaId.trimmingCharacters(in: .whitespacesAndNewlines),
+                floorMapId: getCurrentFloorMapId()
+            )
+
+            currentSessions[session.id] = session
+            isCollecting = true
+
+            // UWBデータ収集を開始
+            try await uwbManager.startDataCollection(for: antennaId, sessionId: session.id)
+
+            // リアルタイムデータ更新タイマーを開始
+            startDataCollectionTimer(for: session.id)
+
+            print("🚀 観測セッション開始: \(name) (アンテナ: \(antennaId))")
+            return session
+
+        } catch let error as ObservationError {
+            // 既に定義されたObservationErrorはそのまま再スロー
+            throw error
+        } catch {
+            // その他のエラーをObservationErrorでラップ
+            throw ObservationError.sessionStartFailed("セッション開始に失敗しました: \(error.localizedDescription)")
+        }
     }
-}
 
     /// 観測セッションを停止
     /// - Parameter sessionId: セッションID
     /// - Returns: 停止されたセッション
     /// 観測セッションを停止
-/// - Parameter sessionId: セッションID
-/// - Returns: 停止されたセッション
-public func stopObservationSession(_ sessionId: String) async throws -> ObservationSession {
-    guard !sessionId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-        throw ObservationError.invalidInput("セッションIDが空です")
-    }
-    
-    guard var session = currentSessions[sessionId] else {
-        throw ObservationError.sessionNotFound(sessionId)
-    }
-
-    do {
-        // UWBデータ収集を停止
-        try await uwbManager.stopDataCollection(sessionId: sessionId)
-
-        // セッション状態を更新
-        session.endTime = Date()
-        session.status = .completed
-        currentSessions[sessionId] = session
-
-        // データを永続化
-        try await saveObservationSession(session)
-
-        // 他にアクティブなセッションがない場合は収集フラグをオフ
-        let hasActiveSessions = currentSessions.values.contains { $0.status == .recording }
-        if !hasActiveSessions {
-            isCollecting = false
-            dataCollectionTimer?.invalidate()
-            dataCollectionTimer = nil
+    /// - Parameter sessionId: セッションID
+    /// - Returns: 停止されたセッション
+    public func stopObservationSession(_ sessionId: String) async throws -> ObservationSession {
+        guard !sessionId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ObservationError.invalidInput("セッションIDが空です")
         }
 
-        print("⏹️ 観測セッション停止: \(session.name), データ点数: \(session.observations.count)")
-        return session
-        
-    } catch let error as ObservationError {
-        throw error
-    } catch {
-        throw ObservationError.sessionStopFailed("セッション停止処理でエラーが発生しました: \(error.localizedDescription)")
+        guard var session = currentSessions[sessionId] else {
+            throw ObservationError.sessionNotFound(sessionId)
+        }
+
+        do {
+            // UWBデータ収集を停止
+            try await uwbManager.stopDataCollection(sessionId: sessionId)
+
+            // セッション状態を更新
+            session.endTime = Date()
+            session.status = .completed
+            currentSessions[sessionId] = session
+
+            // データを永続化
+            try await saveObservationSession(session)
+
+            // 他にアクティブなセッションがない場合は収集フラグをオフ
+            let hasActiveSessions = currentSessions.values.contains { $0.status == .recording }
+            if !hasActiveSessions {
+                isCollecting = false
+                dataCollectionTimer?.invalidate()
+                dataCollectionTimer = nil
+            }
+
+            print("⏹️ 観測セッション停止: \(session.name), データ点数: \(session.observations.count)")
+            return session
+
+        } catch let error as ObservationError {
+            throw error
+        } catch {
+            throw ObservationError.sessionStopFailed("セッション停止処理でエラーが発生しました: \(error.localizedDescription)")
+        }
     }
-}
 
     /// 全ての観測セッションを停止
     public func stopAllSessions() {
@@ -573,4 +574,3 @@ public struct NLoSDetectionResult {
         self.recommendation = recommendation
     }
 }
-

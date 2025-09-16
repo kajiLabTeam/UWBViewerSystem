@@ -1,6 +1,6 @@
-import XCTest
 import SwiftData
 @testable import UWBViewerSystem
+import XCTest
 
 // MARK: - Mock Data Repository
 
@@ -58,7 +58,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadRecentSensingSessions() -> [SensingSession] {
-        return [] // テスト用のダミー実装
+        [] // テスト用のダミー実装
     }
 
     // MARK: - Antenna Methods
@@ -70,7 +70,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadAntennaPositions() -> [AntennaPositionData]? {
-        return [] // テスト用のダミー実装
+        [] // テスト用のダミー実装
     }
 
     nonisolated public func saveFieldAntennaConfiguration(_ antennas: [AntennaInfo]) {
@@ -78,7 +78,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadFieldAntennaConfiguration() -> [AntennaInfo]? {
-        return [
+        [
             AntennaInfo(id: "test-antenna", name: "テストアンテナ", coordinates: Point3D(x: 0, y: 0, z: 0))
         ]
     }
@@ -92,7 +92,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadAntennaPairings() -> [AntennaPairing]? {
-        return [] // テスト用のダミー実装
+        [] // テスト用のダミー実装
     }
 
     nonisolated public func saveHasDeviceConnected(_ connected: Bool) {
@@ -102,7 +102,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadHasDeviceConnected() -> Bool {
-        return false // テスト用のダミー実装
+        false // テスト用のダミー実装
     }
 
     // MARK: - Legacy Calibration Methods
@@ -112,7 +112,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadCalibrationResults() -> Data? {
-        return nil // テスト用のダミー実装
+        nil // テスト用のダミー実装
     }
 
     // MARK: - Settings Methods
@@ -124,7 +124,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadBoolSetting(key: String) -> Bool {
-        return false // テスト用のダミー実装
+        false // テスト用のダミー実装
     }
 
     // MARK: - System Activity Methods
@@ -137,18 +137,18 @@ public class MockDataRepository: DataRepositoryProtocol {
 
     nonisolated public func loadRecentSystemActivities() -> [SystemActivity]? {
         // nonisolatedからMainActorプロパティにアクセスできないため、空配列を返す
-        return []
+        []
     }
 
     // MARK: - General Data Methods
 
-    nonisolated public func saveData<T: Codable>(_ data: T, forKey key: String) throws {
+    nonisolated public func saveData(_ data: some Codable, forKey key: String) throws {
         // テスト用のダミー実装
     }
 
     nonisolated public func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
         // テスト用のダミー実装
-        return nil
+        nil
     }
 }
 
@@ -185,11 +185,11 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadSensingSession(by id: String) async throws -> SensingSession? {
-        return sensingSessionStorage.first { $0.id == id }
+        sensingSessionStorage.first { $0.id == id }
     }
 
     public func loadAllSensingSessions() async throws -> [SensingSession] {
-        return sensingSessionStorage
+        sensingSessionStorage
     }
 
     public func deleteSensingSession(by id: String) async throws {
@@ -210,11 +210,11 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadAntennaPositions() async throws -> [AntennaPositionData] {
-        return antennaPositionStorage
+        antennaPositionStorage
     }
 
     public func loadAntennaPositions(for floorMapId: String) async throws -> [AntennaPositionData] {
-        return antennaPositionStorage.filter { $0.floorMapId == floorMapId }
+        antennaPositionStorage.filter { $0.floorMapId == floorMapId }
     }
 
     public func deleteAntennaPosition(by id: String) async throws {
@@ -235,7 +235,7 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadAntennaPairings() async throws -> [AntennaPairing] {
-        return antennaPairingStorage
+        antennaPairingStorage
     }
 
     public func deleteAntennaPairing(by id: String) async throws {
@@ -260,7 +260,7 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadRealtimeData(for sessionId: String) async throws -> [RealtimeData] {
-        return realtimeDataStorage[sessionId] ?? []
+        realtimeDataStorage[sessionId] ?? []
     }
 
     public func deleteRealtimeData(by id: UUID) async throws {
@@ -277,7 +277,7 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadRecentSystemActivities(limit: Int) async throws -> [SystemActivity] {
-        return Array(systemActivityStorage.suffix(limit))
+        Array(systemActivityStorage.suffix(limit))
     }
 
     public func deleteOldSystemActivities(olderThan date: Date) async throws {
@@ -292,7 +292,7 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadReceivedFiles() async throws -> [ReceivedFile] {
-        return receivedFileStorage
+        receivedFileStorage
     }
 
     public func deleteReceivedFile(by id: UUID) async throws {
@@ -311,11 +311,11 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadAllFloorMaps() async throws -> [FloorMapInfo] {
-        return floorMapStorage
+        floorMapStorage
     }
 
     public func loadFloorMap(by id: String) async throws -> FloorMapInfo? {
-        return floorMapStorage.first { $0.id == id }
+        floorMapStorage.first { $0.id == id }
     }
 
     public func deleteFloorMap(by id: String) async throws {
@@ -335,15 +335,15 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadProjectProgress(by id: String) async throws -> ProjectProgress? {
-        return projectProgressStorage.first { $0.id == id }
+        projectProgressStorage.first { $0.id == id }
     }
 
     public func loadProjectProgress(for floorMapId: String) async throws -> ProjectProgress? {
-        return projectProgressStorage.first { $0.floorMapId == floorMapId }
+        projectProgressStorage.first { $0.floorMapId == floorMapId }
     }
 
     public func loadAllProjectProgress() async throws -> [ProjectProgress] {
-        return projectProgressStorage
+        projectProgressStorage
     }
 
     public func deleteProjectProgress(by id: String) async throws {
@@ -364,11 +364,11 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadCalibrationData() async throws -> [CalibrationData] {
-        return Array(calibrationDataStorage.values)
+        Array(calibrationDataStorage.values)
     }
 
     public func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        return calibrationDataStorage[antennaId]
+        calibrationDataStorage[antennaId]
     }
 
     public func deleteCalibrationData(for antennaId: String) async throws {
@@ -388,7 +388,7 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadMapCalibrationData() async throws -> [MapCalibrationData] {
-        return Array(mapCalibrationDataStorage.values)
+        Array(mapCalibrationDataStorage.values)
     }
 
     public func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData? {
@@ -451,8 +451,8 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
         // 無効なデータチェック
         let invalidPositions = antennaPositionStorage.filter { position in
             position.antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-            position.antennaName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-            position.floorMapId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                position.antennaName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                position.floorMapId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
 
         if !invalidPositions.isEmpty {

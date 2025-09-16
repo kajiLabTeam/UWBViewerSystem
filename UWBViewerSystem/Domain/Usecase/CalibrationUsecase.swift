@@ -1,6 +1,7 @@
 import Foundation
 
 /// キャリブレーション処理を管理するUseCase
+
 // MARK: - Calibration Errors
 
 /// キャリブレーション関連のエラー定義
@@ -9,7 +10,7 @@ public enum CalibrationError: LocalizedError {
     case invalidCalibrationData(String)
     case calculationFailed(String)
     case unexpectedError(String)
-    
+
     public var errorDescription: String? {
         switch self {
         case .noCalibrationData:
@@ -22,7 +23,7 @@ public enum CalibrationError: LocalizedError {
             return "予期しないエラーが発生しました: \(message)"
         }
     }
-    
+
     public var recoverySuggestion: String? {
         switch self {
         case .noCalibrationData:
@@ -139,114 +140,114 @@ public class CalibrationUsecase: ObservableObject {
     /// 特定のアンテナのキャリブレーションを実行
     /// - Parameter antennaId: アンテナID
     /// 特定のアンテナのキャリブレーションを実行
-/// - Parameter antennaId: アンテナID
-public func performCalibration(for antennaId: String) async {
-    // バリデーション
-    guard !antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-        await MainActor.run {
-            self.lastCalibrationResult = CalibrationResult(
-                success: false,
-                errorMessage: "アンテナIDが無効です"
-            )
-            self.calibrationStatus = .failed
-            self.errorMessage = "アンテナIDが無効です"
-        }
-        return
-    }
-
-    await MainActor.run {
-        self.calibrationStatus = .calculating
-        self.errorMessage = nil
-    }
-
-    do {
-        guard let calibrationData = currentCalibrationData[antennaId] else {
-            throw CalibrationError.noCalibrationData
-        }
-
-        // データの妥当性チェック
-        guard !calibrationData.calibrationPoints.isEmpty else {
-            throw CalibrationError.noCalibrationData
-        }
-
-        guard calibrationData.calibrationPoints.count >= 3 else {
-            throw LeastSquaresCalibration.CalibrationError.insufficientPoints(
-                required: 3,
-                provided: calibrationData.calibrationPoints.count
-            )
-        }
-
-        // キャリブレーションポイントの妥当性チェック
-        for (index, point) in calibrationData.calibrationPoints.enumerated() {
-            guard point.referencePosition.x.isFinite && 
-                  point.referencePosition.y.isFinite &&
-                  point.referencePosition.z.isFinite &&
-                  point.measuredPosition.x.isFinite &&
-                  point.measuredPosition.y.isFinite &&
-                  point.measuredPosition.z.isFinite else {
-                throw CalibrationError.invalidCalibrationData("キャリブレーションポイント\(index + 1)に無効な座標値が含まれています")
+    /// - Parameter antennaId: アンテナID
+    public func performCalibration(for antennaId: String) async {
+        // バリデーション
+        guard !antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            await MainActor.run {
+                self.lastCalibrationResult = CalibrationResult(
+                    success: false,
+                    errorMessage: "アンテナIDが無効です"
+                )
+                self.calibrationStatus = .failed
+                self.errorMessage = "アンテナIDが無効です"
             }
+            return
         }
 
-        // 重複チェック
-        let uniqueReferences = Set(calibrationData.calibrationPoints.map { 
-            "\($0.referencePosition.x),\($0.referencePosition.y),\($0.referencePosition.z)" 
-        })
-        guard uniqueReferences.count == calibrationData.calibrationPoints.count else {
-            throw CalibrationError.invalidCalibrationData("重複する基準座標が含まれています")
+        await MainActor.run {
+            self.calibrationStatus = .calculating
+            self.errorMessage = nil
         }
 
-        // 最小二乗法でキャリブレーション実行
-        let transform = try LeastSquaresCalibration.calculateTransform(
-            from: calibrationData.calibrationPoints
-        )
+        do {
+            guard let calibrationData = currentCalibrationData[antennaId] else {
+                throw CalibrationError.noCalibrationData
+            }
 
+            // データの妥当性チェック
+            guard !calibrationData.calibrationPoints.isEmpty else {
+                throw CalibrationError.noCalibrationData
+            }
+
+            guard calibrationData.calibrationPoints.count >= 3 else {
+                throw LeastSquaresCalibration.CalibrationError.insufficientPoints(
+                    required: 3,
+                    provided: calibrationData.calibrationPoints.count
+                )
+            }
+
+            // キャリブレーションポイントの妥当性チェック
+            for (index, point) in calibrationData.calibrationPoints.enumerated() {
+                guard point.referencePosition.x.isFinite &&
+                    point.referencePosition.y.isFinite &&
+                    point.referencePosition.z.isFinite &&
+                    point.measuredPosition.x.isFinite &&
+                    point.measuredPosition.y.isFinite &&
+                    point.measuredPosition.z.isFinite else {
+                    throw CalibrationError.invalidCalibrationData("キャリブレーションポイント\(index + 1)に無効な座標値が含まれています")
+                }
+            }
+
+            // 重複チェック
+            let uniqueReferences = Set(calibrationData.calibrationPoints.map {
+                "\($0.referencePosition.x),\($0.referencePosition.y),\($0.referencePosition.z)"
+            })
+            guard uniqueReferences.count == calibrationData.calibrationPoints.count else {
+                throw CalibrationError.invalidCalibrationData("重複する基準座標が含まれています")
+            }
+
+            // 最小二乗法でキャリブレーション実行
+            let transform = try LeastSquaresCalibration.calculateTransform(
+                from: calibrationData.calibrationPoints
+            )
+
+            let result = CalibrationResult(
+                success: true,
+                transform: transform,
+                processedPoints: calibrationData.calibrationPoints
+            )
+
+            await MainActor.run {
+                // キャリブレーションデータを更新
+                var updatedData = calibrationData
+                updatedData.transform = transform
+                updatedData.updatedAt = Date()
+
+                self.currentCalibrationData[antennaId] = updatedData
+                self.lastCalibrationResult = result
+                self.calibrationStatus = .completed
+
+                // データを永続化
+                self.saveCalibrationData(updatedData)
+            }
+
+            print("✅ キャリブレーション成功: \(antennaId)")
+
+        } catch let error as CalibrationError {
+            await handleCalibrationError(error)
+        } catch let error as LeastSquaresCalibration.CalibrationError {
+            await handleCalibrationError(CalibrationError.calculationFailed(error.localizedDescription))
+        } catch {
+            await handleCalibrationError(CalibrationError.unexpectedError(error.localizedDescription))
+        }
+    }
+
+    /// キャリブレーションエラーの処理
+    private func handleCalibrationError(_ error: CalibrationError) async {
         let result = CalibrationResult(
-            success: true,
-            transform: transform,
-            processedPoints: calibrationData.calibrationPoints
+            success: false,
+            errorMessage: error.localizedDescription
         )
 
         await MainActor.run {
-            // キャリブレーションデータを更新
-            var updatedData = calibrationData
-            updatedData.transform = transform
-            updatedData.updatedAt = Date()
-
-            self.currentCalibrationData[antennaId] = updatedData
             self.lastCalibrationResult = result
-            self.calibrationStatus = .completed
-
-            // データを永続化
-            self.saveCalibrationData(updatedData)
+            self.calibrationStatus = .failed
+            self.errorMessage = error.localizedDescription
         }
 
-        print("✅ キャリブレーション成功: \(antennaId)")
-
-    } catch let error as CalibrationError {
-        await handleCalibrationError(error)
-    } catch let error as LeastSquaresCalibration.CalibrationError {
-        await handleCalibrationError(CalibrationError.calculationFailed(error.localizedDescription))
-    } catch {
-        await handleCalibrationError(CalibrationError.unexpectedError(error.localizedDescription))
+        print("❌ キャリブレーションエラー: \(error.localizedDescription)")
     }
-}
-
-/// キャリブレーションエラーの処理
-private func handleCalibrationError(_ error: CalibrationError) async {
-    let result = CalibrationResult(
-        success: false,
-        errorMessage: error.localizedDescription
-    )
-
-    await MainActor.run {
-        self.lastCalibrationResult = result
-        self.calibrationStatus = .failed
-        self.errorMessage = error.localizedDescription
-    }
-    
-    print("❌ キャリブレーションエラー: \(error.localizedDescription)")
-}
 
     /// すべてのアンテナのキャリブレーションを実行
     public func performAllCalibrations() async {
@@ -350,7 +351,6 @@ private func handleCalibrationError(_ error: CalibrationError) async {
         }
     }
 }
-
 
 // MARK: - 統計情報
 

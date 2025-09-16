@@ -379,4 +379,3 @@ class MockObservationDataUsecase: ObservationDataUsecase {
         return session
     }
 }
-

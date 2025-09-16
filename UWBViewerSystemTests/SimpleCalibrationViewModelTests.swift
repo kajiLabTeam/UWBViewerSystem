@@ -248,7 +248,7 @@ struct SimpleCalibrationViewModelTests {
         await viewModel.startCalibration()
 
         // エラーメッセージが設定されることを確認
-        #expect(!(await viewModel.errorMessage.isEmpty))
+        #expect(await !(viewModel.errorMessage.isEmpty))
         #expect(await viewModel.showErrorAlert == true)
     }
 
@@ -270,7 +270,7 @@ struct SimpleCalibrationViewModelTests {
         await viewModel.startCalibration()
 
         // エラーメッセージが設定されることを確認
-        #expect(!(await viewModel.errorMessage.isEmpty))
+        #expect(await !(viewModel.errorMessage.isEmpty))
         #expect(await viewModel.showErrorAlert == true)
     }
 
@@ -359,4 +359,3 @@ struct SimpleCalibrationViewModelTests {
         cleanupTestEnvironment()
     }
 }
-

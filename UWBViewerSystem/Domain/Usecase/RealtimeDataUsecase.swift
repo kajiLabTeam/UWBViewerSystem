@@ -26,7 +26,7 @@ public class RealtimeDataUsecase: ObservableObject {
 
     public func processRealtimeDataMessage(_ json: [String: Any], fromEndpointId: String) {
         #if DEBUG
-            print("=== 🔄 processRealtimeDataJSON開始 ===")
+            print("=== 🔄 processRealtimeDataMessage開始 ===")
             print("🔄 受信エンドポイントID: \(fromEndpointId)")
             print("🔄 JSONキー: \(json.keys.sorted())")
         #endif
@@ -74,7 +74,7 @@ public class RealtimeDataUsecase: ObservableObject {
         }
 
         #if DEBUG
-            print("=== processRealtimeDataJSON終了 ===")
+            print("=== processRealtimeDataMessage終了 ===")
         #endif
     }
 

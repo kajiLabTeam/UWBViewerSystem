@@ -125,8 +125,8 @@ struct UWBViewerSystemApp: App {
             case .schemaError(let originalError):
                 #if DEBUG
                     print("🔄 スキーマエラーのため既存データベースを削除して再作成します")
+                    deleteExistingDatabase()
                 #endif
-                deleteExistingDatabase()
 
                 do {
                     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
@@ -140,9 +140,9 @@ struct UWBViewerSystemApp: App {
             case .fileSystemError(let originalError):
                 #if DEBUG
                     print("📁 ファイルシステムエラーを検出。ApplicationSupportディレクトリの再作成を試行します")
+                    // ディレクトリ再作成を試行
+                    deleteExistingDatabase()
                 #endif
-                // ディレクトリ再作成を試行
-                deleteExistingDatabase()
 
                 do {
                     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)

@@ -20,15 +20,17 @@ class DataCollectionViewModel: ObservableObject {
     private var startTime: Date?
     private var cancellables = Set<AnyCancellable>()
 
-    // DI対応: 必要なUseCaseを直接注入
+    // DI対応: 必要なUseCaseとRepositoryを直接注入
     private let sensingControlUsecase: SensingControlUsecase
     private let connectionUsecase: ConnectionManagementUsecase
     private let realtimeDataUsecase: RealtimeDataUsecase
+    private let preferenceRepository: PreferenceRepositoryProtocol
 
     init(
         sensingControlUsecase: SensingControlUsecase? = nil,
         connectionUsecase: ConnectionManagementUsecase? = nil,
-        realtimeDataUsecase: RealtimeDataUsecase? = nil
+        realtimeDataUsecase: RealtimeDataUsecase? = nil,
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
     ) {
         let nearbyRepository = NearbyRepository()
         let defaultConnectionUsecase =
@@ -38,6 +40,7 @@ class DataCollectionViewModel: ObservableObject {
         self.sensingControlUsecase =
             sensingControlUsecase ?? SensingControlUsecase(connectionUsecase: defaultConnectionUsecase)
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
+        self.preferenceRepository = preferenceRepository
 
         loadRecentSessions()
         setupObservers()
@@ -154,18 +157,16 @@ class DataCollectionViewModel: ObservableObject {
     // MARK: - Data Persistence
 
     private func saveRecentSessions() {
-        let encoder = JSONEncoder()
-        if let encoded = try? encoder.encode(recentSessions) {
-            UserDefaults.standard.set(encoded, forKey: "RecentSensingSessions")
+        do {
+            try preferenceRepository.setData(recentSessions, forKey: "RecentSensingSessions")
+        } catch {
+            print("❌ セッションデータの保存に失敗: \(error)")
         }
     }
 
     private func loadRecentSessions() {
-        if let data = UserDefaults.standard.data(forKey: "RecentSensingSessions") {
-            let decoder = JSONDecoder()
-            if let decoded = try? decoder.decode([SensingSession].self, from: data) {
-                recentSessions = decoded
-            }
+        if let sessions = preferenceRepository.getData([SensingSession].self, forKey: "RecentSensingSessions") {
+            recentSessions = sessions
         }
     }
 }

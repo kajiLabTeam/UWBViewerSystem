@@ -15,6 +15,7 @@ class FloorMapSettingViewModel: ObservableObject {
 
     private var modelContext: ModelContext?
     private var swiftDataRepository: SwiftDataRepository?
+    private let preferenceRepository: PreferenceRepositoryProtocol
 
     #if canImport(UIKit)
         #if os(iOS)
@@ -64,7 +65,8 @@ class FloorMapSettingViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init() {
+    init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
+        self.preferenceRepository = preferenceRepository
         print("🚀 FloorMapSettingViewModel: init called")
         setupFloorPresets()
         print("🚀 FloorMapSettingViewModel: init completed")
@@ -249,37 +251,42 @@ class FloorMapSettingViewModel: ObservableObject {
     }
 
     private func loadSavedSettings() {
-        // UserDefaultsまたはSwiftDataから保存された設定を読み込む
-        // 実装例：以前の設定がある場合は復元
-        if let savedFloorName = UserDefaults.standard.object(forKey: "lastFloorName") as? String,
-           !savedFloorName.isEmpty
-        {
+        // PreferenceRepositoryから保存された設定を読み込む
+        let settings = preferenceRepository.loadLastFloorSettings()
+
+        if let savedFloorName = settings.name, !savedFloorName.isEmpty {
             floorName = savedFloorName
         }
 
-        if let savedBuildingName = UserDefaults.standard.object(forKey: "lastBuildingName") as? String,
-           !savedBuildingName.isEmpty
-        {
+        if let savedBuildingName = settings.buildingName, !savedBuildingName.isEmpty {
             buildingName = savedBuildingName
+        }
+
+        if let savedWidth = settings.width {
+            floorWidth = savedWidth
+        }
+
+        if let savedDepth = settings.depth {
+            floorDepth = savedDepth
         }
     }
 
     private func saveFloorMapInfo(_ info: FloorMapInfo) throws {
-        // UserDefaultsに基本情報を保存
-        UserDefaults.standard.set(info.name, forKey: "lastFloorName")
-        UserDefaults.standard.set(info.buildingName, forKey: "lastBuildingName")
-        UserDefaults.standard.set(info.width, forKey: "lastFloorWidth")
-        UserDefaults.standard.set(info.depth, forKey: "lastFloorDepth")
+        // PreferenceRepositoryに基本情報を保存
+        preferenceRepository.saveLastFloorSettings(
+            name: info.name,
+            buildingName: info.buildingName,
+            width: info.width,
+            depth: info.depth
+        )
 
         // 画像をDocumentsディレクトリに保存
         if let image = selectedFloorMapImage {
             try saveImageToDocuments(image, with: info.id)
         }
 
-        // フロアマップ情報をエンコードして保存
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(info)
-        UserDefaults.standard.set(data, forKey: "currentFloorMapInfo")
+        // フロアマップ情報を保存
+        preferenceRepository.saveCurrentFloorMapInfo(info)
     }
 
     #if os(iOS)

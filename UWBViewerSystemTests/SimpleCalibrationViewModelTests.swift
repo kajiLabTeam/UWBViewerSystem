@@ -16,18 +16,20 @@ struct SimpleCalibrationViewModelTests {
     private func createTestViewModel() -> SimpleCalibrationViewModel {
         // テスト用のMockDataRepositoryを作成
         let mockRepository = MockDataRepository()
-        return SimpleCalibrationViewModel(dataRepository: mockRepository)
+        let mockPreferenceRepository = PreferenceRepository()
+        return SimpleCalibrationViewModel(dataRepository: mockRepository, preferenceRepository: mockPreferenceRepository)
     }
 
     @MainActor
     private func createIsolatedTestViewModel() -> SimpleCalibrationViewModel {
         // テスト用のMockDataRepositoryを作成
         let mockRepository = MockDataRepository()
+        let mockPreferenceRepository = PreferenceRepository()
 
         // UserDefaultsをクリア
         UserDefaults.standard.removeObject(forKey: "currentFloorMapInfo")
 
-        let viewModel = SimpleCalibrationViewModel(dataRepository: mockRepository)
+        let viewModel = SimpleCalibrationViewModel(dataRepository: mockRepository, preferenceRepository: mockPreferenceRepository)
 
         return viewModel
     }

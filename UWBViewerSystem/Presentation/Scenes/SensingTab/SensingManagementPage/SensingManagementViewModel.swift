@@ -15,9 +15,10 @@ class SensingManagementViewModel: ObservableObject {
     @Published var sampleRate = 10
     @Published var autoSave = true
 
-    // DI対応: 必要なUseCaseを直接注入
+    // DI対応: 必要なUseCaseとRepositoryを直接注入
     private let sensingControlUsecase: SensingControlUsecase
     private let realtimeDataUsecase: RealtimeDataUsecase
+    private let preferenceRepository: PreferenceRepositoryProtocol
     private var swiftDataRepository: SwiftDataRepositoryProtocol
     private var cancellables = Set<AnyCancellable>()
     private var sensingStartTime: Date?
@@ -26,9 +27,11 @@ class SensingManagementViewModel: ObservableObject {
     init(
         swiftDataRepository: SwiftDataRepositoryProtocol,
         sensingControlUsecase: SensingControlUsecase? = nil,
-        realtimeDataUsecase: RealtimeDataUsecase? = nil
+        realtimeDataUsecase: RealtimeDataUsecase? = nil,
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
     ) {
         self.swiftDataRepository = swiftDataRepository
+        self.preferenceRepository = preferenceRepository
         self.sensingControlUsecase =
             sensingControlUsecase
                 ?? SensingControlUsecase(
@@ -192,7 +195,7 @@ class SensingManagementViewModel: ObservableObject {
         }
 
         // セッション実行フラグを保存
-        UserDefaults.standard.set(true, forKey: "hasExecutedSensingSession")
+        preferenceRepository.setHasExecutedSensingSession(true)
 
         return true
     }

@@ -47,6 +47,17 @@ class TrajectoryViewModel: ObservableObject {
     // mapData: IndoorMapDataは現在利用できないため、一時的にコメントアウト
     // private var mapData: IndoorMapData?
     private var allTrajectoryPoints: [TrajectoryPoint] = []  // フィルタリング前の全データ
+    private let preferenceRepository: PreferenceRepositoryProtocol
+
+    init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
+        self.preferenceRepository = preferenceRepository
+        loadInitialData()
+    }
+
+    private func loadInitialData() {
+        loadAvailableSessions()
+        loadAntennaPositions()
+    }
 
     var hasTrajectoryData: Bool {
         !trajectoryPoints.isEmpty
@@ -90,10 +101,8 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     private func loadAvailableSessions() {
-        if let data = UserDefaults.standard.data(forKey: "RecentSensingSessions"),
-           let decoded = try? JSONDecoder().decode([SensingSession].self, from: data)
-        {
-            availableSessions = decoded
+        if let sessions = preferenceRepository.getData([SensingSession].self, forKey: "RecentSensingSessions") {
+            availableSessions = sessions
         }
     }
 
@@ -116,8 +125,7 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     private func loadAntennaPositions() {
-        if let data = UserDefaults.standard.data(forKey: "AntennaPositions"),
-           let positions = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
+        if let positions = preferenceRepository.getData([AntennaPositionData].self, forKey: "AntennaPositions")
         {
 
             let colors: [Color] = [.red, .blue, .green, .orange, .purple, .pink]
@@ -204,9 +212,8 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     private func convertToScreenPosition(_ realPosition: RealWorldPosition) -> CGPoint {
-        // UserDefaultsからフロアマップ情報を取得
-        guard let floorMapData = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: floorMapData) else {
+        // PreferenceRepositoryからフロアマップ情報を取得
+        guard let floorMapInfo = preferenceRepository.loadCurrentFloorMapInfo() else {
             return CGPoint(x: 50, y: 50)
         }
 

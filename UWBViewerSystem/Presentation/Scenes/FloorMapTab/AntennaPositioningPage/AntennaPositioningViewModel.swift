@@ -34,7 +34,8 @@ class AntennaPositioningViewModel: ObservableObject {
     // フロアマップの情報を取得
     var floorMapInfo: FloorMapInfo? {
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let info = try? JSONDecoder().decode(FloorMapInfo.self, from: data) else {
+              let info = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
+        else {
             return nil
         }
         return info
@@ -50,7 +51,7 @@ class AntennaPositioningViewModel: ObservableObject {
     var mapScale: Double {
         // UserDefaultsからフロアマップ情報を取得
         guard let info = floorMapInfo else {
-            return 0.01 // デフォルト値: 1ピクセル = 1cm
+            return 0.01  // デフォルト値: 1ピクセル = 1cm
         }
 
         // マップキャンバスのサイズは400x400ピクセル
@@ -61,7 +62,9 @@ class AntennaPositioningViewModel: ObservableObject {
         let scale = maxRealSize / canvasSize
 
         #if DEBUG
-            print("🗺️ MapScale calculation: width=\(info.width)m, depth=\(info.depth)m, maxSize=\(maxRealSize)m, canvasSize=\(canvasSize)px, scale=\(scale)m/px")
+            print(
+                "🗺️ MapScale calculation: width=\(info.width)m, depth=\(info.depth)m, maxSize=\(maxRealSize)m, canvasSize=\(canvasSize)px, scale=\(scale)m/px"
+            )
         #endif
 
         return scale
@@ -147,7 +150,8 @@ class AntennaPositioningViewModel: ObservableObject {
                         selectedDevices = pairings.compactMap { pairing in
                             // データの妥当性をチェック
                             guard !pairing.device.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                                  !pairing.device.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                                  !pairing.device.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            else {
                                 #if DEBUG
                                     print("⚠️ 無効なペアリングデータをスキップ: \(pairing)")
                                 #endif
@@ -246,11 +250,12 @@ class AntennaPositioningViewModel: ObservableObject {
 
         // currentFloorMapInfoから読み込む
         if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-           let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) {
+           let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
+        {
 
             // 保存された画像を読み込む
             let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let imageURL = documentsDirectory.appendingPathComponent("\(floorMapInfo.id).jpg")
+            _ = documentsDirectory.appendingPathComponent("\(floorMapInfo.id).jpg")
 
             // 新しいFloorMapInfo構造を使用して画像を読み込む
             mapImage = floorMapInfo.image
@@ -275,7 +280,7 @@ class AntennaPositioningViewModel: ObservableObject {
                 position: CGPoint(x: 50, y: 50),  // デフォルト位置（後で保存データで上書き）
                 rotation: 0.0,
                 color: colors[index % colors.count],
-                baseCanvasSize: CGSize(width: 400, height: 400) // 基準キャンバスサイズ
+                baseCanvasSize: CGSize(width: 400, height: 400)  // 基準キャンバスサイズ
             )
         }
         updateCanProceed()
@@ -419,7 +424,7 @@ class AntennaPositioningViewModel: ObservableObject {
         for index in antennaPositions.indices {
             let resetPosition = CGPoint(x: 50, y: 50)
             antennaPositions[index].position = resetPosition
-            antennaPositions[index].normalizedPosition = CGPoint(x: 0.125, y: 0.125) // 50/400 = 0.125
+            antennaPositions[index].normalizedPosition = CGPoint(x: 0.125, y: 0.125)  // 50/400 = 0.125
             antennaPositions[index].rotation = 0.0
 
             // SwiftDataの位置もリセット
@@ -503,7 +508,8 @@ class AntennaPositioningViewModel: ObservableObject {
     /// すべてのアンテナ位置をSwiftDataから削除
     private func deleteAllAntennaPositionsFromSwiftData() {
         guard let repository = swiftDataRepository,
-              let floorMapInfo else {
+              let floorMapInfo
+        else {
             #if DEBUG
                 print("❌ SwiftDataRepository または FloorMapInfo が利用できません（deleteAllAntennaPositionsFromSwiftData）")
             #endif
@@ -579,7 +585,9 @@ class AntennaPositioningViewModel: ObservableObject {
                     }
                     updateCanProceed()
                     #if DEBUG
-                        print("📱 SwiftDataからアンテナ位置を読み込み完了: \(appliedCount)/\(positions.count)件適用 for floorMap: \(floorMapInfo.id)")
+                        print(
+                            "📱 SwiftDataからアンテナ位置を読み込み完了: \(appliedCount)/\(positions.count)件適用 for floorMap: \(floorMapInfo.id)"
+                        )
                     #endif
                 }
             } catch {
@@ -598,7 +606,8 @@ class AntennaPositioningViewModel: ObservableObject {
     private func loadAntennaPositionsFromUserDefaults() {
 
         if let data = UserDefaults.standard.data(forKey: "configuredAntennaPositions"),
-           let positionData = try? JSONDecoder().decode([AntennaPositionData].self, from: data) {
+           let positionData = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
+        {
 
             var appliedCount = 0
 
@@ -632,7 +641,8 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func saveAntennaPositionToSwiftData(_ antennaPosition: AntennaPosition) {
         guard let repository = swiftDataRepository,
-              let floorMapInfo else { return }
+              let floorMapInfo
+        else { return }
 
         Task {
             do {
@@ -690,7 +700,9 @@ class AntennaPositioningViewModel: ObservableObject {
 
         guard positionedAntennas.count >= 2 else {
             #if DEBUG
-                print("❌ saveAntennaPositionsForFlow: Need at least 2 positioned antennas, got \(positionedAntennas.count)")
+                print(
+                    "❌ saveAntennaPositionsForFlow: Need at least 2 positioned antennas, got \(positionedAntennas.count)"
+                )
             #endif
             return false
         }
@@ -711,7 +723,8 @@ class AntennaPositioningViewModel: ObservableObject {
         // マップの実際のサイズとスクリーン上のサイズの比率を計算
         // UserDefaultsからフロアマップ情報を取得
         guard let mapData = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let floorMapData = try? JSONDecoder().decode(FloorMapInfo.self, from: mapData) else {
+              let floorMapData = try? JSONDecoder().decode(FloorMapInfo.self, from: mapData)
+        else {
             return RealWorldPosition(x: Double(screenPosition.x), y: Double(screenPosition.y), z: 0)
         }
 
@@ -729,7 +742,8 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func updateProjectProgress(toStep step: SetupStep) {
         guard let repository = swiftDataRepository,
-              let floorMapInfo else { return }
+              let floorMapInfo
+        else { return }
 
         Task {
             do {
@@ -798,13 +812,16 @@ class AntennaPositioningViewModel: ObservableObject {
 struct AntennaPosition: Identifiable {
     let id: String
     let deviceName: String
-    var position: CGPoint           // 表示用の実際の座標（キャンバスサイズ依存）
-    var normalizedPosition: CGPoint // 正規化された座標（0-1の範囲、キャンバスサイズ非依存）
+    var position: CGPoint  // 表示用の実際の座標（キャンバスサイズ依存）
+    var normalizedPosition: CGPoint  // 正規化された座標（0-1の範囲、キャンバスサイズ非依存）
     var rotation: Double = 0.0
     let color: Color
 
     // 初期化時に正規化座標を基準キャンバスサイズから計算
-    init(id: String, deviceName: String, position: CGPoint, rotation: Double = 0.0, color: Color, baseCanvasSize: CGSize = CGSize(width: 400, height: 400)) {
+    init(
+        id: String, deviceName: String, position: CGPoint, rotation: Double = 0.0, color: Color,
+        baseCanvasSize: CGSize = CGSize(width: 400, height: 400)
+    ) {
         self.id = id
         self.deviceName = deviceName
         self.position = position
@@ -817,7 +834,10 @@ struct AntennaPosition: Identifiable {
     }
 
     // 正規化座標から初期化
-    init(id: String, deviceName: String, normalizedPosition: CGPoint, rotation: Double = 0.0, color: Color, canvasSize: CGSize) {
+    init(
+        id: String, deviceName: String, normalizedPosition: CGPoint, rotation: Double = 0.0, color: Color,
+        canvasSize: CGSize
+    ) {
         self.id = id
         self.deviceName = deviceName
         self.normalizedPosition = normalizedPosition
@@ -830,7 +850,10 @@ struct AntennaPosition: Identifiable {
     }
 
     // ViewでAntennaPosition作成用の初期化（位置と正規化位置を直接指定）
-    init(id: String, deviceName: String, position: CGPoint, normalizedPosition: CGPoint, rotation: Double = 0.0, color: Color) {
+    init(
+        id: String, deviceName: String, position: CGPoint, normalizedPosition: CGPoint, rotation: Double = 0.0,
+        color: Color
+    ) {
         self.id = id
         self.deviceName = deviceName
         self.position = position

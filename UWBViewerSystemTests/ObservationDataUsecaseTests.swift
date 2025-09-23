@@ -380,11 +380,35 @@ struct ObservationDataUsecaseTests {
 
 /// モック観測データリポジトリ
 class MockObservationDataRepository: DataRepositoryProtocol {
-    func saveCalibrationData(_ data: CalibrationData) async throws {}
-    func loadCalibrationData() async throws -> [CalibrationData] { [] }
-    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? { nil }
-    func deleteCalibrationData(for antennaId: String) async throws {}
-    func deleteAllCalibrationData() async throws {}
+    private var calibrationDataStorage: [String: Data] = [:]
+
+    func saveCalibrationData(_ data: CalibrationData) async throws {
+        // JSONエンコードして安全に保存
+        let encoder = JSONEncoder()
+        let encodedData = try encoder.encode(data)
+        calibrationDataStorage[data.antennaId] = encodedData
+    }
+
+    func loadCalibrationData() async throws -> [CalibrationData] {
+        let decoder = JSONDecoder()
+        return calibrationDataStorage.values.compactMap { data in
+            try? decoder.decode(CalibrationData.self, from: data)
+        }
+    }
+
+    func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
+        guard let data = calibrationDataStorage[antennaId] else { return nil }
+        let decoder = JSONDecoder()
+        return try? decoder.decode(CalibrationData.self, from: data)
+    }
+
+    func deleteCalibrationData(for antennaId: String) async throws {
+        calibrationDataStorage.removeValue(forKey: antennaId)
+    }
+
+    func deleteAllCalibrationData() async throws {
+        calibrationDataStorage.removeAll()
+    }
 
     func saveFieldAntennaConfiguration(_ antennas: [AntennaInfo]) {}
     func loadFieldAntennaConfiguration() -> [AntennaInfo]? {

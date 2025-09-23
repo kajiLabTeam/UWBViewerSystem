@@ -42,11 +42,6 @@ struct AffineTransformTests {
         #expect(transform.isValid)
         #expect(abs(transform.determinant) > 1e-10)
         #expect(transform.accuracy < 1.0)
-
-        #if DEBUG
-            print("📊 アフィン変換行列:")
-            print(transform.matrixDescription)
-        #endif
     }
 
     @Test("マップ座標から実世界座標への変換")
@@ -63,10 +58,6 @@ struct AffineTransformTests {
         #expect(realWorldPoint.x.isFinite)
         #expect(realWorldPoint.y.isFinite)
         #expect(realWorldPoint.z.isFinite)
-
-        #if DEBUG
-            print("🗺️ 座標変換: マップ(\(mapPoint.x), \(mapPoint.y)) → 実世界(\(realWorldPoint.x), \(realWorldPoint.y))")
-        #endif
     }
 
     @Test("実世界座標からマップ座標への逆変換")
@@ -82,10 +73,6 @@ struct AffineTransformTests {
         // Assert
         #expect(mapPoint.x.isFinite)
         #expect(mapPoint.y.isFinite)
-
-        #if DEBUG
-            print("🔄 逆変換: 実世界(\(realWorldPoint.x), \(realWorldPoint.y)) → マップ(\(mapPoint.x), \(mapPoint.y))")
-        #endif
     }
 
     @Test("往復変換の精度")
@@ -105,10 +92,6 @@ struct AffineTransformTests {
         // Assert
         #expect(errorX < 1.0)
         #expect(errorY < 1.0)
-
-        #if DEBUG
-            print("🔄 往復変換エラー: X=\(errorX), Y=\(errorY)")
-        #endif
     }
 
     // MARK: - エラーハンドリングテスト

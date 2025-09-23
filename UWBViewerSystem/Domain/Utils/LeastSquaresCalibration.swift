@@ -75,7 +75,7 @@ public class LeastSquaresCalibration {
                 translation: translation,
                 rotation: rotation,
                 scale: scale,
-                accuracy: 0.0 // 暫定値
+                accuracy: 0.0  // 暫定値
             )
         )
 
@@ -172,7 +172,10 @@ public class LeastSquaresCalibration {
         let referenceXY = reference.map { ($0.x, $0.y) }
 
         // 共分散行列を計算
-        var h11 = 0.0, h12 = 0.0, h21 = 0.0, h22 = 0.0
+        var h11 = 0.0
+        var h12 = 0.0
+        var h21 = 0.0
+        var h22 = 0.0
 
         for i in 0..<measuredXY.count {
             let (mx, my) = measuredXY[i]
@@ -197,10 +200,10 @@ public class LeastSquaresCalibration {
                 do {
                     return try calculateScale(measured: measured, reference: reference)
                 } catch {
-                    return 1.0 // エラーが発生した場合はスケール1.0を使用
+                    return 1.0  // エラーが発生した場合はスケール1.0を使用
                 }
             } else {
-                return 1.0 // 分散が不十分な場合はスケール1.0を使用
+                return 1.0  // 分散が不十分な場合はスケール1.0を使用
             }
         }
 
@@ -216,7 +219,10 @@ public class LeastSquaresCalibration {
 
     /// 2x2行列から最適回転角を計算
     private static func calculateOptimalRotation(_ H: [Double]) throws -> Double {
-        let h11 = H[0], h12 = H[1], h21 = H[2], h22 = H[3]
+        let h11 = H[0]
+        let h12 = H[1]
+        let h21 = H[2]
+        let h22 = H[3]
 
         // 行列式がゼロに近い場合はエラー
         let determinant = h11 * h22 - h12 * h21
@@ -253,7 +259,7 @@ public class LeastSquaresCalibration {
         return Point3D(
             x: point.x * cos_r - point.y * sin_r,
             y: point.x * sin_r + point.y * cos_r,
-            z: point.z // Z軸は回転しない
+            z: point.z  // Z軸は回転しない
         )
     }
 
@@ -294,10 +300,10 @@ public class LeastSquaresCalibration {
 
 // MARK: - CalibrationTransform 拡張
 
-public extension CalibrationTransform {
+extension CalibrationTransform {
 
     /// 変換の逆行列を計算
-    var inverse: CalibrationTransform {
+    public var inverse: CalibrationTransform {
         // スケールの逆数
         let invScale = Point3D(
             x: scale.x != 0 ? 1.0 / scale.x : 1.0,
@@ -330,7 +336,7 @@ public extension CalibrationTransform {
     }
 
     /// 変換が有効かどうかを判定
-    var isValid: Bool {
+    public var isValid: Bool {
         // スケールがゼロまたは負でないかチェック
         guard scale.x > 0, scale.y > 0, scale.z > 0 else {
             return false

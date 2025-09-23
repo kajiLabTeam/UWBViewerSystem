@@ -58,11 +58,6 @@
 			path = UWBViewerSystemTests;
 			sourceTree = "<group>";
 		};
-		5C9EDD842E1C419C00572D26 /* UWBViewerSystemUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = UWBViewerSystemUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,7 +92,6 @@
 			children = (
 				5C9EDD692E1C419A00572D26 /* UWBViewerSystem */,
 				5C9EDD7A2E1C419C00572D26 /* UWBViewerSystemTests */,
-				5C9EDD842E1C419C00572D26 /* UWBViewerSystemUITests */,
 				5C9EDD682E1C419A00572D26 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -173,9 +167,6 @@
 			);
 			dependencies = (
 				5C9EDD832E1C419C00572D26 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				5C9EDD842E1C419C00572D26 /* UWBViewerSystemUITests */,
 			);
 			name = UWBViewerSystemUITests;
 			packageProductDependencies = (

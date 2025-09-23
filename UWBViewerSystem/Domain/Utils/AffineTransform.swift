@@ -67,7 +67,7 @@ public class AffineTransform {
             a: a, b: b, c: c, d: d,
             tx: tx, ty: ty,
             scaleZ: scaleZ, translateZ: translateZ,
-            accuracy: 0.0 // 暫定値
+            accuracy: 0.0  // 暫定値
         )
 
         let accuracy = calculateRMSE(
@@ -103,7 +103,8 @@ public class AffineTransform {
     ///   - realWorldPoint: 実世界座標
     ///   - transform: アフィン変換行列
     /// - Returns: マップ座標
-    public static func realWorldToMap(realWorldPoint: Point3D, using transform: AffineTransformMatrix) throws -> Point3D {
+    public static func realWorldToMap(realWorldPoint: Point3D, using transform: AffineTransformMatrix) throws -> Point3D
+    {
         // 逆変換行列を計算
         let inverseTransform = try calculateInverseTransform(transform)
         return mapToRealWorld(mapPoint: realWorldPoint, using: inverseTransform)
@@ -134,8 +135,10 @@ public class AffineTransform {
 
         // 座標値が有効範囲内かチェック
         for point in points {
-            guard point.mapCoordinate.x.isFinite && point.mapCoordinate.y.isFinite &&
-                point.realWorldCoordinate.x.isFinite && point.realWorldCoordinate.y.isFinite else {
+            guard
+                point.mapCoordinate.x.isFinite && point.mapCoordinate.y.isFinite && point.realWorldCoordinate.x.isFinite
+                && point.realWorldCoordinate.y.isFinite
+            else {
                 throw AffineTransformError.invalidInput("座標値が無効です")
             }
         }
@@ -342,10 +345,10 @@ public class AffineTransform {
         }
 
         let invDet = 1.0 / det
-        let a =  transform.d * invDet
+        let a = transform.d * invDet
         let b = -transform.b * invDet
         let c = -transform.c * invDet
-        let d =  transform.a * invDet
+        let d = transform.a * invDet
         let tx = (transform.c * transform.ty - transform.d * transform.tx) * invDet
         let ty = (transform.b * transform.tx - transform.a * transform.ty) * invDet
 
@@ -384,10 +387,10 @@ public class AffineTransform {
 
 // MARK: - AffineTransformMatrix 拡張
 
-public extension AffineTransformMatrix {
+extension AffineTransformMatrix {
 
     /// 逆変換行列を取得
-    var inverse: AffineTransformMatrix {
+    public var inverse: AffineTransformMatrix {
         do {
             return try AffineTransform.calculateInverseTransform(self)
         } catch {
@@ -397,7 +400,7 @@ public extension AffineTransformMatrix {
     }
 
     /// 行列を文字列で表示（デバッグ用）
-    var matrixDescription: String {
+    public var matrixDescription: String {
         """
         [[ \(String(format: "%.3f", a))  \(String(format: "%.3f", c))  \(String(format: "%.3f", tx)) ]
          [ \(String(format: "%.3f", b))  \(String(format: "%.3f", d))  \(String(format: "%.3f", ty)) ]

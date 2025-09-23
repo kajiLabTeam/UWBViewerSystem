@@ -17,10 +17,11 @@ struct MapBasedCalibrationView: View {
     init(antennaId: String, floorMapId: String) {
         self.antennaId = antennaId
         self.floorMapId = floorMapId
-        _viewModel = StateObject(wrappedValue: MapBasedCalibrationViewModel(
-            antennaId: antennaId,
-            floorMapId: floorMapId
-        ))
+        _viewModel = StateObject(
+            wrappedValue: MapBasedCalibrationViewModel(
+                antennaId: antennaId,
+                floorMapId: floorMapId
+            ))
     }
 
     var body: some View {
@@ -58,7 +59,7 @@ struct MapBasedCalibrationView: View {
                     }
                 }
                 .alert("エラー", isPresented: $viewModel.showError) {
-                    Button("OK") { }
+                    Button("OK") {}
                 } message: {
                     Text(viewModel.errorMessage)
                 }
@@ -381,12 +382,16 @@ struct MapCalibrationPointRow: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("実座標: (\(String(format: "%.2f", point.realWorldCoordinate.x)), \(String(format: "%.2f", point.realWorldCoordinate.y)))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text("地図座標: (\(String(format: "%.0f", point.mapCoordinate.x)), \(String(format: "%.0f", point.mapCoordinate.y)))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text(
+                    "実座標: (\(String(format: "%.2f", point.realWorldCoordinate.x)), \(String(format: "%.2f", point.realWorldCoordinate.y)))"
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
+                Text(
+                    "地図座標: (\(String(format: "%.0f", point.mapCoordinate.x)), \(String(format: "%.0f", point.mapCoordinate.y)))"
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
 
             Button(action: onRemove) {

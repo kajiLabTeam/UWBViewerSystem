@@ -838,14 +838,10 @@ struct ManualCalibrationSheet: View {
     }
 
     private var canAddPoint: Bool {
-        !viewModel.referenceX.isEmpty &&
-            !viewModel.referenceY.isEmpty &&
-            !viewModel.measuredX.isEmpty &&
-            !viewModel.measuredY.isEmpty &&
-            Double(viewModel.referenceX) != nil &&
-            Double(viewModel.referenceY) != nil &&
-            Double(viewModel.measuredX) != nil &&
-            Double(viewModel.measuredY) != nil
+        !viewModel.referenceX.isEmpty && !viewModel.referenceY.isEmpty && !viewModel.measuredX.isEmpty
+            && !viewModel.measuredY.isEmpty && Double(viewModel.referenceX) != nil
+            && Double(viewModel.referenceY) != nil && Double(viewModel.measuredX) != nil
+            && Double(viewModel.measuredY) != nil
     }
 }
 
@@ -858,13 +854,17 @@ struct CalibrationPointRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("正解: (\(String(format: "%.2f", point.referencePosition.x)), \(String(format: "%.2f", point.referencePosition.y)), \(String(format: "%.2f", point.referencePosition.z)))")
-                    .font(.caption)
-                    .foregroundColor(.primary)
+                Text(
+                    "正解: (\(String(format: "%.2f", point.referencePosition.x)), \(String(format: "%.2f", point.referencePosition.y)), \(String(format: "%.2f", point.referencePosition.z)))"
+                )
+                .font(.caption)
+                .foregroundColor(.primary)
 
-                Text("測定: (\(String(format: "%.2f", point.measuredPosition.x)), \(String(format: "%.2f", point.measuredPosition.y)), \(String(format: "%.2f", point.measuredPosition.z)))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text(
+                    "測定: (\(String(format: "%.2f", point.measuredPosition.x)), \(String(format: "%.2f", point.measuredPosition.y)), \(String(format: "%.2f", point.measuredPosition.z)))"
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
 
                 Text("誤差: \(String(format: "%.3f", point.referencePosition.distance(to: point.measuredPosition)))m")
                     .font(.caption)

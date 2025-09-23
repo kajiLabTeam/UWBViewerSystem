@@ -26,14 +26,17 @@ import SwiftUI
         var onImagePicked: (UIImage) -> Void
         @Environment(\.presentationMode) private var presentationMode
 
-        func makeUIViewController(context: UIViewControllerRepresentableContext<ImagePicker>) -> UIImagePickerController {
+        func makeUIViewController(context: UIViewControllerRepresentableContext<ImagePicker>) -> UIImagePickerController
+        {
             let imagePicker = UIImagePickerController()
             imagePicker.sourceType = sourceType
             imagePicker.delegate = context.coordinator
             return imagePicker
         }
 
-        func updateUIViewController(_ uiViewController: UIImagePickerController, context: UIViewControllerRepresentableContext<ImagePicker>) {
+        func updateUIViewController(
+            _ uiViewController: UIImagePickerController, context: UIViewControllerRepresentableContext<ImagePicker>
+        ) {
             // No update needed
         }
 
@@ -48,7 +51,10 @@ import SwiftUI
                 self.parent = parent
             }
 
-            func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            func imagePickerController(
+                _ picker: UIImagePickerController,
+                didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+            ) {
                 if let uiImage = info[UIImagePickerController.InfoKey.originalImage] as? UIImage {
                     parent.selectedImage = uiImage
                     parent.onImagePicked(uiImage)
@@ -100,8 +106,10 @@ import SwiftUI
 
                     // NSDataを使って画像データを読み込む
                     if let imageData = NSData(contentsOf: selectedFile),
-                       let nsImage = NSImage(data: imageData as Data) {
-                        print("🖼️ ImagePickerSheet (macOS): Image loaded successfully via NSData - size: \(nsImage.size)")
+                       let nsImage = NSImage(data: imageData as Data)
+                    {
+                        print(
+                            "🖼️ ImagePickerSheet (macOS): Image loaded successfully via NSData - size: \(nsImage.size)")
                         DispatchQueue.main.async {
                             print("🔄 ImagePickerSheet (macOS): Calling onImagePicked")
                             onImagePicked(nsImage)
@@ -111,7 +119,9 @@ import SwiftUI
 
                         // フォールバック: NSImage(contentsOf:)を試す
                         if let nsImage = NSImage(contentsOf: selectedFile) {
-                            print("🖼️ ImagePickerSheet (macOS): Image loaded successfully via NSImage(contentsOf:) - size: \(nsImage.size)")
+                            print(
+                                "🖼️ ImagePickerSheet (macOS): Image loaded successfully via NSImage(contentsOf:) - size: \(nsImage.size)"
+                            )
                             DispatchQueue.main.async {
                                 print("🔄 ImagePickerSheet (macOS): Calling onImagePicked")
                                 onImagePicked(nsImage)

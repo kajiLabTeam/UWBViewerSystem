@@ -188,7 +188,7 @@ public protocol PreferenceRepositoryProtocol {
     ///   - value: 保存するCodableオブジェクト
     ///   - key: 保存キー
     /// - Throws: エンコードに失敗した場合のエラー
-    func setData<T: Codable>(_ value: T, forKey key: String) throws
+    func setData(_ value: some Codable, forKey key: String) throws
 
     /// 指定されたキーのCodableなデータオブジェクトを取得します
     /// - Parameters:

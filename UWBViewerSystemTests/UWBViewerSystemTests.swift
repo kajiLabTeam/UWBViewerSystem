@@ -42,7 +42,7 @@ struct SwiftDataRepositoryTests {
 
     @Test("センシングセッション保存・読み込みテスト")
     @MainActor
-    func testSensingSessionSaveAndLoad() async throws {
+    func sensingSessionSaveAndLoad() async throws {
         let repository = try createInMemoryRepository()
 
         // テストデータを作成
@@ -77,7 +77,7 @@ struct SwiftDataRepositoryTests {
 
     @Test("アンテナペアリング保存・読み込みテスト")
     @MainActor
-    func testAntennaPairingSaveAndLoad() async throws {
+    func antennaPairingSaveAndLoad() async throws {
         let repository = try createInMemoryRepository()
 
         // テストデータを作成
@@ -118,7 +118,7 @@ struct SwiftDataRepositoryTests {
 
     @Test("アンテナ位置データ保存・読み込みテスト")
     @MainActor
-    func testAntennaPositionSaveAndLoad() async throws {
+    func antennaPositionSaveAndLoad() async throws {
         let repository = try createInMemoryRepository()
 
         // テストデータを作成
@@ -155,7 +155,7 @@ struct SwiftDataRepositoryTests {
 
     @Test("プロジェクト進行状況保存・読み込みテスト")
     @MainActor
-    func testProjectProgressSaveAndLoad() async throws {
+    func projectProgressSaveAndLoad() async throws {
         let repository = try createInMemoryRepository()
 
         // テストデータを作成
@@ -206,7 +206,7 @@ struct SwiftDataRepositoryTests {
 
     @Test("フロアマップ保存・読み込みテスト")
     @MainActor
-    func testFloorMapSaveAndLoad() async throws {
+    func floorMapSaveAndLoad() async throws {
         let repository = try createInMemoryRepository()
 
         // テストデータを作成
@@ -252,7 +252,7 @@ struct PairingSettingViewModelTests {
 
     @Test("PairingSettingViewModel データ保存・読み込みテスト")
     @MainActor
-    func testPairingDataSaveAndLoad() async throws {
+    func pairingDataSaveAndLoad() async throws {
         let mockRepository = TestMockSwiftDataRepository()
         let viewModel = PairingSettingViewModel(swiftDataRepository: mockRepository, autoLoadData: false)
 
@@ -292,7 +292,7 @@ struct DataDisplayViewModelTests {
 
     @Test("DataDisplayViewModel 履歴データ読み込みテスト")
     @MainActor
-    func testHistoryDataLoading() async throws {
+    func historyDataLoading() async throws {
         let mockRepository = TestMockSwiftDataRepository()
         let viewModel = DataDisplayViewModel(swiftDataRepository: mockRepository)
 

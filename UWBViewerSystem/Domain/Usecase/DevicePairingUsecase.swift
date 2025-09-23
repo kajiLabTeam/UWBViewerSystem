@@ -23,7 +23,7 @@ class DevicePairingUsecase: ObservableObject {
         hasCompletePairing && isConnected
     }
 
-    public init(
+    init(
         connectionUsecase: ConnectionManagementUsecase,
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()
     ) {

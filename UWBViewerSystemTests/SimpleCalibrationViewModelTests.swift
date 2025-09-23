@@ -68,7 +68,7 @@ struct SimpleCalibrationViewModelTests {
     // MARK: - フロアマップデータ読み込みテスト
 
     @Test("フロアマップデータ読み込み - UserDefaultsからの読み込み")
-    func testLoadCurrentFloorMapData() async throws {
+    func loadCurrentFloorMapData() async throws {
         setupTestEnvironment()
         defer { cleanupTestEnvironment() }
 
@@ -84,7 +84,7 @@ struct SimpleCalibrationViewModelTests {
     }
 
     @Test("フロアマップデータ読み込み - 選択されたフロアマップIDがない場合")
-    func testLoadCurrentFloorMapDataWithoutSelectedId() async throws {
+    func loadCurrentFloorMapDataWithoutSelectedId() async throws {
         let viewModel = await createIsolatedTestViewModel()
 
         // 初期データ読み込みでフロアマップデータが読み込まれる
@@ -100,7 +100,7 @@ struct SimpleCalibrationViewModelTests {
     // MARK: - フロアマップ画像読み込みテスト
 
     @Test("フロアマップ画像読み込み - 存在しないファイルの場合")
-    func testLoadFloorMapImageWithNonExistentFile() async throws {
+    func loadFloorMapImageWithNonExistentFile() async throws {
         let viewModel = await createTestViewModel()
 
         // 初期データ読み込み（画像ファイルが存在しない場合）
@@ -117,7 +117,7 @@ struct SimpleCalibrationViewModelTests {
     // MARK: - 基準点表示テスト
 
     @Test("基準点表示 - 複数の基準点が正しく設定される")
-    func testReferencePointsDisplay() async throws {
+    func referencePointsDisplay() async throws {
         setupTestEnvironment()
         defer { cleanupTestEnvironment() }
 
@@ -142,7 +142,7 @@ struct SimpleCalibrationViewModelTests {
     // MARK: - ViewModel初期化テスト
 
     @Test("ViewModel初期化 - 初期状態の確認")
-    func testViewModelInitialization() async throws {
+    func viewModelInitialization() async throws {
         let viewModel = await createIsolatedTestViewModel()
 
         // UserDefaultsの変更通知が処理されるまで少し待つ
@@ -161,7 +161,7 @@ struct SimpleCalibrationViewModelTests {
     // MARK: - エラーハンドリングテスト
 
     @Test("エラーハンドリング - 不正なJSON形式でのフロアマップ情報")
-    func testErrorHandlingWithInvalidJSON() async throws {
+    func errorHandlingWithInvalidJSON() async throws {
         // 不正なJSONデータを設定
         UserDefaults.standard.set("invalid-json-data", forKey: "currentFloorMapInfo")
         defer { cleanupTestEnvironment() }
@@ -179,7 +179,7 @@ struct SimpleCalibrationViewModelTests {
     }
 
     @Test("エラーハンドリング - 無効なフロアマップデータ")
-    func testErrorHandlingWithInvalidFloorMapData() async throws {
+    func errorHandlingWithInvalidFloorMapData() async throws {
         // 無効なデータを持つフロアマップ情報を設定
         let invalidFloorMapInfo = FloorMapInfo(
             id: "", // 空のID
@@ -208,7 +208,7 @@ struct SimpleCalibrationViewModelTests {
     }
 
     @Test("エラーハンドリング - キャリブレーション開始条件チェック")
-    func testCalibrationStartValidation() async throws {
+    func calibrationStartValidation() async throws {
         let viewModel = await createTestViewModel()
 
         // currentStepを2に設定（キャリブレーション実行ステップ）
@@ -231,7 +231,7 @@ struct SimpleCalibrationViewModelTests {
     }
 
     @Test("エラーハンドリング - 重複する基準座標の検証")
-    func testDuplicateReferencePointsValidation() async throws {
+    func duplicateReferencePointsValidation() async throws {
         let viewModel = await createTestViewModel()
 
         // 重複する座標を設定
@@ -253,7 +253,7 @@ struct SimpleCalibrationViewModelTests {
     }
 
     @Test("エラーハンドリング - 無効な座標値の検証")
-    func testInvalidCoordinateValidation() async throws {
+    func invalidCoordinateValidation() async throws {
         let viewModel = await createTestViewModel()
 
         // 無効な座標値（NaN、Infinity）を含む基準点を設定
@@ -277,7 +277,7 @@ struct SimpleCalibrationViewModelTests {
     // MARK: - 統合テスト
 
     @Test("統合テスト - フロアマップ読み込みから表示まで")
-    func testIntegrationFloorMapLoadingAndDisplay() async throws {
+    func integrationFloorMapLoadingAndDisplay() async throws {
         setupTestEnvironment()
         defer { cleanupTestEnvironment() }
 
@@ -312,7 +312,7 @@ struct SimpleCalibrationViewModelTests {
     // MARK: - クロスプラットフォーム対応テスト
 
     @Test("クロスプラットフォーム対応 - 画像プロパティの型確認")
-    func testCrossPlatformImageProperty() async throws {
+    func crossPlatformImageProperty() async throws {
         let viewModel = await createTestViewModel()
 
         // プラットフォーム固有の画像プロパティの型を確認
@@ -329,7 +329,7 @@ struct SimpleCalibrationViewModelTests {
     // MARK: - リアルタイム更新テスト
 
     @Test("リアルタイム更新 - UserDefaults変更時の自動更新")
-    func testRealTimeUpdateWhenUserDefaultsChanges() async throws {
+    func realTimeUpdateWhenUserDefaultsChanges() async throws {
         let viewModel = await createIsolatedTestViewModel()
 
         // 初期状態ではフロアマップ情報がnilであることを確認

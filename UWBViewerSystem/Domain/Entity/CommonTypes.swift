@@ -221,7 +221,7 @@ public struct ProjectProgress: Codable {
                 let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
                 let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
                 if FileManager.default.fileExists(atPath: imageURL.path),
-                    let data = try? Data(contentsOf: imageURL)
+                   let data = try? Data(contentsOf: imageURL)
                 {
                     return UIImage(data: data)
                 }

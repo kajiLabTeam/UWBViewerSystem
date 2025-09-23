@@ -433,7 +433,7 @@ struct CalibrationTests {
 // MARK: - Mock Data Repository
 
 class MockCalibrationTestRepository: DataRepositoryProtocol {
-    private var calibrationDataStorage: [String: CalibrationData] = [:]
+    private var calibrationDataStorage: [String: Data] = [:]
 
     func saveRecentSensingSessions(_ sessions: [SensingSession]) {}
     func loadRecentSensingSessions() -> [SensingSession] { [] }
@@ -449,15 +449,23 @@ class MockCalibrationTestRepository: DataRepositoryProtocol {
     func loadCalibrationResults() -> Data? { nil }
 
     func saveCalibrationData(_ data: CalibrationData) async throws {
-        calibrationDataStorage[data.antennaId] = data
+        // JSONエンコードして安全に保存
+        let encoder = JSONEncoder()
+        let encodedData = try encoder.encode(data)
+        calibrationDataStorage[data.antennaId] = encodedData
     }
 
     func loadCalibrationData() async throws -> [CalibrationData] {
-        Array(calibrationDataStorage.values)
+        let decoder = JSONDecoder()
+        return calibrationDataStorage.values.compactMap { data in
+            try? decoder.decode(CalibrationData.self, from: data)
+        }
     }
 
     func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        calibrationDataStorage[antennaId]
+        guard let data = calibrationDataStorage[antennaId] else { return nil }
+        let decoder = JSONDecoder()
+        return try? decoder.decode(CalibrationData.self, from: data)
     }
 
     func deleteCalibrationData(for antennaId: String) async throws {

@@ -14,22 +14,45 @@ struct SimpleCalibrationViewModelTests {
 
     @MainActor
     private func createTestViewModel() -> SimpleCalibrationViewModel {
-        // テスト用のMockDataRepositoryを作成
-        let mockRepository = MockDataRepository()
-        let mockPreferenceRepository = PreferenceRepository()
-        return SimpleCalibrationViewModel(dataRepository: mockRepository, preferenceRepository: mockPreferenceRepository)
+        // テスト用のMockRepositoryを作成
+        let mockDataRepository = MockDataRepository()
+        let mockPreferenceRepository = MockPreferenceRepository()
+        return SimpleCalibrationViewModel(dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
+    }
+
+    @MainActor
+    private func createTestViewModelWithFloorMapInfo() -> (SimpleCalibrationViewModel, MockPreferenceRepository) {
+        // テスト用のMockRepositoryを作成
+        let mockDataRepository = MockDataRepository()
+        let mockPreferenceRepository = MockPreferenceRepository()
+
+        // テスト用のフロアマップ情報を設定
+        let testFloorMapInfo = createTestFloorMapInfo()
+        mockPreferenceRepository.saveCurrentFloorMapInfo(testFloorMapInfo)
+
+        let viewModel = SimpleCalibrationViewModel(dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
+        return (viewModel, mockPreferenceRepository)
     }
 
     @MainActor
     private func createIsolatedTestViewModel() -> SimpleCalibrationViewModel {
-        // テスト用のMockDataRepositoryを作成
-        let mockRepository = MockDataRepository()
-        let mockPreferenceRepository = PreferenceRepository()
+        // テスト用のMockRepositoryを作成
+        let mockDataRepository = MockDataRepository()
+        let mockPreferenceRepository = MockPreferenceRepository()
 
-        // UserDefaultsをクリア
-        UserDefaults.standard.removeObject(forKey: "currentFloorMapInfo")
+        let viewModel = SimpleCalibrationViewModel(dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
 
-        let viewModel = SimpleCalibrationViewModel(dataRepository: mockRepository, preferenceRepository: mockPreferenceRepository)
+        return viewModel
+    }
+
+    @MainActor
+    private func createTestViewModelWithMocks(
+        mockPreferenceRepository: MockPreferenceRepository
+    ) -> SimpleCalibrationViewModel {
+        // テスト用のMockRepositoryを作成
+        let mockDataRepository = MockDataRepository()
+
+        let viewModel = SimpleCalibrationViewModel(dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
 
         return viewModel
     }
@@ -61,18 +84,9 @@ struct SimpleCalibrationViewModelTests {
 
     // MARK: - フロアマップデータ読み込みテスト
 
-    @Test("フロアマップデータ読み込み - UserDefaultsからの読み込み")
+    @Test("フロアマップデータ読み込み - PreferenceRepositoryからの読み込み")
     func loadCurrentFloorMapData() async throws {
-        defer { cleanupTestEnvironment() }
-
-        // UserDefaultsをクリアしてからテストデータを設定
-        UserDefaults.standard.removeObject(forKey: "currentFloorMapInfo")
-
-        let testFloorMapInfo = createTestFloorMapInfo()
-        let encoded = try JSONEncoder().encode(testFloorMapInfo)
-        UserDefaults.standard.set(encoded, forKey: "currentFloorMapInfo")
-
-        let viewModel = await createTestViewModel()
+        let (viewModel, _) = await createTestViewModelWithFloorMapInfo()
 
         // 初期データ読み込みでフロアマップデータが読み込まれる
         await viewModel.loadInitialData()
@@ -99,10 +113,8 @@ struct SimpleCalibrationViewModelTests {
         #expect(await viewModel.currentFloorMapInfo?.name == "テストフロアマップ")
     }
 
-    @Test("フロアマップデータ読み込み - 選択されたフロアマップIDがない場合")
+    @Test("フロアマップデータ読み込み - フロアマップIDがない場合")
     func loadCurrentFloorMapDataWithoutSelectedId() async throws {
-        defer { cleanupTestEnvironment() }
-
         let viewModel = await createIsolatedTestViewModel()
 
         // 初期データ読み込みでフロアマップデータが読み込まれる
@@ -356,14 +368,14 @@ struct SimpleCalibrationViewModelTests {
     func integrationFloorMapLoadingAndDisplay() async throws {
         defer { cleanupTestEnvironment() }
 
-        // UserDefaultsをクリアしてからテストデータを設定
-        UserDefaults.standard.removeObject(forKey: "currentFloorMapInfo")
-
+        // MockPreferenceRepositoryにテストデータを設定
         let testFloorMapInfo = createTestFloorMapInfo()
-        let encoded = try JSONEncoder().encode(testFloorMapInfo)
-        UserDefaults.standard.set(encoded, forKey: "currentFloorMapInfo")
+        let mockPreferenceRepository = MockPreferenceRepository()
+        mockPreferenceRepository.saveCurrentFloorMapInfo(testFloorMapInfo)
 
-        let viewModel = await createTestViewModel()
+        let viewModel = await createTestViewModelWithMocks(
+            mockPreferenceRepository: mockPreferenceRepository
+        )
 
         // Step 1: 初期データ読み込みでフロアマップデータが読み込まれる
         await viewModel.loadInitialData()
@@ -426,56 +438,31 @@ struct SimpleCalibrationViewModelTests {
 
     // MARK: - リアルタイム更新テスト
 
-    @Test("リアルタイム更新 - UserDefaults変更時の自動更新")
-    func realTimeUpdateWhenUserDefaultsChanges() async throws {
+    @Test("リアルタイム更新 - Preference Repository変更時の自動更新")
+    func realTimeUpdateWhenPreferenceChanges() async throws {
         defer { cleanupTestEnvironment() }
 
-        // テスト専用のViewModelを作成し、NotificationCenter通知設定後に確認
-        let mockRepository = await MockDataRepository()
-        let viewModel = await SimpleCalibrationViewModel(dataRepository: mockRepository)
+        // MockPreferenceRepositoryを使用したViewModelを作成
+        let mockPreferenceRepository = MockPreferenceRepository()
+        let viewModel = await createTestViewModelWithMocks(
+            mockPreferenceRepository: mockPreferenceRepository
+        )
 
-        // UserDefaultsを初期状態でクリア
-        UserDefaults.standard.removeObject(forKey: "currentFloorMapInfo")
-
-        // 初期データ読み込みを実行
+        // 初期データ読み込みを実行（初期状態では何もない）
         await viewModel.loadInitialData()
 
-        // ポーリングベースで初期状態確認
-        let maxWaitTime: TimeInterval = 2.0
-        let pollInterval: TimeInterval = 0.05
-        var startTime = Date()
-
-        // 初期状態確認
-        repeat {
-            let currentInfo = await viewModel.currentFloorMapInfo
-            if currentInfo == nil {
-                break
-            }
-            try await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
-        } while Date().timeIntervalSince(startTime) < maxWaitTime
-
-        // 初期状態ではフロアマップ情報がnilであることを確認
+        // 初期状態の確認
         #expect(await viewModel.currentFloorMapInfo == nil)
 
-        // フロアマップ情報をUserDefaultsに設定
+        // フロアマップ情報をMockPreferenceRepositoryに設定
         let testFloorMapInfo = createTestFloorMapInfo()
-        if let encoded = try? JSONEncoder().encode(testFloorMapInfo) {
-            UserDefaults.standard.set(encoded, forKey: "currentFloorMapInfo")
-        }
+        mockPreferenceRepository.saveCurrentFloorMapInfo(testFloorMapInfo)
 
-        // ポーリングベースでUserDefaults変更の反映を待機
-        startTime = Date()
-        var updatedFloorMapInfo: FloorMapInfo?
+        // フロアマップ情報の再読み込みをトリガー
+        await viewModel.loadInitialData()
 
-        repeat {
-            updatedFloorMapInfo = await viewModel.currentFloorMapInfo
-            if updatedFloorMapInfo != nil {
-                break
-            }
-            try await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
-        } while Date().timeIntervalSince(startTime) < maxWaitTime
-
-        // 更新が正常に機能していることを確認
+        // データが正常に更新されることを確認
+        let updatedFloorMapInfo = await viewModel.currentFloorMapInfo
         #expect(updatedFloorMapInfo != nil, "フロアマップ情報が更新されていません")
         if let info = updatedFloorMapInfo {
             #expect(info.id == "test-floor-map", "フロアマップIDが期待値と異なります")

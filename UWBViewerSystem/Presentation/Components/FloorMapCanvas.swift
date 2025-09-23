@@ -216,11 +216,11 @@ struct FloorMapBackground: View {
             #endif
         } else {
             RoundedRectangle(cornerRadius: 8)
-                #if os(macOS)
-                    .fill(Color(NSColor.controlColor))
-                #elseif os(iOS)
-                    .fill(Color(UIColor.systemGray5))
-                #endif
+            #if os(macOS)
+                .fill(Color(NSColor.controlColor))
+            #elseif os(iOS)
+                .fill(Color(UIColor.systemGray5))
+            #endif
                 .overlay(
                     VStack {
                         Image(systemName: "map")

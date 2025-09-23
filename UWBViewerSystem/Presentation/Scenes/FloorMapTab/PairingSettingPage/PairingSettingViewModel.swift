@@ -133,7 +133,7 @@ class PairingSettingViewModel: ObservableObject {
     private func loadAntennasFromUserDefaults() {
         // configuredAntennaPositionsから読み込み
         if let data = UserDefaults.standard.data(forKey: "configuredAntennaPositions"),
-            let positionData = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
+           let positionData = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
         {
             selectedAntennas = positionData.map { position in
                 AntennaInfo(
@@ -148,7 +148,7 @@ class PairingSettingViewModel: ObservableObject {
 
         // FieldAntennaConfigurationから読み込み
         if let data = UserDefaults.standard.data(forKey: "FieldAntennaConfiguration"),
-            let decoded = try? JSONDecoder().decode([AntennaInfo].self, from: data)
+           let decoded = try? JSONDecoder().decode([AntennaInfo].self, from: data)
         {
             selectedAntennas = decoded
             print("📱 FieldAntennaConfigurationからアンテナを読み込み: \(selectedAntennas.count)台")
@@ -158,7 +158,7 @@ class PairingSettingViewModel: ObservableObject {
     /// 現在のフロアマップ情報を取得
     private func getCurrentFloorMapInfo() -> FloorMapInfo? {
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-            let info = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
+              let info = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
         else {
             return nil
         }

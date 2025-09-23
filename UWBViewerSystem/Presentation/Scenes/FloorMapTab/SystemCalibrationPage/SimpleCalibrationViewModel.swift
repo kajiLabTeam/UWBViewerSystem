@@ -117,7 +117,7 @@ class SimpleCalibrationViewModel: ObservableObject {
     /// キャリブレーション結果の精度テキスト
     var calibrationAccuracyText: String {
         if let result = calibrationResult,
-            let accuracy = result.transform?.accuracy
+           let accuracy = result.transform?.accuracy
         {
             return String(format: "%.2f%%", accuracy * 100)
         }
@@ -312,9 +312,9 @@ class SimpleCalibrationViewModel: ObservableObject {
 
         // データの妥当性チェック
         guard !floorMapInfo.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            !floorMapInfo.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            floorMapInfo.width > 0,
-            floorMapInfo.depth > 0
+              !floorMapInfo.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              floorMapInfo.width > 0,
+              floorMapInfo.depth > 0
         else {
             handleError("フロアマップデータが無効です")
             clearFloorMapData()
@@ -337,7 +337,7 @@ class SimpleCalibrationViewModel: ObservableObject {
     private func loadFloorMapImage(for floorMapId: String) {
         // FloorMapInfoのimageプロパティを使用して統一された方法で読み込む
         if let floorMapInfo = currentFloorMapInfo,
-            let image = floorMapInfo.image
+           let image = floorMapInfo.image
         {
             floorMapImage = image
             return

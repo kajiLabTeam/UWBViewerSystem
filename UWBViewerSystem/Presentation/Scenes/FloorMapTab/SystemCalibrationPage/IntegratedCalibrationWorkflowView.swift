@@ -37,22 +37,22 @@ struct IntegratedCalibrationWorkflowView: View {
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") {
-                        viewModel.resetIntegratedCalibration()
-                        dismiss()
+                .navigationBarBackButtonHidden(true)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("キャンセル") {
+                            viewModel.resetIntegratedCalibration()
+                            dismiss()
+                        }
                     }
-                }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("検証") {
-                        showValidationResults.toggle()
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("検証") {
+                            showValidationResults.toggle()
+                        }
+                        .foregroundColor(.blue)
                     }
-                    .foregroundColor(.blue)
                 }
-            }
         }
     }
 

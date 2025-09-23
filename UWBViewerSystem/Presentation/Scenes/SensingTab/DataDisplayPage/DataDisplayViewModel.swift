@@ -59,9 +59,9 @@ class DataDisplayViewModel: ObservableObject {
         self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase()
         self.connectionUsecase =
             connectionUsecase
-            ?? ConnectionManagementUsecase(
-                nearbyRepository: NearbyRepository()
-            )
+                ?? ConnectionManagementUsecase(
+                    nearbyRepository: NearbyRepository()
+                )
 
         setupObservers()
         Task {
@@ -226,11 +226,11 @@ class DataDisplayViewModel: ObservableObject {
             averageDistance: realtimeData.compactMap { $0.latestData }.isEmpty
                 ? 0
                 : realtimeData.compactMap { $0.latestData }.map { $0.distance }.reduce(0, +)
-                    / Double(realtimeData.compactMap { $0.latestData }.count),
+                / Double(realtimeData.compactMap { $0.latestData }.count),
             averageRSSI: realtimeData.compactMap { $0.latestData }.isEmpty
                 ? 0
                 : realtimeData.compactMap { $0.latestData }.map { $0.rssi }.reduce(0, +)
-                    / Double(realtimeData.compactMap { $0.latestData }.count)
+                / Double(realtimeData.compactMap { $0.latestData }.count)
         )
     }
 }

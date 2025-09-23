@@ -330,32 +330,58 @@ struct SimpleCalibrationViewModelTests {
 
     @Test("リアルタイム更新 - UserDefaults変更時の自動更新")
     func realTimeUpdateWhenUserDefaultsChanges() async throws {
-        let viewModel = await createIsolatedTestViewModel()
+        defer { cleanupTestEnvironment() }
+
+        // テスト専用のViewModelを作成し、NotificationCenter通知設定後に確認
+        let mockRepository = await MockDataRepository()
+        let viewModel = await SimpleCalibrationViewModel(dataRepository: mockRepository)
+
+        // UserDefaultsを初期状態でクリア
+        UserDefaults.standard.removeObject(forKey: "currentFloorMapInfo")
+
+        // 初期データ読み込みを実行
+        await viewModel.loadInitialData()
+
+        // ポーリングベースで初期状態確認
+        let maxWaitTime: TimeInterval = 2.0
+        let pollInterval: TimeInterval = 0.05
+        var startTime = Date()
+
+        // 初期状態確認
+        repeat {
+            let currentInfo = await viewModel.currentFloorMapInfo
+            if currentInfo == nil {
+                break
+            }
+            try await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+        } while Date().timeIntervalSince(startTime) < maxWaitTime
 
         // 初期状態ではフロアマップ情報がnilであることを確認
         #expect(await viewModel.currentFloorMapInfo == nil)
 
-        // フロアマップ情報を設定
+        // フロアマップ情報をUserDefaultsに設定
         let testFloorMapInfo = createTestFloorMapInfo()
         if let encoded = try? JSONEncoder().encode(testFloorMapInfo) {
             UserDefaults.standard.set(encoded, forKey: "currentFloorMapInfo")
         }
 
-        // UserDefaultsの変更通知が処理されるまで少し待つ
-        try await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+        // ポーリングベースでUserDefaults変更の反映を待機
+        startTime = Date()
+        var updatedFloorMapInfo: FloorMapInfo?
 
-        // 手動でデータを再読み込み
-        await viewModel.loadInitialData()
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        repeat {
+            updatedFloorMapInfo = await viewModel.currentFloorMapInfo
+            if updatedFloorMapInfo != nil {
+                break
+            }
+            try await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+        } while Date().timeIntervalSince(startTime) < maxWaitTime
 
-        // 更新が機能していることを確認
-        let floorMapInfo = await viewModel.currentFloorMapInfo
-        #expect(floorMapInfo != nil)
-        if let info = floorMapInfo {
-            #expect(info.id == "test-floor-map")
+        // 更新が正常に機能していることを確認
+        #expect(updatedFloorMapInfo != nil, "フロアマップ情報が更新されていません")
+        if let info = updatedFloorMapInfo {
+            #expect(info.id == "test-floor-map", "フロアマップIDが期待値と異なります")
+            #expect(info.name == "テストフロアマップ", "フロアマップ名が期待値と異なります")
         }
-
-        // クリーンアップ
-        cleanupTestEnvironment()
     }
 }

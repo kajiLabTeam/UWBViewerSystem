@@ -484,18 +484,18 @@ public class UWBDataManager: ObservableObject {
         let observation = ObservationPoint(
             antennaId: antennaId,
             position: Point3D(
-                x: Double.random(in: -10 ... 10),
-                y: Double.random(in: -10 ... 10),
-                z: Double.random(in: 0 ... 3)
+                x: Double.random(in: -10...10),
+                y: Double.random(in: -10...10),
+                z: Double.random(in: 0...3)
             ),
             quality: SignalQuality(
-                strength: Double.random(in: 0.3 ... 1.0),
+                strength: Double.random(in: 0.3...1.0),
                 isLineOfSight: Bool.random(),
-                confidenceLevel: Double.random(in: 0.5 ... 1.0),
-                errorEstimate: Double.random(in: 0.1 ... 2.0)
+                confidenceLevel: Double.random(in: 0.5...1.0),
+                errorEstimate: Double.random(in: 0.1...2.0)
             ),
-            distance: Double.random(in: 1 ... 20),
-            rssi: Double.random(in: -80 ... (-30)),
+            distance: Double.random(in: 1...20),
+            rssi: Double.random(in: -80...(-30)),
             sessionId: sessionId
         )
 
@@ -570,7 +570,7 @@ public class DataQualityMonitor {
         let isNLoSCondition = losPercentage < 50.0  // 見通し線が50%未満の場合
         let averageSignalStrength =
             observations.isEmpty
-            ? 0.0 : observations.map { $0.quality.strength }.reduce(0, +) / Double(observations.count)
+                ? 0.0 : observations.map { $0.quality.strength }.reduce(0, +) / Double(observations.count)
 
         return NLoSDetectionResult(
             isNLoSDetected: isNLoSCondition,

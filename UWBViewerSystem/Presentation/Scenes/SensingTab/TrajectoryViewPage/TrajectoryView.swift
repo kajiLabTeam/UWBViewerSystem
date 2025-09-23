@@ -23,9 +23,9 @@ struct TrajectoryView: View {
             .navigationBarTitleDisplayMode(.large)
         #endif
         #if os(macOS)
-            .background(Color(NSColor.controlBackgroundColor))
+        .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-            .background(Color(UIColor.systemBackground))
+        .background(Color(UIColor.systemBackground))
         #endif
         .onAppear {
             viewModel.initialize()
@@ -115,11 +115,11 @@ struct TrajectoryMapSection: View {
                     #endif
                 } else {
                     RoundedRectangle(cornerRadius: 8)
-                        #if os(macOS)
-                            .fill(Color(NSColor.controlColor))
-                        #elseif os(iOS)
-                            .fill(Color(UIColor.systemGray5))
-                        #endif
+                    #if os(macOS)
+                        .fill(Color(NSColor.controlColor))
+                    #elseif os(iOS)
+                        .fill(Color(UIColor.systemGray5))
+                    #endif
                         .overlay(
                             VStack {
                                 Image(systemName: "map")
@@ -159,11 +159,11 @@ struct TrajectoryMapSection: View {
             #elseif os(iOS)
                 .background(Color(UIColor.systemBackground))
             #endif
-            .cornerRadius(8)
-            .shadow(radius: 2)
-            .onTapGesture { location in
-                viewModel.handleMapTap(at: location)
-            }
+                .cornerRadius(8)
+                .shadow(radius: 2)
+                .onTapGesture { location in
+                    viewModel.handleMapTap(at: location)
+                }
         }
         .frame(maxWidth: .infinity)
     }
@@ -212,7 +212,7 @@ struct SessionSelectionSection: View {
                 #elseif os(iOS)
                     .background(Color(UIColor.systemGray6))
                 #endif
-                .cornerRadius(8)
+                    .cornerRadius(8)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 8) {
@@ -260,7 +260,7 @@ struct PlaybackControlSection: View {
 
                         Slider(
                             value: $viewModel.currentTimeIndex,
-                            in: 0 ... Double(max(0, viewModel.trajectoryPoints.count - 1)),
+                            in: 0...Double(max(0, viewModel.trajectoryPoints.count - 1)),
                             step: 1
                         )
                         .disabled(!viewModel.hasTrajectoryData)
@@ -299,7 +299,7 @@ struct PlaybackControlSection: View {
                 HStack {
                     Text("0.5x")
                         .font(.caption2)
-                    Slider(value: $viewModel.playbackSpeed, in: 0.5 ... 5.0, step: 0.5)
+                    Slider(value: $viewModel.playbackSpeed, in: 0.5...5.0, step: 0.5)
                     Text("5.0x")
                         .font(.caption2)
                 }
@@ -307,11 +307,11 @@ struct PlaybackControlSection: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    #if os(macOS)
-                        .fill(Color(NSColor.controlColor))
-                    #elseif os(iOS)
-                        .fill(Color(UIColor.systemGray6))
-                    #endif
+                #if os(macOS)
+                    .fill(Color(NSColor.controlColor))
+                #elseif os(iOS)
+                    .fill(Color(UIColor.systemGray6))
+                #endif
             )
         }
     }
@@ -341,7 +341,7 @@ struct FilteringSection: View {
 
                     HStack {
                         Text("最小精度")
-                        Slider(value: $viewModel.minAccuracy, in: 0 ... 1, step: 0.1)
+                        Slider(value: $viewModel.minAccuracy, in: 0...1, step: 0.1)
                         Text("\(Int(viewModel.minAccuracy * 100))%")
                             .font(.caption)
                     }
@@ -362,11 +362,11 @@ struct FilteringSection: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    #if os(macOS)
-                        .fill(Color(NSColor.controlColor))
-                    #elseif os(iOS)
-                        .fill(Color(UIColor.systemGray6))
-                    #endif
+                #if os(macOS)
+                    .fill(Color(NSColor.controlColor))
+                #elseif os(iOS)
+                    .fill(Color(UIColor.systemGray6))
+                #endif
             )
         }
     }
@@ -435,11 +435,11 @@ struct TrajectoryAnalysisSection: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                #if os(macOS)
-                    .fill(Color(NSColor.controlColor))
-                #elseif os(iOS)
-                    .fill(Color(UIColor.systemGray6))
-                #endif
+            #if os(macOS)
+                .fill(Color(NSColor.controlColor))
+            #elseif os(iOS)
+                .fill(Color(UIColor.systemGray6))
+            #endif
         )
         .padding(.horizontal)
     }
@@ -469,11 +469,11 @@ struct AntennaMarkerView: View {
                 .padding(.vertical, 1)
                 .background(
                     RoundedRectangle(cornerRadius: 3)
-                        #if os(macOS)
-                            .fill(Color(NSColor.controlBackgroundColor))
-                        #elseif os(iOS)
-                            .fill(Color(UIColor.systemBackground))
-                        #endif
+                    #if os(macOS)
+                        .fill(Color(NSColor.controlBackgroundColor))
+                    #elseif os(iOS)
+                        .fill(Color(UIColor.systemBackground))
+                    #endif
                         .shadow(radius: 0.5)
                 )
         }
@@ -537,11 +537,11 @@ struct SelectedPointMarker: View {
             .padding(4)
             .background(
                 RoundedRectangle(cornerRadius: 4)
-                    #if os(macOS)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                    #elseif os(iOS)
-                        .fill(Color(UIColor.systemBackground))
-                    #endif
+                #if os(macOS)
+                    .fill(Color(NSColor.controlBackgroundColor))
+                #elseif os(iOS)
+                    .fill(Color(UIColor.systemBackground))
+                #endif
                     .shadow(radius: 1)
             )
         }
@@ -640,11 +640,11 @@ struct AnalysisCard: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 8)
-                #if os(macOS)
-                    .fill(Color(NSColor.controlBackgroundColor))
-                #elseif os(iOS)
-                    .fill(Color(UIColor.systemBackground))
-                #endif
+            #if os(macOS)
+                .fill(Color(NSColor.controlBackgroundColor))
+            #elseif os(iOS)
+                .fill(Color(UIColor.systemBackground))
+            #endif
                 .shadow(radius: 1)
         )
     }

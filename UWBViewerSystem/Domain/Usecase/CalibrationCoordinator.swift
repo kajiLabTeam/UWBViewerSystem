@@ -187,14 +187,14 @@ public class CalibrationCoordinator: ObservableObject {
     /// ハイブリッドキャリブレーション実行
     public func performHybridCalibration(for antennaId: String) async throws -> CalibrationResult {
         guard let progress = currentProgress[antennaId],
-              progress.calibrationType == .hybrid
+            progress.calibrationType == .hybrid
         else {
             throw CalibrationCoordinatorError.invalidCalibrationtype
         }
 
         // 1. マップベースの変換行列を取得
         guard let mapCalibrationData = mapCalibrationData[antennaId],
-              let affineTransform = mapCalibrationData.affineTransform
+            let affineTransform = mapCalibrationData.affineTransform
         else {
             throw CalibrationCoordinatorError.mapCalibrationNotAvailable
         }

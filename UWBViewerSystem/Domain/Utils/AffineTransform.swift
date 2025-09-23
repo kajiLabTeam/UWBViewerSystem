@@ -137,7 +137,7 @@ public class AffineTransform {
         for point in points {
             guard
                 point.mapCoordinate.x.isFinite && point.mapCoordinate.y.isFinite && point.realWorldCoordinate.x.isFinite
-                && point.realWorldCoordinate.y.isFinite
+                    && point.realWorldCoordinate.y.isFinite
             else {
                 throw AffineTransformError.invalidInput("座標値が無効です")
             }
@@ -183,7 +183,7 @@ public class AffineTransform {
         var matrixA: [Double] = []
         var vectorB: [Double] = []
 
-        for i in 0..<n {
+        for i in 0 ..< n {
             let u = mapCoords[i].x
             let v = mapCoords[i].y
             let x = realWorldCoords[i].x
@@ -274,17 +274,17 @@ public class AffineTransform {
         var AtA = Array(repeating: Array(repeating: 0.0, count: cols), count: cols)
         var Atb = Array(repeating: 0.0, count: cols)
 
-        for i in 0..<cols {
-            for j in 0..<cols {
+        for i in 0 ..< cols {
+            for j in 0 ..< cols {
                 var sum = 0.0
-                for k in 0..<rows {
+                for k in 0 ..< rows {
                     sum += matrix[k * cols + i] * matrix[k * cols + j]
                 }
                 AtA[i][j] = sum
             }
 
             var sum = 0.0
-            for k in 0..<rows {
+            for k in 0 ..< rows {
                 sum += matrix[k * cols + i] * vector[k]
             }
             Atb[i] = sum
@@ -305,9 +305,9 @@ public class AffineTransform {
         var result = b
 
         // 前進消去
-        for i in 0..<n {
+        for i in 0 ..< n {
             // ピボット選択
-            let maxRow = (i..<n).max { abs(augmented[$0][i]) < abs(augmented[$1][i]) } ?? i
+            let maxRow = (i ..< n).max { abs(augmented[$0][i]) < abs(augmented[$1][i]) } ?? i
             if maxRow != i {
                 augmented.swapAt(i, maxRow)
                 result.swapAt(i, maxRow)
@@ -319,15 +319,15 @@ public class AffineTransform {
             }
 
             // 行の正規化
-            for j in 0..<n {
+            for j in 0 ..< n {
                 augmented[i][j] /= pivot
             }
             result[i] /= pivot
 
             // 他の行を消去
-            for k in 0..<n where k != i {
+            for k in 0 ..< n where k != i {
                 let factor = augmented[k][i]
-                for j in 0..<n {
+                for j in 0 ..< n {
                     augmented[k][j] -= factor * augmented[i][j]
                 }
                 result[k] -= factor * result[i]

@@ -470,7 +470,7 @@ struct RealtimeDeviceCardView: View {
 
     private var dataQualityBar: some View {
         HStack(spacing: 2) {
-            ForEach(0..<5) { index in
+            ForEach(0 ..< 5) { index in
                 RoundedRectangle(cornerRadius: 1)
                     .fill(qualityBarColor(for: index))
                     .frame(height: 4)

@@ -73,20 +73,20 @@ struct PairingSettingView: View {
         #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
         #endif
-            .alert(isPresented: $viewModel.showingConnectionAlert) {
-                Alert(
-                    title: Text("ペアリング情報"),
-                    message: Text(viewModel.alertMessage),
-                    dismissButton: .default(Text("OK"))
-                )
-            }
-            .onAppear {
-                // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
-                let repository = SwiftDataRepository(modelContext: modelContext)
-                viewModel.setSwiftDataRepository(repository)
-                flowNavigator.currentStep = .devicePairing
-                flowNavigator.setRouter(router)
-            }
+        .alert(isPresented: $viewModel.showingConnectionAlert) {
+            Alert(
+                title: Text("ペアリング情報"),
+                message: Text(viewModel.alertMessage),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+        .onAppear {
+            // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
+            let repository = SwiftDataRepository(modelContext: modelContext)
+            viewModel.setSwiftDataRepository(repository)
+            flowNavigator.currentStep = .devicePairing
+            flowNavigator.setRouter(router)
+        }
     }
 
     private var headerSection: some View {

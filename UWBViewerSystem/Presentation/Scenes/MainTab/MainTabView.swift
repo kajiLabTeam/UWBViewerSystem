@@ -25,13 +25,13 @@ struct MainTabView: View {
                 .tag(2)
         }
         #if os(macOS)
-        .tabViewStyle(.automatic)
+            .tabViewStyle(.automatic)
         #endif
         #if os(iOS)
-        .navigationBarHidden(true)
+            .navigationBarHidden(true)
         #endif
         #if os(macOS)
-        .frame(minWidth: 800)
+            .frame(minWidth: 800)
         #endif
     }
 }

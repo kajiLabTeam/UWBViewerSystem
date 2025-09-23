@@ -51,18 +51,18 @@ struct FloorMapSettingView: View {
             Text(viewModel.errorMessage)
         }
         #if os(iOS)
-        .imagePickerSheet(
-            isPresented: $viewModel.isImagePickerPresented,
-            selectedImage: $viewModel.selectedFloorMapImage,
-            sourceType: viewModel.imagePickerSourceType,
-            onImagePicked: viewModel.onImageSelected
-        )
+            .imagePickerSheet(
+                isPresented: $viewModel.isImagePickerPresented,
+                selectedImage: $viewModel.selectedFloorMapImage,
+                sourceType: viewModel.imagePickerSourceType,
+                onImagePicked: viewModel.onImageSelected
+            )
         #elseif os(macOS)
-        .imagePickerSheet(
-            isPresented: $viewModel.isImagePickerPresented,
-            selectedImage: $viewModel.selectedFloorMapImage,
-            onImagePicked: viewModel.onImageSelected
-        )
+            .imagePickerSheet(
+                isPresented: $viewModel.isImagePickerPresented,
+                selectedImage: $viewModel.selectedFloorMapImage,
+                onImagePicked: viewModel.onImageSelected
+            )
         #endif
     }
 
@@ -223,9 +223,9 @@ struct FloorMapSettingView: View {
                                 .foregroundColor(.secondary)
                             TextField("10.0", value: $viewModel.floorWidth, format: .number)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                            #if os(iOS)
-                                .keyboardType(.decimalPad)
-                            #endif
+                                #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                #endif
                         }
 
                         Text("×")
@@ -239,9 +239,9 @@ struct FloorMapSettingView: View {
                                 .foregroundColor(.secondary)
                             TextField("15.0", value: $viewModel.floorDepth, format: .number)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
-                            #if os(iOS)
-                                .keyboardType(.decimalPad)
-                            #endif
+                                #if os(iOS)
+                                    .keyboardType(.decimalPad)
+                                #endif
                         }
                     }
                 }

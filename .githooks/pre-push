@@ -23,12 +23,12 @@ if [ "$FORMATTED_COUNT" -gt 0 ]; then
 	exit 1
 fi
 
-# Xcode Swift Testingを実行
+# Swift Testingを実行
 echo "Swift Testingを実行中..."
 
-# Xcodeプロジェクトでテストを実行（UITestsを除外してUnit Testsのみ実行）
+# Swift Testing専用でテストを実行
 cd ..
-if xcodebuild test -project UWBViewerSystem.xcodeproj -scheme UWBViewerSystem -destination 'platform=macOS' -only-testing:UWBViewerSystemTests; then
+if swift test --parallel; then
     echo "✅ すべてのテストが通過しました"
 else
     echo "❌ テストが失敗しました。プッシュを中止します。"

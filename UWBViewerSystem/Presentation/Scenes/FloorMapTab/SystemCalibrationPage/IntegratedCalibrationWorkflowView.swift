@@ -37,22 +37,22 @@ struct IntegratedCalibrationWorkflowView: View {
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-                .navigationBarBackButtonHidden(true)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("キャンセル") {
-                            viewModel.resetIntegratedCalibration()
-                            dismiss()
-                        }
-                    }
-
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("検証") {
-                            showValidationResults.toggle()
-                        }
-                        .foregroundColor(.blue)
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") {
+                        viewModel.resetIntegratedCalibration()
+                        dismiss()
                     }
                 }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("検証") {
+                        showValidationResults.toggle()
+                    }
+                    .foregroundColor(.blue)
+                }
+            }
         }
     }
 
@@ -401,8 +401,11 @@ struct IntegratedCalibrationWorkflowView: View {
             if let validation = viewModel.validateWorkflowState() {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Image(systemName: validation.canProceed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                            .foregroundColor(validation.canProceed ? .green : .orange)
+                        Image(
+                            systemName: validation.canProceed
+                                ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                        )
+                        .foregroundColor(validation.canProceed ? .green : .orange)
                         Text(validation.canProceed ? "実行可能" : "要改善")
                             .fontWeight(.medium)
                             .foregroundColor(validation.canProceed ? .green : .orange)

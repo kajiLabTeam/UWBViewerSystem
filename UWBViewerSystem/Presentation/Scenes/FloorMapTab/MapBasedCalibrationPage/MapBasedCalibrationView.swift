@@ -17,10 +17,11 @@ struct MapBasedCalibrationView: View {
     init(antennaId: String, floorMapId: String) {
         self.antennaId = antennaId
         self.floorMapId = floorMapId
-        _viewModel = StateObject(wrappedValue: MapBasedCalibrationViewModel(
-            antennaId: antennaId,
-            floorMapId: floorMapId
-        ))
+        _viewModel = StateObject(
+            wrappedValue: MapBasedCalibrationViewModel(
+                antennaId: antennaId,
+                floorMapId: floorMapId
+            ))
     }
 
     var body: some View {
@@ -40,35 +41,35 @@ struct MapBasedCalibrationView: View {
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("キャンセル") {
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完了") {
+                        Task {
+                            await viewModel.saveCalibration()
                             dismiss()
                         }
                     }
-
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("完了") {
-                            Task {
-                                await viewModel.saveCalibration()
-                                dismiss()
-                            }
-                        }
-                        .disabled(!viewModel.canComplete)
-                    }
+                    .disabled(!viewModel.canComplete)
                 }
-                .alert("エラー", isPresented: $viewModel.showError) {
-                    Button("OK") { }
-                } message: {
-                    Text(viewModel.errorMessage)
+            }
+            .alert("エラー", isPresented: $viewModel.showError) {
+                Button("OK") {}
+            } message: {
+                Text(viewModel.errorMessage)
+            }
+            .alert("キャリブレーション完了", isPresented: $viewModel.showSuccess) {
+                Button("OK") {
+                    dismiss()
                 }
-                .alert("キャリブレーション完了", isPresented: $viewModel.showSuccess) {
-                    Button("OK") {
-                        dismiss()
-                    }
-                } message: {
-                    Text("アフィン変換による座標変換が設定されました。\n精度: \(String(format: "%.3f", viewModel.calibrationAccuracy ?? 0.0))m")
-                }
+            } message: {
+                Text("アフィン変換による座標変換が設定されました。\n精度: \(String(format: "%.3f", viewModel.calibrationAccuracy ?? 0.0))m")
+            }
         }
         .onAppear {
             viewModel.loadFloorMapImage()
@@ -221,27 +222,27 @@ struct MapBasedCalibrationView: View {
                     Text("X (m)")
                     TextField("0.0", text: $viewModel.inputX)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                    #if os(iOS)
-                        .keyboardType(.decimalPad)
-                    #endif
+                        #if os(iOS)
+                            .keyboardType(.decimalPad)
+                        #endif
                 }
 
                 VStack(alignment: .leading) {
                     Text("Y (m)")
                     TextField("0.0", text: $viewModel.inputY)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                    #if os(iOS)
-                        .keyboardType(.decimalPad)
-                    #endif
+                        #if os(iOS)
+                            .keyboardType(.decimalPad)
+                        #endif
                 }
 
                 VStack(alignment: .leading) {
                     Text("Z (m)")
                     TextField("0.0", text: $viewModel.inputZ)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
-                    #if os(iOS)
-                        .keyboardType(.decimalPad)
-                    #endif
+                        #if os(iOS)
+                            .keyboardType(.decimalPad)
+                        #endif
                 }
             }
         }
@@ -381,12 +382,16 @@ struct MapCalibrationPointRow: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("実座標: (\(String(format: "%.2f", point.realWorldCoordinate.x)), \(String(format: "%.2f", point.realWorldCoordinate.y)))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text("地図座標: (\(String(format: "%.0f", point.mapCoordinate.x)), \(String(format: "%.0f", point.mapCoordinate.y)))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text(
+                    "実座標: (\(String(format: "%.2f", point.realWorldCoordinate.x)), \(String(format: "%.2f", point.realWorldCoordinate.y)))"
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
+                Text(
+                    "地図座標: (\(String(format: "%.0f", point.mapCoordinate.x)), \(String(format: "%.0f", point.mapCoordinate.y)))"
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
 
             Button(action: onRemove) {

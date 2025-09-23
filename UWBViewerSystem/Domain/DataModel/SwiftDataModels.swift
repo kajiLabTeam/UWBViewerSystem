@@ -285,8 +285,8 @@ public final class PersistentProjectProgress {
     public var id: String
     public var floorMapId: String
     public var currentStep: String
-    public var completedStepsData: Data // Set<SetupStep>をJSONで保存
-    public var stepData: Data // [String: Data]をJSONで保存
+    public var completedStepsData: Data  // Set<SetupStep>をJSONで保存
+    public var stepData: Data  // [String: Data]をJSONで保存
     public var createdAt: Date
     public var updatedAt: Date
 
@@ -542,7 +542,7 @@ public final class PersistentMapCalibrationData {
     public var antennaId: String
     public var floorMapId: String
     public var calibrationPointsData: Data  // [MapCalibrationPoint]をJSONで保存
-    public var affineTransformData: Data?   // AffineTransformMatrixをJSONで保存
+    public var affineTransformData: Data?  // AffineTransformMatrixをJSONで保存
     public var createdAt: Date
     public var updatedAt: Date
     public var isActive: Bool

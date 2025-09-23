@@ -46,7 +46,8 @@ struct FloorMapCanvas<Content: View>: View {
         GeometryReader { geometry in
             let currentCanvasSize = geometry.size
             let imageAspectRatio = floorMapInfo?.aspectRatio ?? 1.0
-            let actualImageFrame = calculateActualImageFrame(canvasSize: currentCanvasSize, imageAspectRatio: imageAspectRatio)
+            let actualImageFrame = calculateActualImageFrame(
+                canvasSize: currentCanvasSize, imageAspectRatio: imageAspectRatio)
 
             let canvasGeometry = FloorMapCanvasGeometry(
                 canvasSize: currentCanvasSize,
@@ -178,8 +179,8 @@ struct FloorMapCanvasGeometry {
         let actualCanvasSize = min(canvasSize.width, canvasSize.height)
         let scale = Double(actualCanvasSize) / baseCanvasSize
 
-        let sizeInPixels = CGFloat(0.30 * mapScale * scale) // 0.30m = 30cm
-        return max(min(sizeInPixels, 80), 20) // 最小20px、最大80px
+        let sizeInPixels = CGFloat(0.30 * mapScale * scale)  // 0.30m = 30cm
+        return max(min(sizeInPixels, 80), 20)  // 最小20px、最大80px
     }
 
     // センサー範囲（50m）をピクセルに変換
@@ -215,11 +216,11 @@ struct FloorMapBackground: View {
             #endif
         } else {
             RoundedRectangle(cornerRadius: 8)
-            #if os(macOS)
-                .fill(Color(NSColor.controlColor))
-            #elseif os(iOS)
-                .fill(Color(UIColor.systemGray5))
-            #endif
+                #if os(macOS)
+                    .fill(Color(NSColor.controlColor))
+                #elseif os(iOS)
+                    .fill(Color(UIColor.systemGray5))
+                #endif
                 .overlay(
                     VStack {
                         Image(systemName: "map")

@@ -147,7 +147,7 @@ class FloorMapSettingViewModel: ObservableObject {
                     let projectProgress = ProjectProgress(
                         floorMapId: floorMapInfo.id,
                         currentStep: .floorMapSetting,
-                        completedSteps: [.floorMapSetting] // フロアマップ設定完了
+                        completedSteps: [.floorMapSetting]  // フロアマップ設定完了
                     )
 
                     try await repository.saveProjectProgress(projectProgress)
@@ -156,7 +156,8 @@ class FloorMapSettingViewModel: ObservableObject {
                     #endif
 
                     // 保存直後に確認
-                    await verifyDataSaved(repository: repository, floorMapInfo: floorMapInfo, projectProgress: projectProgress)
+                    await verifyDataSaved(
+                        repository: repository, floorMapInfo: floorMapInfo, projectProgress: projectProgress)
                 } catch {
                     #if DEBUG
                         print("❌ SwiftDataへの保存エラー: \(error)")
@@ -307,8 +308,8 @@ class FloorMapSettingViewModel: ObservableObject {
             }
             let nsImage = NSImage(cgImage: cgImage, size: image.size)
             guard let tiffData = nsImage.tiffRepresentation,
-                  let bitmapRep = NSBitmapImageRep(data: tiffData),
-                  let imageData = bitmapRep.representation(using: .jpeg, properties: [:])
+                let bitmapRep = NSBitmapImageRep(data: tiffData),
+                let imageData = bitmapRep.representation(using: .jpeg, properties: [:])
             else {
                 throw FloorMapSettingError.imageProcessingFailed
             }
@@ -326,7 +327,9 @@ class FloorMapSettingViewModel: ObservableObject {
     }
 
     /// 保存直後にデータが正常に保存されているかを確認
-    private func verifyDataSaved(repository: SwiftDataRepository, floorMapInfo: FloorMapInfo, projectProgress: ProjectProgress) async {
+    private func verifyDataSaved(
+        repository: SwiftDataRepository, floorMapInfo: FloorMapInfo, projectProgress: ProjectProgress
+    ) async {
         #if DEBUG
             print("🔍 === 保存検証開始 ===")
 
@@ -348,7 +351,9 @@ class FloorMapSettingViewModel: ObservableObject {
                     print("   ID: \(savedProgress.id)")
                     print("   FloorMapID: \(savedProgress.floorMapId)")
                     print("   CurrentStep: \(savedProgress.currentStep.displayName)")
-                    print("   CompletedSteps: \(savedProgress.completedSteps.map { $0.displayName }.joined(separator: ", "))")
+                    print(
+                        "   CompletedSteps: \(savedProgress.completedSteps.map { $0.displayName }.joined(separator: ", "))"
+                    )
                 } else {
                     print("❌ プロジェクト進行状況が見つかりません: ID=\(projectProgress.id)")
                 }

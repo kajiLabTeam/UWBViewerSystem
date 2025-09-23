@@ -36,9 +36,9 @@ struct AntennaPositioningView: View {
             .navigationBarTitleDisplayMode(.large)
         #endif
         #if os(macOS)
-        .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-        .background(Color(UIColor.systemBackground))
+            .background(Color(UIColor.systemBackground))
         #endif
         .onAppear {
             viewModel.setModelContext(modelContext)
@@ -179,7 +179,7 @@ struct MapCanvasSection: View {
                         position: displayPosition,
                         size: geometry.antennaSizeInPixels(),
                         sensorRange: geometry.sensorRangeInPixels(),
-                        isSelected: true, // 常にセンサー範囲を表示
+                        isSelected: true,  // 常にセンサー範囲を表示
                         isDraggable: true,
                         showRotationControls: false,
                         onPositionChanged: { newPosition in
@@ -200,8 +200,8 @@ struct MapCanvasSection: View {
         #elseif os(iOS)
             .background(Color(UIColor.systemBackground))
         #endif
-            .cornerRadius(8)
-            .shadow(radius: 2)
+        .cornerRadius(8)
+        .shadow(radius: 2)
     }
 }
 
@@ -264,7 +264,7 @@ struct AntennaDeviceListSection: View {
             }
             .disabled(newDeviceName.isEmpty)
 
-            Button("キャンセル", role: .cancel) { }
+            Button("キャンセル", role: .cancel) {}
         } message: {
             Text("アンテナデバイスの名前を入力してください。")
         }
@@ -510,7 +510,7 @@ struct AntennaDeviceRowWithActions: View {
             Button("削除", role: .destructive) {
                 onRemove()
             }
-            Button("キャンセル", role: .cancel) { }
+            Button("キャンセル", role: .cancel) {}
         } message: {
             Text("デバイス「\(device.name)」を削除しますか？この操作は取り消せません。")
         }

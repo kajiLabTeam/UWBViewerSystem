@@ -57,19 +57,19 @@ struct ReferencePointMarker: View {
                 onTap?()
             }
             .gesture(
-                isDraggable ?
-                    DragGesture()
-                    .onChanged { value in
-                        dragOffset = value.translation
-                    }
-                    .onEnded { value in
-                        let newPosition = CGPoint(
-                            x: position.x + value.translation.width,
-                            y: position.y + value.translation.height
-                        )
-                        onPositionChanged?(newPosition)
-                        dragOffset = .zero
-                    } : nil
+                isDraggable
+                    ? DragGesture()
+                        .onChanged { value in
+                            dragOffset = value.translation
+                        }
+                        .onEnded { value in
+                            let newPosition = CGPoint(
+                                x: position.x + value.translation.width,
+                                y: position.y + value.translation.height
+                            )
+                            onPositionChanged?(newPosition)
+                            dragOffset = .zero
+                        } : nil
             )
     }
 }

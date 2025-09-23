@@ -42,7 +42,7 @@ struct AntennaMarker: View {
     }
 
     private var displaySize: CGFloat {
-        max(min(size, 80), 20) // 最小20px、最大80px
+        max(min(size, 80), 20)  // 最小20px、最大80px
     }
 
     var body: some View {
@@ -98,15 +98,15 @@ struct AntennaMarker: View {
             }
 
             // 回転コントロール（表示時のみ、固定サイズ）
-            if (showRotationControls || showRotationControlsState), isDraggable {
+            if showRotationControls || showRotationControlsState, isDraggable {
                 AntennaRotationControl(
                     rotation: antenna.rotation,
                     onRotationChanged: { newRotation in
                         onRotationChanged?(newRotation)
                     }
                 )
-                .offset(y: displaySize + 50) // アンテナアイコンの下に十分な余白を確保
-                .zIndex(1000) // 最前面に表示
+                .offset(y: displaySize + 50)  // アンテナアイコンの下に十分な余白を確保
+                .zIndex(1000)  // 最前面に表示
                 .transition(.scale.combined(with: .opacity))
             }
         }
@@ -118,19 +118,19 @@ struct AntennaMarker: View {
         .animation(.easeInOut(duration: 0.2), value: isSelected)
         .zIndex(isSelected ? 100 : 10)
         .gesture(
-            isDraggable ?
-                DragGesture()
-                .onChanged { value in
-                    dragOffset = value.translation
-                }
-                .onEnded { value in
-                    let newPosition = CGPoint(
-                        x: position.x + value.translation.width,
-                        y: position.y + value.translation.height
-                    )
-                    onPositionChanged?(newPosition)
-                    dragOffset = .zero
-                } : nil
+            isDraggable
+                ? DragGesture()
+                    .onChanged { value in
+                        dragOffset = value.translation
+                    }
+                    .onEnded { value in
+                        let newPosition = CGPoint(
+                            x: position.x + value.translation.width,
+                            y: position.y + value.translation.height
+                        )
+                        onPositionChanged?(newPosition)
+                        dragOffset = .zero
+                    } : nil
         )
     }
 
@@ -188,7 +188,7 @@ struct SensorRangeView: View {
                 path.addArc(
                     center: center,
                     radius: radius,
-                    startAngle: .degrees(startAngle - 90), // -90度オフセットで上向きを0度に
+                    startAngle: .degrees(startAngle - 90),  // -90度オフセットで上向きを0度に
                     endAngle: .degrees(endAngle - 90),
                     clockwise: false
                 )
@@ -200,7 +200,7 @@ struct SensorRangeView: View {
                 LinearGradient(
                     gradient: Gradient(colors: [
                         Color.blue.opacity(0.3),
-                        Color.blue.opacity(0.1)
+                        Color.blue.opacity(0.1),
                     ]),
                     startPoint: .center,
                     endPoint: .bottom
@@ -279,7 +279,7 @@ struct AntennaRotationControl: View {
         #elseif os(iOS)
             .background(Color(UIColor.systemBackground))
         #endif
-            .cornerRadius(8)
-            .shadow(radius: 4)
+        .cornerRadius(8)
+        .shadow(radius: 4)
     }
 }

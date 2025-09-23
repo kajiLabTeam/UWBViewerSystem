@@ -36,26 +36,24 @@ extension SwiftDataContainerError {
         let errorDescription = error.localizedDescription.lowercased()
 
         // SwiftDataのスキーマ関連エラーを検出
-        if errorDescription.contains("schema") ||
-            errorDescription.contains("model") ||
-            errorDescription.contains("migration") ||
-            errorDescription.contains("version") {
+        if errorDescription.contains("schema") || errorDescription.contains("model")
+            || errorDescription.contains("migration") || errorDescription.contains("version")
+        {
             return .schemaError(error)
         }
 
         // ファイルシステム関連エラーを検出
-        if errorDescription.contains("file") ||
-            errorDescription.contains("directory") ||
-            errorDescription.contains("permission") ||
-            errorDescription.contains("disk") ||
-            errorDescription.contains("space") {
+        if errorDescription.contains("file") || errorDescription.contains("directory")
+            || errorDescription.contains("permission") || errorDescription.contains("disk")
+            || errorDescription.contains("space")
+        {
             return .fileSystemError(error)
         }
 
         // モデル設定関連エラーを検出
-        if errorDescription.contains("configuration") ||
-            errorDescription.contains("container") ||
-            errorDescription.contains("context") {
+        if errorDescription.contains("configuration") || errorDescription.contains("container")
+            || errorDescription.contains("context")
+        {
             return .modelConfigurationError(error)
         }
 
@@ -214,9 +212,12 @@ struct UWBViewerSystemApp: App {
         // 追加: SwiftDataの一般的なファイル名パターンも削除
         if let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
             do {
-                let contents = try fileManager.contentsOfDirectory(at: documentsDirectory, includingPropertiesForKeys: nil)
+                let contents = try fileManager.contentsOfDirectory(
+                    at: documentsDirectory, includingPropertiesForKeys: nil)
                 for url in contents {
-                    if url.pathExtension == "sqlite" || url.pathExtension == "sqlite-wal" || url.pathExtension == "sqlite-shm" {
+                    if url.pathExtension == "sqlite" || url.pathExtension == "sqlite-wal"
+                        || url.pathExtension == "sqlite-shm"
+                    {
                         try fileManager.removeItem(at: url)
                     }
                 }
@@ -271,7 +272,8 @@ struct UWBViewerSystemApp: App {
 
                 // SwiftDataファイルを探す
                 do {
-                    let contents = try FileManager.default.contentsOfDirectory(at: documentsDirectory, includingPropertiesForKeys: [.fileSizeKey, .creationDateKey])
+                    let contents = try FileManager.default.contentsOfDirectory(
+                        at: documentsDirectory, includingPropertiesForKeys: [.fileSizeKey, .creationDateKey])
                     print("📄 Documents Directory contents:")
                     for url in contents {
                         let resourceValues = try? url.resourceValues(forKeys: [.fileSizeKey, .creationDateKey])
@@ -305,7 +307,9 @@ struct UWBViewerSystemApp: App {
                     print("  [\(index + 1)] ID: \(progress.id)")
                     print("      FloorMapID: \(progress.floorMapId)")
                     print("      CurrentStep: \(progress.currentStep.displayName)")
-                    print("      CompletedSteps: \(progress.completedSteps.map { $0.displayName }.joined(separator: ", "))")
+                    print(
+                        "      CompletedSteps: \(progress.completedSteps.map { $0.displayName }.joined(separator: ", "))"
+                    )
                 }
 
                 // アンテナ位置の確認

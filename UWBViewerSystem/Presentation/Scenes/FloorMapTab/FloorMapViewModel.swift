@@ -23,7 +23,10 @@ struct FloorMap: Identifiable {
         projectProgress?.currentStep.displayName ?? "未開始"
     }
 
-    init(from floorMapInfo: FloorMapInfo, antennaCount: Int = 0, isActive: Bool = false, projectProgress: ProjectProgress? = nil) {
+    init(
+        from floorMapInfo: FloorMapInfo, antennaCount: Int = 0, isActive: Bool = false,
+        projectProgress: ProjectProgress? = nil
+    ) {
         id = floorMapInfo.id
         name = floorMapInfo.name
         self.antennaCount = antennaCount
@@ -33,7 +36,10 @@ struct FloorMap: Identifiable {
         self.projectProgress = projectProgress
     }
 
-    init(id: String, name: String, antennaCount: Int, width: Double, height: Double, isActive: Bool, projectProgress: ProjectProgress? = nil) {
+    init(
+        id: String, name: String, antennaCount: Int, width: Double, height: Double, isActive: Bool,
+        projectProgress: ProjectProgress? = nil
+    ) {
         self.id = id
         self.name = name
         self.antennaCount = antennaCount
@@ -47,10 +53,10 @@ struct FloorMap: Identifiable {
         FloorMapInfo(
             id: id,
             name: name,
-            buildingName: "", // buildingNameが含まれていない場合は空文字列
+            buildingName: "",  // buildingNameが含まれていない場合は空文字列
             width: width,
             depth: height,
-            createdAt: Date() // 作成日時が含まれていない場合は現在日時
+            createdAt: Date()  // 作成日時が含まれていない場合は現在日時
         )
     }
 }
@@ -121,7 +127,7 @@ class FloorMapViewModel: ObservableObject {
                     let floorMap = FloorMap(
                         from: floorMapInfo,
                         antennaCount: antennaCount,
-                        isActive: false, // 後で設定
+                        isActive: false,  // 後で設定
                         projectProgress: projectProgress
                     )
                     floorMaps.append(floorMap)
@@ -133,7 +139,8 @@ class FloorMapViewModel: ObservableObject {
 
                     // アクティブなフロアマップを設定
                     if let activeId = getCurrentActiveFloorMapId(),
-                       let index = self.floorMaps.firstIndex(where: { $0.id == activeId }) {
+                        let index = self.floorMaps.firstIndex(where: { $0.id == activeId })
+                    {
                         self.floorMaps[index].isActive = true
                         selectedFloorMap = self.floorMaps[index]
                         print("🔄 アクティブなフロアマップを復元: \(selectedFloorMap?.name ?? "Unknown")")
@@ -196,7 +203,7 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func selectFloorMap(_ map: FloorMap) {
-        for i in 0..<floorMaps.count {
+        for i in 0 ..< floorMaps.count {
             floorMaps[i].isActive = (floorMaps[i].id == map.id)
         }
         selectedFloorMap = map
@@ -214,14 +221,14 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func toggleActiveFloorMap(_ map: FloorMap) {
-        for i in 0..<floorMaps.count {
+        for i in 0 ..< floorMaps.count {
             if floorMaps[i].id == map.id {
                 floorMaps[i].isActive.toggle()
                 if floorMaps[i].isActive {
                     selectedFloorMap = floorMaps[i]
                     // UserDefaultsのcurrentFloorMapInfoを更新
                     updateCurrentFloorMapInfo(floorMaps[i].toFloorMapInfo())
-                    for j in 0..<floorMaps.count {
+                    for j in 0 ..< floorMaps.count {
                         if j != i && floorMaps[j].isActive {
                             floorMaps[j].isActive = false
                         }

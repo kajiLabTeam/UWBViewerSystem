@@ -339,8 +339,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             let positions = persistentPositions.compactMap { persistentPosition -> AntennaPositionData? in
                 // データ整合性チェック
                 guard !persistentPosition.antennaId.isEmpty,
-                      !persistentPosition.antennaName.isEmpty,
-                      !persistentPosition.floorMapId.isEmpty else {
+                    !persistentPosition.antennaName.isEmpty,
+                    !persistentPosition.floorMapId.isEmpty
+                else {
                     #if DEBUG
                         print("⚠️ 無効なアンテナ位置データをスキップしました: ID=\(persistentPosition.id)")
                     #endif
@@ -387,7 +388,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
             for position in positions {
                 #if DEBUG
-                    print("🗑️ SwiftDataRepository: 削除中 - ID: \(position.id), AntennaID: \(position.antennaId), Name: \(position.antennaName)")
+                    print(
+                        "🗑️ SwiftDataRepository: 削除中 - ID: \(position.id), AntennaID: \(position.antennaId), Name: \(position.antennaName)"
+                    )
                 #endif
                 modelContext.delete(position)
             }
@@ -930,7 +933,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
                 for duplicate in duplicatesToDelete {
                     #if DEBUG
-                        print("🗑️ 重複データを削除: ID=\(duplicate.id), AntennaID=\(duplicate.antennaId), Name=\(duplicate.antennaName)")
+                        print(
+                            "🗑️ 重複データを削除: ID=\(duplicate.id), AntennaID=\(duplicate.antennaId), Name=\(duplicate.antennaName)"
+                        )
                     #endif
                     modelContext.delete(duplicate)
                     deletedCount += 1
@@ -980,9 +985,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         // 空の必須フィールドチェック
         let invalidAntennaPositions = antennaPositions.filter { position in
-            position.antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                position.antennaName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                position.floorMapId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            position.antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || position.antennaName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || position.floorMapId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
 
         if !invalidAntennaPositions.isEmpty {
@@ -1047,7 +1052,9 @@ public class DummySwiftDataRepository: SwiftDataRepositoryProtocol {
     // マップベースキャリブレーション関連
     public func saveMapCalibrationData(_ data: MapCalibrationData) async throws {}
     public func loadMapCalibrationData() async throws -> [MapCalibrationData] { [] }
-    public func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData? { nil }
+    public func loadMapCalibrationData(for antennaId: String, floorMapId: String) async throws -> MapCalibrationData? {
+        nil
+    }
     public func deleteMapCalibrationData(for antennaId: String, floorMapId: String) async throws {}
     public func deleteAllMapCalibrationData() async throws {}
 

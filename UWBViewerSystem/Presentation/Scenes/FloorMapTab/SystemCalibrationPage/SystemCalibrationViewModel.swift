@@ -177,7 +177,8 @@ class SystemCalibrationViewModel: ObservableObject {
 
     func getCurrentFloorMapId() -> String? {
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) else {
+            let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
+        else {
             return nil
         }
         return floorMapInfo.id
@@ -202,12 +203,13 @@ class SystemCalibrationViewModel: ObservableObject {
 
     func addCalibrationPoint() {
         guard !selectedAntennaId.isEmpty,
-              let refX = Double(referenceX),
-              let refY = Double(referenceY),
-              let refZ = Double(referenceZ),
-              let measX = Double(measuredX),
-              let measY = Double(measuredY),
-              let measZ = Double(measuredZ) else {
+            let refX = Double(referenceX),
+            let refY = Double(referenceY),
+            let refZ = Double(referenceZ),
+            let measX = Double(measuredX),
+            let measY = Double(measuredY),
+            let measZ = Double(measuredZ)
+        else {
             showError("座標値を正しく入力してください")
             return
         }
@@ -244,7 +246,8 @@ class SystemCalibrationViewModel: ObservableObject {
         }
 
         guard let calibrationData = currentCalibrationData,
-              calibrationData.calibrationPoints.count >= 3 else {
+            calibrationData.calibrationPoints.count >= 3
+        else {
             showError("キャリブレーションには最低3つの測定点が必要です")
             return
         }
@@ -341,7 +344,8 @@ class SystemCalibrationViewModel: ObservableObject {
     /// データフローオブザーバーのセットアップ
     private func setupDataFlowObservers() {
         guard let calibrationDataFlow,
-              let observationUsecase else { return }
+            let observationUsecase
+        else { return }
 
         // ワークフローの進行状況を監視
         calibrationDataFlow.$workflowProgress
@@ -391,8 +395,9 @@ class SystemCalibrationViewModel: ObservableObject {
     /// 手動で基準座標を追加
     func addManualReferencePoint() {
         guard let refX = Double(referenceX),
-              let refY = Double(referenceY),
-              let refZ = Double(referenceZ) else {
+            let refY = Double(referenceY),
+            let refZ = Double(referenceZ)
+        else {
             showError("基準座標を正しく入力してください")
             return
         }
@@ -551,7 +556,7 @@ class SystemCalibrationViewModel: ObservableObject {
                 self.isLoading = false
 
                 // 成功率をシミュレート（実際の実装では実際の処理結果を使用）
-                let success = Double.random(in: 0...1) > 0.1  // 90%の成功率
+                let success = Double.random(in: 0 ... 1) > 0.1  // 90%の成功率
                 completion(success)
             }
         }
@@ -584,7 +589,7 @@ class SystemCalibrationViewModel: ObservableObject {
         isAutoCalibrationEnabled = UserDefaults.standard.bool(forKey: "autoCalibrationEnabled")
 
         if let intervalRawValue = UserDefaults.standard.object(forKey: "calibrationInterval") as? String,
-           let interval = CalibrationInterval(rawValue: intervalRawValue)
+            let interval = CalibrationInterval(rawValue: intervalRawValue)
         {
             calibrationInterval = interval
         }
@@ -598,7 +603,7 @@ class SystemCalibrationViewModel: ObservableObject {
     private func loadCalibrationHistory() {
         // 過去のキャリブレーション結果を読み込む
         if let data = UserDefaults.standard.data(forKey: "lastCalibrationResult"),
-           let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data)
+            let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data)
         {
 
             // 最近のキャリブレーションが成功していれば一部ステップをスキップ

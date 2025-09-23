@@ -80,9 +80,9 @@ class ConnectionManagementViewModel: ObservableObject {
     ) {
         self.connectionUsecase =
             connectionUsecase
-                ?? ConnectionManagementUsecase(
-                    nearbyRepository: NearbyRepository()
-                )
+            ?? ConnectionManagementUsecase(
+                nearbyRepository: NearbyRepository()
+            )
         self.preferenceRepository = preferenceRepository
         setupObservers()
         loadStatistics()

@@ -94,7 +94,7 @@ class SimpleCalibrationViewModel: ObservableObject {
         switch currentStep {
         case 0: return !selectedAntennaId.isEmpty
         case 1: return referencePoints.count >= 3
-        case 2: return false // キャリブレーション実行画面では次へボタンは無効
+        case 2: return false  // キャリブレーション実行画面では次へボタンは無効
         default: return false
         }
     }
@@ -117,7 +117,8 @@ class SimpleCalibrationViewModel: ObservableObject {
     /// キャリブレーション結果の精度テキスト
     var calibrationAccuracyText: String {
         if let result = calibrationResult,
-           let accuracy = result.transform?.accuracy {
+            let accuracy = result.transform?.accuracy
+        {
             return String(format: "%.2f%%", accuracy * 100)
         }
         return "不明"
@@ -318,9 +319,10 @@ class SimpleCalibrationViewModel: ObservableObject {
 
         // データの妥当性チェック
         guard !floorMapInfo.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !floorMapInfo.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              floorMapInfo.width > 0,
-              floorMapInfo.depth > 0 else {
+            !floorMapInfo.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            floorMapInfo.width > 0,
+            floorMapInfo.depth > 0
+        else {
             print("❌ フロアマップデータが無効です")
             handleError("フロアマップデータが無効です")
             clearFloorMapData()
@@ -353,7 +355,8 @@ class SimpleCalibrationViewModel: ObservableObject {
 
         // FloorMapInfoのimageプロパティを使用して統一された方法で読み込む
         if let floorMapInfo = currentFloorMapInfo,
-           let image = floorMapInfo.image {
+            let image = floorMapInfo.image
+        {
             print("✅ FloorMapInfo.imageプロパティから画像を取得成功: \(image.size)")
             floorMapImage = image
             print("✅ floorMapImageプロパティに設定完了")
@@ -377,7 +380,7 @@ class SimpleCalibrationViewModel: ObservableObject {
             documentsPath.appendingPathComponent("\(floorMapId).jpg"),  // Documents直下（FloorMapInfo.imageと同じ）
             documentsPath.appendingPathComponent("\(floorMapId).png"),  // Documents直下（PNG版）
             documentsPath.appendingPathComponent("FloorMaps").appendingPathComponent("\(floorMapId).jpg"),  // FloorMapsサブディレクトリ
-            documentsPath.appendingPathComponent("FloorMaps").appendingPathComponent("\(floorMapId).png")   // FloorMapsサブディレクトリ（PNG版）
+            documentsPath.appendingPathComponent("FloorMaps").appendingPathComponent("\(floorMapId).png"),  // FloorMapsサブディレクトリ（PNG版）
         ]
 
         for imageURL in searchPaths {
@@ -504,7 +507,7 @@ class SimpleCalibrationViewModel: ObservableObject {
             calibrationUsecase.addCalibrationPoint(
                 for: selectedAntennaId,
                 referencePosition: referencePoint,
-                measuredPosition: referencePoint // 実際の実装では実測値を使用
+                measuredPosition: referencePoint  // 実際の実装では実測値を使用
             )
         }
     }

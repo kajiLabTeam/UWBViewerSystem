@@ -56,13 +56,13 @@ public struct SignalQuality: Codable, Equatable {
     /// 品質レベルを文字列で表現
     public var qualityLevel: String {
         switch strength {
-        case 0.8...1.0:
+        case 0.8 ... 1.0:
             return "優秀"
-        case 0.6..<0.8:
+        case 0.6 ..< 0.8:
             return "良好"
-        case 0.4..<0.6:
+        case 0.4 ..< 0.6:
             return "普通"
-        case 0.2..<0.4:
+        case 0.2 ..< 0.4:
             return "低"
         default:
             return "非常に低い"
@@ -107,7 +107,9 @@ public struct ObservationSession: Codable, Identifiable, Equatable {
     /// セッションの品質統計
     public var qualityStatistics: ObservationQualityStatistics {
         let validObservations = observations.filter { $0.quality.strength > 0.3 }
-        let avgQuality = validObservations.isEmpty ? 0.0 : validObservations.map { $0.quality.strength }.reduce(0, +) / Double(validObservations.count)
+        let avgQuality =
+            validObservations.isEmpty
+            ? 0.0 : validObservations.map { $0.quality.strength }.reduce(0, +) / Double(validObservations.count)
         let losCount = observations.filter { $0.quality.isLineOfSight }.count
         let losPercentage = observations.isEmpty ? 0.0 : Double(losCount) / Double(observations.count) * 100.0
 
@@ -116,7 +118,9 @@ public struct ObservationSession: Codable, Identifiable, Equatable {
             validPoints: validObservations.count,
             averageQuality: avgQuality,
             lineOfSightPercentage: losPercentage,
-            averageErrorEstimate: validObservations.isEmpty ? 0.0 : validObservations.map { $0.quality.errorEstimate }.reduce(0, +) / Double(validObservations.count)
+            averageErrorEstimate: validObservations.isEmpty
+                ? 0.0
+                : validObservations.map { $0.quality.errorEstimate }.reduce(0, +) / Double(validObservations.count)
         )
     }
 }
@@ -167,13 +171,13 @@ public struct ObservationQualityStatistics: Codable, Equatable {
     /// データ品質の評価
     public var qualityAssessment: String {
         switch averageQuality {
-        case 0.8...1.0:
+        case 0.8 ... 1.0:
             return "優秀 - キャリブレーションに最適"
-        case 0.6..<0.8:
+        case 0.6 ..< 0.8:
             return "良好 - キャリブレーション可能"
-        case 0.4..<0.6:
+        case 0.4 ..< 0.6:
             return "普通 - 要注意"
-        case 0.2..<0.4:
+        case 0.2 ..< 0.4:
             return "低品質 - 改善が必要"
         default:
             return "不適切 - データ収集をやり直してください"
@@ -245,12 +249,13 @@ private func calculatePositionVariance(_ positions: [Point3D]) -> Double {
     let avgY = positions.map { $0.y }.reduce(0, +) / Double(positions.count)
     let avgZ = positions.map { $0.z }.reduce(0, +) / Double(positions.count)
 
-    let variance = positions.map { position in
-        let dx = position.x - avgX
-        let dy = position.y - avgY
-        let dz = position.z - avgZ
-        return dx * dx + dy * dy + dz * dz
-    }.reduce(0, +) / Double(positions.count)
+    let variance =
+        positions.map { position in
+            let dx = position.x - avgX
+            let dy = position.y - avgY
+            let dz = position.z - avgZ
+            return dx * dx + dy * dy + dz * dz
+        }.reduce(0, +) / Double(positions.count)
 
     return sqrt(variance)
 }

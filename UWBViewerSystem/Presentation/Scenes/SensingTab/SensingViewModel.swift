@@ -27,7 +27,10 @@ class SensingViewModel: ObservableObject {
     @Published var hasFloorMap: Bool = false
     @Published var hasConnectedDevice: Bool = false
 
-    init() {
+    private let preferenceRepository: PreferenceRepositoryProtocol
+
+    init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
+        self.preferenceRepository = preferenceRepository
         loadSavedData()
         checkSystemStatus()
     }
@@ -41,8 +44,8 @@ class SensingViewModel: ObservableObject {
     }
 
     func checkSystemStatus() {
-        hasFloorMap = UserDefaults.standard.bool(forKey: "hasFloorMapConfigured")
-        hasConnectedDevice = UserDefaults.standard.bool(forKey: "hasDeviceConnected")
+        hasFloorMap = preferenceRepository.getBool(forKey: "hasFloorMapConfigured")
+        hasConnectedDevice = preferenceRepository.getBool(forKey: "hasDeviceConnected")
     }
 
     func validateSensingRequirements() -> ValidationResult {

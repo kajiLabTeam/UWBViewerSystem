@@ -17,9 +17,11 @@ class SensingFlowNavigator: ObservableObject {
     @Published var lastError: String?
 
     private var router: NavigationRouterModel
+    private let preferenceRepository: PreferenceRepositoryProtocol
 
-    init(router: NavigationRouterModel? = nil) {
+    init(router: NavigationRouterModel? = nil, preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
         self.router = router ?? NavigationRouterModel()
+        self.preferenceRepository = preferenceRepository
         loadFlowState()
     }
 

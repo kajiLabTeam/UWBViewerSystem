@@ -8,6 +8,61 @@
 import SwiftData
 import SwiftUI
 
+// MARK: - SwiftData Error Handling
+
+enum SwiftDataContainerError: Error {
+    case schemaError(Error)
+    case modelConfigurationError(Error)
+    case fileSystemError(Error)
+    case unknownError(Error)
+
+    var localizedDescription: String {
+        switch self {
+        case .schemaError(let error):
+            return "スキーマエラー: \(error.localizedDescription)"
+        case .modelConfigurationError(let error):
+            return "モデル設定エラー: \(error.localizedDescription)"
+        case .fileSystemError(let error):
+            return "ファイルシステムエラー: \(error.localizedDescription)"
+        case .unknownError(let error):
+            return "不明なエラー: \(error.localizedDescription)"
+        }
+    }
+}
+
+extension SwiftDataContainerError {
+    /// SwiftDataのエラーを分類して適切なエラー型に変換
+    static func categorize(_ error: Error) -> SwiftDataContainerError {
+        let errorDescription = error.localizedDescription.lowercased()
+
+        // SwiftDataのスキーマ関連エラーを検出
+        if errorDescription.contains("schema") ||
+            errorDescription.contains("model") ||
+            errorDescription.contains("migration") ||
+            errorDescription.contains("version") {
+            return .schemaError(error)
+        }
+
+        // ファイルシステム関連エラーを検出
+        if errorDescription.contains("file") ||
+            errorDescription.contains("directory") ||
+            errorDescription.contains("permission") ||
+            errorDescription.contains("disk") ||
+            errorDescription.contains("space") {
+            return .fileSystemError(error)
+        }
+
+        // モデル設定関連エラーを検出
+        if errorDescription.contains("configuration") ||
+            errorDescription.contains("container") ||
+            errorDescription.contains("context") {
+            return .modelConfigurationError(error)
+        }
+
+        return .unknownError(error)
+    }
+}
+
 @main
 struct UWBViewerSystemApp: App {
     /// アプリ全体で使用するルーター
@@ -60,17 +115,18 @@ struct UWBViewerSystemApp: App {
                 return container
             }
         } catch {
+            let categorizedError = SwiftDataContainerError.categorize(error)
             #if DEBUG
-                print("⚠️ SwiftDataのモデルコンテナ作成エラー: \(error)")
+                print("⚠️ SwiftDataのモデルコンテナ作成エラー: \(categorizedError.localizedDescription)")
             #endif
 
-            // スキーマ関連のエラーの場合のみデータベースを削除して再試行
-            if error.localizedDescription.contains("SwiftDataError") ||
-                error.localizedDescription.contains("model") ||
-                error.localizedDescription.contains("schema") {
+            // エラーの種類に応じて適切な処理を実行
+            switch categorizedError {
+            case .schemaError(let originalError):
                 #if DEBUG
-                    deleteExistingDatabase()
+                    print("🔄 スキーマエラーのため既存データベースを削除して再作成します")
                 #endif
+                deleteExistingDatabase()
 
                 do {
                     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
@@ -80,6 +136,41 @@ struct UWBViewerSystemApp: App {
                         print("⚠️ データベース再作成も失敗しました: \(error)")
                     #endif
                 }
+
+            case .fileSystemError(let originalError):
+                #if DEBUG
+                    print("📁 ファイルシステムエラーを検出。ApplicationSupportディレクトリの再作成を試行します")
+                #endif
+                // ディレクトリ再作成を試行
+                deleteExistingDatabase()
+
+                do {
+                    let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+                    return try ModelContainer(for: schema, configurations: [modelConfiguration])
+                } catch {
+                    #if DEBUG
+                        print("⚠️ ディレクトリ再作成後も失敗しました: \(error)")
+                    #endif
+                }
+
+            case .modelConfigurationError(let originalError):
+                #if DEBUG
+                    print("⚙️ モデル設定エラーを検出。設定を変更して再試行します")
+                #endif
+                // より単純な設定で再試行
+                do {
+                    let simpleConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+                    return try ModelContainer(for: schema, configurations: [simpleConfiguration])
+                } catch {
+                    #if DEBUG
+                        print("⚠️ 簡素な設定でも失敗しました: \(error)")
+                    #endif
+                }
+
+            case .unknownError(let originalError):
+                #if DEBUG
+                    print("❓ 不明なエラー: 通常のリカバリ処理を実行します")
+                #endif
             }
 
             // 最終的にインメモリで動作（データは永続化されないが動作は可能）

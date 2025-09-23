@@ -2,10 +2,16 @@ import Combine
 import Foundation
 
 /// 観測データ収集を管理するUseCase
+///
+/// このUseCaseは、UWBデバイスからの観測データ収集プロセス全体を管理します。
+/// セッション管理、リアルタイムデータ監視、データ品質チェック、エラーハンドリングを統合的に提供します。
 
 // MARK: - Observation Errors
 
 /// 観測関連のエラー定義
+///
+/// UWBデバイスとの通信やデータ収集プロセスで発生する可能性のあるエラーを定義します。
+/// 各エラーには適切なエラーメッセージと復旧提案が含まれています。
 public enum ObservationError: LocalizedError {
     case deviceNotConnected
     case sessionNotFound(String)
@@ -52,32 +58,85 @@ public enum ObservationError: LocalizedError {
     }
 }
 
+/// UWB観測データ収集のビジネスロジック実装
+///
+/// このクラスは、UWBデバイスからの観測データ収集を管理するメインのUseCaseです。
+/// リアルタイムでの観測セッション管理、データ品質監視、エラーハンドリングを行います。
+///
+/// ## 主要機能
+/// - **セッション管理**: 観測セッションの開始・停止・監視
+/// - **リアルタイムデータ**: UWBデバイスからのリアルタイムデータ受信
+/// - **データ品質監視**: 受信データの品質チェックと異常検出
+/// - **エラーハンドリング**: デバイス接続エラーやデータ収集エラーの管理
+/// - **永続化**: 観測データのSwiftDataへの保存
+///
+/// ## 使用例
+/// ```swift
+/// let usecase = ObservationDataUsecase(
+///     dataRepository: swiftDataRepository,
+///     uwbManager: uwbManager,
+///     preferenceRepository: preferenceRepository
+/// )
+///
+/// // 観測セッションの開始
+/// try await usecase.startObservationSession(
+///     sessionName: "測定セッション1",
+///     locationInfo: locationInfo
+/// )
+///
+/// // リアルタイムデータの監視
+/// usecase.$realtimeObservations
+///     .sink { observations in
+///         // UIの更新処理
+///     }
+/// ```
 @MainActor
 public class ObservationDataUsecase: ObservableObject {
 
     // MARK: - Published Properties
 
-    @Published public var currentSessions: [String: ObservationSession] = [:]  // sessionId -> session
+    /// 現在アクティブな観測セッション（sessionId -> session）
+    @Published public var currentSessions: [String: ObservationSession] = [:]
+    /// データ収集中かどうかのフラグ
     @Published public var isCollecting: Bool = false
+    /// リアルタイムで受信した観測ポイントの配列
     @Published public var realtimeObservations: [ObservationPoint] = []
+    /// 発生したエラーメッセージ
     @Published public var errorMessage: String?
+    /// UWBデバイスとの接続状態
     @Published public var connectionStatus: UWBConnectionStatus = .disconnected
 
     // MARK: - Private Properties
 
+    /// データ永続化を担当するリポジトリ
     private let dataRepository: DataRepositoryProtocol
-    private let uwbManager: UWBDataManager  // UWBデバイスとの通信を管理
+    /// アプリケーション設定管理用リポジトリ
+    private let preferenceRepository: PreferenceRepositoryProtocol
+    /// UWBデバイスとの通信を管理するマネージャー
+    private let uwbManager: UWBDataManager
+    /// データ収集用のタイマー
     private var dataCollectionTimer: Timer?
+    /// Combineの購読を管理するセット
     private var cancellables = Set<AnyCancellable>()
 
-    // データ品質監視
+    /// データ品質監視インスタンス
     private var qualityMonitor = DataQualityMonitor()
 
     // MARK: - Initialization
 
-    public init(dataRepository: DataRepositoryProtocol, uwbManager: UWBDataManager) {
+    /// ObservationDataUsecaseのイニシャライザ
+    /// - Parameters:
+    ///   - dataRepository: データ永続化用リポジトリ
+    ///   - uwbManager: UWBデバイス通信管理用マネージャー
+    ///   - preferenceRepository: アプリケーション設定管理用リポジトリ
+    public init(
+        dataRepository: DataRepositoryProtocol,
+        uwbManager: UWBDataManager,
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
+    ) {
         self.dataRepository = dataRepository
         self.uwbManager = uwbManager
+        self.preferenceRepository = preferenceRepository
         setupObservers()
     }
 
@@ -201,7 +260,7 @@ public class ObservationDataUsecase: ObservableObject {
     public func stopAllSessions() {
         Task {
             for sessionId in currentSessions.keys {
-                try? await stopObservationSession(sessionId)
+                _ = try? await stopObservationSession(sessionId)
             }
         }
     }
@@ -365,11 +424,7 @@ public class ObservationDataUsecase: ObservableObject {
     }
 
     private func getCurrentFloorMapId() -> String? {
-        guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) else {
-            return nil
-        }
-        return floorMapInfo.id
+        preferenceRepository.loadCurrentFloorMapInfo()?.id
     }
 }
 

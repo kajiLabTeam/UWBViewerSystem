@@ -62,8 +62,10 @@ class FloorMapViewModel: ObservableObject {
 
     private var modelContext: ModelContext?
     private var swiftDataRepository: SwiftDataRepository?
+    private let preferenceRepository: PreferenceRepositoryProtocol
 
-    init() {
+    init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
+        self.preferenceRepository = preferenceRepository
         print("🚀 FloorMapViewModel: init called")
     }
 
@@ -141,7 +143,7 @@ class FloorMapViewModel: ObservableObject {
                         print("🔄 デフォルトで最初のフロアマップを選択: \(selectedFloorMap?.name ?? "Unknown")")
                     }
 
-                    updateUserDefaults()
+                    updatePreferences()
                 }
             } catch {
                 print("❌ SwiftDataからのフロアマップ読み込みエラー: \(error)")
@@ -156,33 +158,26 @@ class FloorMapViewModel: ObservableObject {
     private func loadFallbackData() {
         print("🔄 FloorMapViewModel: Loading fallback data")
 
-        // UserDefaultsの状態を確認
-        print("🔍 UserDefaults確認:")
-        if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo") {
-            print("   currentFloorMapInfo exists (\(data.count) bytes)")
-            if let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) {
-                print("   FloorMapInfo decoded successfully:")
-                print("     ID: \(floorMapInfo.id)")
-                print("     Name: \(floorMapInfo.name)")
-                print("     Building: \(floorMapInfo.buildingName)")
+        // PreferenceRepositoryの状態を確認
+        print("🔍 PreferenceRepository確認:")
+        if let floorMapInfo = preferenceRepository.loadCurrentFloorMapInfo() {
+            print("   currentFloorMapInfo exists")
+            print("   FloorMapInfo loaded successfully:")
+            print("     ID: \(floorMapInfo.id)")
+            print("     Name: \(floorMapInfo.name)")
+            print("     Building: \(floorMapInfo.buildingName)")
 
-                let floorMap = FloorMap(from: floorMapInfo, antennaCount: 0, isActive: true)
-                floorMaps = [floorMap]
-                selectedFloorMap = floorMap
-                updateUserDefaults()
-                print("✅ フォールバックデータから1件のフロアマップを復元")
-            } else {
-                print("❌ currentFloorMapInfoのデコードに失敗")
-                floorMaps = []
-                selectedFloorMap = nil
-                UserDefaults.standard.set(false, forKey: "hasFloorMapConfigured")
-            }
+            let floorMap = FloorMap(from: floorMapInfo, antennaCount: 0, isActive: true)
+            floorMaps = [floorMap]
+            selectedFloorMap = floorMap
+            updatePreferences()
+            print("✅ フォールバックデータから1件のフロアマップを復元")
         } else {
             print("   currentFloorMapInfo not found")
             // 完全にデータがない場合は空の状態に
             floorMaps = []
             selectedFloorMap = nil
-            UserDefaults.standard.set(false, forKey: "hasFloorMapConfigured")
+            preferenceRepository.setHasFloorMapConfigured(false)
             print("💭 フォールバックデータなし、空の状態に設定")
         }
     }
@@ -193,19 +188,11 @@ class FloorMapViewModel: ObservableObject {
     }
 
     private func getCurrentActiveFloorMapId() -> String? {
-        if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-           let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) {
-            return floorMapInfo.id
-        }
-        return nil
+        preferenceRepository.loadCurrentFloorMapInfo()?.id
     }
 
-    private func updateUserDefaults() {
-        if !floorMaps.isEmpty {
-            UserDefaults.standard.set(true, forKey: "hasFloorMapConfigured")
-        } else {
-            UserDefaults.standard.set(false, forKey: "hasFloorMapConfigured")
-        }
+    private func updatePreferences() {
+        preferenceRepository.setHasFloorMapConfigured(!floorMaps.isEmpty)
     }
 
     func selectFloorMap(_ map: FloorMap) {
@@ -219,13 +206,11 @@ class FloorMapViewModel: ObservableObject {
     }
 
     private func updateCurrentFloorMapInfo(_ floorMapInfo: FloorMapInfo) {
-        if let encoded = try? JSONEncoder().encode(floorMapInfo) {
-            UserDefaults.standard.set(encoded, forKey: "currentFloorMapInfo")
-            print("📍 FloorMapViewModel: currentFloorMapInfo updated to: \(floorMapInfo.name)")
+        preferenceRepository.saveCurrentFloorMapInfo(floorMapInfo)
+        print("📍 FloorMapViewModel: currentFloorMapInfo updated to: \(floorMapInfo.name)")
 
-            // フロアマップ変更を通知
-            NotificationCenter.default.post(name: .init("FloorMapChanged"), object: floorMapInfo)
-        }
+        // フロアマップ変更を通知
+        NotificationCenter.default.post(name: .init("FloorMapChanged"), object: floorMapInfo)
     }
 
     func toggleActiveFloorMap(_ map: FloorMap) {
@@ -257,7 +242,7 @@ class FloorMapViewModel: ObservableObject {
         floorMaps.removeAll { $0.id == map.id }
 
         if floorMaps.isEmpty {
-            UserDefaults.standard.set(false, forKey: "hasFloorMapConfigured")
+            preferenceRepository.setHasFloorMapConfigured(false)
             selectedFloorMap = nil
         } else if map.isActive && !floorMaps.isEmpty {
             floorMaps[0].isActive = true
@@ -281,6 +266,6 @@ class FloorMapViewModel: ObservableObject {
             selectedFloorMap = newMap
         }
 
-        UserDefaults.standard.set(true, forKey: "hasFloorMapConfigured")
+        preferenceRepository.setHasFloorMapConfigured(true)
     }
 }

@@ -176,7 +176,7 @@ public class CalibrationDataFlow: ObservableObject {
             var results: [String: CalibrationResult] = [:]
             var allSuccessful = true
 
-            for (antennaId, session) in observationSessions {
+            for (antennaId, _) in observationSessions {
                 // そのアンテナの観測データを使ってキャリブレーション点を作成
                 let calibrationPoints = createCalibrationPoints(for: antennaId, from: mappings)
 

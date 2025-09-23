@@ -132,7 +132,7 @@ struct CalibrationDataFlowTests {
 
         // 停止状態の検証
         let stoppedSession = await dataFlow.observationSessions["antenna1"]
-        await #expect(stoppedSession?.status == .completed)
+        #expect(stoppedSession?.status == .completed)
     }
 
     // MARK: - データマッピングテスト

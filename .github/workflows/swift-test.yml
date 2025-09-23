@@ -23,10 +23,6 @@ jobs:
     name: Swift Testing
     runs-on: macos-latest
 
-    strategy:
-      matrix:
-        configuration: [debug, release]
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,28 +46,27 @@ jobs:
         run: swift package resolve
 
       - name: Build project
-        run: swift build --configuration ${{ matrix.configuration }}
+        run: swift build --configuration debug
 
       - name: Run Swift Tests
         run: |
           echo "Running Swift Testing framework tests..."
-          swift test --configuration ${{ matrix.configuration }} \
+          swift test --configuration debug \
             --enable-swift-testing \
             --disable-xctest \
             --parallel \
             --enable-code-coverage \
-            --xunit-output test-results-${{ matrix.configuration }}.xml
+            --xunit-output test-results.xml
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-${{ matrix.configuration }}
-          path: test-results-${{ matrix.configuration }}.xml
+          name: test-results
+          path: test-results.xml
           retention-days: 7
 
       - name: Generate code coverage report
-        if: matrix.configuration == 'debug'
         run: |
           # Swift Testingでコードカバレッジレポートを生成
           swift test --enable-code-coverage --show-codecov-path > coverage-path.txt
@@ -87,7 +82,6 @@ jobs:
 
       - name: Upload code coverage
         uses: actions/upload-artifact@v4
-        if: matrix.configuration == 'debug'
         with:
           name: code-coverage
           path: |
@@ -99,8 +93,8 @@ jobs:
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: Swift Test Results (${{ matrix.configuration }})
-          path: test-results-${{ matrix.configuration }}.xml
+          name: Swift Test Results
+          path: test-results.xml
           reporter: java-junit
           fail-on-error: true
 

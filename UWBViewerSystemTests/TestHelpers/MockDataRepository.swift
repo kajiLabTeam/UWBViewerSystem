@@ -1,6 +1,6 @@
 import SwiftData
+import Foundation
 @testable import UWBViewerSystem
-import XCTest
 
 // MARK: - Mock Data Repository
 

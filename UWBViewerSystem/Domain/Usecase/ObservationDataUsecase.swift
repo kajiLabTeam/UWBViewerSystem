@@ -260,7 +260,7 @@ public class ObservationDataUsecase: ObservableObject {
     public func stopAllSessions() {
         Task {
             for sessionId in currentSessions.keys {
-                try? await stopObservationSession(sessionId)
+                _ = try? await stopObservationSession(sessionId)
             }
         }
     }

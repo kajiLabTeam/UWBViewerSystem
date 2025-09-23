@@ -160,7 +160,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             modelContext.insert(persistentSession)
 
             try modelContext.save()
-            print("✅ センシングセッション保存完了: \(session.name) (ID: \(session.id))")
+            #if DEBUG
+                print("✅ センシングセッション保存完了: \(session.name) (ID: \(session.id))")
+            #endif
         } catch let error as RepositoryError {
             throw error
         } catch {
@@ -179,7 +181,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
             let sessions = try modelContext.fetch(descriptor)
             if sessions.count > 1 {
-                print("⚠️ 重複するセンシングセッションが見つかりました: \(sessions.count)件")
+                #if DEBUG
+                    print("⚠️ 重複するセンシングセッションが見つかりました: \(sessions.count)件")
+                #endif
             }
 
             return sessions.first?.toEntity()
@@ -248,7 +252,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             if !existingPositions.isEmpty {
                 // 重複データが存在する場合
                 if existingPositions.count > 1 {
-                    print("⚠️ 重複するアンテナ位置データが見つかりました: \(existingPositions.count)件。最新データ以外を削除します。")
+                    #if DEBUG
+                        print("⚠️ 重複するアンテナ位置データが見つかりました: \(existingPositions.count)件。最新データ以外を削除します。")
+                    #endif
 
                     // 最新データを保持し、他は削除
                     let sortedPositions = existingPositions.sorted { pos1, pos2 in
@@ -260,7 +266,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                     let duplicatesToDelete = Array(sortedPositions.dropFirst())
 
                     for duplicate in duplicatesToDelete {
-                        print("🗑️ 重複データを削除: ID=\(duplicate.id), Name=\(duplicate.antennaName)")
+                        #if DEBUG
+                            print("🗑️ 重複データを削除: ID=\(duplicate.id), Name=\(duplicate.antennaName)")
+                        #endif
                         modelContext.delete(duplicate)
                     }
 
@@ -272,7 +280,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                     latestPosition.rotation = position.rotation
 
                     try modelContext.save()
-                    print("🔄 アンテナ位置を更新しました（重複削除後）: \(position.antennaName)")
+                    #if DEBUG
+                        print("🔄 アンテナ位置を更新しました（重複削除後）: \(position.antennaName)")
+                    #endif
                 } else {
                     // 単一の既存データを更新
                     let existingPosition = existingPositions.first!
@@ -283,7 +293,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                     existingPosition.rotation = position.rotation
 
                     try modelContext.save()
-                    print("🔄 アンテナ位置を更新しました: \(position.antennaName)")
+                    #if DEBUG
+                        print("🔄 アンテナ位置を更新しました: \(position.antennaName)")
+                    #endif
                 }
             } else {
                 // 新規データとして保存
@@ -291,7 +303,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                 modelContext.insert(persistentPosition)
 
                 try modelContext.save()
-                print("✅ アンテナ位置保存完了: \(position.antennaName) (ID: \(position.antennaId))")
+                #if DEBUG
+                    print("✅ アンテナ位置保存完了: \(position.antennaName) (ID: \(position.antennaId))")
+                #endif
             }
         } catch let error as RepositoryError {
             throw error
@@ -327,14 +341,18 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                 guard !persistentPosition.antennaId.isEmpty,
                       !persistentPosition.antennaName.isEmpty,
                       !persistentPosition.floorMapId.isEmpty else {
-                    print("⚠️ 無効なアンテナ位置データをスキップしました: ID=\(persistentPosition.id)")
+                    #if DEBUG
+                        print("⚠️ 無効なアンテナ位置データをスキップしました: ID=\(persistentPosition.id)")
+                    #endif
                     return nil
                 }
 
                 return persistentPosition.toEntity()
             }
 
-            print("✅ アンテナ位置データ読み込み完了: \(positions.count)件 (フロアマップ: \(floorMapId))")
+            #if DEBUG
+                print("✅ アンテナ位置データ読み込み完了: \(positions.count)件 (フロアマップ: \(floorMapId))")
+            #endif
             return positions
         } catch {
             throw RepositoryError.loadFailed("アンテナ位置データの読み込みに失敗しました: \(error.localizedDescription)")

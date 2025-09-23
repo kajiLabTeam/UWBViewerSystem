@@ -60,9 +60,9 @@ class AntennaPositioningViewModel: ObservableObject {
         let maxRealSize = max(info.width, info.depth)
         let scale = maxRealSize / canvasSize
 
-#if DEBUG
-        print("🗺️ MapScale calculation: width=\(info.width)m, depth=\(info.depth)m, maxSize=\(maxRealSize)m, canvasSize=\(canvasSize)px, scale=\(scale)m/px")
-#endif
+        #if DEBUG
+            print("🗺️ MapScale calculation: width=\(info.width)m, depth=\(info.depth)m, maxSize=\(maxRealSize)m, canvasSize=\(canvasSize)px, scale=\(scale)m/px")
+        #endif
 
         return scale
     }
@@ -112,9 +112,9 @@ class AntennaPositioningViewModel: ObservableObject {
                let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
             {
                 selectedDevices = decoded
-#if DEBUG
-                print("📱 フォールバック: SelectedUWBDevicesからデバイスを読み込み: \(selectedDevices.count)台")
-#endif
+                #if DEBUG
+                    print("📱 フォールバック: SelectedUWBDevicesからデバイスを読み込み: \(selectedDevices.count)台")
+                #endif
             }
         }
     }
@@ -123,9 +123,9 @@ class AntennaPositioningViewModel: ObservableObject {
     /// ペアリング情報からデバイス一覧を構築
     private func loadDevicesFromPairingData() {
         guard let repository = swiftDataRepository else {
-#if DEBUG
-            print("❌ SwiftDataRepository が利用できません")
-#endif
+            #if DEBUG
+                print("❌ SwiftDataRepository が利用できません")
+            #endif
             handleError("データベースへの接続に失敗しました")
             return
         }
@@ -134,9 +134,9 @@ class AntennaPositioningViewModel: ObservableObject {
             do {
                 // まずペアリング情報を試行
                 let pairings = try await repository.loadAntennaPairings()
-#if DEBUG
-                print("📱 SwiftDataからペアリング情報を読み込み: \(pairings.count)件")
-#endif
+                #if DEBUG
+                    print("📱 SwiftDataからペアリング情報を読み込み: \(pairings.count)件")
+                #endif
 
                 if !pairings.isEmpty {
                     await MainActor.run {
@@ -148,9 +148,9 @@ class AntennaPositioningViewModel: ObservableObject {
                             // データの妥当性をチェック
                             guard !pairing.device.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                                   !pairing.device.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-#if DEBUG
-                                print("⚠️ 無効なペアリングデータをスキップ: \(pairing)")
-#endif
+                                #if DEBUG
+                                    print("⚠️ 無効なペアリングデータをスキップ: \(pairing)")
+                                #endif
                                 return nil
                             }
 
@@ -160,9 +160,9 @@ class AntennaPositioningViewModel: ObservableObject {
                             return device
                         }
 
-#if DEBUG
-                        print("✅ ペアリング情報から \(selectedDevices.count) 台のデバイスを読み込みました")
-#endif
+                        #if DEBUG
+                            print("✅ ペアリング情報から \(selectedDevices.count) 台のデバイスを読み込みました")
+                        #endif
 
                         // アンテナ位置を再作成
                         createAntennaPositions()
@@ -172,9 +172,9 @@ class AntennaPositioningViewModel: ObservableObject {
                     await loadDevicesFromAntennaPositions(repository: repository)
                 }
             } catch {
-    #if DEBUG
-            print("❌ ペアリング情報の読み込みエラー: \(error)")
-#endif
+                #if DEBUG
+                    print("❌ ペアリング情報の読み込みエラー: \(error)")
+                #endif
                 await MainActor.run {
                     handleError("ペアリング情報の読み込みに失敗しました: \(error.localizedDescription)")
                     // エラーの場合は従来の方法にフォールバック
@@ -195,9 +195,9 @@ class AntennaPositioningViewModel: ObservableObject {
 
         do {
             let antennaPositions = try await repository.loadAntennaPositions(for: floorMapInfo.id)
-#if DEBUG
-            print("📱 アンテナ位置データからデバイス一覧を構築: \(antennaPositions.count)件")
-#endif
+            #if DEBUG
+                print("📱 アンテナ位置データからデバイス一覧を構築: \(antennaPositions.count)件")
+            #endif
 
             await MainActor.run {
                 // 既存のリストをクリア
@@ -213,17 +213,17 @@ class AntennaPositioningViewModel: ObservableObject {
                     )
                 }
 
-#if DEBUG
-                print("✅ アンテナ位置データから \(selectedDevices.count) 台のデバイスを構築しました")
-#endif
+                #if DEBUG
+                    print("✅ アンテナ位置データから \(selectedDevices.count) 台のデバイスを構築しました")
+                #endif
 
                 // アンテナ位置を再作成
                 createAntennaPositions()
             }
         } catch {
-#if DEBUG
-            print("❌ アンテナ位置データの読み込みエラー: \(error)")
-#endif
+            #if DEBUG
+                print("❌ アンテナ位置データの読み込みエラー: \(error)")
+            #endif
             await MainActor.run {
                 loadSelectedDevicesFromUserDefaults()
             }
@@ -236,9 +236,9 @@ class AntennaPositioningViewModel: ObservableObject {
            let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
         {
             selectedDevices = decoded
-#if DEBUG
-            print("📱 UserDefaultsからデバイスを読み込み: \(selectedDevices.count)台")
-#endif
+            #if DEBUG
+                print("📱 UserDefaultsからデバイスを読み込み: \(selectedDevices.count)台")
+            #endif
         }
     }
 
@@ -252,19 +252,18 @@ class AntennaPositioningViewModel: ObservableObject {
             let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
             let imageURL = documentsDirectory.appendingPathComponent("\(floorMapInfo.id).jpg")
 
-
             // 新しいFloorMapInfo構造を使用して画像を読み込む
             mapImage = floorMapInfo.image
             if mapImage != nil {
             } else {
-#if DEBUG
-                print("❌ AntennaPositioningViewModel: Failed to load map image")
-#endif
+                #if DEBUG
+                    print("❌ AntennaPositioningViewModel: Failed to load map image")
+                #endif
             }
         } else {
-#if DEBUG
-            print("❌ AntennaPositioningViewModel: No FloorMapInfo found in UserDefaults")
-#endif
+            #if DEBUG
+                print("❌ AntennaPositioningViewModel: No FloorMapInfo found in UserDefaults")
+            #endif
         }
     }
 
@@ -295,7 +294,6 @@ class AntennaPositioningViewModel: ObservableObject {
 
             // SwiftDataに自動保存
             saveAntennaPositionToSwiftData(antennaPositions[index])
-
         }
     }
 
@@ -315,7 +313,6 @@ class AntennaPositioningViewModel: ObservableObject {
 
             // SwiftDataに自動保存
             saveAntennaPositionToSwiftData(antennaPositions[index])
-
         }
     }
 
@@ -328,7 +325,6 @@ class AntennaPositioningViewModel: ObservableObject {
 
             // SwiftDataに自動保存
             saveAntennaPositionToSwiftData(antennaPositions[index])
-
         }
     }
 
@@ -457,7 +453,6 @@ class AntennaPositioningViewModel: ObservableObject {
         saveSelectedDevices()
 
         updateCanProceed()
-
     }
 
     func removeDevice(_ deviceId: String) {
@@ -469,7 +464,6 @@ class AntennaPositioningViewModel: ObservableObject {
 
         // SwiftDataからも削除
         deleteAntennaPositionFromSwiftData(deviceId)
-
     }
 
     /// すべてのデバイスを削除
@@ -484,15 +478,14 @@ class AntennaPositioningViewModel: ObservableObject {
 
         // SwiftDataからも全て削除
         deleteAllAntennaPositionsFromSwiftData()
-
     }
 
     /// SwiftDataからアンテナ位置を削除
     private func deleteAntennaPositionFromSwiftData(_ antennaId: String) {
         guard let repository = swiftDataRepository else {
-#if DEBUG
-            print("❌ SwiftDataRepository が利用できません（deleteAntennaPositionFromSwiftData）")
-#endif
+            #if DEBUG
+                print("❌ SwiftDataRepository が利用できません（deleteAntennaPositionFromSwiftData）")
+            #endif
             return
         }
 
@@ -500,9 +493,9 @@ class AntennaPositioningViewModel: ObservableObject {
             do {
                 try await repository.deleteAntennaPosition(by: antennaId)
             } catch {
-#if DEBUG
-                print("❌ SwiftDataからのアンテナ位置削除エラー: \(error)")
-#endif
+                #if DEBUG
+                    print("❌ SwiftDataからのアンテナ位置削除エラー: \(error)")
+                #endif
             }
         }
     }
@@ -511,9 +504,9 @@ class AntennaPositioningViewModel: ObservableObject {
     private func deleteAllAntennaPositionsFromSwiftData() {
         guard let repository = swiftDataRepository,
               let floorMapInfo else {
-#if DEBUG
-            print("❌ SwiftDataRepository または FloorMapInfo が利用できません（deleteAllAntennaPositionsFromSwiftData）")
-#endif
+            #if DEBUG
+                print("❌ SwiftDataRepository または FloorMapInfo が利用できません（deleteAllAntennaPositionsFromSwiftData）")
+            #endif
             return
         }
 
@@ -527,9 +520,9 @@ class AntennaPositioningViewModel: ObservableObject {
                 }
 
             } catch {
-#if DEBUG
-                print("❌ SwiftDataからの全アンテナ位置削除エラー: \(error)")
-#endif
+                #if DEBUG
+                    print("❌ SwiftDataからの全アンテナ位置削除エラー: \(error)")
+                #endif
             }
         }
     }
@@ -538,26 +531,25 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func loadAntennaPositionsFromSwiftData() {
         guard let repository = swiftDataRepository else {
-#if DEBUG
-            print("❌ SwiftDataRepository が利用できません（loadAntennaPositionsFromSwiftData）")
-#endif
+            #if DEBUG
+                print("❌ SwiftDataRepository が利用できません（loadAntennaPositionsFromSwiftData）")
+            #endif
             return
         }
 
         guard let floorMapInfo else {
-#if DEBUG
-            print("❌ FloorMapInfo が取得できません（loadAntennaPositionsFromSwiftData）")
-#endif
+            #if DEBUG
+                print("❌ FloorMapInfo が取得できません（loadAntennaPositionsFromSwiftData）")
+            #endif
             return
         }
-
 
         Task {
             do {
                 let positions = try await repository.loadAntennaPositions(for: floorMapInfo.id)
-#if DEBUG
-                print("📱 SwiftDataからアンテナ位置データを取得: \(positions.count)件")
-#endif
+                #if DEBUG
+                    print("📱 SwiftDataからアンテナ位置データを取得: \(positions.count)件")
+                #endif
 
                 await MainActor.run {
                     var appliedCount = 0
@@ -580,20 +572,20 @@ class AntennaPositioningViewModel: ObservableObject {
 
                             appliedCount += 1
                         } else {
-#if DEBUG
-                            print("⚠️ アンテナID[\(position.antennaId)]が現在のリストに見つかりません")
-#endif
+                            #if DEBUG
+                                print("⚠️ アンテナID[\(position.antennaId)]が現在のリストに見つかりません")
+                            #endif
                         }
                     }
                     updateCanProceed()
-#if DEBUG
-                    print("📱 SwiftDataからアンテナ位置を読み込み完了: \(appliedCount)/\(positions.count)件適用 for floorMap: \(floorMapInfo.id)")
-#endif
+                    #if DEBUG
+                        print("📱 SwiftDataからアンテナ位置を読み込み完了: \(appliedCount)/\(positions.count)件適用 for floorMap: \(floorMapInfo.id)")
+                    #endif
                 }
             } catch {
-#if DEBUG
-                print("❌ SwiftDataからの読み込みエラー: \(error)")
-#endif
+                #if DEBUG
+                    print("❌ SwiftDataからの読み込みエラー: \(error)")
+                #endif
                 await MainActor.run {
                     // SwiftDataが失敗した場合はUserDefaultsからフォールバック読み込み
                     loadAntennaPositionsFromUserDefaults()
@@ -628,13 +620,13 @@ class AntennaPositioningViewModel: ObservableObject {
             }
 
             updateCanProceed()
-#if DEBUG
-            print("📱 UserDefaultsからアンテナ位置を読み込み完了: \(appliedCount)/\(positionData.count)件適用")
-#endif
+            #if DEBUG
+                print("📱 UserDefaultsからアンテナ位置を読み込み完了: \(appliedCount)/\(positionData.count)件適用")
+            #endif
         } else {
-#if DEBUG
-            print("❌ UserDefaultsにconfiguredAntennaPositionsが見つかりません")
-#endif
+            #if DEBUG
+                print("❌ UserDefaultsにconfiguredAntennaPositionsが見つかりません")
+            #endif
         }
     }
 
@@ -660,9 +652,9 @@ class AntennaPositioningViewModel: ObservableObject {
                 // 既存のレコードがあるかチェックして更新 or 新規作成
                 try await repository.saveAntennaPosition(positionData)
             } catch {
-#if DEBUG
-                print("❌ SwiftDataへの保存エラー: \(error)")
-#endif
+                #if DEBUG
+                    print("❌ SwiftDataへの保存エラー: \(error)")
+                #endif
             }
         }
     }
@@ -696,11 +688,10 @@ class AntennaPositioningViewModel: ObservableObject {
         // 配置されたアンテナの数をチェック
         let positionedAntennas = antennaPositions.filter { $0.position != CGPoint(x: 50, y: 50) }
 
-
         guard positionedAntennas.count >= 2 else {
-#if DEBUG
-            print("❌ saveAntennaPositionsForFlow: Need at least 2 positioned antennas, got \(positionedAntennas.count)")
-#endif
+            #if DEBUG
+                print("❌ saveAntennaPositionsForFlow: Need at least 2 positioned antennas, got \(positionedAntennas.count)")
+            #endif
             return false
         }
 
@@ -761,9 +752,9 @@ class AntennaPositioningViewModel: ObservableObject {
                 try await repository.updateProjectProgress(projectProgress!)
 
             } catch {
-#if DEBUG
-                print("❌ プロジェクト進行状況の更新エラー: \(error)")
-#endif
+                #if DEBUG
+                    print("❌ プロジェクト進行状況の更新エラー: \(error)")
+                #endif
             }
         }
     }
@@ -772,9 +763,9 @@ class AntennaPositioningViewModel: ObservableObject {
 
     /// エラーハンドリング用のメソッド
     private func handleError(_ message: String) {
-#if DEBUG
-        print("❌ AntennaPositioningViewModel Error: \(message)")
-#endif
+        #if DEBUG
+            print("❌ AntennaPositioningViewModel Error: \(message)")
+        #endif
         // TODO: エラー状態をUIに反映する仕組みを追加
         // 例: @Published var errorMessage: String? = nil
         // errorMessage = message

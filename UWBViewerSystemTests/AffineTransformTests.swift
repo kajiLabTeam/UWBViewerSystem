@@ -49,8 +49,10 @@ final class AffineTransformTests: XCTestCase {
         XCTAssertGreaterThan(abs(transform.determinant), 1e-10, "変換行列の行列式が非特異である必要があります")
         XCTAssertLessThan(transform.accuracy, 1.0, "変換の精度が1.0m以下である必要があります")
 
-        print("📊 アフィン変換行列:")
-        print(transform.matrixDescription)
+        #if DEBUG
+            print("📊 アフィン変換行列:")
+            print(transform.matrixDescription)
+        #endif
     }
 
     func testMapToRealWorldCoordinateConversion() throws {
@@ -64,7 +66,9 @@ final class AffineTransformTests: XCTestCase {
         XCTAssertTrue(realWorldPoint.y.isFinite, "Y座標が有限値である必要があります")
         XCTAssertTrue(realWorldPoint.z.isFinite, "Z座標が有限値である必要があります")
 
-        print("🗺️ 座標変換: マップ(\(mapPoint.x), \(mapPoint.y)) → 実世界(\(realWorldPoint.x), \(realWorldPoint.y))")
+        #if DEBUG
+            print("🗺️ 座標変換: マップ(\(mapPoint.x), \(mapPoint.y)) → 実世界(\(realWorldPoint.x), \(realWorldPoint.y))")
+        #endif
     }
 
     func testRealWorldToMapCoordinateConversion() throws {
@@ -77,7 +81,9 @@ final class AffineTransformTests: XCTestCase {
         XCTAssertTrue(mapPoint.x.isFinite, "X座標が有限値である必要があります")
         XCTAssertTrue(mapPoint.y.isFinite, "Y座標が有限値である必要があります")
 
-        print("🔄 逆変換: 実世界(\(realWorldPoint.x), \(realWorldPoint.y)) → マップ(\(mapPoint.x), \(mapPoint.y))")
+        #if DEBUG
+            print("🔄 逆変換: 実世界(\(realWorldPoint.x), \(realWorldPoint.y)) → マップ(\(mapPoint.x), \(mapPoint.y))")
+        #endif
     }
 
     func testTransformationRoundTrip() throws {
@@ -94,7 +100,9 @@ final class AffineTransformTests: XCTestCase {
         XCTAssertLessThan(errorX, 1.0, "X座標の往復変換エラーが1.0未満である必要があります")
         XCTAssertLessThan(errorY, 1.0, "Y座標の往復変換エラーが1.0未満である必要があります")
 
-        print("🔄 往復変換エラー: X=\(errorX), Y=\(errorY)")
+        #if DEBUG
+            print("🔄 往復変換エラー: X=\(errorX), Y=\(errorY)")
+        #endif
     }
 
     // MARK: - エラーハンドリングテスト

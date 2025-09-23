@@ -32,16 +32,7 @@ struct UWBViewerSystemApp: App {
 
         do {
             // まず既存のデータベースを強制削除
-            print("🗑️ 既存のデータベースを削除してスキーマをリセット")
             deleteExistingDatabase()
-
-            // データベースファイルの場所を表示
-            if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-                print("📁 Documents Directory: \(documentsDirectory.path)")
-            }
-            if let applicationSupportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-                print("📁 Application Support Directory: \(applicationSupportDirectory.path)")
-            }
 
             // ApplicationSupportディレクトリの作成を確実に行う
             let fileManager = FileManager.default
@@ -51,45 +42,44 @@ struct UWBViewerSystemApp: App {
 
                 if !fileManager.fileExists(atPath: appDirectory.path) {
                     try fileManager.createDirectory(at: appDirectory, withIntermediateDirectories: true)
-                    print("📁 ApplicationSupport ディレクトリを作成: \(appDirectory.path)")
                 }
 
                 // カスタムModelConfigurationでファイル場所を指定
                 let customURL = appDirectory.appendingPathComponent("SwiftData.sqlite")
                 let modelConfiguration = ModelConfiguration(url: customURL)
                 let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
-                print("✅ SwiftDataファイルベース永続化で初期化成功 (カスタムパス)")
 
                 return container
             } else {
                 // フォールバック: デフォルトファイルベース設定で直接作成を試行
                 let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
                 let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
-                print("✅ SwiftDataファイルベース永続化で初期化成功 (デフォルトパス)")
 
                 return container
             }
         } catch {
-            print("⚠️ SwiftDataのモデルコンテナ作成エラー: \(error)")
+            #if DEBUG
+                print("⚠️ SwiftDataのモデルコンテナ作成エラー: \(error)")
+            #endif
 
             // スキーマ関連のエラーの場合のみデータベースを削除して再試行
             if error.localizedDescription.contains("SwiftDataError") ||
                 error.localizedDescription.contains("model") ||
                 error.localizedDescription.contains("schema") {
-                print("🔄 スキーマエラーのため既存データベースを削除して再作成します")
                 deleteExistingDatabase()
 
                 do {
                     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
                     return try ModelContainer(for: schema, configurations: [modelConfiguration])
                 } catch {
-                    print("⚠️ データベース再作成も失敗しました: \(error)")
+                    #if DEBUG
+                        print("⚠️ データベース再作成も失敗しました: \(error)")
+                    #endif
                 }
             }
 
             // 最終的にインメモリで動作（データは永続化されないが動作は可能）
             do {
-                print("🔄 インメモリモードで動作します（データは永続化されません）")
                 return try ModelContainer(for: schema, configurations: [inMemoryConfiguration])
             } catch {
                 fatalError("SwiftDataの初期化に完全に失敗しました: \(error)")
@@ -118,10 +108,11 @@ struct UWBViewerSystemApp: App {
             do {
                 if fileManager.fileExists(atPath: appDirectory.path) {
                     try fileManager.removeItem(at: appDirectory)
-                    print("✅ \(directory)の既存データを削除しました: \(appDirectory.path)")
                 }
             } catch {
-                print("❌ \(directory)データ削除エラー: \(error)")
+                #if DEBUG
+                    print("❌ \(directory)データ削除エラー: \(error)")
+                #endif
             }
         }
 
@@ -132,11 +123,12 @@ struct UWBViewerSystemApp: App {
                 for url in contents {
                     if url.pathExtension == "sqlite" || url.pathExtension == "sqlite-wal" || url.pathExtension == "sqlite-shm" {
                         try fileManager.removeItem(at: url)
-                        print("✅ SwiftDataファイルを削除: \(url.lastPathComponent)")
                     }
                 }
             } catch {
-                print("❌ SwiftDataファイル削除エラー: \(error)")
+                #if DEBUG
+                    print("❌ SwiftDataファイル削除エラー: \(error)")
+                #endif
             }
         }
     }
@@ -147,7 +139,9 @@ struct UWBViewerSystemApp: App {
                 .environmentObject(router)
                 .task {
                     await performDataMigrationIfNeeded()
-                    await debugDatabaseContents()
+                    #if DEBUG
+                        await debugDatabaseContents()
+                    #endif
                 }
         }
         .modelContainer(sharedModelContainer)
@@ -164,72 +158,76 @@ struct UWBViewerSystemApp: App {
         do {
             try await migrationUsecase.migrateDataIfNeeded()
         } catch {
-            print("データ移行に失敗しました: \(error)")
+            #if DEBUG
+                print("データ移行に失敗しました: \(error)")
+            #endif
         }
     }
 
-    /// アプリ起動時にデータベースの内容をデバッグ出力
-    @MainActor
-    private func debugDatabaseContents() async {
-        print("🔍 === DATABASE DEBUG START ===")
+    #if DEBUG
+        /// アプリ起動時にデータベースの内容をデバッグ出力
+        @MainActor
+        private func debugDatabaseContents() async {
+            print("🔍 === DATABASE DEBUG START ===")
 
-        // データベースファイルの場所を確認
-        if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            print("📁 Documents Directory: \(documentsDirectory.path)")
+            // データベースファイルの場所を確認
+            if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                print("📁 Documents Directory: \(documentsDirectory.path)")
 
-            // SwiftDataファイルを探す
-            do {
-                let contents = try FileManager.default.contentsOfDirectory(at: documentsDirectory, includingPropertiesForKeys: [.fileSizeKey, .creationDateKey])
-                print("📄 Documents Directory contents:")
-                for url in contents {
-                    let resourceValues = try? url.resourceValues(forKeys: [.fileSizeKey, .creationDateKey])
-                    let size = resourceValues?.fileSize ?? 0
-                    let date = resourceValues?.creationDate ?? Date()
-                    print("   - \(url.lastPathComponent) (Size: \(size) bytes, Created: \(date))")
+                // SwiftDataファイルを探す
+                do {
+                    let contents = try FileManager.default.contentsOfDirectory(at: documentsDirectory, includingPropertiesForKeys: [.fileSizeKey, .creationDateKey])
+                    print("📄 Documents Directory contents:")
+                    for url in contents {
+                        let resourceValues = try? url.resourceValues(forKeys: [.fileSizeKey, .creationDateKey])
+                        let size = resourceValues?.fileSize ?? 0
+                        let date = resourceValues?.creationDate ?? Date()
+                        print("   - \(url.lastPathComponent) (Size: \(size) bytes, Created: \(date))")
+                    }
+                } catch {
+                    print("❌ Documents Directory読み取りエラー: \(error)")
                 }
+            }
+
+            let swiftDataRepository = SwiftDataRepository(modelContext: sharedModelContainer.mainContext)
+
+            do {
+                // フロアマップの確認
+                let floorMaps = try await swiftDataRepository.loadAllFloorMaps()
+                print("📊 データベース内のフロアマップ: \(floorMaps.count)件")
+                for (index, floorMap) in floorMaps.enumerated() {
+                    print("  [\(index + 1)] ID: \(floorMap.id)")
+                    print("      Name: \(floorMap.name)")
+                    print("      Building: \(floorMap.buildingName)")
+                    print("      Size: \(floorMap.width) × \(floorMap.depth)")
+                    print("      Created: \(floorMap.createdAt)")
+                }
+
+                // プロジェクト進行状況の確認
+                let projectProgresses = try await swiftDataRepository.loadAllProjectProgress()
+                print("📊 データベース内のプロジェクト進行状況: \(projectProgresses.count)件")
+                for (index, progress) in projectProgresses.enumerated() {
+                    print("  [\(index + 1)] ID: \(progress.id)")
+                    print("      FloorMapID: \(progress.floorMapId)")
+                    print("      CurrentStep: \(progress.currentStep.displayName)")
+                    print("      CompletedSteps: \(progress.completedSteps.map { $0.displayName }.joined(separator: ", "))")
+                }
+
+                // アンテナ位置の確認
+                let antennaPositions = try await swiftDataRepository.loadAntennaPositions()
+                print("📊 データベース内のアンテナ位置: \(antennaPositions.count)件")
+                for (index, position) in antennaPositions.enumerated() {
+                    print("  [\(index + 1)] ID: \(position.id)")
+                    print("      FloorMapID: \(position.floorMapId)")
+                    print("      Name: \(position.antennaName)")
+                    print("      Position: (\(position.position.x), \(position.position.y), \(position.position.z))")
+                }
+
             } catch {
-                print("❌ Documents Directory読み取りエラー: \(error)")
+                print("❌ データベースデバッグ中にエラーが発生: \(error)")
             }
+
+            print("🔍 === DATABASE DEBUG END ===")
         }
-
-        let swiftDataRepository = SwiftDataRepository(modelContext: sharedModelContainer.mainContext)
-
-        do {
-            // フロアマップの確認
-            let floorMaps = try await swiftDataRepository.loadAllFloorMaps()
-            print("📊 データベース内のフロアマップ: \(floorMaps.count)件")
-            for (index, floorMap) in floorMaps.enumerated() {
-                print("  [\(index + 1)] ID: \(floorMap.id)")
-                print("      Name: \(floorMap.name)")
-                print("      Building: \(floorMap.buildingName)")
-                print("      Size: \(floorMap.width) × \(floorMap.depth)")
-                print("      Created: \(floorMap.createdAt)")
-            }
-
-            // プロジェクト進行状況の確認
-            let projectProgresses = try await swiftDataRepository.loadAllProjectProgress()
-            print("📊 データベース内のプロジェクト進行状況: \(projectProgresses.count)件")
-            for (index, progress) in projectProgresses.enumerated() {
-                print("  [\(index + 1)] ID: \(progress.id)")
-                print("      FloorMapID: \(progress.floorMapId)")
-                print("      CurrentStep: \(progress.currentStep.displayName)")
-                print("      CompletedSteps: \(progress.completedSteps.map { $0.displayName }.joined(separator: ", "))")
-            }
-
-            // アンテナ位置の確認
-            let antennaPositions = try await swiftDataRepository.loadAntennaPositions()
-            print("📊 データベース内のアンテナ位置: \(antennaPositions.count)件")
-            for (index, position) in antennaPositions.enumerated() {
-                print("  [\(index + 1)] ID: \(position.id)")
-                print("      FloorMapID: \(position.floorMapId)")
-                print("      Name: \(position.antennaName)")
-                print("      Position: (\(position.position.x), \(position.position.y), \(position.position.z))")
-            }
-
-        } catch {
-            print("❌ データベースデバッグ中にエラーが発生: \(error)")
-        }
-
-        print("🔍 === DATABASE DEBUG END ===")
-    }
+    #endif
 }

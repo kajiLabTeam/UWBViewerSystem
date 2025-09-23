@@ -1,5 +1,8 @@
 # UWB Viewer System
 
+[![Swift Test](https://github.com/kajiLabTeam/UWBViewerSystem/actions/workflows/swift-test.yml/badge.svg)](https://github.com/kajiLabTeam/UWBViewerSystem/actions/workflows/swift-test.yml)
+[![Swift Lint](https://github.com/kajiLabTeam/UWBViewerSystem/actions/workflows/SwiftFormat.yml/badge.svg)](https://github.com/kajiLabTeam/UWBViewerSystem/actions/workflows/SwiftFormat.yml)
+
 UWBViewerSystemは、UWB（Ultra-Wideband）技術を活用した位置測定・センシングシステムのiOS/macOSアプリケーションです。AndroidデバイスとのBluetooth連携により、リアルタイムな位置測定とデータ可視化を実現します。
 
 ## 主な機能

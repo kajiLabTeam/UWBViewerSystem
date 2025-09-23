@@ -139,7 +139,7 @@ class FloorMapViewModel: ObservableObject {
 
                     // アクティブなフロアマップを設定
                     if let activeId = getCurrentActiveFloorMapId(),
-                       let index = self.floorMaps.firstIndex(where: { $0.id == activeId })
+                        let index = self.floorMaps.firstIndex(where: { $0.id == activeId })
                     {
                         self.floorMaps[index].isActive = true
                         selectedFloorMap = self.floorMaps[index]
@@ -203,7 +203,7 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func selectFloorMap(_ map: FloorMap) {
-        for i in 0..<floorMaps.count {
+        for i in 0 ..< floorMaps.count {
             floorMaps[i].isActive = (floorMaps[i].id == map.id)
         }
         selectedFloorMap = map
@@ -221,14 +221,14 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func toggleActiveFloorMap(_ map: FloorMap) {
-        for i in 0..<floorMaps.count {
+        for i in 0 ..< floorMaps.count {
             if floorMaps[i].id == map.id {
                 floorMaps[i].isActive.toggle()
                 if floorMaps[i].isActive {
                     selectedFloorMap = floorMaps[i]
                     // UserDefaultsのcurrentFloorMapInfoを更新
                     updateCurrentFloorMapInfo(floorMaps[i].toFloorMapInfo())
-                    for j in 0..<floorMaps.count {
+                    for j in 0 ..< floorMaps.count {
                         if j != i && floorMaps[j].isActive {
                             floorMaps[j].isActive = false
                         }

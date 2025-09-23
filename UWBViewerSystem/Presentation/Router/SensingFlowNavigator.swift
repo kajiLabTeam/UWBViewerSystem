@@ -57,7 +57,7 @@ class SensingFlowNavigator: ObservableObject {
         markStepAsCompleted(currentStep)
 
         guard let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep),
-              currentIndex < SensingFlowStep.allCases.count - 1
+            currentIndex < SensingFlowStep.allCases.count - 1
         else {
             print("🎯 proceedToNextStep: Flow completed!")
             completeFlow()
@@ -80,7 +80,7 @@ class SensingFlowNavigator: ObservableObject {
     /// 前のステップに戻る
     func goToPreviousStep() {
         guard let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep),
-              currentIndex > 0
+            currentIndex > 0
         else {
             return
         }
@@ -145,7 +145,7 @@ class SensingFlowNavigator: ObservableObject {
     /// 指定されたステップにアクセス可能かどうかを判定
     func canAccessStep(_ step: SensingFlowStep) -> Bool {
         guard let stepIndex = SensingFlowStep.allCases.firstIndex(of: step),
-              let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep)
+            let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep)
         else {
             return false
         }
@@ -156,7 +156,7 @@ class SensingFlowNavigator: ObservableObject {
         }
 
         // 次のステップには、前のステップがすべて完了している場合のみアクセス可能
-        let previousSteps = Array(SensingFlowStep.allCases[0..<stepIndex])
+        let previousSteps = Array(SensingFlowStep.allCases[0 ..< stepIndex])
         return previousSteps.allSatisfy { completedSteps.contains($0) }
     }
 
@@ -189,15 +189,15 @@ class SensingFlowNavigator: ObservableObject {
 
         // 現在のステップを復元
         if let currentStepData = UserDefaults.standard.data(forKey: "sensingFlowCurrentStep"),
-           let currentStepRaw = try? decoder.decode(String.self, from: currentStepData),
-           let savedStep = SensingFlowStep(rawValue: currentStepRaw)
+            let currentStepRaw = try? decoder.decode(String.self, from: currentStepData),
+            let savedStep = SensingFlowStep(rawValue: currentStepRaw)
         {
             currentStep = savedStep
         }
 
         // 完了済みステップを復元
         if let completedStepsData = UserDefaults.standard.data(forKey: "sensingFlowCompletedSteps"),
-           let completedStepsArray = try? decoder.decode([String].self, from: completedStepsData)
+            let completedStepsArray = try? decoder.decode([String].self, from: completedStepsData)
         {
             completedSteps = Set(completedStepsArray.compactMap { SensingFlowStep(rawValue: $0) })
         }
@@ -341,7 +341,7 @@ enum SensingFlowStep: String, CaseIterable {
     private func checkFloorMapSettingCompletion() -> Bool {
         // UserDefaultsからフロアマップ設定を確認
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let _ = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
+            let _ = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
         else {
             return false
         }
@@ -351,7 +351,7 @@ enum SensingFlowStep: String, CaseIterable {
     private func checkAntennaConfigurationCompletion() -> Bool {
         // UserDefaultsからアンテナ設定を確認
         guard let data = UserDefaults.standard.data(forKey: "configuredAntennaPositions"),
-              let antennas = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
+            let antennas = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
         else {
             print("❌ checkAntennaConfigurationCompletion: No antenna position data found")
             return false
@@ -383,7 +383,7 @@ enum SensingFlowStep: String, CaseIterable {
     private func checkDevicePairingCompletion() -> Bool {
         // ペアリング済みデバイスを確認
         guard let data = UserDefaults.standard.data(forKey: "pairedDevices"),
-              let devices = try? JSONDecoder().decode([String].self, from: data)
+            let devices = try? JSONDecoder().decode([String].self, from: data)
         else {
             return false
         }
@@ -395,7 +395,7 @@ enum SensingFlowStep: String, CaseIterable {
     private func checkSystemCalibrationCompletion() -> Bool {
         // キャリブレーション結果を確認
         guard let data = UserDefaults.standard.data(forKey: "lastCalibrationResult"),
-              let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data)
+            let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data)
         else {
             return false
         }

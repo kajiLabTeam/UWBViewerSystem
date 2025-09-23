@@ -689,36 +689,36 @@ struct ManualCalibrationSheet: View {
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-                .navigationBarBackButtonHidden(true)
-                .toolbar {
-                    #if os(iOS)
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button("キャンセル") {
-                                presentationMode.wrappedValue.dismiss()
-                            }
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                #if os(iOS)
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("キャンセル") {
+                            presentationMode.wrappedValue.dismiss()
                         }
+                    }
 
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("完了") {
-                                presentationMode.wrappedValue.dismiss()
-                            }
-                            .fontWeight(.semibold)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("完了") {
+                            presentationMode.wrappedValue.dismiss()
                         }
-                    #elseif os(macOS)
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("キャンセル") {
-                                presentationMode.wrappedValue.dismiss()
-                            }
+                        .fontWeight(.semibold)
+                    }
+                #elseif os(macOS)
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("キャンセル") {
+                            presentationMode.wrappedValue.dismiss()
                         }
+                    }
 
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("完了") {
-                                presentationMode.wrappedValue.dismiss()
-                            }
-                            .fontWeight(.semibold)
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完了") {
+                            presentationMode.wrappedValue.dismiss()
                         }
-                    #endif
-                }
+                        .fontWeight(.semibold)
+                    }
+                #endif
+            }
         }
     }
 
@@ -757,9 +757,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.referenceX)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -767,9 +767,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.referenceY)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -777,9 +777,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.referenceZ)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
                     }
                 }
             }
@@ -795,9 +795,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.measuredX)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -805,9 +805,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.measuredY)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -815,9 +815,9 @@ struct ManualCalibrationSheet: View {
                             .font(.caption)
                         TextField("0.0", text: $viewModel.measuredZ)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                        #if os(iOS)
-                            .keyboardType(.decimalPad)
-                        #endif
+                            #if os(iOS)
+                                .keyboardType(.decimalPad)
+                            #endif
                     }
                 }
             }

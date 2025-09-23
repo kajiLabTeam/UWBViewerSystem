@@ -34,7 +34,7 @@ class AntennaPositioningViewModel: ObservableObject {
     // フロアマップの情報を取得
     var floorMapInfo: FloorMapInfo? {
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let info = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
+            let info = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
         else {
             return nil
         }
@@ -112,7 +112,7 @@ class AntennaPositioningViewModel: ObservableObject {
         // フォールバック: 従来のSelectedUWBDevicesから読み込む
         if selectedDevices.isEmpty {
             if let data = UserDefaults.standard.data(forKey: "SelectedUWBDevices"),
-               let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
+                let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
             {
                 selectedDevices = decoded
                 #if DEBUG
@@ -150,7 +150,7 @@ class AntennaPositioningViewModel: ObservableObject {
                         selectedDevices = pairings.compactMap { pairing in
                             // データの妥当性をチェック
                             guard !pairing.device.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                                  !pairing.device.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                !pairing.device.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             else {
                                 #if DEBUG
                                     print("⚠️ 無効なペアリングデータをスキップ: \(pairing)")
@@ -237,7 +237,7 @@ class AntennaPositioningViewModel: ObservableObject {
     /// UserDefaultsから従来の方法でデバイスを読み込み
     private func loadSelectedDevicesFromUserDefaults() {
         if let data = UserDefaults.standard.data(forKey: "SelectedUWBDevices"),
-           let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
+            let decoded = try? JSONDecoder().decode([AndroidDevice].self, from: data)
         {
             selectedDevices = decoded
             #if DEBUG
@@ -250,7 +250,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
         // currentFloorMapInfoから読み込む
         if let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-           let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
+            let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
         {
 
             // 保存された画像を読み込む
@@ -508,7 +508,7 @@ class AntennaPositioningViewModel: ObservableObject {
     /// すべてのアンテナ位置をSwiftDataから削除
     private func deleteAllAntennaPositionsFromSwiftData() {
         guard let repository = swiftDataRepository,
-              let floorMapInfo
+            let floorMapInfo
         else {
             #if DEBUG
                 print("❌ SwiftDataRepository または FloorMapInfo が利用できません（deleteAllAntennaPositionsFromSwiftData）")
@@ -606,7 +606,7 @@ class AntennaPositioningViewModel: ObservableObject {
     private func loadAntennaPositionsFromUserDefaults() {
 
         if let data = UserDefaults.standard.data(forKey: "configuredAntennaPositions"),
-           let positionData = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
+            let positionData = try? JSONDecoder().decode([AntennaPositionData].self, from: data)
         {
 
             var appliedCount = 0
@@ -641,7 +641,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func saveAntennaPositionToSwiftData(_ antennaPosition: AntennaPosition) {
         guard let repository = swiftDataRepository,
-              let floorMapInfo
+            let floorMapInfo
         else { return }
 
         Task {
@@ -723,7 +723,7 @@ class AntennaPositioningViewModel: ObservableObject {
         // マップの実際のサイズとスクリーン上のサイズの比率を計算
         // UserDefaultsからフロアマップ情報を取得
         guard let mapData = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let floorMapData = try? JSONDecoder().decode(FloorMapInfo.self, from: mapData)
+            let floorMapData = try? JSONDecoder().decode(FloorMapInfo.self, from: mapData)
         else {
             return RealWorldPosition(x: Double(screenPosition.x), y: Double(screenPosition.y), z: 0)
         }
@@ -742,7 +742,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
     private func updateProjectProgress(toStep step: SetupStep) {
         guard let repository = swiftDataRepository,
-              let floorMapInfo
+            let floorMapInfo
         else { return }
 
         Task {

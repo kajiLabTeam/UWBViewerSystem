@@ -80,6 +80,8 @@ struct SimpleCalibrationViewModelTests {
     private func cleanupTestEnvironment() {
         // テスト後のクリーンアップ
         UserDefaults.standard.removeObject(forKey: "currentFloorMapInfo")
+        // 並列テスト実行時のキー衝突を避けるため、テスト用キーも削除
+        UserDefaults.standard.removeObject(forKey: "test_currentFloorMapInfo_\(UUID().uuidString)")
     }
 
     // MARK: - フロアマップデータ読み込みテスト

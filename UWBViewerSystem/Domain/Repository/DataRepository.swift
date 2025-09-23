@@ -58,7 +58,7 @@ public class DataRepository: DataRepositoryProtocol {
 
     public func loadRecentSensingSessions() -> [SensingSession] {
         guard let data = userDefaults.data(forKey: "RecentSensingSessions"),
-              let sessions = try? JSONDecoder().decode([SensingSession].self, from: data)
+            let sessions = try? JSONDecoder().decode([SensingSession].self, from: data)
         else {
             return []
         }

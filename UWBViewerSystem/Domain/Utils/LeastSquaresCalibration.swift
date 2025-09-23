@@ -177,7 +177,7 @@ public class LeastSquaresCalibration {
         var h21 = 0.0
         var h22 = 0.0
 
-        for i in 0 ..< measuredXY.count {
+        for i in 0..<measuredXY.count {
             let (mx, my) = measuredXY[i]
             let (rx, ry) = referenceXY[i]
 

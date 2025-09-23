@@ -308,8 +308,8 @@ class FloorMapSettingViewModel: ObservableObject {
             }
             let nsImage = NSImage(cgImage: cgImage, size: image.size)
             guard let tiffData = nsImage.tiffRepresentation,
-                let bitmapRep = NSBitmapImageRep(data: tiffData),
-                let imageData = bitmapRep.representation(using: .jpeg, properties: [:])
+                  let bitmapRep = NSBitmapImageRep(data: tiffData),
+                  let imageData = bitmapRep.representation(using: .jpeg, properties: [:])
             else {
                 throw FloorMapSettingError.imageProcessingFailed
             }

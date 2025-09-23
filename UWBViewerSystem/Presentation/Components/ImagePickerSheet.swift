@@ -106,7 +106,7 @@ import SwiftUI
 
                     // NSDataを使って画像データを読み込む
                     if let imageData = NSData(contentsOf: selectedFile),
-                        let nsImage = NSImage(data: imageData as Data)
+                       let nsImage = NSImage(data: imageData as Data)
                     {
                         print(
                             "🖼️ ImagePickerSheet (macOS): Image loaded successfully via NSData - size: \(nsImage.size)")

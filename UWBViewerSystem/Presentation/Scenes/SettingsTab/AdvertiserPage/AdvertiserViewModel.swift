@@ -7,8 +7,8 @@
 
 import CoreLocation
 import Foundation
-import SwiftUI
 import os
+import SwiftUI
 
 class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Published Properties

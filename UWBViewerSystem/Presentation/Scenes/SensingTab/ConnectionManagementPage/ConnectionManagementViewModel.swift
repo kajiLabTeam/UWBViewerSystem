@@ -64,8 +64,9 @@ class ConnectionManagementViewModel: ObservableObject {
     private var startTime: Date?
     private var cancellables = Set<AnyCancellable>()
 
-    // DI対応: 必要なUseCaseを直接注入
+    // DI対応: 必要なUseCaseとRepositoryを直接注入
     private let connectionUsecase: ConnectionManagementUsecase
+    private let preferenceRepository: PreferenceRepositoryProtocol
 
     var formattedDataTransferred: String {
         let formatter = ByteCountFormatter()
@@ -73,13 +74,18 @@ class ConnectionManagementViewModel: ObservableObject {
         return formatter.string(fromByteCount: dataTransferred)
     }
 
-    init(connectionUsecase: ConnectionManagementUsecase? = nil) {
+    init(
+        connectionUsecase: ConnectionManagementUsecase? = nil,
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
+    ) {
         self.connectionUsecase =
             connectionUsecase
                 ?? ConnectionManagementUsecase(
                     nearbyRepository: NearbyRepository()
                 )
+        self.preferenceRepository = preferenceRepository
         setupObservers()
+        loadStatistics()
     }
 
     deinit {
@@ -219,11 +225,11 @@ class ConnectionManagementViewModel: ObservableObject {
             "dataTransferred": Int(dataTransferred),
         ]
 
-        UserDefaults.standard.set(statistics, forKey: "ConnectionStatistics")
+        preferenceRepository.saveConnectionStatistics(statistics)
     }
 
     private func loadStatistics() {
-        if let statistics = UserDefaults.standard.dictionary(forKey: "ConnectionStatistics") {
+        if let statistics = preferenceRepository.loadConnectionStatistics() {
             totalConnections = statistics["totalConnections"] as? Int ?? 0
             totalMessages = statistics["totalMessages"] as? Int ?? 0
             dataTransferred = Int64(statistics["dataTransferred"] as? Int ?? 0)

@@ -66,6 +66,7 @@ public class ObservationDataUsecase: ObservableObject {
     // MARK: - Private Properties
 
     private let dataRepository: DataRepositoryProtocol
+    private let preferenceRepository: PreferenceRepositoryProtocol
     private let uwbManager: UWBDataManager  // UWBデバイスとの通信を管理
     private var dataCollectionTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
@@ -75,9 +76,14 @@ public class ObservationDataUsecase: ObservableObject {
 
     // MARK: - Initialization
 
-    public init(dataRepository: DataRepositoryProtocol, uwbManager: UWBDataManager) {
+    public init(
+        dataRepository: DataRepositoryProtocol,
+        uwbManager: UWBDataManager,
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
+    ) {
         self.dataRepository = dataRepository
         self.uwbManager = uwbManager
+        self.preferenceRepository = preferenceRepository
         setupObservers()
     }
 
@@ -365,11 +371,7 @@ public class ObservationDataUsecase: ObservableObject {
     }
 
     private func getCurrentFloorMapId() -> String? {
-        guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data) else {
-            return nil
-        }
-        return floorMapInfo.id
+        preferenceRepository.loadCurrentFloorMapInfo()?.id
     }
 }
 

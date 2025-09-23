@@ -61,6 +61,7 @@ class SimpleCalibrationViewModel: ObservableObject {
     // MARK: - Private Properties
 
     private let dataRepository: DataRepositoryProtocol
+    private let preferenceRepository: PreferenceRepositoryProtocol
     private let calibrationUsecase: CalibrationUsecase
     private var cancellables = Set<AnyCancellable>()
     private var calibrationTimer: Timer?
@@ -136,8 +137,12 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init(dataRepository: DataRepositoryProtocol = DataRepository()) {
+    init(
+        dataRepository: DataRepositoryProtocol = DataRepository(),
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
+    ) {
         self.dataRepository = dataRepository
+        self.preferenceRepository = preferenceRepository
         calibrationUsecase = CalibrationUsecase(dataRepository: dataRepository)
 
         loadInitialData()
@@ -298,52 +303,40 @@ class SimpleCalibrationViewModel: ObservableObject {
     }
 
     /// 現在のフロアマップデータを読み込み
-    /// 現在のフロアマップデータを読み込み
     private func loadCurrentFloorMapData() {
         print("📋 フロアマップデータ読み込み開始")
 
-        guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo") else {
-            print("❌ UserDefaults から currentFloorMapInfo が見つかりません")
+        guard let floorMapInfo = preferenceRepository.loadCurrentFloorMapInfo() else {
+            print("❌ PreferenceRepository から currentFloorMapInfo が見つかりません")
             handleError("フロアマップ情報が設定されていません。先にフロアマップを設定してください。")
             // 現在の状態をクリア
             clearFloorMapData()
             return
         }
 
-        print("✅ UserDefaults からデータを取得: \(data.count) bytes")
+        print("✅ PreferenceRepository からデータを取得")
 
-        do {
-            let floorMapInfo = try JSONDecoder().decode(FloorMapInfo.self, from: data)
-
-            // データの妥当性チェック
-            guard !floorMapInfo.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  !floorMapInfo.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                  floorMapInfo.width > 0,
-                  floorMapInfo.depth > 0 else {
-                throw DecodingError.dataCorrupted(
-                    DecodingError.Context(
-                        codingPath: [],
-                        debugDescription: "フロアマップデータが無効です"
-                    )
-                )
-            }
-
-            print("✅ フロアマップ情報のデコード成功:")
-            print("   ID: \(floorMapInfo.id)")
-            print("   名前: \(floorMapInfo.name)")
-            print("   ビル名: \(floorMapInfo.buildingName)")
-            print("   サイズ: \(floorMapInfo.width)x\(floorMapInfo.depth)")
-
-            currentFloorMapId = floorMapInfo.id
-            currentFloorMapInfo = floorMapInfo
-            print("🔄 フロアマップ情報を設定し、画像読み込みを開始")
-            loadFloorMapImage(for: floorMapInfo.id)
-        } catch {
-            print("❌ フロアマップ情報のデコードに失敗: \(error)")
-            handleError("フロアマップ情報の読み込みに失敗しました: \(error.localizedDescription)")
-            // エラー時の状態をクリア
+        // データの妥当性チェック
+        guard !floorMapInfo.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !floorMapInfo.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              floorMapInfo.width > 0,
+              floorMapInfo.depth > 0 else {
+            print("❌ フロアマップデータが無効です")
+            handleError("フロアマップデータが無効です")
             clearFloorMapData()
+            return
         }
+
+        print("✅ フロアマップ情報の設定成功:")
+        print("   ID: \(floorMapInfo.id)")
+        print("   名前: \(floorMapInfo.name)")
+        print("   ビル名: \(floorMapInfo.buildingName)")
+        print("   サイズ: \(floorMapInfo.width)x\(floorMapInfo.depth)")
+
+        currentFloorMapId = floorMapInfo.id
+        currentFloorMapInfo = floorMapInfo
+        print("🔄 フロアマップ情報を設定し、画像読み込みを開始")
+        loadFloorMapImage(for: floorMapInfo.id)
     }
 
     /// フロアマップデータをクリア

@@ -8,16 +8,22 @@ import SwiftData
 public class DataMigrationUsecase {
     private let dataRepository: DataRepository
     private let swiftDataRepository: SwiftDataRepositoryProtocol
+    private let preferenceRepository: PreferenceRepositoryProtocol
     private let migrationKey = "UWBViewerSystem.DataMigration.Completed"
 
-    public init(dataRepository: DataRepository = DataRepository(), swiftDataRepository: SwiftDataRepositoryProtocol) {
+    public init(
+        dataRepository: DataRepository = DataRepository(),
+        swiftDataRepository: SwiftDataRepositoryProtocol,
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
+    ) {
         self.dataRepository = dataRepository
         self.swiftDataRepository = swiftDataRepository
+        self.preferenceRepository = preferenceRepository
     }
 
     /// データ移行が必要かどうかを確認
     public var needsMigration: Bool {
-        !UserDefaults.standard.bool(forKey: migrationKey)
+        !preferenceRepository.isMigrationCompleted(for: migrationKey)
     }
 
     /// UserDefaultsからSwiftDataへデータを移行
@@ -39,7 +45,7 @@ public class DataMigrationUsecase {
         await migrateSystemActivities()
 
         // 移行完了フラグを設定
-        UserDefaults.standard.set(true, forKey: migrationKey)
+        preferenceRepository.setMigrationCompleted(for: migrationKey, completed: true)
         print("データ移行が完了しました")
     }
 
@@ -93,7 +99,7 @@ public class DataMigrationUsecase {
 
     /// 移行をリセット（テスト用）
     public func resetMigration() {
-        UserDefaults.standard.removeObject(forKey: migrationKey)
+        preferenceRepository.setMigrationCompleted(for: migrationKey, completed: false)
         print("移行フラグをリセットしました")
     }
 
@@ -101,8 +107,8 @@ public class DataMigrationUsecase {
     public func clearUserDefaultsData() {
         print("UserDefaultsのデータをクリア中...")
 
-        // UserDefaultsから直接クリーンアップ
-        UserDefaults.standard.removeObject(forKey: "sensingSessions")
+        // PreferenceRepositoryから直接クリーンアップ
+        preferenceRepository.removeObject(forKey: "sensingSessions")
 
         // その他のデータ（必要に応じて追加）
         // ただし、設定値などは残すようにする

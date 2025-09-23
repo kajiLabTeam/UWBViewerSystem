@@ -20,7 +20,7 @@ struct CalibrationTests {
     // MARK: - 最小二乗法テスト
 
     @Test("完全に一致する3点でのキャリブレーション")
-    func testPerfectCalibration() throws {
+    func perfectCalibration() throws {
         // Arrange
         let leastSquaresCalibration = createLeastSquaresCalibration()
 
@@ -57,7 +57,7 @@ struct CalibrationTests {
     }
 
     @Test("平行移動のみのキャリブレーション")
-    func testTranslationOnlyCalibration() throws {
+    func translationOnlyCalibration() throws {
         // Arrange
         let leastSquaresCalibration = createLeastSquaresCalibration()
 
@@ -95,7 +95,7 @@ struct CalibrationTests {
     }
 
     @Test("スケール変換のキャリブレーション")
-    func testScaleCalibration() throws {
+    func scaleCalibration() throws {
         // Arrange
         let leastSquaresCalibration = createLeastSquaresCalibration()
 
@@ -130,7 +130,7 @@ struct CalibrationTests {
     }
 
     @Test("不十分な点数でのエラー")
-    func testInsufficientPointsError() {
+    func insufficientPointsError() {
         // Arrange
         let leastSquaresCalibration = createLeastSquaresCalibration()
 
@@ -165,7 +165,7 @@ struct CalibrationTests {
     }
 
     @Test("無効な入力データでのエラー")
-    func testInvalidInputError() {
+    func invalidInputError() {
         // Arrange
         let leastSquaresCalibration = createLeastSquaresCalibration()
 
@@ -200,7 +200,7 @@ struct CalibrationTests {
     }
 
     @Test("キャリブレーション適用")
-    func testCalibrationApplication() throws {
+    func calibrationApplication() throws {
         // Arrange
         let leastSquaresCalibration = createLeastSquaresCalibration()
 
@@ -240,7 +240,7 @@ struct CalibrationTests {
 
     @Test("キャリブレーション点の追加と削除")
     @MainActor
-    func testAddAndRemoveCalibrationPoint() async {
+    func addAndRemoveCalibrationPoint() async {
         // Arrange
         let (_, _, calibrationUsecase) = createTestContext()
 
@@ -316,7 +316,7 @@ struct CalibrationTests {
 
     @Test("統計情報の計算")
     @MainActor
-    func testCalibrationStatistics() async {
+    func calibrationStatistics() async {
         // Arrange
         let (_, _, calibrationUsecase) = createTestContext()
 
@@ -364,7 +364,7 @@ struct CalibrationTests {
     // MARK: - Point3D 拡張テスト
 
     @Test("Point3Dの操作")
-    func testPoint3DOperations() {
+    func point3DOperations() {
         let point1 = Point3D(x: 1, y: 2, z: 3)
         let point2 = Point3D(x: 4, y: 5, z: 6)
 
@@ -400,7 +400,7 @@ struct CalibrationTests {
     // MARK: - CalibrationTransform 拡張テスト
 
     @Test("CalibrationTransformの検証")
-    func testCalibrationTransformValidation() {
+    func calibrationTransformValidation() {
         // 有効な変換
         let validTransform = CalibrationTransform(
             translation: Point3D(x: 1, y: 1, z: 0),

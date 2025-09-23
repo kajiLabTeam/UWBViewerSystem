@@ -44,7 +44,7 @@ struct SwiftDataRepositoryXCTests {
     // MARK: - センシングセッション関連のテスト
 
     @Test("センシングセッション保存・読み込み - 正常ケース")
-    func testSaveSensingSession_正常ケース() async throws {
+    func saveSensingSession_正常ケース() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -71,7 +71,7 @@ struct SwiftDataRepositoryXCTests {
     }
 
     @Test("センシングセッション保存 - 空のIDでエラー")
-    func testSaveSensingSession_空のIDでエラー() async throws {
+    func saveSensingSession_空のIDでエラー() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -91,7 +91,7 @@ struct SwiftDataRepositoryXCTests {
     }
 
     @Test("センシングセッション保存 - 空の名前でエラー")
-    func testSaveSensingSession_空の名前でエラー() async throws {
+    func saveSensingSession_空の名前でエラー() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -111,7 +111,7 @@ struct SwiftDataRepositoryXCTests {
     }
 
     @Test("センシングセッション保存 - 重複IDでエラー")
-    func testSaveSensingSession_重複IDでエラー() async throws {
+    func saveSensingSession_重複IDでエラー() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -150,7 +150,7 @@ struct SwiftDataRepositoryXCTests {
     // MARK: - アンテナ位置関連のテスト
 
     @Test("アンテナ位置保存・読み込み - 正常ケース")
-    func testSaveAntennaPosition_正常ケース() async throws {
+    func saveAntennaPosition_正常ケース() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -186,7 +186,7 @@ struct SwiftDataRepositoryXCTests {
     }
 
     @Test("アンテナ位置保存 - 空のアンテナIDでエラー")
-    func testSaveAntennaPosition_空のアンテナIDでエラー() async throws {
+    func saveAntennaPosition_空のアンテナIDでエラー() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -207,7 +207,7 @@ struct SwiftDataRepositoryXCTests {
     }
 
     @Test("アンテナ位置削除 - 正常ケース")
-    func testDeleteAntennaPosition_正常ケース() async throws {
+    func deleteAntennaPosition_正常ケース() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -230,7 +230,7 @@ struct SwiftDataRepositoryXCTests {
     }
 
     @Test("アンテナ位置削除 - 存在しないIDでエラー")
-    func testDeleteAntennaPosition_存在しないIDでエラー() async throws {
+    func deleteAntennaPosition_存在しないIDでエラー() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -252,7 +252,7 @@ struct SwiftDataRepositoryXCTests {
     // MARK: - フロアマップ関連のテスト
 
     @Test("フロアマップ保存・読み込み - 正常ケース")
-    func testSaveFloorMap_正常ケース() async throws {
+    func saveFloorMap_正常ケース() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -281,7 +281,7 @@ struct SwiftDataRepositoryXCTests {
     }
 
     @Test("フロアマップ保存 - 無効なサイズでエラー")
-    func testSaveFloorMap_無効なサイズでエラー() async throws {
+    func saveFloorMap_無効なサイズでエラー() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -304,7 +304,7 @@ struct SwiftDataRepositoryXCTests {
     // MARK: - キャリブレーションデータ関連のテスト
 
     @Test("キャリブレーションデータ保存・読み込み - 正常ケース")
-    func testSaveCalibrationData_正常ケース() async throws {
+    func saveCalibrationData_正常ケース() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -336,7 +336,7 @@ struct SwiftDataRepositoryXCTests {
     }
 
     @Test("キャリブレーションデータ保存 - 空のキャリブレーションポイントでエラー")
-    func testSaveCalibrationData_空のキャリブレーションポイントでエラー() async throws {
+    func saveCalibrationData_空のキャリブレーションポイントでエラー() async throws {
         // Arrange
         let (repository, modelContext, _) = try createTestRepository()
         defer { try? cleanupTestRepository(modelContext: modelContext) }
@@ -357,7 +357,7 @@ struct SwiftDataRepositoryXCTests {
     // MARK: - パフォーマンステスト
 
     @Test("パフォーマンス - 大量アンテナ位置作成")
-    func testPerformance_大量アンテナ位置保存() throws {
+    func performance_大量アンテナ位置保存() throws {
         let floorMapId = "performance-test-floor"
 
         // パフォーマンステストは同期的な操作のみ測定

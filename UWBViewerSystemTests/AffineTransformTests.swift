@@ -31,7 +31,7 @@ struct AffineTransformTests {
     // MARK: - アフィン変換テスト
 
     @Test("アフィン変換行列の計算")
-    func testAffineTransformCalculation() throws {
+    func affineTransformCalculation() throws {
         // Arrange
         let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
 
@@ -48,7 +48,7 @@ struct AffineTransformTests {
     }
 
     @Test("マップ座標から実世界座標への変換")
-    func testMapToRealWorldCoordinateConversion() throws {
+    func mapToRealWorldCoordinateConversion() throws {
         // Arrange
         let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
         let transform = try UWBViewerSystem.AffineTransform.calculateAffineTransform(from: sampleMapCalibrationPoints)
@@ -66,7 +66,7 @@ struct AffineTransformTests {
     }
 
     @Test("実世界座標からマップ座標への逆変換")
-    func testRealWorldToMapCoordinateConversion() throws {
+    func realWorldToMapCoordinateConversion() throws {
         // Arrange
         let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
         let transform = try UWBViewerSystem.AffineTransform.calculateAffineTransform(from: sampleMapCalibrationPoints)
@@ -83,7 +83,7 @@ struct AffineTransformTests {
     }
 
     @Test("往復変換の精度")
-    func testTransformationRoundTrip() throws {
+    func transformationRoundTrip() throws {
         // Arrange
         let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
         let transform = try UWBViewerSystem.AffineTransform.calculateAffineTransform(from: sampleMapCalibrationPoints)
@@ -106,7 +106,7 @@ struct AffineTransformTests {
     // MARK: - エラーハンドリングテスト
 
     @Test("不十分なキャリブレーションポイントでのエラー")
-    func testInsufficientCalibrationPoints() {
+    func insufficientCalibrationPoints() {
         // Arrange
         let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
         let insufficientPoints = Array(sampleMapCalibrationPoints.prefix(2)) // 2点のみ
@@ -129,7 +129,7 @@ struct AffineTransformTests {
     }
 
     @Test("同一線上のキャリブレーションポイントでのエラー")
-    func testCollinearCalibrationPoints() {
+    func collinearCalibrationPoints() {
         // Arrange
         let collinearPoints = [
             MapCalibrationPoint(

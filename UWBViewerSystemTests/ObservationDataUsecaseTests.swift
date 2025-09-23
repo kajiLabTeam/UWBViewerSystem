@@ -54,7 +54,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測セッション開始")
     @MainActor
     func testStartObservationSession() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
 
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
 
@@ -68,7 +68,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測セッション停止")
     @MainActor
     func testStopObservationSession() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
 
         // セッション開始
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
@@ -84,7 +84,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測セッション一時停止と再開")
     @MainActor
     func pauseAndResumeObservationSession() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
 
         // セッション開始
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
@@ -103,7 +103,7 @@ struct ObservationDataUsecaseTests {
     @Test("複数セッションの管理")
     @MainActor
     func multipleSessionManagement() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
 
         // 複数セッション開始
         let _ = try await usecase.startObservationSession(for: "antenna1", name: "セッション1")
@@ -130,7 +130,7 @@ struct ObservationDataUsecaseTests {
     @Test("データ品質評価 - 高品質データ")
     @MainActor
     func dataQualityEvaluationHighQuality() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
 
         let highQualityObservation = ObservationPoint(
             antennaId: "antenna1",
@@ -151,7 +151,7 @@ struct ObservationDataUsecaseTests {
     @Test("データ品質評価 - 低品質データ")
     @MainActor
     func dataQualityEvaluationLowQuality() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
 
         let lowQualityObservation = ObservationPoint(
             antennaId: "antenna1",
@@ -173,7 +173,7 @@ struct ObservationDataUsecaseTests {
     @Test("nLoS検出テスト")
     @MainActor
     func nLoSDetection() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
         let testObservations = createTestObservationPoints()
 
         let nlosResult = usecase.detectNonLineOfSight(testObservations)
@@ -188,7 +188,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測データフィルタリング - 品質閾値")
     @MainActor
     func observationFiltering() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
         let testObservations = createTestObservationPoints()
 
         // セッション作成とデータ追加（モック）
@@ -210,7 +210,7 @@ struct ObservationDataUsecaseTests {
     @Test("観測データフィルタリング - 時間範囲")
     @MainActor
     func observationFilteringByTimeRange() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
         let now = Date()
         let oneMinuteAgo = now.addingTimeInterval(-60)
         let oneHourAgo = now.addingTimeInterval(-3600)
@@ -262,7 +262,7 @@ struct ObservationDataUsecaseTests {
     @Test("セッション品質統計計算")
     @MainActor
     func sessionQualityStatistics() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
         let testObservations = createTestObservationPoints()
 
         // セッション作成とデータ追加
@@ -292,7 +292,7 @@ struct ObservationDataUsecaseTests {
     @Test("未接続状態でのセッション開始エラー")
     @MainActor
     func startSessionWithoutConnection() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
 
         // 接続状態を未接続に変更
         usecase.connectionStatus = UWBConnectionStatus.disconnected
@@ -306,7 +306,7 @@ struct ObservationDataUsecaseTests {
     @Test("存在しないセッションの停止エラー")
     @MainActor
     func stopNonexistentSession() async throws {
-        let (usecase, mockUWBManager) = await createTestUsecase()
+        let (usecase, _) = await createTestUsecase()
 
         // 存在しないセッションIDでの停止を試行
         await #expect(throws: ObservationError.self) {

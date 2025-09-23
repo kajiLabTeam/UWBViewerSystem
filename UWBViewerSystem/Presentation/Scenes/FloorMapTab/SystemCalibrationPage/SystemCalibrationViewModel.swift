@@ -165,7 +165,7 @@ class SystemCalibrationViewModel: ObservableObject {
     func openMapBasedCalibration() {
         if !selectedAntennaId.isEmpty {
             // フロアマップIDを取得
-            guard let floorMapId = getCurrentFloorMapId() else {
+            guard getCurrentFloorMapId() != nil else {
                 showError("フロアマップが設定されていません")
                 return
             }

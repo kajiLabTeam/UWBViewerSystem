@@ -1,6 +1,6 @@
 import Foundation
-import os.log
 import SwiftUI
+import os.log
 
 /// キャリブレーションデータフローを管理するクラス
 @MainActor

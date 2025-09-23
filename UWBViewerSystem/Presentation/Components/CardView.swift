@@ -13,11 +13,11 @@ struct CardView<Content: View>: View {
     var body: some View {
         content
             .padding(padding)
-        #if os(macOS)
-            .background(Color(NSColor.controlBackgroundColor))
-        #else
-            .background(Color(UIColor.systemBackground))
-        #endif
+            #if os(macOS)
+                .background(Color(NSColor.controlBackgroundColor))
+            #else
+                .background(Color(UIColor.systemBackground))
+            #endif
             .cornerRadius(12)
             .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
@@ -62,8 +62,8 @@ struct SectionCard<Content: View>: View {
         #else
             .background(Color(UIColor.systemBackground))
         #endif
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
 }
 

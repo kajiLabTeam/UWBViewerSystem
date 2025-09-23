@@ -90,7 +90,7 @@ struct SensingFlowProgressView: View {
     /// 指定されたステップが完了済みかどうかを判定
     private func isStepCompleted(_ step: SensingFlowStep) -> Bool {
         guard let currentIndex = SensingFlowStep.allCases.firstIndex(of: navigator.currentStep),
-              let stepIndex = SensingFlowStep.allCases.firstIndex(of: step)
+            let stepIndex = SensingFlowStep.allCases.firstIndex(of: step)
         else {
             return false
         }
@@ -103,7 +103,7 @@ struct SensingFlowProgressView: View {
         // 通常は前のステップが完了していれば次のステップに進める
         // ここでは簡単な実装として、現在のステップより前のステップには戻れるようにする
         guard let currentIndex = SensingFlowStep.allCases.firstIndex(of: navigator.currentStep),
-              let stepIndex = SensingFlowStep.allCases.firstIndex(of: step)
+            let stepIndex = SensingFlowStep.allCases.firstIndex(of: step)
         else {
             return false
         }

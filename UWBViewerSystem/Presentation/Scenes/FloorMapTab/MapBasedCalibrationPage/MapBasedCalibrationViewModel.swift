@@ -86,9 +86,9 @@ class MapBasedCalibrationViewModel: ObservableObject {
     /// キャリブレーション点を追加
     func addCalibrationPoint() {
         guard let mapLocation = pendingMapLocation,
-              let realX = Double(inputX),
-              let realY = Double(inputY),
-              let realZ = Double(inputZ)
+            let realX = Double(inputX),
+            let realY = Double(inputY),
+            let realZ = Double(inputZ)
         else {
             showErrorMessage("座標値を正しく入力してください")
             return
@@ -244,8 +244,8 @@ class MapBasedCalibrationViewModel: ObservableObject {
     private func loadFloorMapImageAsync() async {
         // UserDefaultsからFloorMapInfoを取得
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
-              let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data),
-              floorMapInfo.id == floorMapId
+            let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data),
+            floorMapInfo.id == floorMapId
         else {
             print("❌ MapBasedCalibrationViewModel: FloorMapInfo not found for ID: \(floorMapId)")
             return
@@ -312,7 +312,7 @@ extension MapBasedCalibrationViewModel {
     /// キーボード入力完了時の処理
     func handleInputCompletion() {
         guard pendingMapLocation != nil,
-              !inputX.isEmpty && !inputY.isEmpty && !inputZ.isEmpty
+            !inputX.isEmpty && !inputY.isEmpty && !inputZ.isEmpty
         else {
             return
         }

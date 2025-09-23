@@ -36,9 +36,9 @@ struct AntennaPositioningView: View {
             .navigationBarTitleDisplayMode(.large)
         #endif
         #if os(macOS)
-        .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-        .background(Color(UIColor.systemBackground))
+            .background(Color(UIColor.systemBackground))
         #endif
         .onAppear {
             viewModel.setModelContext(modelContext)
@@ -200,8 +200,8 @@ struct MapCanvasSection: View {
         #elseif os(iOS)
             .background(Color(UIColor.systemBackground))
         #endif
-            .cornerRadius(8)
-            .shadow(radius: 2)
+        .cornerRadius(8)
+        .shadow(radius: 2)
     }
 }
 

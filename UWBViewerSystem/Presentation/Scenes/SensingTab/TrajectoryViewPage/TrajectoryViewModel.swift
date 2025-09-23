@@ -76,7 +76,7 @@ class TrajectoryViewModel: ObservableObject {
 
     var totalTimeString: String {
         guard let lastPoint = trajectoryPoints.last,
-              let firstPoint = trajectoryPoints.first
+            let firstPoint = trajectoryPoints.first
         else {
             return "00:00:00"
         }
@@ -181,7 +181,7 @@ class TrajectoryViewModel: ObservableObject {
 
         for (index, position) in pathPoints.enumerated() {
             let timestamp = startTime.addingTimeInterval(Double(index * 5))  // 5秒間隔
-            let accuracy = Double.random(in: 0.7...0.95)  // 70-95%の精度
+            let accuracy = Double.random(in: 0.7 ... 0.95)  // 70-95%の精度
 
             let point = TrajectoryPoint(
                 id: UUID().uuidString,
@@ -242,7 +242,7 @@ class TrajectoryViewModel: ObservableObject {
 
         // 総移動距離を計算
         totalDistance = 0
-        for i in 1..<trajectoryPoints.count {
+        for i in 1 ..< trajectoryPoints.count {
             let prev = trajectoryPoints[i - 1]
             let curr = trajectoryPoints[i]
 
@@ -300,7 +300,7 @@ class TrajectoryViewModel: ObservableObject {
 
     private func updateCurrentPosition() {
         guard hasTrajectoryData,
-              currentTimeIndex < Double(trajectoryPoints.count)
+            currentTimeIndex < Double(trajectoryPoints.count)
         else {
             currentPosition = nil
             return

@@ -120,17 +120,17 @@ struct AntennaMarker: View {
         .gesture(
             isDraggable
                 ? DragGesture()
-                .onChanged { value in
-                    dragOffset = value.translation
-                }
-                .onEnded { value in
-                    let newPosition = CGPoint(
-                        x: position.x + value.translation.width,
-                        y: position.y + value.translation.height
-                    )
-                    onPositionChanged?(newPosition)
-                    dragOffset = .zero
-                } : nil
+                    .onChanged { value in
+                        dragOffset = value.translation
+                    }
+                    .onEnded { value in
+                        let newPosition = CGPoint(
+                            x: position.x + value.translation.width,
+                            y: position.y + value.translation.height
+                        )
+                        onPositionChanged?(newPosition)
+                        dragOffset = .zero
+                    } : nil
         )
     }
 
@@ -279,7 +279,7 @@ struct AntennaRotationControl: View {
         #elseif os(iOS)
             .background(Color(UIColor.systemBackground))
         #endif
-            .cornerRadius(8)
-            .shadow(radius: 4)
+        .cornerRadius(8)
+        .shadow(radius: 4)
     }
 }

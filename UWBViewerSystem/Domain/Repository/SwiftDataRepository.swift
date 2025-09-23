@@ -339,8 +339,8 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             let positions = persistentPositions.compactMap { persistentPosition -> AntennaPositionData? in
                 // データ整合性チェック
                 guard !persistentPosition.antennaId.isEmpty,
-                      !persistentPosition.antennaName.isEmpty,
-                      !persistentPosition.floorMapId.isEmpty
+                    !persistentPosition.antennaName.isEmpty,
+                    !persistentPosition.floorMapId.isEmpty
                 else {
                     #if DEBUG
                         print("⚠️ 無効なアンテナ位置データをスキップしました: ID=\(persistentPosition.id)")

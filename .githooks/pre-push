@@ -26,7 +26,8 @@ fi
 # Xcode Swift Testingを実行
 echo "Swift Testingを実行中..."
 
-# Xcodeプロジェクトでテストを実行
+# Xcodeプロジェクトでテストを実行（パスを調整）
+cd ..
 if xcodebuild test -project UWBViewerSystem.xcodeproj -scheme UWBViewerSystem -destination 'platform=macOS'; then
     echo "✅ すべてのテストが通過しました"
 else

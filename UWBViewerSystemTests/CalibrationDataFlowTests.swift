@@ -85,7 +85,7 @@ struct CalibrationDataFlowTests {
     // MARK: - 基準データ収集テスト
 
     @Test("基準データ収集 - マップから基準点を設定")
-    func testCollectReferencePointsFromMap() async throws {
+    func collectReferencePointsFromMap() async throws {
         let dataFlow = await createTestDataFlow()
         let testPoints = createTestReferencePoints()
 
@@ -99,7 +99,7 @@ struct CalibrationDataFlowTests {
     }
 
     @Test("基準データ収集 - 手動で基準点を追加")
-    func testAddManualReferencePoint() async throws {
+    func addManualReferencePoint() async throws {
         let dataFlow = await createTestDataFlow()
 
         // 手動で基準点を追加
@@ -117,7 +117,7 @@ struct CalibrationDataFlowTests {
     // MARK: - 観測データ収集テスト
 
     @Test("観測データ収集 - セッション開始と停止")
-    func testObservationDataCollection() async throws {
+    func observationDataCollection() async throws {
         let dataFlow = await createTestDataFlow()
 
         // 観測データ収集開始
@@ -138,7 +138,7 @@ struct CalibrationDataFlowTests {
     // MARK: - データマッピングテスト
 
     @Test("データマッピング - 基準点と観測データの対応付け")
-    func testDataMapping() async throws {
+    func dataMapping() async throws {
         let dataFlow = await createTestDataFlow()
         let testReferencePoints = createTestReferencePoints()
         let testObservationPoints = createTestObservationPoints()
@@ -178,7 +178,7 @@ struct CalibrationDataFlowTests {
     // MARK: - キャリブレーション実行テスト
 
     @Test("キャリブレーション実行 - 完全なワークフロー")
-    func testCompleteCalibrationWorkflow() async throws {
+    func completeCalibrationWorkflow() async throws {
         let dataFlow = await createTestDataFlow()
         let testReferencePoints = createTestReferencePoints()
         let testObservationPoints = createTestObservationPoints()
@@ -215,7 +215,7 @@ struct CalibrationDataFlowTests {
     // MARK: - ワークフロー検証テスト
 
     @Test("ワークフロー検証 - 不十分なデータでの検証")
-    func testWorkflowValidationWithInsufficientData() async throws {
+    func workflowValidationWithInsufficientData() async throws {
         let dataFlow = await createTestDataFlow()
 
         // 基準点が不足している状態
@@ -229,7 +229,7 @@ struct CalibrationDataFlowTests {
     }
 
     @Test("ワークフロー検証 - 十分なデータでの検証")
-    func testWorkflowValidationWithSufficientData() async throws {
+    func workflowValidationWithSufficientData() async throws {
         let dataFlow = await createTestDataFlow()
         let testReferencePoints = createTestReferencePoints()
         let testObservationPoints = createTestObservationPoints()
@@ -257,7 +257,7 @@ struct CalibrationDataFlowTests {
     // MARK: - エラーハンドリングテスト
 
     @Test("エラーハンドリング - 観測データなしでのキャリブレーション")
-    func testCalibrationWithoutObservationData() async throws {
+    func calibrationWithoutObservationData() async throws {
         let dataFlow = await createTestDataFlow()
         let testReferencePoints = createTestReferencePoints()
 
@@ -274,7 +274,7 @@ struct CalibrationDataFlowTests {
     }
 
     @Test("品質統計計算 - 複数セッションの統計")
-    func testQualityStatisticsCalculation() async throws {
+    func qualityStatisticsCalculation() async throws {
         let dataFlow = await createTestDataFlow()
         let testObservationPoints = createTestObservationPoints()
 
@@ -300,7 +300,7 @@ struct CalibrationDataFlowTests {
     // MARK: - ワークフローリセットテスト
 
     @Test("ワークフローリセット - 状態の初期化")
-    func testWorkflowReset() async throws {
+    func workflowReset() async throws {
         let dataFlow = await createTestDataFlow()
         let testReferencePoints = createTestReferencePoints()
 

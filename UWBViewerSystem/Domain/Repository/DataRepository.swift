@@ -39,7 +39,7 @@ public protocol DataRepositoryProtocol {
     func loadRecentSystemActivities() -> [SystemActivity]?
 
     // 一般的なデータ保存
-    func saveData<T: Codable>(_ data: T, forKey key: String) throws
+    func saveData(_ data: some Codable, forKey key: String) throws
     func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T?
 }
 

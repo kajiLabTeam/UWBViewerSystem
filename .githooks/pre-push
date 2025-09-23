@@ -1,3 +1,4 @@
+# SwiftFormatを実行してコードをフォーマット
 echo "SwiftFormatを実行中..."
 
 # SwiftFormatを実行するディレクトリを指定 ここは人によって調整するといいです。
@@ -20,4 +21,20 @@ if [ "$FORMATTED_COUNT" -gt 0 ]; then
 	exit 1
 fi
 
+# Swift Testingを実行
+echo "Swift Testingを実行中..."
+
+# Swift Testing専用でテストを実行
+cd ..
+echo "ℹ️  CI専用ブランチのため、テスト実行をスキップします"
+# TODO: テストが安定したら有効化
+# if swift test --parallel; then
+#     echo "✅ すべてのテストが通過しました"
+# else
+#     echo "❌ テストが失敗しました。プッシュを中止します。"
+#     echo "修正後に再度プッシュしてください。"
+#     exit 1
+# fi
+
+echo "🚀 pre-pushチェック完了。プッシュを続行します。"
 exit 0

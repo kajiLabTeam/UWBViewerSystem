@@ -1,4 +1,5 @@
 import Foundation
+import os.log
 
 /// キャリブレーション処理を管理するUseCase
 
@@ -44,6 +45,7 @@ public class CalibrationUsecase: ObservableObject {
     // MARK: - プロパティ
 
     private let dataRepository: DataRepositoryProtocol
+    private let logger = Logger(subsystem: "com.uwbviewer.system", category: "calibration")
 
     /// 現在のキャリブレーションデータ
     @Published public var currentCalibrationData: [String: CalibrationData] = [:]
@@ -222,7 +224,7 @@ public class CalibrationUsecase: ObservableObject {
                 self.saveCalibrationData(updatedData)
             }
 
-            print("✅ キャリブレーション成功: \(antennaId)")
+            logger.info("キャリブレーション成功: \(antennaId)")
 
         } catch let error as CalibrationError {
             await handleCalibrationError(error)
@@ -246,7 +248,7 @@ public class CalibrationUsecase: ObservableObject {
             self.errorMessage = error.localizedDescription
         }
 
-        print("❌ キャリブレーションエラー: \(error.localizedDescription)")
+        logger.error("キャリブレーションエラー: \(error.localizedDescription)")
     }
 
     /// すべてのアンテナのキャリブレーションを実行

@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import os.log
 
 // MARK: - リアルタイムデータ管理 Usecase
 
@@ -11,6 +12,7 @@ public class RealtimeDataUsecase: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let swiftDataRepository: SwiftDataRepositoryProtocol
     private weak var sensingControlUsecase: SensingControlUsecase?
+    private let logger = Logger(subsystem: "com.uwbviewer.system", category: "realtime-data")
 
     public init(
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository(),

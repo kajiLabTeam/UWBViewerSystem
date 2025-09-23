@@ -434,6 +434,7 @@ struct CalibrationTests {
 
 class MockCalibrationTestRepository: DataRepositoryProtocol {
     private var calibrationDataStorage: [String: Data] = [:]
+    private let storageQueue = DispatchQueue(label: "MockCalibrationTestRepository.storage", attributes: .concurrent)
 
     func saveRecentSensingSessions(_ sessions: [SensingSession]) {}
     func loadRecentSensingSessions() -> [SensingSession] { [] }
@@ -449,31 +450,48 @@ class MockCalibrationTestRepository: DataRepositoryProtocol {
     func loadCalibrationResults() -> Data? { nil }
 
     func saveCalibrationData(_ data: CalibrationData) async throws {
+        // antennaIdが正常な文字列であることを確認
+        guard !data.antennaId.isEmpty else {
+            throw NSError(domain: "MockCalibrationTestRepository", code: 1, userInfo: [NSLocalizedDescriptionKey: "antennaId is empty"])
+        }
+
         // JSONエンコードして安全に保存
         let encoder = JSONEncoder()
         let encodedData = try encoder.encode(data)
-        calibrationDataStorage[data.antennaId] = encodedData
+
+        // 同期的にスレッドセーフな保存
+        storageQueue.sync(flags: .barrier) {
+            self.calibrationDataStorage[data.antennaId] = encodedData
+        }
     }
 
     func loadCalibrationData() async throws -> [CalibrationData] {
-        let decoder = JSONDecoder()
-        return calibrationDataStorage.values.compactMap { data in
-            try? decoder.decode(CalibrationData.self, from: data)
+        storageQueue.sync {
+            let decoder = JSONDecoder()
+            return calibrationDataStorage.values.compactMap { data in
+                try? decoder.decode(CalibrationData.self, from: data)
+            }
         }
     }
 
     func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        guard let data = calibrationDataStorage[antennaId] else { return nil }
-        let decoder = JSONDecoder()
-        return try? decoder.decode(CalibrationData.self, from: data)
+        storageQueue.sync {
+            guard let data = calibrationDataStorage[antennaId] else { return nil }
+            let decoder = JSONDecoder()
+            return try? decoder.decode(CalibrationData.self, from: data)
+        }
     }
 
     func deleteCalibrationData(for antennaId: String) async throws {
-        calibrationDataStorage.removeValue(forKey: antennaId)
+        storageQueue.sync(flags: .barrier) {
+            self.calibrationDataStorage.removeValue(forKey: antennaId)
+        }
     }
 
     func deleteAllCalibrationData() async throws {
-        calibrationDataStorage.removeAll()
+        storageQueue.sync(flags: .barrier) {
+            self.calibrationDataStorage.removeAll()
+        }
     }
 
     func saveBoolSetting(key: String, value: Bool) {}

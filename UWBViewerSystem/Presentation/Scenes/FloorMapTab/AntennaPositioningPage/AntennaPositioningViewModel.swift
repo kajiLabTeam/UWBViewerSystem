@@ -255,7 +255,7 @@ class AntennaPositioningViewModel: ObservableObject {
 
             // 保存された画像を読み込む
             let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let imageURL = documentsDirectory.appendingPathComponent("\(floorMapInfo.id).jpg")
+            _ = documentsDirectory.appendingPathComponent("\(floorMapInfo.id).jpg")
 
             // 新しいFloorMapInfo構造を使用して画像を読み込む
             mapImage = floorMapInfo.image

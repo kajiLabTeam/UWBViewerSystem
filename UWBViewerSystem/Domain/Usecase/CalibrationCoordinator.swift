@@ -7,19 +7,19 @@ public class CalibrationCoordinator: ObservableObject {
 
     /// キャリブレーション手順の種類
     public enum CalibrationType: String, CaseIterable, Codable {
-        case traditional = "traditional"    // 従来の最小二乗法キャリブレーション
-        case mapBased = "map_based"        // マップベースキャリブレーション
-        case hybrid = "hybrid"             // ハイブリッド（両方組み合わせ）
+        case traditional = "traditional"  // 従来の最小二乗法キャリブレーション
+        case mapBased = "map_based"  // マップベースキャリブレーション
+        case hybrid = "hybrid"  // ハイブリッド（両方組み合わせ）
     }
 
     /// キャリブレーション手順のステップ
     public enum CalibrationStep: String, CaseIterable, Codable {
-        case preparation = "preparation"           // 準備
-        case mapSetup = "map_setup"               // マップ基準座標設定
-        case dataCollection = "data_collection"    // UWBデータ収集
-        case calculation = "calculation"           // 変換行列計算
-        case validation = "validation"             // 精度検証
-        case completion = "completion"             // 完了
+        case preparation = "preparation"  // 準備
+        case mapSetup = "map_setup"  // マップ基準座標設定
+        case dataCollection = "data_collection"  // UWBデータ収集
+        case calculation = "calculation"  // 変換行列計算
+        case validation = "validation"  // 精度検証
+        case completion = "completion"  // 完了
 
         public var displayName: String {
             switch self {
@@ -187,13 +187,15 @@ public class CalibrationCoordinator: ObservableObject {
     /// ハイブリッドキャリブレーション実行
     public func performHybridCalibration(for antennaId: String) async throws -> CalibrationResult {
         guard let progress = currentProgress[antennaId],
-              progress.calibrationType == .hybrid else {
+              progress.calibrationType == .hybrid
+        else {
             throw CalibrationCoordinatorError.invalidCalibrationtype
         }
 
         // 1. マップベースの変換行列を取得
         guard let mapCalibrationData = mapCalibrationData[antennaId],
-              let affineTransform = mapCalibrationData.affineTransform else {
+              let affineTransform = mapCalibrationData.affineTransform
+        else {
             throw CalibrationCoordinatorError.mapCalibrationNotAvailable
         }
 
@@ -300,7 +302,7 @@ public class CalibrationCoordinator: ObservableObject {
 
             let adjustedPoint = MapCalibrationPoint(
                 mapCoordinate: point.mapCoordinate,
-                realWorldCoordinate: point.realWorldCoordinate, // 実際の参照座標を使用
+                realWorldCoordinate: point.realWorldCoordinate,  // 実際の参照座標を使用
                 antennaId: point.antennaId,
                 pointIndex: index + 1
             )

@@ -19,7 +19,10 @@ class SensingFlowNavigator: ObservableObject {
     private var router: NavigationRouterModel
     private let preferenceRepository: PreferenceRepositoryProtocol
 
-    init(router: NavigationRouterModel? = nil, preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
+    init(
+        router: NavigationRouterModel? = nil,
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
+    ) {
         self.router = router ?? NavigationRouterModel()
         self.preferenceRepository = preferenceRepository
         loadFlowState()
@@ -369,7 +372,9 @@ enum SensingFlowStep: String, CaseIterable {
         if hasEnoughAntennas {
             print("✅ checkAntennaConfigurationCompletion: Antenna configuration is complete")
         } else {
-            print("❌ checkAntennaConfigurationCompletion: Need at least 2 positioned antennas, got \(positionedAntennas.count)")
+            print(
+                "❌ checkAntennaConfigurationCompletion: Need at least 2 positioned antennas, got \(positionedAntennas.count)"
+            )
         }
 
         return hasEnoughAntennas

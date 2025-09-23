@@ -9,7 +9,7 @@ public class MockDataRepository: DataRepositoryProtocol {
 
     // MARK: - Storage Properties
 
-    public var calibrationDataStorage: [String: CalibrationData] = [:]
+    public var calibrationDataStorage: [String: Data] = [:]
     public var shouldThrowError = false
     public var errorToThrow: Error = RepositoryError.saveFailed("Mock error")
 
@@ -30,15 +30,23 @@ public class MockDataRepository: DataRepositoryProtocol {
         if shouldThrowError {
             throw errorToThrow
         }
-        calibrationDataStorage[data.antennaId] = data
+        // JSONエンコードして安全に保存
+        let encoder = JSONEncoder()
+        let encodedData = try encoder.encode(data)
+        calibrationDataStorage[data.antennaId] = encodedData
     }
 
     public func loadCalibrationData() async throws -> [CalibrationData] {
-        Array(calibrationDataStorage.values)
+        let decoder = JSONDecoder()
+        return calibrationDataStorage.values.compactMap { data in
+            try? decoder.decode(CalibrationData.self, from: data)
+        }
     }
 
     public func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        calibrationDataStorage[antennaId]
+        guard let data = calibrationDataStorage[antennaId] else { return nil }
+        let decoder = JSONDecoder()
+        return try? decoder.decode(CalibrationData.self, from: data)
     }
 
     public func deleteCalibrationData(for antennaId: String) async throws {
@@ -167,7 +175,7 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     private var receivedFileStorage: [ReceivedFile] = []
     private var floorMapStorage: [FloorMapInfo] = []
     private var projectProgressStorage: [ProjectProgress] = []
-    private var calibrationDataStorage: [String: CalibrationData] = [:]
+    private var calibrationDataStorage: [String: Data] = [:]
     private var mapCalibrationDataStorage: [String: MapCalibrationData] = [:]
 
     public var shouldThrowError = false
@@ -360,15 +368,23 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
 
     public func saveCalibrationData(_ data: CalibrationData) async throws {
         if shouldThrowError { throw errorToThrow }
-        calibrationDataStorage[data.antennaId] = data
+        // JSONエンコードして安全に保存
+        let encoder = JSONEncoder()
+        let encodedData = try encoder.encode(data)
+        calibrationDataStorage[data.antennaId] = encodedData
     }
 
     public func loadCalibrationData() async throws -> [CalibrationData] {
-        Array(calibrationDataStorage.values)
+        let decoder = JSONDecoder()
+        return calibrationDataStorage.values.compactMap { data in
+            try? decoder.decode(CalibrationData.self, from: data)
+        }
     }
 
     public func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        calibrationDataStorage[antennaId]
+        guard let data = calibrationDataStorage[antennaId] else { return nil }
+        let decoder = JSONDecoder()
+        return try? decoder.decode(CalibrationData.self, from: data)
     }
 
     public func deleteCalibrationData(for antennaId: String) async throws {
@@ -460,5 +476,255 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
         }
 
         return issues
+    }
+}
+
+// MARK: - Mock Preference Repository
+
+public class MockPreferenceRepository: PreferenceRepositoryProtocol {
+
+    // MARK: - Storage Properties
+
+    private var storage: [String: Any] = [:]
+    private let storageQueue = DispatchQueue(label: "MockPreferenceRepository.storage", attributes: .concurrent)
+
+    // MARK: - Init
+
+    public init() {}
+
+    // MARK: - Thread-Safe Storage Access
+
+    private func safeWrite(_ value: some Any, forKey key: String) {
+        storageQueue.sync(flags: .barrier) {
+            self.storage[key] = value
+        }
+    }
+
+    private func safeRead<T>(forKey key: String, as type: T.Type) -> T? {
+        storageQueue.sync {
+            self.storage[key] as? T
+        }
+    }
+
+    private func safeRemove(forKey key: String) {
+        storageQueue.sync(flags: .barrier) {
+            self.storage.removeValue(forKey: key)
+        }
+    }
+
+    // MARK: - Floor Map Configuration Methods
+
+    public func saveCurrentFloorMapInfo(_ info: FloorMapInfo) {
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(info)
+            safeWrite(data, forKey: "currentFloorMapInfo")
+        } catch {
+            // Error encoding FloorMapInfo
+        }
+    }
+
+    public func loadCurrentFloorMapInfo() -> FloorMapInfo? {
+        guard let data = safeRead(forKey: "currentFloorMapInfo", as: Data.self) else { return nil }
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode(FloorMapInfo.self, from: data)
+        } catch {
+            // Error decoding FloorMapInfo
+            return nil
+        }
+    }
+
+    public func removeCurrentFloorMapInfo() {
+        safeRemove(forKey: "currentFloorMapInfo")
+    }
+
+    public func saveLastFloorSettings(name: String, buildingName: String, width: Double, depth: Double) {
+        safeWrite(name, forKey: "lastFloorName")
+        safeWrite(buildingName, forKey: "lastBuildingName")
+        safeWrite(width, forKey: "lastFloorWidth")
+        safeWrite(depth, forKey: "lastFloorDepth")
+    }
+
+    public func loadLastFloorSettings() -> (name: String?, buildingName: String?, width: Double?, depth: Double?) {
+        let name = safeRead(forKey: "lastFloorName", as: String.self)
+        let buildingName = safeRead(forKey: "lastBuildingName", as: String.self)
+        let width = safeRead(forKey: "lastFloorWidth", as: Double.self)
+        let depth = safeRead(forKey: "lastFloorDepth", as: Double.self)
+        return (name, buildingName, width, depth)
+    }
+
+    public func setHasFloorMapConfigured(_ configured: Bool) {
+        safeWrite(configured, forKey: "hasFloorMapConfigured")
+    }
+
+    public func getHasFloorMapConfigured() -> Bool {
+        safeRead(forKey: "hasFloorMapConfigured", as: Bool.self) ?? false
+    }
+
+    // MARK: - Antenna Configuration Methods
+
+    public func saveConfiguredAntennaPositions(_ positions: [AntennaPositionData]) {
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(positions)
+            safeWrite(data, forKey: "configuredAntennaPositions")
+        } catch {
+            // Error encoding AntennaPositionData
+        }
+    }
+
+    public func loadConfiguredAntennaPositions() -> [AntennaPositionData]? {
+        guard let data = safeRead(forKey: "configuredAntennaPositions", as: Data.self) else { return nil }
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode([AntennaPositionData].self, from: data)
+        } catch {
+            // Error decoding AntennaPositionData
+            return nil
+        }
+    }
+
+    public func removeConfiguredAntennaPositions() {
+        safeRemove(forKey: "configuredAntennaPositions")
+    }
+
+    // MARK: - Calibration Results Methods
+
+    public func saveLastCalibrationResult(_ result: SystemCalibrationResult) {
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(result)
+            safeWrite(data, forKey: "lastCalibrationResult")
+        } catch {
+            // Error encoding SystemCalibrationResult
+        }
+    }
+
+    public func loadLastCalibrationResult() -> SystemCalibrationResult? {
+        guard let data = safeRead(forKey: "lastCalibrationResult", as: Data.self) else { return nil }
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode(SystemCalibrationResult.self, from: data)
+        } catch {
+            // Error decoding SystemCalibrationResult
+            return nil
+        }
+    }
+
+    public func removeLastCalibrationResult() {
+        safeRemove(forKey: "lastCalibrationResult")
+    }
+
+    // MARK: - Sensing Flow State Methods
+
+    public func saveSensingFlowState(currentStep: String, completedSteps: [String], isCompleted: Bool) {
+        safeWrite(currentStep, forKey: "sensingFlowCurrentStep")
+        safeWrite(completedSteps, forKey: "sensingFlowCompletedSteps")
+        safeWrite(isCompleted, forKey: "sensingFlowIsCompleted")
+    }
+
+    public func loadSensingFlowState() -> (currentStep: String?, completedSteps: [String], isCompleted: Bool) {
+        let currentStep = safeRead(forKey: "sensingFlowCurrentStep", as: String.self)
+        let completedSteps = safeRead(forKey: "sensingFlowCompletedSteps", as: [String].self) ?? []
+        let isCompleted = safeRead(forKey: "sensingFlowIsCompleted", as: Bool.self) ?? false
+        return (currentStep, completedSteps, isCompleted)
+    }
+
+    public func resetSensingFlowState() {
+        safeRemove(forKey: "sensingFlowCurrentStep")
+        safeRemove(forKey: "sensingFlowCompletedSteps")
+        safeRemove(forKey: "sensingFlowIsCompleted")
+    }
+
+    public func setHasExecutedSensingSession(_ executed: Bool) {
+        safeWrite(executed, forKey: "hasExecutedSensingSession")
+    }
+
+    public func getHasExecutedSensingSession() -> Bool {
+        safeRead(forKey: "hasExecutedSensingSession", as: Bool.self) ?? false
+    }
+
+    // MARK: - Device Management Methods
+
+    public func savePairedDevices(_ devices: [String]) {
+        safeWrite(devices, forKey: "pairedDevices")
+    }
+
+    public func loadPairedDevices() -> [String]? {
+        safeRead(forKey: "pairedDevices", as: [String].self)
+    }
+
+    public func removePairedDevices() {
+        safeRemove(forKey: "pairedDevices")
+    }
+
+    public func saveConnectionStatistics(_ statistics: [String: Any]) {
+        safeWrite(statistics, forKey: "connectionStatistics")
+    }
+
+    public func loadConnectionStatistics() -> [String: Any]? {
+        safeRead(forKey: "connectionStatistics", as: [String: Any].self)
+    }
+
+    // MARK: - Migration Methods
+
+    public func setMigrationCompleted(for key: String, completed: Bool) {
+        safeWrite(completed, forKey: "migration_\(key)")
+    }
+
+    public func isMigrationCompleted(for key: String) -> Bool {
+        safeRead(forKey: "migration_\(key)", as: Bool.self) ?? false
+    }
+
+    // MARK: - Generic Methods
+
+    public func setBool(_ value: Bool, forKey key: String) {
+        safeWrite(value, forKey: key)
+    }
+
+    public func getBool(forKey key: String) -> Bool {
+        safeRead(forKey: key, as: Bool.self) ?? false
+    }
+
+    public func setString(_ value: String?, forKey key: String) {
+        if let value {
+            safeWrite(value, forKey: key)
+        } else {
+            safeRemove(forKey: key)
+        }
+    }
+
+    public func getString(forKey key: String) -> String? {
+        safeRead(forKey: key, as: String.self)
+    }
+
+    public func setDouble(_ value: Double, forKey key: String) {
+        safeWrite(value, forKey: key)
+    }
+
+    public func getDouble(forKey key: String) -> Double {
+        safeRead(forKey: key, as: Double.self) ?? 0.0
+    }
+
+    public func setData(_ value: some Codable, forKey key: String) throws {
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(value)
+        safeWrite(data, forKey: key)
+    }
+
+    public func getData<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
+        guard let data = safeRead(forKey: key, as: Data.self) else { return nil }
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode(type, from: data)
+        } catch {
+            // Error decoding data
+            return nil
+        }
+    }
+
+    public func removeObject(forKey key: String) {
+        safeRemove(forKey: key)
     }
 }

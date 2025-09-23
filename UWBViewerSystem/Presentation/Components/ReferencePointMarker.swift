@@ -57,8 +57,8 @@ struct ReferencePointMarker: View {
                 onTap?()
             }
             .gesture(
-                isDraggable ?
-                    DragGesture()
+                isDraggable
+                    ? DragGesture()
                     .onChanged { value in
                         dragOffset = value.translation
                     }

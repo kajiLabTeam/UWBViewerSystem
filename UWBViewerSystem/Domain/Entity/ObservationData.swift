@@ -107,7 +107,9 @@ public struct ObservationSession: Codable, Identifiable, Equatable {
     /// セッションの品質統計
     public var qualityStatistics: ObservationQualityStatistics {
         let validObservations = observations.filter { $0.quality.strength > 0.3 }
-        let avgQuality = validObservations.isEmpty ? 0.0 : validObservations.map { $0.quality.strength }.reduce(0, +) / Double(validObservations.count)
+        let avgQuality =
+            validObservations.isEmpty
+                ? 0.0 : validObservations.map { $0.quality.strength }.reduce(0, +) / Double(validObservations.count)
         let losCount = observations.filter { $0.quality.isLineOfSight }.count
         let losPercentage = observations.isEmpty ? 0.0 : Double(losCount) / Double(observations.count) * 100.0
 
@@ -116,7 +118,9 @@ public struct ObservationSession: Codable, Identifiable, Equatable {
             validPoints: validObservations.count,
             averageQuality: avgQuality,
             lineOfSightPercentage: losPercentage,
-            averageErrorEstimate: validObservations.isEmpty ? 0.0 : validObservations.map { $0.quality.errorEstimate }.reduce(0, +) / Double(validObservations.count)
+            averageErrorEstimate: validObservations.isEmpty
+                ? 0.0
+                : validObservations.map { $0.quality.errorEstimate }.reduce(0, +) / Double(validObservations.count)
         )
     }
 }
@@ -245,12 +249,13 @@ private func calculatePositionVariance(_ positions: [Point3D]) -> Double {
     let avgY = positions.map { $0.y }.reduce(0, +) / Double(positions.count)
     let avgZ = positions.map { $0.z }.reduce(0, +) / Double(positions.count)
 
-    let variance = positions.map { position in
-        let dx = position.x - avgX
-        let dy = position.y - avgY
-        let dz = position.z - avgZ
-        return dx * dx + dy * dy + dz * dz
-    }.reduce(0, +) / Double(positions.count)
+    let variance =
+        positions.map { position in
+            let dx = position.x - avgX
+            let dy = position.y - avgY
+            let dz = position.z - avgZ
+            return dx * dx + dy * dy + dz * dz
+        }.reduce(0, +) / Double(positions.count)
 
     return sqrt(variance)
 }

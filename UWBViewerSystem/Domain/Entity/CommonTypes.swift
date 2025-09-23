@@ -126,11 +126,11 @@ public struct FloorMapInfo: Codable {
 
 /// セットアップフローのステップを定義
 public enum SetupStep: String, Codable, CaseIterable {
-    case floorMapSetting = "floor_map_setting"        // フロアマップ設定
-    case antennaConfiguration = "antenna_configuration" // アンテナ配置
-    case devicePairing = "device_pairing"             // デバイスペアリング
-    case dataCollection = "data_collection"           // データ収集
-    case completed = "completed"                      // 完了
+    case floorMapSetting = "floor_map_setting"  // フロアマップ設定
+    case antennaConfiguration = "antenna_configuration"  // アンテナ配置
+    case devicePairing = "device_pairing"  // デバイスペアリング
+    case dataCollection = "data_collection"  // データ収集
+    case completed = "completed"  // 完了
 
     public var displayName: String {
         switch self {
@@ -164,7 +164,7 @@ public struct ProjectProgress: Codable {
     public let floorMapId: String
     public var currentStep: SetupStep
     public var completedSteps: Set<SetupStep>
-    public var stepData: [String: Data] // 各ステップの詳細データ
+    public var stepData: [String: Data]  // 各ステップの詳細データ
     public let createdAt: Date
     public var updatedAt: Date
 
@@ -187,7 +187,7 @@ public struct ProjectProgress: Codable {
     }
 
     public var completionPercentage: Double {
-        let totalSteps = SetupStep.allCases.count - 1 // completedを除く
+        let totalSteps = SetupStep.allCases.count - 1  // completedを除く
         let completed = completedSteps.filter { $0 != .completed }.count
         return Double(completed) / Double(totalSteps)
     }
@@ -221,7 +221,8 @@ public struct ProjectProgress: Codable {
                 let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
                 let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
                 if FileManager.default.fileExists(atPath: imageURL.path),
-                   let data = try? Data(contentsOf: imageURL) {
+                   let data = try? Data(contentsOf: imageURL)
+                {
                     return UIImage(data: data)
                 }
                 return nil
@@ -355,11 +356,8 @@ public struct ConnectionRequest: Identifiable, Equatable {
     }
 
     public static func == (lhs: ConnectionRequest, rhs: ConnectionRequest) -> Bool {
-        lhs.id == rhs.id &&
-            lhs.endpointId == rhs.endpointId &&
-            lhs.deviceName == rhs.deviceName &&
-            lhs.timestamp == rhs.timestamp &&
-            lhs.context == rhs.context
+        lhs.id == rhs.id && lhs.endpointId == rhs.endpointId && lhs.deviceName == rhs.deviceName
+            && lhs.timestamp == rhs.timestamp && lhs.context == rhs.context
         // responseHandlerは関数なので比較から除外
     }
 }
@@ -394,7 +392,7 @@ public struct Message: Identifiable {
 public struct CalibrationPoint: Codable, Identifiable, Equatable {
     public let id: String
     public let referencePosition: Point3D  // 正解座標（実際の位置）
-    public let measuredPosition: Point3D   // 測定座標（センサーが測定した位置）
+    public let measuredPosition: Point3D  // 測定座標（センサーが測定した位置）
     public let timestamp: Date
     public let antennaId: String
 
@@ -512,11 +510,11 @@ public struct CalibrationResult: Codable {
 
 /// キャリブレーション状態を表す列挙型
 public enum CalibrationStatus: String, Codable, CaseIterable {
-    case notStarted = "not_started"           // 未開始
-    case collecting = "collecting"            // データ収集中
-    case calculating = "calculating"          // 計算中
-    case completed = "completed"              // 完了
-    case failed = "failed"                    // 失敗
+    case notStarted = "not_started"  // 未開始
+    case collecting = "collecting"  // データ収集中
+    case calculating = "calculating"  // 計算中
+    case completed = "completed"  // 完了
+    case failed = "failed"  // 失敗
 
     public var displayName: String {
         switch self {
@@ -537,11 +535,11 @@ public enum CalibrationStatus: String, Codable, CaseIterable {
 /// マップベースキャリブレーション用のデータ点
 public struct MapCalibrationPoint: Codable, Identifiable, Equatable {
     public let id: String
-    public let mapCoordinate: Point3D      // マップ上の座標（ピクセル座標系）
-    public let realWorldCoordinate: Point3D // 実世界座標（メートル）
+    public let mapCoordinate: Point3D  // マップ上の座標（ピクセル座標系）
+    public let realWorldCoordinate: Point3D  // 実世界座標（メートル）
     public let antennaId: String
     public let timestamp: Date
-    public let pointIndex: Int             // 基準点のインデックス（1-3）
+    public let pointIndex: Int  // 基準点のインデックス（1-3）
 
     public init(
         id: String = UUID().uuidString,
@@ -570,8 +568,8 @@ public struct AffineTransformMatrix: Codable, Equatable {
     public let b: Double  // Y軸回転成分
     public let c: Double  // X軸回転成分
     public let d: Double  // Y軸スケール・Y軸回転成分
-    public let tx: Double // X軸平行移動
-    public let ty: Double // Y軸平行移動
+    public let tx: Double  // X軸平行移動
+    public let ty: Double  // Y軸平行移動
 
     /// Z軸変換（3D用）
     public let scaleZ: Double
@@ -613,8 +611,7 @@ public struct AffineTransformMatrix: Codable, Equatable {
 
     /// 変換が有効かチェック
     public var isValid: Bool {
-        abs(determinant) > 1e-10 &&
-            [a, b, c, d, tx, ty, scaleZ, translateZ].allSatisfy { $0.isFinite }
+        abs(determinant) > 1e-10 && [a, b, c, d, tx, ty, scaleZ, translateZ].allSatisfy { $0.isFinite }
     }
 }
 

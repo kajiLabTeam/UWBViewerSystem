@@ -568,7 +568,9 @@ public class DataQualityMonitor {
         let losPercentage = observations.isEmpty ? 0.0 : Double(losCount) / Double(observations.count) * 100.0
 
         let isNLoSCondition = losPercentage < 50.0  // 見通し線が50%未満の場合
-        let averageSignalStrength = observations.isEmpty ? 0.0 : observations.map { $0.quality.strength }.reduce(0, +) / Double(observations.count)
+        let averageSignalStrength =
+            observations.isEmpty
+                ? 0.0 : observations.map { $0.quality.strength }.reduce(0, +) / Double(observations.count)
 
         return NLoSDetectionResult(
             isNLoSDetected: isNLoSCondition,
@@ -622,7 +624,9 @@ public struct NLoSDetectionResult {
     public let averageSignalStrength: Double
     public let recommendation: String
 
-    public init(isNLoSDetected: Bool, lineOfSightPercentage: Double, averageSignalStrength: Double, recommendation: String) {
+    public init(
+        isNLoSDetected: Bool, lineOfSightPercentage: Double, averageSignalStrength: Double, recommendation: String
+    ) {
         self.isNLoSDetected = isNLoSDetected
         self.lineOfSightPercentage = lineOfSightPercentage
         self.averageSignalStrength = averageSignalStrength

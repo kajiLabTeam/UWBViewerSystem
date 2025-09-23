@@ -46,7 +46,8 @@ public class CalibrationDataFlow: ObservableObject {
 
         logger.info("基準座標を収集: \(points.count)個の点")
         for point in points {
-            logger.debug("座標: (\(point.realWorldCoordinate.x), \(point.realWorldCoordinate.y), \(point.realWorldCoordinate.z))")
+            logger.debug(
+                "座標: (\(point.realWorldCoordinate.x), \(point.realWorldCoordinate.y), \(point.realWorldCoordinate.z))")
         }
     }
 
@@ -120,8 +121,8 @@ public class CalibrationDataFlow: ObservableObject {
             // 全てのアンテナの観測データから最適な点を探す
             for session in observationSessions.values {
                 let validObservations = session.observations.filter { observation in
-                    observation.quality.strength > 0.5 &&  // 品質閾値
-                        observation.quality.isLineOfSight       // 見通し線が取れている
+                    observation.quality.strength > 0.5  // 品質閾値
+                        && observation.quality.isLineOfSight  // 見通し線が取れている
                 }
 
                 for observation in validObservations {
@@ -143,12 +144,15 @@ public class CalibrationDataFlow: ObservableObject {
                 mappings.append(mapping)
 
                 // マッピングペアを作成（重心を使用）
-                mappedPairs.append((
-                    reference: referencePoint.realWorldCoordinate,
-                    observation: mapping.centroidPosition
-                ))
+                mappedPairs.append(
+                    (
+                        reference: referencePoint.realWorldCoordinate,
+                        observation: mapping.centroidPosition
+                    ))
 
-                logger.info("マッピング作成: 基準(\(referencePoint.realWorldCoordinate.x), \(referencePoint.realWorldCoordinate.y)) -> 観測(\(mapping.centroidPosition.x), \(mapping.centroidPosition.y)), 誤差: \(mapping.positionError)m")
+                logger.info(
+                    "マッピング作成: 基準(\(referencePoint.realWorldCoordinate.x), \(referencePoint.realWorldCoordinate.y)) -> 観測(\(mapping.centroidPosition.x), \(mapping.centroidPosition.y)), 誤差: \(mapping.positionError)m"
+                )
             }
         }
 
@@ -315,7 +319,9 @@ public class CalibrationDataFlow: ObservableObject {
         workflowProgress = completedSteps / totalSteps
     }
 
-    private func createCalibrationPoints(for antennaId: String, from mappings: [ReferenceObservationMapping]) -> [CalibrationPoint] {
+    private func createCalibrationPoints(for antennaId: String, from mappings: [ReferenceObservationMapping])
+        -> [CalibrationPoint]
+    {
         mappings.compactMap { mapping in
             // そのアンテナの観測データのみを抽出
             let antennaObservations = mapping.observations.filter { $0.antennaId == antennaId }
@@ -362,7 +368,8 @@ public class CalibrationDataFlow: ObservableObject {
 
         let averageQuality = validObservations > 0 ? totalQuality / Double(validObservations) : 0.0
         let losPercentage = totalObservations > 0 ? Double(losCount) / Double(totalObservations) * 100.0 : 0.0
-        let mappingAccuracy = mappings.isEmpty ? 0.0 : mappings.map { $0.mappingQuality }.reduce(0, +) / Double(mappings.count)
+        let mappingAccuracy =
+            mappings.isEmpty ? 0.0 : mappings.map { $0.mappingQuality }.reduce(0, +) / Double(mappings.count)
 
         return CalibrationWorkflowQualityStatistics(
             totalObservations: totalObservations,

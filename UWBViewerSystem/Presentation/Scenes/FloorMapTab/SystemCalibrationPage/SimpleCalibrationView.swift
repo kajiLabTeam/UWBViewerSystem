@@ -34,7 +34,7 @@ struct SimpleCalibrationView: View {
             viewModel.setModelContext(modelContext)
 
             viewModel.loadInitialData()
-            viewModel.reloadData() // 常に最新のフロアマップデータを取得
+            viewModel.reloadData()  // 常に最新のフロアマップデータを取得
             flowNavigator.currentStep = .systemCalibration
             flowNavigator.setRouter(router)
         }
@@ -174,9 +174,11 @@ struct SimpleCalibrationView: View {
                                         .foregroundColor(.secondary)
 
                                     if let position = antennaPosition {
-                                        Text("位置: (\(String(format: "%.1f", position.position.x)), \(String(format: "%.1f", position.position.y)))")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
+                                        Text(
+                                            "位置: (\(String(format: "%.1f", position.position.x)), \(String(format: "%.1f", position.position.y)))"
+                                        )
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
 
                                         if position.rotation != 0 {
                                             Text("向き: \(String(format: "%.0f", position.rotation))°")
@@ -204,7 +206,10 @@ struct SimpleCalibrationView: View {
                                 }
                             }
                             .padding()
-                            .background(antenna.id == viewModel.selectedAntennaId ? Color.blue.opacity(0.1) : Color.secondary.opacity(0.05))
+                            .background(
+                                antenna.id == viewModel.selectedAntennaId
+                                    ? Color.blue.opacity(0.1) : Color.secondary.opacity(0.05)
+                            )
                             .cornerRadius(12)
                         }
                         .buttonStyle(PlainButtonStyle())

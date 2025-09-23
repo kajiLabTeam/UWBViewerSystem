@@ -401,8 +401,11 @@ struct IntegratedCalibrationWorkflowView: View {
             if let validation = viewModel.validateWorkflowState() {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Image(systemName: validation.canProceed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                            .foregroundColor(validation.canProceed ? .green : .orange)
+                        Image(
+                            systemName: validation.canProceed
+                                ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                        )
+                        .foregroundColor(validation.canProceed ? .green : .orange)
                         Text(validation.canProceed ? "実行可能" : "要改善")
                             .fontWeight(.medium)
                             .foregroundColor(validation.canProceed ? .green : .orange)

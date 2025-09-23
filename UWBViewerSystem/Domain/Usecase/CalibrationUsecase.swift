@@ -181,20 +181,20 @@ public class CalibrationUsecase: ObservableObject {
 
             // キャリブレーションポイントの妥当性チェック
             for (index, point) in calibrationData.calibrationPoints.enumerated() {
-                guard point.referencePosition.x.isFinite &&
-                    point.referencePosition.y.isFinite &&
-                    point.referencePosition.z.isFinite &&
-                    point.measuredPosition.x.isFinite &&
-                    point.measuredPosition.y.isFinite &&
-                    point.measuredPosition.z.isFinite else {
+                guard
+                    point.referencePosition.x.isFinite && point.referencePosition.y.isFinite
+                    && point.referencePosition.z.isFinite && point.measuredPosition.x.isFinite
+                    && point.measuredPosition.y.isFinite && point.measuredPosition.z.isFinite
+                else {
                     throw CalibrationError.invalidCalibrationData("キャリブレーションポイント\(index + 1)に無効な座標値が含まれています")
                 }
             }
 
             // 重複チェック
-            let uniqueReferences = Set(calibrationData.calibrationPoints.map {
-                "\($0.referencePosition.x),\($0.referencePosition.y),\($0.referencePosition.z)"
-            })
+            let uniqueReferences = Set(
+                calibrationData.calibrationPoints.map {
+                    "\($0.referencePosition.x),\($0.referencePosition.y),\($0.referencePosition.z)"
+                })
             guard uniqueReferences.count == calibrationData.calibrationPoints.count else {
                 throw CalibrationError.invalidCalibrationData("重複する基準座標が含まれています")
             }
@@ -270,8 +270,9 @@ public class CalibrationUsecase: ObservableObject {
     /// - Returns: キャリブレーション済み座標
     public func applyCalibratedTransform(to point: Point3D, for antennaId: String) -> Point3D {
         guard let calibrationData = currentCalibrationData[antennaId],
-              let transform = calibrationData.transform else {
-            return point // キャリブレーションが未完了の場合はそのまま返す
+              let transform = calibrationData.transform
+        else {
+            return point  // キャリブレーションが未完了の場合はそのまま返す
         }
 
         return LeastSquaresCalibration.applyCalibration(to: point, using: transform)
@@ -318,7 +319,8 @@ public class CalibrationUsecase: ObservableObject {
     /// - Returns: 有効性
     public func isCalibrationValid(for antennaId: String) -> Bool {
         guard let calibrationData = currentCalibrationData[antennaId],
-              let transform = calibrationData.transform else {
+              let transform = calibrationData.transform
+        else {
             return false
         }
 
@@ -330,8 +332,9 @@ public class CalibrationUsecase: ObservableObject {
     public func getCalibrationStatistics() -> CalibrationStatistics {
         let totalAntennas = currentCalibrationData.count
         let calibratedAntennas = currentCalibrationData.values.filter { $0.isCalibrated }.count
-        let averageAccuracy = currentCalibrationData.values.compactMap { $0.accuracy }.reduce(0, +) /
-            Double(max(1, currentCalibrationData.values.filter { $0.isCalibrated }.count))
+        let averageAccuracy =
+            currentCalibrationData.values.compactMap { $0.accuracy }.reduce(0, +)
+                / Double(max(1, currentCalibrationData.values.filter { $0.isCalibrated }.count))
 
         return CalibrationStatistics(
             totalAntennas: totalAntennas,

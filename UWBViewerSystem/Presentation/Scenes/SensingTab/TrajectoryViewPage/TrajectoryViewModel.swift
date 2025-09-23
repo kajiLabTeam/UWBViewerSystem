@@ -125,8 +125,7 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     private func loadAntennaPositions() {
-        if let positions = preferenceRepository.getData([AntennaPositionData].self, forKey: "AntennaPositions")
-        {
+        if let positions = preferenceRepository.getData([AntennaPositionData].self, forKey: "AntennaPositions") {
 
             let colors: [Color] = [.red, .blue, .green, .orange, .purple, .pink]
 

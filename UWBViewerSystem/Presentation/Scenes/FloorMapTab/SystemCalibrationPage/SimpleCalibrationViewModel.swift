@@ -94,7 +94,7 @@ class SimpleCalibrationViewModel: ObservableObject {
         switch currentStep {
         case 0: return !selectedAntennaId.isEmpty
         case 1: return referencePoints.count >= 3
-        case 2: return false // キャリブレーション実行画面では次へボタンは無効
+        case 2: return false  // キャリブレーション実行画面では次へボタンは無効
         default: return false
         }
     }
@@ -117,7 +117,8 @@ class SimpleCalibrationViewModel: ObservableObject {
     /// キャリブレーション結果の精度テキスト
     var calibrationAccuracyText: String {
         if let result = calibrationResult,
-           let accuracy = result.transform?.accuracy {
+           let accuracy = result.transform?.accuracy
+        {
             return String(format: "%.2f%%", accuracy * 100)
         }
         return "不明"
@@ -174,10 +175,8 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// データの再読み込み（外部から呼び出し可能）
     func reloadData() {
-        print("🔄 reloadData() 呼び出し")
         loadCurrentFloorMapData()
         loadAntennaPositions()
-        print("🔍 reloadData完了時の画像状態: \(floorMapImage != nil ? "画像あり" : "画像なし")")
     }
 
     /// 次のステップに進む
@@ -304,38 +303,26 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// 現在のフロアマップデータを読み込み
     private func loadCurrentFloorMapData() {
-        print("📋 フロアマップデータ読み込み開始")
-
         guard let floorMapInfo = preferenceRepository.loadCurrentFloorMapInfo() else {
-            print("❌ PreferenceRepository から currentFloorMapInfo が見つかりません")
             handleError("フロアマップ情報が設定されていません。先にフロアマップを設定してください。")
             // 現在の状態をクリア
             clearFloorMapData()
             return
         }
 
-        print("✅ PreferenceRepository からデータを取得")
-
         // データの妥当性チェック
         guard !floorMapInfo.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !floorMapInfo.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               floorMapInfo.width > 0,
-              floorMapInfo.depth > 0 else {
-            print("❌ フロアマップデータが無効です")
+              floorMapInfo.depth > 0
+        else {
             handleError("フロアマップデータが無効です")
             clearFloorMapData()
             return
         }
 
-        print("✅ フロアマップ情報の設定成功:")
-        print("   ID: \(floorMapInfo.id)")
-        print("   名前: \(floorMapInfo.name)")
-        print("   ビル名: \(floorMapInfo.buildingName)")
-        print("   サイズ: \(floorMapInfo.width)x\(floorMapInfo.depth)")
-
         currentFloorMapId = floorMapInfo.id
         currentFloorMapInfo = floorMapInfo
-        print("🔄 フロアマップ情報を設定し、画像読み込みを開始")
         loadFloorMapImage(for: floorMapInfo.id)
     }
 
@@ -348,94 +335,60 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// フロアマップ画像を読み込み
     private func loadFloorMapImage(for floorMapId: String) {
-        print("🖼️ フロアマップ画像読み込み開始: \(floorMapId)")
-        print("🔍 currentFloorMapInfo: \(currentFloorMapInfo?.name ?? "nil")")
-
         // FloorMapInfoのimageプロパティを使用して統一された方法で読み込む
         if let floorMapInfo = currentFloorMapInfo,
-           let image = floorMapInfo.image {
-            print("✅ FloorMapInfo.imageプロパティから画像を取得成功: \(image.size)")
+           let image = floorMapInfo.image
+        {
             floorMapImage = image
-            print("✅ floorMapImageプロパティに設定完了")
             return
         }
-
-        print("❌ FloorMapInfo.imageプロパティからの画像取得に失敗")
 
         // フォールバック: 独自の検索ロジック
         let fileManager = FileManager.default
 
         guard let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            print("❌ Documents ディレクトリが見つかりません")
             return
         }
-
-        print("📁 Documents パス: \(documentsPath.path)")
 
         // 複数の場所を検索
         let searchPaths = [
             documentsPath.appendingPathComponent("\(floorMapId).jpg"),  // Documents直下（FloorMapInfo.imageと同じ）
             documentsPath.appendingPathComponent("\(floorMapId).png"),  // Documents直下（PNG版）
             documentsPath.appendingPathComponent("FloorMaps").appendingPathComponent("\(floorMapId).jpg"),  // FloorMapsサブディレクトリ
-            documentsPath.appendingPathComponent("FloorMaps").appendingPathComponent("\(floorMapId).png")   // FloorMapsサブディレクトリ（PNG版）
+            documentsPath.appendingPathComponent("FloorMaps").appendingPathComponent("\(floorMapId).png"),  // FloorMapsサブディレクトリ（PNG版）
         ]
 
         for imageURL in searchPaths {
-            print("🔍 検索中: \(imageURL.path)")
-
             if fileManager.fileExists(atPath: imageURL.path) {
-                print("✅ ファイルが存在します: \(imageURL.lastPathComponent)")
-
                 do {
                     let imageData = try Data(contentsOf: imageURL)
-                    print("📊 画像データサイズ: \(imageData.count) bytes")
 
                     #if canImport(UIKit)
                         if let image = UIImage(data: imageData) {
-                            print("✅ UIImage作成成功: \(image.size)")
                             floorMapImage = image
                             return
-                        } else {
-                            print("❌ UIImageの作成に失敗")
                         }
                     #elseif canImport(AppKit)
                         if let image = NSImage(data: imageData) {
-                            print("✅ NSImage作成成功: \(image.size)")
                             floorMapImage = image
                             return
-                        } else {
-                            print("❌ NSImageの作成に失敗")
                         }
                     #endif
                 } catch {
-                    print("❌ ファイル読み込みエラー: \(error)")
+                    // ファイル読み込みエラー処理を続ける
                 }
             }
         }
-
-        // デバッグ: Documentsディレクトリ内のファイル一覧を表示
-        do {
-            let files = try fileManager.contentsOfDirectory(at: documentsPath, includingPropertiesForKeys: nil)
-            print("📂 Documents内のファイル: \(files.map { $0.lastPathComponent })")
-        } catch {
-            print("❌ Documentsディレクトリ内容の取得に失敗: \(error)")
-        }
-
-        print("❌ すべての場所でフロアマップ画像が見つかりませんでした")
     }
 
     /// SwiftDataからアンテナ位置データを読み込み
     private func loadAntennaPositionsFromSwiftData() async {
-        print("📍 SwiftDataからアンテナ位置データ読み込み開始")
-
         guard let repository = swiftDataRepository else {
-            print("❌ SwiftDataRepository が利用できません")
             antennaPositions = []
             return
         }
 
         guard let floorMapId = currentFloorMapInfo?.id else {
-            print("❌ フロアマップIDが設定されていません")
             antennaPositions = []
             return
         }
@@ -443,23 +396,13 @@ class SimpleCalibrationViewModel: ObservableObject {
         do {
             let positions = try await repository.loadAntennaPositions(for: floorMapId)
             antennaPositions = positions
-            print("✅ SwiftDataからアンテナ位置データ読み込み完了: \(positions.count)個")
-
-            for position in positions {
-                print("   - \(position.antennaName) (ID: \(position.antennaId))")
-                print("     位置: (\(position.position.x), \(position.position.y), \(position.position.z))")
-                print("     向き: \(position.rotation)°")
-            }
         } catch {
-            print("❌ SwiftDataからのアンテナ位置データ読み込みに失敗: \(error)")
             antennaPositions = []
         }
     }
 
     /// アンテナ位置データを読み込み
     private func loadAntennaPositions() {
-        print("📍 アンテナ位置データ読み込み開始")
-
         // SwiftDataRepositoryが利用可能な場合はそちらを優先
         if let _ = swiftDataRepository {
             Task { @MainActor in
@@ -470,7 +413,6 @@ class SimpleCalibrationViewModel: ObservableObject {
 
         // フォールバック: DataRepositoryを使用
         guard let floorMapId = currentFloorMapInfo?.id else {
-            print("❌ フロアマップIDが設定されていません")
             antennaPositions = []
             return
         }
@@ -479,15 +421,7 @@ class SimpleCalibrationViewModel: ObservableObject {
             // 現在のフロアマップに関連するアンテナ位置のみをフィルタ
             let filteredPositions = positions.filter { $0.floorMapId == floorMapId }
             antennaPositions = filteredPositions
-            print("✅ アンテナ位置データ読み込み完了 (UserDefaults): \(filteredPositions.count)個")
-
-            for position in filteredPositions {
-                print("   - \(position.antennaName) (ID: \(position.antennaId))")
-                print("     位置: (\(position.position.x), \(position.position.y), \(position.position.z))")
-                print("     向き: \(position.rotation)°")
-            }
         } else {
-            print("❌ アンテナ位置データの読み込みに失敗")
             antennaPositions = []
         }
     }
@@ -504,7 +438,7 @@ class SimpleCalibrationViewModel: ObservableObject {
             calibrationUsecase.addCalibrationPoint(
                 for: selectedAntennaId,
                 referencePosition: referencePoint,
-                measuredPosition: referencePoint // 実際の実装では実測値を使用
+                measuredPosition: referencePoint  // 実際の実装では実測値を使用
             )
         }
     }
@@ -576,7 +510,6 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// 包括的なエラーハンドリング
     private func handleError(_ message: String) {
-        print("❌ SimpleCalibrationViewModel Error: \(message)")
         showError(message)
     }
 

@@ -25,7 +25,8 @@ import Foundation
         func onDeviceLost(endpointId: String)
 
         // 接続関連
-        func onConnectionRequest(endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void)
+        func onConnectionRequest(
+            endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void)
         func onConnectionResult(_ endpointId: String, _ success: Bool)
         func onDeviceConnected(endpointId: String, deviceName: String)
         func onDeviceDisconnected(endpointId: String)
@@ -329,7 +330,8 @@ import Foundation
             deviceNames[endpointID] = deviceName
 
             // 新しいコールバック形式を呼び出し
-            callback?.onConnectionRequest(endpointId: endpointID, deviceName: deviceName, context: context, accept: connectionRequestHandler)
+            callback?.onConnectionRequest(
+                endpointId: endpointID, deviceName: deviceName, context: context, accept: connectionRequestHandler)
             callback?.onConnectionStateChanged(state: "接続要求受信: \(deviceName) (\(endpointID))")
         }
     }
@@ -601,7 +603,8 @@ import Foundation
         func onDiscoveryStateChanged(isDiscovering: Bool)
         func onDeviceFound(endpointId: String, name: String, isConnectable: Bool)
         func onDeviceLost(endpointId: String)
-        func onConnectionRequest(endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void)
+        func onConnectionRequest(
+            endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void)
         func onConnectionResult(_ endpointId: String, _ success: Bool)
         func onConnectionStateChanged(state: String)
         func onDataReceived(endpointId: String, data: Data)

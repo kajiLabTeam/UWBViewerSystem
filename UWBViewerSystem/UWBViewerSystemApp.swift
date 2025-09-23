@@ -31,8 +31,10 @@ struct UWBViewerSystemApp: App {
         let inMemoryConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
 
         do {
-            // まず既存のデータベースを強制削除
-            deleteExistingDatabase()
+            #if DEBUG
+                // まず既存のデータベースを強制削除
+                deleteExistingDatabase()
+            #endif
 
             // ApplicationSupportディレクトリの作成を確実に行う
             let fileManager = FileManager.default
@@ -66,7 +68,9 @@ struct UWBViewerSystemApp: App {
             if error.localizedDescription.contains("SwiftDataError") ||
                 error.localizedDescription.contains("model") ||
                 error.localizedDescription.contains("schema") {
-                deleteExistingDatabase()
+                #if DEBUG
+                    deleteExistingDatabase()
+                #endif
 
                 do {
                     let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)

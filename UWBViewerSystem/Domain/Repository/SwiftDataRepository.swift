@@ -375,19 +375,27 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                 throw RepositoryError.notFound("指定されたID[\(id)]のデータが見つかりません")
             }
 
-            print("🗑️ SwiftDataRepository: ID[\(id)]で検索、\(positions.count)件見つかりました")
+            #if DEBUG
+                print("🗑️ SwiftDataRepository: ID[\(id)]で検索、\(positions.count)件見つかりました")
+            #endif
 
             if positions.count > 1 {
-                print("⚠️ 重複するアンテナ位置データが見つかりました: \(positions.count)件")
+                #if DEBUG
+                    print("⚠️ 重複するアンテナ位置データが見つかりました: \(positions.count)件")
+                #endif
             }
 
             for position in positions {
-                print("🗑️ SwiftDataRepository: 削除中 - ID: \(position.id), AntennaID: \(position.antennaId), Name: \(position.antennaName)")
+                #if DEBUG
+                    print("🗑️ SwiftDataRepository: 削除中 - ID: \(position.id), AntennaID: \(position.antennaId), Name: \(position.antennaName)")
+                #endif
                 modelContext.delete(position)
             }
 
             try modelContext.save()
-            print("✅ アンテナ位置削除完了: \(positions.count)件")
+            #if DEBUG
+                print("✅ アンテナ位置削除完了: \(positions.count)件")
+            #endif
         } catch let error as RepositoryError {
             throw error
         } catch {
@@ -585,7 +593,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             modelContext.insert(persistentFloorMap)
 
             try modelContext.save()
-            print("✅ フロアマップ保存完了 - ID: \(floorMap.id), Name: \(floorMap.name)")
+            #if DEBUG
+                print("✅ フロアマップ保存完了 - ID: \(floorMap.id), Name: \(floorMap.name)")
+            #endif
         } catch let error as RepositoryError {
             throw error
         } catch {
@@ -601,10 +611,12 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         let persistentFloorMaps = try modelContext.fetch(descriptor)
         let floorMaps = persistentFloorMaps.map { $0.toEntity() }
 
-        print("📊 SwiftDataRepository: フロアマップ読み込み完了 - \(floorMaps.count)件")
-        for floorMap in floorMaps {
-            print("  - ID: \(floorMap.id), Name: \(floorMap.name)")
-        }
+        #if DEBUG
+            print("📊 SwiftDataRepository: フロアマップ読み込み完了 - \(floorMaps.count)件")
+            for floorMap in floorMaps {
+                print("  - ID: \(floorMap.id), Name: \(floorMap.name)")
+            }
+        #endif
 
         return floorMaps
     }
@@ -746,13 +758,17 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                 existing.isActive = data.isActive
 
                 try modelContext.save()
-                print("🔄 キャリブレーションデータを更新しました: \(data.antennaId)")
+                #if DEBUG
+                    print("🔄 キャリブレーションデータを更新しました: \(data.antennaId)")
+                #endif
             } else {
                 // 新規作成
                 let persistentData = data.toPersistent()
                 modelContext.insert(persistentData)
                 try modelContext.save()
-                print("✅ キャリブレーションデータ保存完了: \(data.antennaId)")
+                #if DEBUG
+                    print("✅ キャリブレーションデータ保存完了: \(data.antennaId)")
+                #endif
             }
         } catch let error as RepositoryError {
             throw error
@@ -833,7 +849,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         try modelContext.save()
 
-        print("🗄️ SwiftDataRepository: マップキャリブレーションデータ保存完了 - アンテナ: \(data.antennaId), フロアマップ: \(data.floorMapId)")
+        #if DEBUG
+            print("🗄️ SwiftDataRepository: マップキャリブレーションデータ保存完了 - アンテナ: \(data.antennaId), フロアマップ: \(data.floorMapId)")
+        #endif
     }
 
     public func loadMapCalibrationData() async throws -> [MapCalibrationData] {
@@ -844,7 +862,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         let persistentData = try modelContext.fetch(descriptor)
         let mapCalibrationData = persistentData.map { $0.toEntity() }
 
-        print("🗄️ SwiftDataRepository: マップキャリブレーションデータ読み込み完了 - \(mapCalibrationData.count)件")
+        #if DEBUG
+            print("🗄️ SwiftDataRepository: マップキャリブレーションデータ読み込み完了 - \(mapCalibrationData.count)件")
+        #endif
         return mapCalibrationData
     }
 
@@ -897,7 +917,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         for (key, positions) in groupedPositions {
             if positions.count > 1 {
-                print("⚠️ 重複するアンテナ位置データを発見: \(key) - \(positions.count)件")
+                #if DEBUG
+                    print("⚠️ 重複するアンテナ位置データを発見: \(key) - \(positions.count)件")
+                #endif
 
                 // 最新データを保持し、他は削除
                 let sortedPositions = positions.sorted { pos1, pos2 in
@@ -907,7 +929,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                 let duplicatesToDelete = Array(sortedPositions.dropFirst())
 
                 for duplicate in duplicatesToDelete {
-                    print("🗑️ 重複データを削除: ID=\(duplicate.id), AntennaID=\(duplicate.antennaId), Name=\(duplicate.antennaName)")
+                    #if DEBUG
+                        print("🗑️ 重複データを削除: ID=\(duplicate.id), AntennaID=\(duplicate.antennaId), Name=\(duplicate.antennaName)")
+                    #endif
                     modelContext.delete(duplicate)
                     deletedCount += 1
                 }
@@ -916,9 +940,13 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         if deletedCount > 0 {
             try modelContext.save()
-            print("✅ 重複データクリーンアップ完了: \(deletedCount)件削除")
+            #if DEBUG
+                print("✅ 重複データクリーンアップ完了: \(deletedCount)件削除")
+            #endif
         } else {
-            print("✅ 重複データは見つかりませんでした")
+            #if DEBUG
+                print("✅ 重複データは見つかりませんでした")
+            #endif
         }
 
         return deletedCount

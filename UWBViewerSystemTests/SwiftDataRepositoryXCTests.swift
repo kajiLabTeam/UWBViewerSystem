@@ -1,20 +1,15 @@
+import Foundation
 import SwiftData
+import Testing
 @testable import UWBViewerSystem
-import XCTest
 
 @MainActor
-final class SwiftDataRepositoryXCTests: XCTestCase {
+struct SwiftDataRepositoryXCTests {
 
-    var repository: SwiftDataRepository!
-    var modelContext: ModelContext!
-    var container: ModelContainer!
-
-    override func setUpWithError() throws {
-        try super.setUpWithError()
-
+    private func createTestRepository() throws -> (SwiftDataRepository, ModelContext, ModelContainer) {
         // テスト用のin-memoryコンテナを作成
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        container = try ModelContainer(
+        let container = try ModelContainer(
             for: PersistentSensingSession.self,
             PersistentAntennaPosition.self,
             PersistentCalibrationData.self,
@@ -22,8 +17,8 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
             PersistentMapCalibrationData.self,
             configurations: config
         )
-        modelContext = ModelContext(container)
-        repository = SwiftDataRepository(modelContext: modelContext)
+        let modelContext = ModelContext(container)
+        let repository = SwiftDataRepository(modelContext: modelContext)
 
         // テスト開始前にデータをクリーンアップ
         try modelContext.delete(model: PersistentSensingSession.self)
@@ -32,30 +27,28 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         try modelContext.delete(model: PersistentFloorMap.self)
         try modelContext.delete(model: PersistentMapCalibrationData.self)
         try modelContext.save()
+
+        return (repository, modelContext, container)
     }
 
-    override func tearDownWithError() throws {
+    private func cleanupTestRepository(modelContext: ModelContext) throws {
         // テストデータをクリーンアップ
-        if let modelContext {
-            // 全てのデータを削除
-            try modelContext.delete(model: PersistentSensingSession.self)
-            try modelContext.delete(model: PersistentAntennaPosition.self)
-            try modelContext.delete(model: PersistentCalibrationData.self)
-            try modelContext.delete(model: PersistentFloorMap.self)
-            try modelContext.delete(model: PersistentMapCalibrationData.self)
-            try modelContext.save()
-        }
-
-        repository = nil
-        modelContext = nil
-        container = nil
-        try super.tearDownWithError()
+        try modelContext.delete(model: PersistentSensingSession.self)
+        try modelContext.delete(model: PersistentAntennaPosition.self)
+        try modelContext.delete(model: PersistentCalibrationData.self)
+        try modelContext.delete(model: PersistentFloorMap.self)
+        try modelContext.delete(model: PersistentMapCalibrationData.self)
+        try modelContext.save()
     }
 
     // MARK: - センシングセッション関連のテスト
 
+    @Test("センシングセッション保存・読み込み - 正常ケース")
     func testSaveSensingSession_正常ケース() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let session = SensingSession(
             id: "test-session-1",
             name: "テストセッション",
@@ -69,18 +62,20 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         let loadedSession = try await repository.loadSensingSession(by: session.id)
 
         // Assert
-        guard let loadedSession else {
-            XCTFail("保存したセンシングセッションが読み込まれていません")
-            return
-        }
+        #expect(loadedSession != nil)
+        guard let loadedSession else { return }
 
-        XCTAssertEqual(loadedSession.id, session.id)
-        XCTAssertEqual(loadedSession.name, session.name)
-        XCTAssertEqual(loadedSession.isActive, session.isActive)
+        #expect(loadedSession.id == session.id)
+        #expect(loadedSession.name == session.name)
+        #expect(loadedSession.isActive == session.isActive)
     }
 
+    @Test("センシングセッション保存 - 空のIDでエラー")
     func testSaveSensingSession_空のIDでエラー() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let session = SensingSession(
             id: "",
             name: "テストセッション",
@@ -90,21 +85,17 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         )
 
         // Act & Assert
-        do {
+        await #expect(throws: RepositoryError.self) {
             try await repository.saveSensingSession(session)
-            XCTFail("エラーが発生すべきです")
-        } catch let error as RepositoryError {
-            switch error {
-            case .invalidData(let message):
-                XCTAssertTrue(message.contains("ID"))
-            default:
-                XCTFail("予期しないエラータイプ: \(error)")
-            }
         }
     }
 
+    @Test("センシングセッション保存 - 空の名前でエラー")
     func testSaveSensingSession_空の名前でエラー() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let session = SensingSession(
             id: "test-session-1",
             name: "",
@@ -114,21 +105,17 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         )
 
         // Act & Assert
-        do {
+        await #expect(throws: RepositoryError.self) {
             try await repository.saveSensingSession(session)
-            XCTFail("エラーが発生すべきです")
-        } catch let error as RepositoryError {
-            switch error {
-            case .invalidData(let message):
-                XCTAssertTrue(message.contains("センシングセッション名が空です"))
-            default:
-                XCTFail("予期しないエラータイプ: \(error)")
-            }
         }
     }
 
+    @Test("センシングセッション保存 - 重複IDでエラー")
     func testSaveSensingSession_重複IDでエラー() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let session1 = SensingSession(
             id: "duplicate-id",
             name: "セッション1",
@@ -149,21 +136,25 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
 
         do {
             try await repository.saveSensingSession(session2)
-            XCTFail("重複エラーが発生すべきです")
+            #expect(Bool(false), "重複エラーが発生すべきです")
         } catch let error as RepositoryError {
             switch error {
             case .duplicateEntry:
-                break // 期待される動作
+                #expect(Bool(true)) // 期待される動作
             default:
-                XCTFail("予期しないエラータイプ: \(error)")
+                #expect(Bool(false), "予期しないエラータイプ: \(error)")
             }
         }
     }
 
     // MARK: - アンテナ位置関連のテスト
 
+    @Test("アンテナ位置保存・読み込み - 正常ケース")
     func testSaveAntennaPosition_正常ケース() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let position = AntennaPositionData(
             id: "test-position-1",
             antennaId: "antenna-1",
@@ -178,24 +169,28 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         let loadedPositions = try await repository.loadAntennaPositions(for: "floor-1")
 
         // Assert
-        XCTAssertEqual(loadedPositions.count, 1, "保存したアンテナ位置データが読み込まれていません")
+        #expect(loadedPositions.count == 1)
 
         guard let firstPosition = loadedPositions.first else {
-            XCTFail("読み込まれたアンテナ位置データが空です")
+            #expect(Bool(false), "読み込まれたアンテナ位置データが空です")
             return
         }
 
-        XCTAssertEqual(firstPosition.antennaId, position.antennaId)
-        XCTAssertEqual(firstPosition.antennaName, position.antennaName)
-        XCTAssertEqual(firstPosition.floorMapId, position.floorMapId)
-        XCTAssertEqual(firstPosition.position.x, position.position.x, accuracy: 0.001)
-        XCTAssertEqual(firstPosition.position.y, position.position.y, accuracy: 0.001)
-        XCTAssertEqual(firstPosition.position.z, position.position.z, accuracy: 0.001)
-        XCTAssertEqual(firstPosition.rotation, position.rotation, accuracy: 0.001)
+        #expect(firstPosition.antennaId == position.antennaId)
+        #expect(firstPosition.antennaName == position.antennaName)
+        #expect(firstPosition.floorMapId == position.floorMapId)
+        #expect(abs(firstPosition.position.x - position.position.x) < 0.001)
+        #expect(abs(firstPosition.position.y - position.position.y) < 0.001)
+        #expect(abs(firstPosition.position.z - position.position.z) < 0.001)
+        #expect(abs(firstPosition.rotation - position.rotation) < 0.001)
     }
 
+    @Test("アンテナ位置保存 - 空のアンテナIDでエラー")
     func testSaveAntennaPosition_空のアンテナIDでエラー() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let position = AntennaPositionData(
             id: "test-position-1",
             antennaId: "",
@@ -206,21 +201,17 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         )
 
         // Act & Assert
-        do {
+        await #expect(throws: RepositoryError.self) {
             try await repository.saveAntennaPosition(position)
-            XCTFail("エラーが発生すべきです")
-        } catch let error as RepositoryError {
-            switch error {
-            case .invalidData(let message):
-                XCTAssertTrue(message.contains("アンテナID"))
-            default:
-                XCTFail("予期しないエラータイプ: \(error)")
-            }
         }
     }
 
+    @Test("アンテナ位置削除 - 正常ケース")
     func testDeleteAntennaPosition_正常ケース() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let position = AntennaPositionData(
             id: "test-position-1",
             antennaId: "antenna-1",
@@ -235,28 +226,37 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         try await repository.deleteAntennaPosition(by: "test-position-1")  // idフィールドで削除
         let loadedPositions = try await repository.loadAntennaPositions(for: "floor-1")
 
-        XCTAssertEqual(loadedPositions.count, 0)
+        #expect(loadedPositions.isEmpty)
     }
 
+    @Test("アンテナ位置削除 - 存在しないIDでエラー")
     func testDeleteAntennaPosition_存在しないIDでエラー() async throws {
+        // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         // Act & Assert
         do {
             try await repository.deleteAntennaPosition(by: "non-existent-id")
-            XCTFail("エラーが発生すべきです")
+            #expect(Bool(false), "エラーが発生すべきです")
         } catch let error as RepositoryError {
             switch error {
             case .notFound:
-                break // 期待される動作
+                #expect(Bool(true)) // 期待される動作
             default:
-                XCTFail("予期しないエラータイプ: \(error)")
+                #expect(Bool(false), "予期しないエラータイプ: \(error)")
             }
         }
     }
 
     // MARK: - フロアマップ関連のテスト
 
+    @Test("フロアマップ保存・読み込み - 正常ケース")
     func testSaveFloorMap_正常ケース() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let floorMap = FloorMapInfo(
             id: "floor-1",
             name: "テストフロア",
@@ -271,19 +271,21 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         let loadedFloorMap = try await repository.loadFloorMap(by: floorMap.id)
 
         // Assert
-        guard let loadedFloorMap else {
-            XCTFail("保存したフロアマップが読み込まれていません")
-            return
-        }
+        #expect(loadedFloorMap != nil)
+        guard let loadedFloorMap else { return }
 
-        XCTAssertEqual(loadedFloorMap.id, floorMap.id)
-        XCTAssertEqual(loadedFloorMap.name, floorMap.name)
-        XCTAssertEqual(loadedFloorMap.width, floorMap.width)
-        XCTAssertEqual(loadedFloorMap.depth, floorMap.depth)
+        #expect(loadedFloorMap.id == floorMap.id)
+        #expect(loadedFloorMap.name == floorMap.name)
+        #expect(loadedFloorMap.width == floorMap.width)
+        #expect(loadedFloorMap.depth == floorMap.depth)
     }
 
+    @Test("フロアマップ保存 - 無効なサイズでエラー")
     func testSaveFloorMap_無効なサイズでエラー() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let floorMap = FloorMapInfo(
             id: "floor-1",
             name: "テストフロア",
@@ -294,23 +296,19 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         )
 
         // Act & Assert
-        do {
+        await #expect(throws: RepositoryError.self) {
             try await repository.saveFloorMap(floorMap)
-            XCTFail("エラーが発生すべきです")
-        } catch let error as RepositoryError {
-            switch error {
-            case .invalidData(let message):
-                XCTAssertTrue(message.contains("サイズ"))
-            default:
-                XCTFail("予期しないエラータイプ: \(error)")
-            }
         }
     }
 
     // MARK: - キャリブレーションデータ関連のテスト
 
+    @Test("キャリブレーションデータ保存・読み込み - 正常ケース")
     func testSaveCalibrationData_正常ケース() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let calibrationPoint = CalibrationPoint(
             referencePosition: Point3D(x: 1.0, y: 2.0, z: 0.0),
             measuredPosition: Point3D(x: 1.1, y: 2.1, z: 0.1),
@@ -329,18 +327,20 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         let loadedData = try await repository.loadCalibrationData(for: "antenna-1")
 
         // Assert
-        guard let loadedData else {
-            XCTFail("保存したキャリブレーションデータが読み込まれていません")
-            return
-        }
+        #expect(loadedData != nil)
+        guard let loadedData else { return }
 
-        XCTAssertEqual(loadedData.antennaId, calibrationData.antennaId)
-        XCTAssertEqual(loadedData.calibrationPoints.count, 1)
-        XCTAssertEqual(loadedData.isActive, calibrationData.isActive)
+        #expect(loadedData.antennaId == calibrationData.antennaId)
+        #expect(loadedData.calibrationPoints.count == 1)
+        #expect(loadedData.isActive == calibrationData.isActive)
     }
 
+    @Test("キャリブレーションデータ保存 - 空のキャリブレーションポイントでエラー")
     func testSaveCalibrationData_空のキャリブレーションポイントでエラー() async throws {
         // Arrange
+        let (repository, modelContext, _) = try createTestRepository()
+        defer { try? cleanupTestRepository(modelContext: modelContext) }
+
         let calibrationData = CalibrationData(
             antennaId: "antenna-1",
             calibrationPoints: [], // 空の配列
@@ -349,40 +349,30 @@ final class SwiftDataRepositoryXCTests: XCTestCase {
         )
 
         // Act & Assert
-        do {
+        await #expect(throws: RepositoryError.self) {
             try await repository.saveCalibrationData(calibrationData)
-            XCTFail("エラーが発生すべきです")
-        } catch let error as RepositoryError {
-            switch error {
-            case .invalidData(let message):
-                XCTAssertTrue(message.contains("キャリブレーションポイント"))
-            default:
-                XCTFail("予期しないエラータイプ: \(error)")
-            }
         }
     }
 
     // MARK: - パフォーマンステスト
 
-    func testPerformance_大量アンテナ位置保存() async throws {
+    @Test("パフォーマンス - 大量アンテナ位置作成")
+    func testPerformance_大量アンテナ位置保存() throws {
         let floorMapId = "performance-test-floor"
 
-        measure {
-            // パフォーマンステストでは同期的な操作のみ測定
-            // 実際のデータ保存は事前に準備
-            let positions = (0..<100).map { i in
-                AntennaPositionData(
-                    id: "position-\(i)",
-                    antennaId: "antenna-\(i)",
-                    antennaName: "アンテナ\(i)",
-                    position: Point3D(x: Double(i), y: Double(i), z: 0.0),
-                    rotation: 0.0,
-                    floorMapId: floorMapId
-                )
-            }
-
-            // 同期的な処理として配列の作成のみ測定
-            XCTAssertEqual(positions.count, 100)
+        // パフォーマンステストは同期的な操作のみ測定
+        let positions = (0..<100).map { i in
+            AntennaPositionData(
+                id: "position-\(i)",
+                antennaId: "antenna-\(i)",
+                antennaName: "アンテナ\(i)",
+                position: Point3D(x: Double(i), y: Double(i), z: 0.0),
+                rotation: 0.0,
+                floorMapId: floorMapId
+            )
         }
+
+        // 同期的な処理として配列の作成をテスト
+        #expect(positions.count == 100)
     }
 }

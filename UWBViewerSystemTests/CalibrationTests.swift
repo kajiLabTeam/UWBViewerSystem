@@ -1,35 +1,29 @@
+import Foundation
+import Testing
 @testable import UWBViewerSystem
-import XCTest
 
 /// キャリブレーション機能のテストケース
-final class CalibrationTests: XCTestCase {
-
-    var leastSquaresCalibration: LeastSquaresCalibration.Type!
-    var mockRepository: MockCalibrationTestRepository!
-    var calibrationUsecase: CalibrationUsecase!
-
-    override func setUpWithError() throws {
-        super.setUp()
-        leastSquaresCalibration = LeastSquaresCalibration.self
-        mockRepository = MockCalibrationTestRepository()
-    }
+struct CalibrationTests {
 
     @MainActor
-    private func setupCalibrationUsecase() {
-        calibrationUsecase = CalibrationUsecase(dataRepository: mockRepository)
+    private func createTestContext() -> (LeastSquaresCalibration.Type, MockCalibrationTestRepository, CalibrationUsecase) {
+        let leastSquaresCalibration = LeastSquaresCalibration.self
+        let mockRepository = MockCalibrationTestRepository()
+        let calibrationUsecase = CalibrationUsecase(dataRepository: mockRepository)
+        return (leastSquaresCalibration, mockRepository, calibrationUsecase)
     }
 
-    override func tearDownWithError() throws {
-        leastSquaresCalibration = nil
-        mockRepository = nil
-        calibrationUsecase = nil
-        super.tearDown()
+    private func createLeastSquaresCalibration() -> LeastSquaresCalibration.Type {
+        LeastSquaresCalibration.self
     }
 
     // MARK: - 最小二乗法テスト
 
-    /// 完全に一致する3点でのキャリブレーションテスト
+    @Test("完全に一致する3点でのキャリブレーション")
     func testPerfectCalibration() throws {
+        // Arrange
+        let leastSquaresCalibration = createLeastSquaresCalibration()
+
         // 正解座標と測定座標が完全に一致するケース（分散が十分なデータを使用）
         let points = [
             CalibrationPoint(
@@ -49,19 +43,24 @@ final class CalibrationTests: XCTestCase {
             )
         ]
 
+        // Act
         let transform = try leastSquaresCalibration.calculateTransform(from: points)
 
+        // Assert
         // 完全に一致する場合、変換は恒等変換に近くなる
-        XCTAssertEqual(transform.translation.x, 0, accuracy: 0.001)
-        XCTAssertEqual(transform.translation.y, 0, accuracy: 0.001)
-        XCTAssertEqual(transform.rotation, 0, accuracy: 0.001)
-        XCTAssertEqual(transform.scale.x, 1, accuracy: 0.001)
-        XCTAssertEqual(transform.scale.y, 1, accuracy: 0.001)
-        XCTAssertEqual(transform.accuracy, 0, accuracy: 0.001)
+        #expect(abs(transform.translation.x - 0) < 0.001)
+        #expect(abs(transform.translation.y - 0) < 0.001)
+        #expect(abs(transform.rotation - 0) < 0.001)
+        #expect(abs(transform.scale.x - 1) < 0.001)
+        #expect(abs(transform.scale.y - 1) < 0.001)
+        #expect(abs(transform.accuracy - 0) < 0.001)
     }
 
-    /// 平行移動のみのキャリブレーションテスト
+    @Test("平行移動のみのキャリブレーション")
     func testTranslationOnlyCalibration() throws {
+        // Arrange
+        let leastSquaresCalibration = createLeastSquaresCalibration()
+
         // 測定座標が正解座標から一定量ずれているケース
         let offset = Point3D(x: 1.5, y: 1.0, z: 0)
         let points = [
@@ -82,19 +81,24 @@ final class CalibrationTests: XCTestCase {
             )
         ]
 
+        // Act
         let transform = try leastSquaresCalibration.calculateTransform(from: points)
 
+        // Assert
         // 平行移動量が正しく計算されることを確認
-        XCTAssertEqual(transform.translation.x, offset.x, accuracy: 0.01)
-        XCTAssertEqual(transform.translation.y, offset.y, accuracy: 0.01)
-        XCTAssertEqual(transform.rotation, 0, accuracy: 0.01)
-        XCTAssertEqual(transform.scale.x, 1, accuracy: 0.01)
-        XCTAssertEqual(transform.scale.y, 1, accuracy: 0.01)
-        XCTAssertLessThan(transform.accuracy, 0.01)
+        #expect(abs(transform.translation.x - offset.x) < 0.01)
+        #expect(abs(transform.translation.y - offset.y) < 0.01)
+        #expect(abs(transform.rotation - 0) < 0.01)
+        #expect(abs(transform.scale.x - 1) < 0.01)
+        #expect(abs(transform.scale.y - 1) < 0.01)
+        #expect(transform.accuracy < 0.01)
     }
 
-    /// スケール変換のキャリブレーションテスト
+    @Test("スケール変換のキャリブレーション")
     func testScaleCalibration() throws {
+        // Arrange
+        let leastSquaresCalibration = createLeastSquaresCalibration()
+
         // 測定座標が正解座標の2倍になっているケース
         let scaleFactor = 0.5
         let points = [
@@ -115,16 +119,21 @@ final class CalibrationTests: XCTestCase {
             )
         ]
 
+        // Act
         let transform = try leastSquaresCalibration.calculateTransform(from: points)
 
+        // Assert
         // スケール係数が正しく計算されることを確認
-        XCTAssertEqual(transform.scale.x, scaleFactor, accuracy: 0.01)
-        XCTAssertEqual(transform.scale.y, scaleFactor, accuracy: 0.01)
-        XCTAssertLessThan(transform.accuracy, 0.1)
+        #expect(abs(transform.scale.x - scaleFactor) < 0.01)
+        #expect(abs(transform.scale.y - scaleFactor) < 0.01)
+        #expect(transform.accuracy < 0.1)
     }
 
-    /// 不十分な点数でのエラーテスト
+    @Test("不十分な点数でのエラー")
     func testInsufficientPointsError() {
+        // Arrange
+        let leastSquaresCalibration = createLeastSquaresCalibration()
+
         let points = [
             CalibrationPoint(
                 referencePosition: Point3D(x: 0, y: 0, z: 0),
@@ -138,19 +147,28 @@ final class CalibrationTests: XCTestCase {
             )
         ]
 
-        XCTAssertThrowsError(try leastSquaresCalibration.calculateTransform(from: points)) { error in
-            XCTAssertTrue(error is LeastSquaresCalibration.CalibrationError)
-            if case let LeastSquaresCalibration.CalibrationError.insufficientPoints(required, provided) = error {
-                XCTAssertEqual(required, 3)
-                XCTAssertEqual(provided, 2)
-            } else {
-                XCTFail("Expected insufficientPoints error")
+        // Act & Assert
+        do {
+            _ = try leastSquaresCalibration.calculateTransform(from: points)
+            #expect(Bool(false), "Expected insufficientPoints error")
+        } catch let error as LeastSquaresCalibration.CalibrationError {
+            switch error {
+            case .insufficientPoints(let required, let provided):
+                #expect(required == 3)
+                #expect(provided == 2)
+            default:
+                #expect(Bool(false), "Expected insufficientPoints error")
             }
+        } catch {
+            #expect(Bool(false), "Unexpected error type: \(error)")
         }
     }
 
-    /// 無効な入力データでのエラーテスト
+    @Test("無効な入力データでのエラー")
     func testInvalidInputError() {
+        // Arrange
+        let leastSquaresCalibration = createLeastSquaresCalibration()
+
         // 全ての測定点が同じ位置にあるケース
         let points = [
             CalibrationPoint(
@@ -170,13 +188,22 @@ final class CalibrationTests: XCTestCase {
             )
         ]
 
-        XCTAssertThrowsError(try leastSquaresCalibration.calculateTransform(from: points)) { error in
-            XCTAssertTrue(error is LeastSquaresCalibration.CalibrationError)
+        // Act & Assert
+        do {
+            _ = try leastSquaresCalibration.calculateTransform(from: points)
+            #expect(Bool(false), "Expected calibration error")
+        } catch _ as LeastSquaresCalibration.CalibrationError {
+            #expect(Bool(true)) // 期待される動作
+        } catch {
+            #expect(Bool(false), "Expected LeastSquaresCalibration.CalibrationError but got: \(error)")
         }
     }
 
-    /// キャリブレーション適用のテスト
+    @Test("キャリブレーション適用")
     func testCalibrationApplication() throws {
+        // Arrange
+        let leastSquaresCalibration = createLeastSquaresCalibration()
+
         let points = [
             CalibrationPoint(
                 referencePosition: Point3D(x: 0, y: 0, z: 0),
@@ -195,29 +222,33 @@ final class CalibrationTests: XCTestCase {
             )
         ]
 
+        // Act
         let transform = try leastSquaresCalibration.calculateTransform(from: points)
 
         // 測定点にキャリブレーションを適用
         let testPoint = Point3D(x: -1.0, y: 1.0, z: 0)
         let calibratedPoint = leastSquaresCalibration.applyCalibration(to: testPoint, using: transform)
 
+        // Assert
         // キャリブレーション後の点は正解座標に近くなるはず
         let expectedPoint = Point3D(x: 1.0, y: 2.5, z: 0)
-        XCTAssertEqual(calibratedPoint.x, expectedPoint.x, accuracy: 0.5)
-        XCTAssertEqual(calibratedPoint.y, expectedPoint.y, accuracy: 0.5)
+        #expect(abs(calibratedPoint.x - expectedPoint.x) < 0.5)
+        #expect(abs(calibratedPoint.y - expectedPoint.y) < 0.5)
     }
 
     // MARK: - UseCase テスト
 
-    /// キャリブレーション点の追加と削除のテスト
+    @Test("キャリブレーション点の追加と削除")
     @MainActor
     func testAddAndRemoveCalibrationPoint() async {
-        setupCalibrationUsecase()
+        // Arrange
+        let (_, _, calibrationUsecase) = createTestContext()
 
         let antennaId = "test_antenna"
         let referencePosition = Point3D(x: 1, y: 1, z: 0)
         let measuredPosition = Point3D(x: 0.8, y: 1.2, z: 0)
 
+        // Act
         // 点を追加
         calibrationUsecase.addCalibrationPoint(
             for: antennaId,
@@ -226,26 +257,27 @@ final class CalibrationTests: XCTestCase {
         )
 
         let calibrationData = calibrationUsecase.getCalibrationData(for: antennaId)
-        XCTAssertEqual(calibrationData.calibrationPoints.count, 1)
+        #expect(calibrationData.calibrationPoints.count == 1)
 
         guard let addedPoint = calibrationData.calibrationPoints.first else {
-            XCTFail("追加されたキャリブレーションポイントが見つかりません")
+            #expect(Bool(false), "追加されたキャリブレーションポイントが見つかりません")
             return
         }
-        XCTAssertEqual(addedPoint.referencePosition.x, referencePosition.x)
-        XCTAssertEqual(addedPoint.measuredPosition.x, measuredPosition.x)
+        #expect(addedPoint.referencePosition.x == referencePosition.x)
+        #expect(addedPoint.measuredPosition.x == measuredPosition.x)
 
         // 点を削除
         calibrationUsecase.removeCalibrationPoint(for: antennaId, pointId: addedPoint.id)
 
         let updatedData = calibrationUsecase.getCalibrationData(for: antennaId)
-        XCTAssertEqual(updatedData.calibrationPoints.count, 0)
+        #expect(updatedData.calibrationPoints.isEmpty)
     }
 
-    /// キャリブレーション実行のテスト
+    @Test("キャリブレーション実行")
     @MainActor
     func testPerformCalibration() async {
-        setupCalibrationUsecase()
+        // Arrange
+        let (_, _, calibrationUsecase) = createTestContext()
 
         let antennaId = "test_antenna"
 
@@ -264,26 +296,29 @@ final class CalibrationTests: XCTestCase {
             )
         }
 
+        // Act
         // キャリブレーション実行
         await calibrationUsecase.performCalibration(for: antennaId)
 
+        // Assert
         // 結果を確認
-        XCTAssertEqual(calibrationUsecase.calibrationStatus, .completed)
+        #expect(calibrationUsecase.calibrationStatus == .completed)
 
         let calibrationData = calibrationUsecase.getCalibrationData(for: antennaId)
-        XCTAssertTrue(calibrationData.isCalibrated)
-        XCTAssertNotNil(calibrationData.transform)
+        #expect(calibrationData.isCalibrated)
+        #expect(calibrationData.transform != nil)
         guard let accuracy = calibrationData.accuracy else {
-            XCTFail("キャリブレーション精度が取得できませんでした")
+            #expect(Bool(false), "キャリブレーション精度が取得できませんでした")
             return
         }
-        XCTAssertLessThan(accuracy, 0.5) // 精度が0.5m以下であることを確認
+        #expect(accuracy < 0.5) // 精度が0.5m以下であることを確認
     }
 
-    /// 統計情報の計算テスト
+    @Test("統計情報の計算")
     @MainActor
     func testCalibrationStatistics() async {
-        setupCalibrationUsecase()
+        // Arrange
+        let (_, _, calibrationUsecase) = createTestContext()
 
         let antenna1 = "antenna1"
         let antenna2 = "antenna2"
@@ -316,50 +351,55 @@ final class CalibrationTests: XCTestCase {
             measuredPosition: Point3D(x: 0.2, y: 0.2, z: 0)
         )
 
+        // Act
         let statistics = calibrationUsecase.getCalibrationStatistics()
-        XCTAssertEqual(statistics.totalAntennas, 2)
-        XCTAssertEqual(statistics.calibratedAntennas, 1)
-        XCTAssertEqual(statistics.completionPercentage, 50.0, accuracy: 0.1)
-        XCTAssertGreaterThan(statistics.averageAccuracy, 0)
+
+        // Assert
+        #expect(statistics.totalAntennas == 2)
+        #expect(statistics.calibratedAntennas == 1)
+        #expect(abs(statistics.completionPercentage - 50.0) < 0.1)
+        #expect(statistics.averageAccuracy > 0)
     }
 
     // MARK: - Point3D 拡張テスト
 
+    @Test("Point3Dの操作")
     func testPoint3DOperations() {
         let point1 = Point3D(x: 1, y: 2, z: 3)
         let point2 = Point3D(x: 4, y: 5, z: 6)
 
         // 加算
         let sum = point1 + point2
-        XCTAssertEqual(sum.x, 5)
-        XCTAssertEqual(sum.y, 7)
-        XCTAssertEqual(sum.z, 9)
+        #expect(sum.x == 5)
+        #expect(sum.y == 7)
+        #expect(sum.z == 9)
 
         // 減算
         let diff = point2 - point1
-        XCTAssertEqual(diff.x, 3)
-        XCTAssertEqual(diff.y, 3)
-        XCTAssertEqual(diff.z, 3)
+        #expect(diff.x == 3)
+        #expect(diff.y == 3)
+        #expect(diff.z == 3)
 
         // スカラー倍
         let scaled = point1 * 2
-        XCTAssertEqual(scaled.x, 2)
-        XCTAssertEqual(scaled.y, 4)
-        XCTAssertEqual(scaled.z, 6)
+        #expect(scaled.x == 2)
+        #expect(scaled.y == 4)
+        #expect(scaled.z == 6)
 
         // 距離計算
         let distance = point1.distance(to: point2)
         let expectedDistance = sqrt(9 + 9 + 9) // sqrt((4-1)^2 + (5-2)^2 + (6-3)^2)
-        XCTAssertEqual(distance, expectedDistance, accuracy: 0.001)
+        #expect(abs(distance - expectedDistance) < 0.001)
 
         // ベクトルの長さ
         let magnitude = point1.magnitude
         let expectedMagnitude = sqrt(1 + 4 + 9) // sqrt(1^2 + 2^2 + 3^2)
-        XCTAssertEqual(magnitude, expectedMagnitude, accuracy: 0.001)
+        #expect(abs(magnitude - expectedMagnitude) < 0.001)
     }
 
     // MARK: - CalibrationTransform 拡張テスト
 
+    @Test("CalibrationTransformの検証")
     func testCalibrationTransformValidation() {
         // 有効な変換
         let validTransform = CalibrationTransform(
@@ -368,7 +408,7 @@ final class CalibrationTests: XCTestCase {
             scale: Point3D(x: 1.1, y: 1.1, z: 1.0),
             accuracy: 0.05
         )
-        XCTAssertTrue(validTransform.isValid)
+        #expect(validTransform.isValid)
 
         // 無効な変換（スケールが負）
         let invalidTransform = CalibrationTransform(
@@ -377,7 +417,7 @@ final class CalibrationTests: XCTestCase {
             scale: Point3D(x: -1, y: 1.1, z: 1.0),
             accuracy: 0.05
         )
-        XCTAssertFalse(invalidTransform.isValid)
+        #expect(!invalidTransform.isValid)
 
         // 無効な変換（NaN値）
         let nanTransform = CalibrationTransform(
@@ -386,7 +426,7 @@ final class CalibrationTests: XCTestCase {
             scale: Point3D(x: 1.1, y: 1.1, z: 1.0),
             accuracy: 0.05
         )
-        XCTAssertFalse(nanTransform.isValid)
+        #expect(!nanTransform.isValid)
     }
 }
 

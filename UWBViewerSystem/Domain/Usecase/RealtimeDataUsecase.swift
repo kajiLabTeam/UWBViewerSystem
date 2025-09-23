@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import os.log
 
 // MARK: - リアルタイムデータ管理 Usecase
 
@@ -11,6 +12,7 @@ public class RealtimeDataUsecase: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let swiftDataRepository: SwiftDataRepositoryProtocol
     private weak var sensingControlUsecase: SensingControlUsecase?
+    private let logger = Logger(subsystem: "com.uwbviewer.system", category: "realtime-data")
 
     public init(
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository(),
@@ -23,23 +25,29 @@ public class RealtimeDataUsecase: ObservableObject {
     // MARK: - Public Methods
 
     public func processRealtimeDataMessage(_ json: [String: Any], fromEndpointId: String) {
-        print("=== 🔄 processRealtimeDataJSON開始 ===")
-        print("🔄 受信エンドポイントID: \(fromEndpointId)")
-        print("🔄 JSONキー: \(json.keys.sorted())")
+        #if DEBUG
+            print("=== 🔄 processRealtimeDataMessage開始 ===")
+            print("🔄 受信エンドポイントID: \(fromEndpointId)")
+            print("🔄 JSONキー: \(json.keys.sorted())")
+        #endif
 
         do {
             let jsonData = try JSONSerialization.data(withJSONObject: json)
-            print("✅ JSON再シリアライズ成功: \(jsonData.count) bytes")
+            #if DEBUG
+                print("✅ JSON再シリアライズ成功: \(jsonData.count) bytes")
+            #endif
 
             let realtimeMessage = try JSONDecoder().decode(RealtimeDataMessage.self, from: jsonData)
-            print("✅ RealtimeDataMessage デコード成功")
-            print("📱 デバイス名: \(realtimeMessage.deviceName)")
-            print("📐 Elevation: \(realtimeMessage.data.elevation)°")
-            print("🧭 Azimuth: \(realtimeMessage.data.azimuth)°")
-            print("📏 Distance: \(realtimeMessage.data.distance)m")
-            print("📊 SeqCount: \(realtimeMessage.data.seqCount)")
-            print("📡 RSSI: \(realtimeMessage.data.rssi)dBm")
-            print("🚧 NLOS: \(realtimeMessage.data.nlos)")
+            #if DEBUG
+                print("✅ RealtimeDataMessage デコード成功")
+                print("📱 デバイス名: \(realtimeMessage.deviceName)")
+                print("📐 Elevation: \(realtimeMessage.data.elevation)°")
+                print("🧭 Azimuth: \(realtimeMessage.data.azimuth)°")
+                print("📏 Distance: \(realtimeMessage.data.distance)m")
+                print("📊 SeqCount: \(realtimeMessage.data.seqCount)")
+                print("📡 RSSI: \(realtimeMessage.data.rssi)dBm")
+                print("🚧 NLOS: \(realtimeMessage.data.nlos)")
+            #endif
 
             let realtimeData = RealtimeData(
                 id: UUID(),
@@ -56,14 +64,18 @@ public class RealtimeDataUsecase: ObservableObject {
             addDataToDevice(realtimeData)
 
         } catch {
-            print("リアルタイムデータ処理エラー: \(error)")
-            if let decodingError = error as? DecodingError {
-                print("デコードエラー詳細: \(decodingError)")
-            }
-            print("問題のあるJSON: \(json)")
+            #if DEBUG
+                print("リアルタイムデータ処理エラー: \(error)")
+                if let decodingError = error as? DecodingError {
+                    print("デコードエラー詳細: \(decodingError)")
+                }
+                print("問題のあるJSON: \(json)")
+            #endif
         }
 
-        print("=== processRealtimeDataJSON終了 ===")
+        #if DEBUG
+            print("=== processRealtimeDataMessage終了 ===")
+        #endif
     }
 
     public func addConnectedDevice(_ deviceName: String) {
@@ -76,7 +88,9 @@ public class RealtimeDataUsecase: ObservableObject {
                 isActive: true
             )
             deviceRealtimeDataList.append(newDeviceData)
-            print("接続端末をリアルタイムデータリストに追加: \(deviceName)")
+            #if DEBUG
+                print("接続端末をリアルタイムデータリストに追加: \(deviceName)")
+            #endif
         }
 
         isReceivingRealtimeData = !deviceRealtimeDataList.isEmpty
@@ -90,7 +104,9 @@ public class RealtimeDataUsecase: ObservableObject {
     }
 
     public func clearAllRealtimeData() {
-        print("🗑️ リアルタイムデータクリア")
+        #if DEBUG
+            print("🗑️ リアルタイムデータクリア")
+        #endif
         deviceRealtimeDataList.removeAll()
         isReceivingRealtimeData = false
         objectWillChange.send()
@@ -107,7 +123,9 @@ public class RealtimeDataUsecase: ObservableObject {
         do {
             return try await swiftDataRepository.loadRealtimeData(for: sessionId)
         } catch {
-            print("リアルタイムデータ履歴読み込みエラー: \(error)")
+            #if DEBUG
+                print("リアルタイムデータ履歴読み込みエラー: \(error)")
+            #endif
             return []
         }
     }
@@ -128,7 +146,9 @@ public class RealtimeDataUsecase: ObservableObject {
 
         if let index = deviceRealtimeDataList.firstIndex(where: { $0.deviceName == data.deviceName }) {
             // 既存デバイスのデータ更新
-            print("🟡 既存デバイス更新: \(data.deviceName) (インデックス: \(index))")
+            #if DEBUG
+                print("🟡 既存デバイス更新: \(data.deviceName) (インデックス: \(index))")
+            #endif
 
             let updatedDevice = deviceRealtimeDataList[index]
             updatedDevice.latestData = data
@@ -143,12 +163,16 @@ public class RealtimeDataUsecase: ObservableObject {
 
             deviceRealtimeDataList[index] = updatedDevice
 
-            print("🟢 デバイスデータ更新完了: 履歴数=\(updatedDevice.dataHistory.count)")
-            print("🟢 最新データ: 距離=\(data.distance)m, 仰角=\(data.elevation)°, 方位=\(data.azimuth)°")
+            #if DEBUG
+                print("🟢 デバイスデータ更新完了: 履歴数=\(updatedDevice.dataHistory.count)")
+                print("🟢 最新データ: 距離=\(data.distance)m, 仰角=\(data.elevation)°, 方位=\(data.azimuth)°")
+            #endif
 
         } else {
             // 新しいデバイスのデータ追加
-            print("🆕 新デバイス追加: \(data.deviceName)")
+            #if DEBUG
+                print("🆕 新デバイス追加: \(data.deviceName)")
+            #endif
             let newDeviceData = DeviceRealtimeData(
                 deviceName: data.deviceName,
                 latestData: data,
@@ -157,7 +181,9 @@ public class RealtimeDataUsecase: ObservableObject {
                 isActive: true
             )
             deviceRealtimeDataList.append(newDeviceData)
-            print("🟢 デバイス追加完了: 総デバイス数=\(deviceRealtimeDataList.count)")
+            #if DEBUG
+                print("🟢 デバイス追加完了: 総デバイス数=\(deviceRealtimeDataList.count)")
+            #endif
         }
 
         isReceivingRealtimeData = true
@@ -168,15 +194,17 @@ public class RealtimeDataUsecase: ObservableObject {
     }
 
     private func logDeviceStatus() {
-        print("=== 全デバイス状況 ===")
-        for (index, device) in deviceRealtimeDataList.enumerated() {
-            print("[\(index)] \(device.deviceName):")
-            print("  - latestData: \(device.latestData != nil ? "あり" : "なし")")
-            print("  - elevation: \(device.latestData?.elevation ?? 0.0)")
-            print("  - azimuth: \(device.latestData?.azimuth ?? 0.0)")
-            print("  - isActive: \(device.isActive)")
-            print("  - lastUpdateTime: \(device.lastUpdateTime)")
-        }
-        print("=== 全デバイス状況終了 ===")
+        #if DEBUG
+            print("=== 全デバイス状況 ===")
+            for (index, device) in deviceRealtimeDataList.enumerated() {
+                print("[\(index)] \(device.deviceName):")
+                print("  - latestData: \(device.latestData != nil ? "あり" : "なし")")
+                print("  - elevation: \(device.latestData?.elevation ?? 0.0)")
+                print("  - azimuth: \(device.latestData?.azimuth ?? 0.0)")
+                print("  - isActive: \(device.isActive)")
+                print("  - lastUpdateTime: \(device.lastUpdateTime)")
+            }
+            print("=== 全デバイス状況終了 ===")
+        #endif
     }
 }

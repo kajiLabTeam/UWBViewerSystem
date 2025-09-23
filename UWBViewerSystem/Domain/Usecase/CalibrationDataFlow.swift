@@ -1,4 +1,5 @@
 import Foundation
+import os.log
 import SwiftUI
 
 /// キャリブレーションデータフローを管理するクラス
@@ -20,6 +21,7 @@ public class CalibrationDataFlow: ObservableObject {
     private let dataRepository: DataRepositoryProtocol
     private let calibrationUsecase: CalibrationUsecase
     private let observationUsecase: ObservationDataUsecase
+    private let logger = Logger(subsystem: "com.uwbviewer.system", category: "calibration-dataflow")
 
     // MARK: - Initialization
 
@@ -42,9 +44,9 @@ public class CalibrationDataFlow: ObservableObject {
         currentWorkflow = .collectingReference
         updateProgress()
 
-        print("📍 基準座標を収集: \(points.count)個の点")
+        logger.info("基準座標を収集: \(points.count)個の点")
         for point in points {
-            print("  - 座標: (\(point.realWorldCoordinate.x), \(point.realWorldCoordinate.y), \(point.realWorldCoordinate.z))")
+            logger.debug("座標: (\(point.realWorldCoordinate.x), \(point.realWorldCoordinate.y), \(point.realWorldCoordinate.z))")
         }
     }
 
@@ -78,7 +80,7 @@ public class CalibrationDataFlow: ObservableObject {
             observationSessions[antennaId] = session
             updateProgress()
 
-            print("🔍 観測データ収集開始: アンテナ \(antennaId)")
+            logger.info("観測データ収集開始: アンテナ \(antennaId)")
         } catch {
             errorMessage = "観測データ収集の開始に失敗しました: \(error.localizedDescription)"
             currentWorkflow = .failed
@@ -95,7 +97,7 @@ public class CalibrationDataFlow: ObservableObject {
             observationSessions[antennaId] = completedSession
             updateProgress()
 
-            print("⏹️ 観測データ収集停止: アンテナ \(antennaId), データ点数: \(completedSession.observations.count)")
+            logger.info("観測データ収集停止: アンテナ \(antennaId), データ点数: \(completedSession.observations.count)")
         } catch {
             errorMessage = "観測データ収集の停止に失敗しました: \(error.localizedDescription)"
         }
@@ -146,7 +148,7 @@ public class CalibrationDataFlow: ObservableObject {
                     observation: mapping.centroidPosition
                 ))
 
-                print("🎯 マッピング作成: 基準(\(referencePoint.realWorldCoordinate.x), \(referencePoint.realWorldCoordinate.y)) -> 観測(\(mapping.centroidPosition.x), \(mapping.centroidPosition.y)), 誤差: \(mapping.positionError)m")
+                logger.info("マッピング作成: 基準(\(referencePoint.realWorldCoordinate.x), \(referencePoint.realWorldCoordinate.y)) -> 観測(\(mapping.centroidPosition.x), \(mapping.centroidPosition.y)), 誤差: \(mapping.positionError)m")
             }
         }
 
@@ -196,11 +198,11 @@ public class CalibrationDataFlow: ObservableObject {
                         if !result.success {
                             allSuccessful = false
                         }
-                        print("📐 アンテナ \(antennaId) キャリブレーション完了: \(result.success ? "成功" : "失敗")")
+                        logger.info("アンテナ \(antennaId) キャリブレーション完了: \(result.success ? "成功" : "失敗")")
                     }
                 } else {
                     allSuccessful = false
-                    print("⚠️ アンテナ \(antennaId): キャリブレーション点が不足 (\(calibrationPoints.count)/3)")
+                    logger.warning("アンテナ \(antennaId): キャリブレーション点が不足 (\(calibrationPoints.count)/3)")
                 }
             }
 

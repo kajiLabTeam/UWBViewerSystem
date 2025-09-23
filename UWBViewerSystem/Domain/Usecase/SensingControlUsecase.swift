@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import os.log
 
 // MARK: - センシング制御 Usecase
 
@@ -20,6 +21,7 @@ public class SensingControlUsecase: ObservableObject {
     private var sensingStartTime: Date?
     private var durationTimer: Timer?
     private var currentSessionId: String?
+    private let logger = Logger(subsystem: "com.uwbviewer.system", category: "sensing-control")
 
     public init(
         connectionUsecase: ConnectionManagementUsecase,
@@ -32,25 +34,22 @@ public class SensingControlUsecase: ObservableObject {
     // MARK: - Sensing Control
 
     public func startRemoteSensing(fileName: String) {
-        print("=== センシング開始処理開始 ===")
-        print("ファイル名: \(fileName)")
+        logger.info("センシング開始処理開始 - ファイル名: \(fileName)")
 
         guard !fileName.isEmpty else {
             sensingStatus = "ファイル名を入力してください"
-            print("エラー: ファイル名が空です")
+            logger.error("ファイル名が空です")
             return
         }
 
         let hasConnected = connectionUsecase.hasConnectedDevices()
         let connectedCount = connectionUsecase.getConnectedDeviceCount()
 
-        print("接続状態チェック:")
-        print("- hasConnectedDevices: \(hasConnected)")
-        print("- connectedCount: \(connectedCount)")
+        logger.debug("接続状態チェック - hasConnectedDevices: \(hasConnected), connectedCount: \(connectedCount)")
 
         guard hasConnected else {
             sensingStatus = "接続された端末がありません（\(connectedCount)台接続中）"
-            print("エラー: 接続された端末がありません")
+            logger.error("接続された端末がありません")
             return
         }
 
@@ -68,17 +67,16 @@ public class SensingControlUsecase: ObservableObject {
                 )
                 try await swiftDataRepository.saveSystemActivity(activity)
 
-                print("センシングセッション作成完了: \(session.id)")
+                logger.info("センシングセッション作成完了: \(session.id)")
             } catch {
-                print("センシングセッション作成エラー: \(error)")
+                logger.error("センシングセッション作成エラー: \(error)")
                 sensingStatus = "セッション作成に失敗しました"
                 return
             }
         }
 
         let command = "SENSING_START:\(fileName)"
-        print("送信するコマンド: \(command)")
-        print("送信対象端末数: \(connectedCount)")
+        logger.info("送信するコマンド: \(command), 送信対象端末数: \(connectedCount)")
 
         connectionUsecase.sendMessage(command)
         sensingStatus = "センシング開始コマンド送信: \(fileName)"
@@ -92,11 +90,11 @@ public class SensingControlUsecase: ObservableObject {
 
         // 送信確認のため、少し遅らせてテストメッセージも送信
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            print("=== フォローアップテストメッセージ送信 ===")
+            self.logger.debug("フォローアップテストメッセージ送信")
             self.connectionUsecase.sendMessage("SENSING_TEST_FOLLOW_UP")
         }
 
-        print("=== センシング開始処理完了 ===")
+        logger.info("センシング開始処理完了")
     }
 
     public func stopRemoteSensing() {
@@ -210,10 +208,10 @@ public class SensingControlUsecase: ObservableObject {
                 )
                 try await swiftDataRepository.saveSystemActivity(activity)
 
-                print("センシングセッション更新完了: \(sessionId)")
+                logger.info("センシングセッション更新完了: \(sessionId)")
             }
         } catch {
-            print("センシングセッション更新エラー: \(error)")
+            logger.error("センシングセッション更新エラー: \(error)")
         }
     }
 
@@ -230,7 +228,7 @@ public class SensingControlUsecase: ObservableObject {
                 self.dataPointCount += 1
             }
         } catch {
-            print("リアルタイムデータ保存エラー: \(error)")
+            logger.error("リアルタイムデータ保存エラー: \(error)")
         }
     }
 

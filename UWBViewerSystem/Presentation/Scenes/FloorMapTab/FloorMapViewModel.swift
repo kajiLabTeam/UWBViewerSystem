@@ -246,14 +246,94 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func deleteFloorMap(_ map: FloorMap) {
-        floorMaps.removeAll { $0.id == map.id }
+        Task {
+            do {
+                // SwiftDataからフロアマップを削除
+                if let repository = swiftDataRepository {
+                    try await repository.deleteFloorMap(by: map.id)
+                    #if DEBUG
+                        print("✅ SwiftDataからフロアマップを削除: \(map.name) (ID: \(map.id))")
+                    #endif
 
-        if floorMaps.isEmpty {
-            preferenceRepository.setHasFloorMapConfigured(false)
-            selectedFloorMap = nil
-        } else if map.isActive && !floorMaps.isEmpty {
-            floorMaps[0].isActive = true
-            selectedFloorMap = floorMaps[0]
+                    // 関連するプロジェクト進行状況も削除
+                    do {
+                        if let progress = try await repository.loadProjectProgress(for: map.id) {
+                            try await repository.deleteProjectProgress(by: progress.id)
+                            #if DEBUG
+                                print("✅ 関連するプロジェクト進行状況も削除: \(progress.id)")
+                            #endif
+                        }
+                    } catch {
+                        #if DEBUG
+                            print("⚠️ プロジェクト進行状況の削除中にエラー（続行）: \(error)")
+                        #endif
+                    }
+
+                    // 関連するアンテナ位置データも削除
+                    do {
+                        let antennaPositions = try await repository.loadAntennaPositions(for: map.id)
+                        for position in antennaPositions {
+                            try await repository.deleteAntennaPosition(by: position.id)
+                        }
+                        #if DEBUG
+                            print("✅ 関連するアンテナ位置データも削除: \(antennaPositions.count)件")
+                        #endif
+                    } catch {
+                        #if DEBUG
+                            print("⚠️ アンテナ位置データの削除中にエラー（続行）: \(error)")
+                        #endif
+                    }
+                }
+
+                await MainActor.run {
+                    // UIからフロアマップを削除
+                    floorMaps.removeAll { $0.id == map.id }
+
+                    // PreferenceRepositoryからも削除
+                    if let currentFloorMapInfo = preferenceRepository.loadCurrentFloorMapInfo(),
+                       currentFloorMapInfo.id == map.id {
+                        // 現在アクティブなフロアマップが削除された場合、設定をクリア
+                        preferenceRepository.removeCurrentFloorMapInfo()
+                        #if DEBUG
+                            print("🗑️ PreferenceRepositoryの現在のフロアマップ情報をクリア")
+                        #endif
+                    }
+
+                    if floorMaps.isEmpty {
+                        preferenceRepository.setHasFloorMapConfigured(false)
+                        selectedFloorMap = nil
+                        #if DEBUG
+                            print("📝 全てのフロアマップが削除されたため、設定状態をクリア")
+                        #endif
+                    } else if map.isActive && !floorMaps.isEmpty {
+                        // アクティブなフロアマップが削除された場合、最初のフロアマップをアクティブに
+                        floorMaps[0].isActive = true
+                        selectedFloorMap = floorMaps[0]
+                        updateCurrentFloorMapInfo(floorMaps[0].toFloorMapInfo())
+                        #if DEBUG
+                            print("🔄 新しいアクティブフロアマップ: \(floorMaps[0].name)")
+                        #endif
+                    }
+                }
+
+            } catch {
+                await MainActor.run {
+                    #if DEBUG
+                        print("❌ フロアマップの削除エラー: \(error)")
+                    #endif
+                    // エラー時もUIからは削除する（整合性を保つため）
+                    floorMaps.removeAll { $0.id == map.id }
+
+                    if floorMaps.isEmpty {
+                        preferenceRepository.setHasFloorMapConfigured(false)
+                        selectedFloorMap = nil
+                    } else if map.isActive && !floorMaps.isEmpty {
+                        floorMaps[0].isActive = true
+                        selectedFloorMap = floorMaps[0]
+                        updateCurrentFloorMapInfo(floorMaps[0].toFloorMapInfo())
+                    }
+                }
+            }
         }
     }
 

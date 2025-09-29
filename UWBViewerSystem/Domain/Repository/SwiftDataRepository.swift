@@ -410,17 +410,17 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         let predicate = #Predicate<PersistentAntennaPosition> { $0.floorMapId == floorMapId }
         let descriptor = FetchDescriptor<PersistentAntennaPosition>(predicate: predicate)
         let positions = try modelContext.fetch(descriptor)
-        
+
         #if DEBUG
             print("🗑️ SwiftDataRepository: フロアマップ[\(floorMapId)]のアンテナ位置データを一括削除: \(positions.count)件")
         #endif
-        
+
         for position in positions {
             modelContext.delete(position)
         }
-        
+
         try modelContext.save()
-        
+
         #if DEBUG
             print("✅ アンテナ位置データ一括削除完了: \(positions.count)件")
         #endif

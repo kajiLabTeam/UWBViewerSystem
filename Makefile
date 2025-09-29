@@ -7,3 +7,6 @@ format:
 	cd ./BuildTools && \
 	swift build && \
 	swift run -c release swiftformat ../ 
+
+test: 
+	swift test --parallel

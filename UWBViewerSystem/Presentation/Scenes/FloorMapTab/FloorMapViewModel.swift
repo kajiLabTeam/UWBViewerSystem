@@ -65,10 +65,12 @@ struct FloorMap: Identifiable {
 class FloorMapViewModel: ObservableObject {
     @Published var floorMaps: [FloorMap] = []
     @Published var selectedFloorMap: FloorMap?
+    @Published var errorMessage: String?
 
     private var modelContext: ModelContext?
     private var swiftDataRepository: SwiftDataRepository?
     private let preferenceRepository: PreferenceRepositoryProtocol
+    private var deletingFloorMapIds: Set<String> = []
 
     init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
         self.preferenceRepository = preferenceRepository
@@ -246,14 +248,105 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func deleteFloorMap(_ map: FloorMap) {
+        guard !deletingFloorMapIds.contains(map.id) else {
+            #if DEBUG
+                print("⚠️ すでに削除処理中: \(map.id)")
+            #endif
+            return
+        }
+
+        deletingFloorMapIds.insert(map.id)
+
+        Task {
+            defer {
+                Task { @MainActor in
+                    deletingFloorMapIds.remove(map.id)
+                }
+            }
+            do {
+                try await deleteFloorMapFromRepository(map.id)
+                await MainActor.run {
+                    updateUIAfterDeletion(map)
+                }
+            } catch {
+                await MainActor.run {
+                    #if DEBUG
+                        print("❌ フロアマップの削除エラー: \(error)")
+                    #endif
+                    errorMessage = "フロアマップの削除に失敗しました: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    private func deleteFloorMapFromRepository(_ mapId: String) async throws {
+        guard let repository = swiftDataRepository else { return }
+
+        try await repository.deleteFloorMap(by: mapId)
+        #if DEBUG
+            print("✅ SwiftDataからフロアマップを削除: \(mapId)")
+        #endif
+
+        await deleteCascadingData(for: mapId, repository: repository)
+    }
+
+    private func deleteCascadingData(for mapId: String, repository: SwiftDataRepository) async {
+        // 関連するプロジェクト進行状況の削除
+        do {
+            if let progress = try await repository.loadProjectProgress(for: mapId) {
+                try await repository.deleteProjectProgress(by: progress.id)
+                #if DEBUG
+                    print("✅ 関連するプロジェクト進行状況も削除: \(progress.id)")
+                #endif
+            }
+        } catch {
+            #if DEBUG
+                print("⚠️ プロジェクト進行状況の削除中にエラー（続行）: \(error)")
+            #endif
+        }
+
+        // 関連するアンテナ位置データの削除
+        do {
+            try await repository.deleteAllAntennaPositions(for: mapId)
+            #if DEBUG
+                print("✅ 関連するアンテナ位置データを一括削除")
+            #endif
+        } catch {
+            #if DEBUG
+                print("⚠️ アンテナ位置データの削除中にエラー（続行）: \(error)")
+            #endif
+        }
+    }
+
+    private func updateUIAfterDeletion(_ map: FloorMap) {
         floorMaps.removeAll { $0.id == map.id }
 
+        // PreferenceRepositoryからの削除
+        if let currentFloorMapInfo = preferenceRepository.loadCurrentFloorMapInfo(),
+           currentFloorMapInfo.id == map.id {
+            preferenceRepository.removeCurrentFloorMapInfo()
+            #if DEBUG
+                print("🗑️ PreferenceRepositoryの現在のフロアマップ情報をクリア")
+            #endif
+        }
+
+        updateActiveStateAfterDeletion(deletedMap: map)
+    }
+
+    private func updateActiveStateAfterDeletion(deletedMap: FloorMap) {
         if floorMaps.isEmpty {
             preferenceRepository.setHasFloorMapConfigured(false)
             selectedFloorMap = nil
-        } else if map.isActive && !floorMaps.isEmpty {
+            #if DEBUG
+                print("📝 全てのフロアマップが削除されたため、設定状態をクリア")
+            #endif
+        } else if deletedMap.isActive {
             floorMaps[0].isActive = true
             selectedFloorMap = floorMaps[0]
+            updateCurrentFloorMapInfo(floorMaps[0].toFloorMapInfo())
+            #if DEBUG
+                print("🔄 新しいアクティブフロアマップ: \(floorMaps[0].name)")
+            #endif
         }
     }
 

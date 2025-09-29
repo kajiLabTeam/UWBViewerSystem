@@ -23,7 +23,7 @@ jobs:
 
     - name: Run Swift Tests
       run: |
-        cd ios/UWBViewerSystem/UWBViewerSystem
+        cd UWBViewerSystem
         swift test --parallel
 
     - name: Test Summary

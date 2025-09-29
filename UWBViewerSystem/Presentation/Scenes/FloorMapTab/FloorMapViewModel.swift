@@ -65,10 +65,12 @@ struct FloorMap: Identifiable {
 class FloorMapViewModel: ObservableObject {
     @Published var floorMaps: [FloorMap] = []
     @Published var selectedFloorMap: FloorMap?
+    @Published var errorMessage: String?
 
     private var modelContext: ModelContext?
     private var swiftDataRepository: SwiftDataRepository?
     private let preferenceRepository: PreferenceRepositoryProtocol
+    private var deletingFloorMapIds: Set<String> = []
 
     init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
         self.preferenceRepository = preferenceRepository
@@ -246,7 +248,21 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func deleteFloorMap(_ map: FloorMap) {
+        guard !deletingFloorMapIds.contains(map.id) else {
+            #if DEBUG
+                print("⚠️ すでに削除処理中: \(map.id)")
+            #endif
+            return
+        }
+
+        deletingFloorMapIds.insert(map.id)
+
         Task {
+            defer {
+                Task { @MainActor in
+                    deletingFloorMapIds.remove(map.id)
+                }
+            }
             do {
                 try await deleteFloorMapFromRepository(map.id)
                 await MainActor.run {
@@ -257,7 +273,7 @@ class FloorMapViewModel: ObservableObject {
                     #if DEBUG
                         print("❌ フロアマップの削除エラー: \(error)")
                     #endif
-                    updateUIAfterDeletion(map)
+                    errorMessage = "フロアマップの削除に失敗しました: \(error.localizedDescription)"
                 }
             }
         }
@@ -291,12 +307,9 @@ class FloorMapViewModel: ObservableObject {
 
         // 関連するアンテナ位置データの削除
         do {
-            let antennaPositions = try await repository.loadAntennaPositions(for: mapId)
-            for position in antennaPositions {
-                try await repository.deleteAntennaPosition(by: position.id)
-            }
+            try await repository.deleteAllAntennaPositions(for: mapId)
             #if DEBUG
-                print("✅ 関連するアンテナ位置データも削除: \(antennaPositions.count)件")
+                print("✅ 関連するアンテナ位置データを一括削除")
             #endif
         } catch {
             #if DEBUG

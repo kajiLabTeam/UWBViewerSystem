@@ -196,6 +196,9 @@ public class CalibrationDataFlow: ObservableObject {
         self.logger.info("段階的キャリブレーション開始 - 基準点数: \(self.totalReferencePoints)")
 
         await self.processNextReferencePoint()
+
+        // 最初の基準点でのデータ収集を自動的に開始
+        await self.startDataCollectionForCurrentPoint()
     }
 
     /// 次の基準点を処理
@@ -267,11 +270,16 @@ public class CalibrationDataFlow: ObservableObject {
 
         self.logger.info("基準点 \(self.currentReferencePointIndex + 1) のデータ収集完了")
 
+        // リモートセンシングを停止
+        self.sensingControlUsecase?.stopRemoteSensing()
+
         // 次の基準点に進む
         self.currentReferencePointIndex += 1
 
         if self.currentReferencePointIndex < self.referencePoints.count {
             await self.processNextReferencePoint()
+            // 次の基準点でのデータ収集を自動的に開始
+            await self.startDataCollectionForCurrentPoint()
         } else {
             self.logger.info("全ての基準点のデータ収集完了 - キャリブレーション計算開始")
             // 全ての基準点の収集が完了したら、マッピングとキャリブレーションを実行

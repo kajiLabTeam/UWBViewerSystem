@@ -25,53 +25,53 @@ class NavigationRouterModel: ObservableObject {
     func push(_ route: Route) {
         print("🚀 NavigationRouter.push(\(route))が呼び出されました")
         print("🚀 self instance: \(ObjectIdentifier(self))")
-        print("🚀 現在のpath.count: \(path.count)")
-        path.append(route)
-        print("🚀 push後のpath.count: \(path.count)")
+        print("🚀 現在のpath.count: \(self.path.count)")
+        self.path.append(route)
+        print("🚀 push後のpath.count: \(self.path.count)")
     }
 
     /// 一つ前の画面に戻る
     func pop() {
-        path.removeLast()
+        self.path.removeLast()
     }
 
     /// 一番最初の画面に戻る
     func reset() {
-        path.removeLast(path.count)
+        self.path.removeLast(self.path.count)
     }
 
     /// 指定されたルートに直接遷移する（スタックをクリアしてから）
     func navigateTo(_ route: Route) {
         print("🔄 NavigationRouter.navigateTo(\(route)) called")
-        print("🔄 Current path count before reset: \(path.count)")
-        reset()
-        print("🔄 Path reset, count: \(path.count)")
-        currentRoute = route
-        print("🔄 Current route updated to: \(currentRoute)")
-        push(route)
-        print("🔄 Final path count: \(path.count)")
+        print("🔄 Current path count before reset: \(self.path.count)")
+        self.reset()
+        print("🔄 Path reset, count: \(self.path.count)")
+        self.currentRoute = route
+        print("🔄 Current route updated to: \(self.currentRoute)")
+        self.push(route)
+        print("🔄 Final path count: \(self.path.count)")
     }
 
     /// アプリの初期化とログイン状態チェック
     func initializeApp() async {
         print("🔧 NavigationRouterModel: 初期化開始")
-        appState = .initializing
+        self.appState = .initializing
         // 少し待ってからログイン状態をチェック
         try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
 
         // もしここにログイン処理とか書く場合はこちらに
         print("🔧 NavigationRouterModel: 認証状態に変更")
-        appState = .authenticated
-        print("🔧 NavigationRouterModel: 初期化完了 - appState: \(appState)")
+        self.appState = .authenticated
+        print("🔧 NavigationRouterModel: 初期化完了 - appState: \(self.appState)")
     }
 
     /// ログイン成功時の処理
     func onLoginSuccess() {
-        appState = .authenticated
+        self.appState = .authenticated
     }
 
     /// 指定したルートに遷移する（新しいファイル用のメソッド）
     func navigate(to route: Route) {
-        navigateTo(route)
+        self.navigateTo(route)
     }
 }

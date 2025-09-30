@@ -12,7 +12,7 @@ struct SensingData: Identifiable {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         formatter.locale = Locale(identifier: "ja_JP")
-        return formatter.string(from: createdAt)
+        return formatter.string(from: self.createdAt)
     }
 }
 
@@ -31,12 +31,12 @@ class SensingViewModel: ObservableObject {
 
     init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
         self.preferenceRepository = preferenceRepository
-        loadSavedData()
-        checkSystemStatus()
+        self.loadSavedData()
+        self.checkSystemStatus()
     }
 
     func loadSavedData() {
-        savedSensingData = [
+        self.savedSensingData = [
             SensingData(name: "測定データ 1", dataPoints: 1250, createdAt: Date().addingTimeInterval(-86400)),
             SensingData(name: "測定データ 2", dataPoints: 890, createdAt: Date().addingTimeInterval(-172800)),
             SensingData(name: "測定データ 3", dataPoints: 2100, createdAt: Date().addingTimeInterval(-259200)),
@@ -44,24 +44,24 @@ class SensingViewModel: ObservableObject {
     }
 
     func checkSystemStatus() {
-        hasFloorMap = preferenceRepository.getBool(forKey: "hasFloorMapConfigured")
-        hasConnectedDevice = preferenceRepository.getBool(forKey: "hasDeviceConnected")
+        self.hasFloorMap = self.preferenceRepository.getBool(forKey: "hasFloorMapConfigured")
+        self.hasConnectedDevice = self.preferenceRepository.getBool(forKey: "hasDeviceConnected")
     }
 
     func validateSensingRequirements() -> ValidationResult {
-        checkSystemStatus()
+        self.checkSystemStatus()
 
-        if !hasFloorMap && !hasConnectedDevice {
+        if !self.hasFloorMap && !self.hasConnectedDevice {
             return ValidationResult(
                 isValid: false,
                 message: "センシングを開始するには、フロアマップの設定と端末の接続が必要です。どちらを先に設定しますか？"
             )
-        } else if !hasFloorMap {
+        } else if !self.hasFloorMap {
             return ValidationResult(
                 isValid: false,
                 message: "センシングを開始するには、フロアマップの設定が必要です。"
             )
-        } else if !hasConnectedDevice {
+        } else if !self.hasConnectedDevice {
             return ValidationResult(
                 isValid: false,
                 message: "センシングを開始するには、端末の接続が必要です。"
@@ -72,13 +72,13 @@ class SensingViewModel: ObservableObject {
     }
 
     func selectSensingData(_ data: SensingData) {
-        selectedSensingData = data
+        self.selectedSensingData = data
     }
 
     func deleteSensingData(_ data: SensingData) {
-        savedSensingData.removeAll { $0.id == data.id }
-        if selectedSensingData?.id == data.id {
-            selectedSensingData = nil
+        self.savedSensingData.removeAll { $0.id == data.id }
+        if self.selectedSensingData?.id == data.id {
+            self.selectedSensingData = nil
         }
     }
 }

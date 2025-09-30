@@ -10,26 +10,26 @@ struct SensingManagementView: View {
     var body: some View {
         VStack(spacing: 0) {
             // フロープログレス表示
-            SensingFlowProgressView(navigator: flowNavigator)
+            SensingFlowProgressView(navigator: self.flowNavigator)
 
             ScrollView {
                 VStack(spacing: 20) {
-                    HeaderSection()
+                    self.HeaderSection()
 
                     HStack(spacing: 20) {
-                        AntennaStatusSection(viewModel: viewModel)
+                        AntennaStatusSection(viewModel: self.viewModel)
 
-                        SensingControlSection(viewModel: viewModel)
+                        SensingControlSection(viewModel: self.viewModel)
                     }
 
-                    RealtimeDataSection(viewModel: viewModel)
+                    RealtimeDataSection(viewModel: self.viewModel)
 
                     Spacer(minLength: 80)
                 }
                 .padding()
             }
 
-            NavigationButtonsSection(viewModel: viewModel)
+            self.NavigationButtonsSection(viewModel: self.viewModel)
         }
         .navigationTitle("センシング管理")
         #if os(iOS)
@@ -43,10 +43,10 @@ struct SensingManagementView: View {
         .onAppear {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
             let repository = SwiftDataRepository(modelContext: modelContext)
-            viewModel.setSwiftDataRepository(repository)
-            viewModel.initialize()
-            flowNavigator.currentStep = .sensingExecution
-            flowNavigator.setRouter(router)
+            self.viewModel.setSwiftDataRepository(repository)
+            self.viewModel.initialize()
+            self.flowNavigator.currentStep = .sensingExecution
+            self.flowNavigator.setRouter(self.router)
         }
     }
 
@@ -75,7 +75,7 @@ struct SensingManagementView: View {
 
             HStack(spacing: 16) {
                 Button("戻る") {
-                    flowNavigator.goToPreviousStep()
+                    self.flowNavigator.goToPreviousStep()
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -85,7 +85,7 @@ struct SensingManagementView: View {
 
                 Button("次へ") {
                     if viewModel.saveSensingSessionForFlow() {
-                        flowNavigator.proceedToNextStep()
+                        self.flowNavigator.proceedToNextStep()
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -98,12 +98,12 @@ struct SensingManagementView: View {
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
-        .alert("エラー", isPresented: Binding.constant(flowNavigator.lastError != nil)) {
+        .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
             Button("OK") {
-                flowNavigator.lastError = nil
+                self.flowNavigator.lastError = nil
             }
         } message: {
-            Text(flowNavigator.lastError ?? "")
+            Text(self.flowNavigator.lastError ?? "")
         }
     }
 }
@@ -122,14 +122,14 @@ struct AntennaStatusSection: View {
                 Spacer()
 
                 Button("更新") {
-                    viewModel.refreshAntennaStatus()
+                    self.viewModel.refreshAntennaStatus()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
 
             LazyVStack(spacing: 12) {
-                ForEach(viewModel.antennaDevices) { device in
+                ForEach(self.viewModel.antennaDevices) { device in
                     AntennaStatusCard(device: device)
                 }
             }
@@ -152,13 +152,13 @@ struct SensingControlSection: View {
 
             VStack(spacing: 20) {
                 // センシング状態表示
-                SensingStatusCard(viewModel: viewModel)
+                SensingStatusCard(viewModel: self.viewModel)
 
                 // センシング設定
-                SensingSettingsCard(viewModel: viewModel)
+                SensingSettingsCard(viewModel: self.viewModel)
 
                 // センシング制御ボタン
-                SensingControlButtons(viewModel: viewModel)
+                SensingControlButtons(viewModel: self.viewModel)
 
                 Spacer()
             }
@@ -180,7 +180,7 @@ struct RealtimeDataSection: View {
 
                 Spacer()
 
-                if viewModel.isSensingActive {
+                if self.viewModel.isSensingActive {
                     HStack {
                         Circle()
                             .fill(Color.green)
@@ -192,11 +192,11 @@ struct RealtimeDataSection: View {
                 }
             }
 
-            if viewModel.realtimeData.isEmpty {
+            if self.viewModel.realtimeData.isEmpty {
                 SensingEmptyDataView()
             } else {
                 LazyVStack(spacing: 8) {
-                    ForEach(viewModel.realtimeData) { data in
+                    ForEach(self.viewModel.realtimeData) { data in
                         RealtimeDataRow(data: data)
                     }
                 }

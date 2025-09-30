@@ -33,7 +33,7 @@ struct AffineTransformTests {
     @Test("アフィン変換行列の計算")
     func affineTransformCalculation() throws {
         // Arrange
-        let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
+        let sampleMapCalibrationPoints = self.setupSampleCalibrationPoints()
 
         // Act
         let transform = try UWBViewerSystem.AffineTransform.calculateAffineTransform(from: sampleMapCalibrationPoints)
@@ -47,7 +47,7 @@ struct AffineTransformTests {
     @Test("マップ座標から実世界座標への変換")
     func mapToRealWorldCoordinateConversion() throws {
         // Arrange
-        let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
+        let sampleMapCalibrationPoints = self.setupSampleCalibrationPoints()
         let transform = try UWBViewerSystem.AffineTransform.calculateAffineTransform(from: sampleMapCalibrationPoints)
         let mapPoint = Point3D(x: 200, y: 200, z: 0)
 
@@ -63,7 +63,7 @@ struct AffineTransformTests {
     @Test("実世界座標からマップ座標への逆変換")
     func realWorldToMapCoordinateConversion() throws {
         // Arrange
-        let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
+        let sampleMapCalibrationPoints = self.setupSampleCalibrationPoints()
         let transform = try UWBViewerSystem.AffineTransform.calculateAffineTransform(from: sampleMapCalibrationPoints)
         let realWorldPoint = Point3D(x: 1, y: 1, z: 0)
 
@@ -78,7 +78,7 @@ struct AffineTransformTests {
     @Test("往復変換の精度")
     func transformationRoundTrip() throws {
         // Arrange
-        let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
+        let sampleMapCalibrationPoints = self.setupSampleCalibrationPoints()
         let transform = try UWBViewerSystem.AffineTransform.calculateAffineTransform(from: sampleMapCalibrationPoints)
         let originalMapPoint = Point3D(x: 250, y: 150, z: 0)
 
@@ -99,7 +99,7 @@ struct AffineTransformTests {
     @Test("不十分なキャリブレーションポイントでのエラー")
     func insufficientCalibrationPoints() {
         // Arrange
-        let sampleMapCalibrationPoints = setupSampleCalibrationPoints()
+        let sampleMapCalibrationPoints = self.setupSampleCalibrationPoints()
         let insufficientPoints = Array(sampleMapCalibrationPoints.prefix(2)) // 2点のみ
 
         // Act & Assert

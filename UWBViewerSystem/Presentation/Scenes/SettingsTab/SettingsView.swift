@@ -9,9 +9,9 @@ struct SettingsView: View {
             NavigationSplitView {
                 ScrollView {
                     VStack(spacing: 20) {
-                        headerSection
+                        self.headerSection
 
-                        aboutSection
+                        self.aboutSection
                     }
                     .padding()
                 }
@@ -30,15 +30,15 @@ struct SettingsView: View {
             NavigationView {
                 ScrollView {
                     VStack(spacing: 20) {
-                        headerSection
+                        self.headerSection
 
-                        connectionSettingsSection
+                        self.connectionSettingsSection
 
-                        dataManagementSection
+                        self.dataManagementSection
 
-                        advancedSettingsSection
+                        self.advancedSettingsSection
 
-                        aboutSection
+                        self.aboutSection
                     }
                     .padding()
                 }
@@ -84,9 +84,9 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                        viewModel.selectSettingDetail(.pairingSettings)
+                        self.viewModel.selectSettingDetail(.pairingSettings)
                     #else
-                        router.push(.pairingSettingPage)
+                        self.router.push(.pairingSettingPage)
                     #endif
                 }
 
@@ -100,9 +100,9 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                        viewModel.selectSettingDetail(.connectionManagement)
+                        self.viewModel.selectSettingDetail(.connectionManagement)
                     #else
-                        router.push(.connectionManagementPage)
+                        self.router.push(.connectionManagementPage)
                     #endif
                 }
             }
@@ -125,7 +125,7 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                        viewModel.selectSettingDetail(.dataExport)
+                        self.viewModel.selectSettingDetail(.dataExport)
                     #else
                         // データエクスポート処理 (未実装)
                     #endif
@@ -141,7 +141,7 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                        viewModel.selectSettingDetail(.cacheManagement)
+                        self.viewModel.selectSettingDetail(.cacheManagement)
                     #else
                         // キャッシュクリア処理 (未実装)
                     #endif
@@ -166,9 +166,9 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                        viewModel.selectSettingDetail(.antennaSettings)
+                        self.viewModel.selectSettingDetail(.antennaSettings)
                     #else
-                        router.push(.fieldSettingPage)
+                        self.router.push(.fieldSettingPage)
                     #endif
                 }
 
@@ -182,9 +182,9 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                        viewModel.selectSettingDetail(.advertiserSettings)
+                        self.viewModel.selectSettingDetail(.advertiserSettings)
                     #else
-                        router.push(.advertiserPage)
+                        self.router.push(.advertiserPage)
                     #endif
                 }
             }
@@ -209,7 +209,7 @@ struct SettingsView: View {
 
                     Spacer()
 
-                    Text(viewModel.appVersion)
+                    Text(self.viewModel.appVersion)
                         .foregroundColor(.secondary)
                 }
                 .padding()
@@ -224,9 +224,9 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                        viewModel.selectSettingDetail(.help)
+                        self.viewModel.selectSettingDetail(.help)
                     #else
-                        viewModel.showHelp()
+                        self.viewModel.showHelp()
                     #endif
                 }
 
@@ -240,9 +240,9 @@ struct SettingsView: View {
                     showChevron: true
                 ) {
                     #if os(macOS)
-                        viewModel.selectSettingDetail(.terms)
+                        self.viewModel.selectSettingDetail(.terms)
                     #else
-                        viewModel.showTerms()
+                        self.viewModel.showTerms()
                     #endif
                 }
             }
@@ -260,14 +260,14 @@ struct SettingsRow: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button(action: self.action) {
             HStack {
-                Image(systemName: icon)
+                Image(systemName: self.icon)
                     .frame(width: 20)
                     .foregroundColor(.blue)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
+                    Text(self.title)
                         .foregroundColor(.primary)
 
                     if let subtitle {
@@ -278,7 +278,7 @@ struct SettingsRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                if showChevron {
+                if self.showChevron {
                     Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundColor(.gray)
@@ -298,11 +298,11 @@ struct SettingsDetailView: View {
         VStack(spacing: 30) {
             // ヘッダー
             VStack(alignment: .leading, spacing: 16) {
-                Text(detailType.rawValue)
+                Text(self.detailType.rawValue)
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                Text(subtitle)
+                Text(self.subtitle)
                     .foregroundColor(.secondary)
             }
             .padding()
@@ -310,23 +310,23 @@ struct SettingsDetailView: View {
             .cornerRadius(12)
 
             // メインコンテンツ
-            switch detailType {
+            switch self.detailType {
             case .antennaSettings:
-                antennaSettingsContent
+                self.antennaSettingsContent
             case .pairingSettings:
-                pairingSettingsContent
+                self.pairingSettingsContent
             case .connectionManagement:
-                connectionManagementContent
+                self.connectionManagementContent
             case .dataExport:
-                dataExportContent
+                self.dataExportContent
             case .cacheManagement:
-                cacheManagementContent
+                self.cacheManagementContent
             case .advertiserSettings:
-                advertiserSettingsContent
+                self.advertiserSettingsContent
             case .help:
-                helpContent
+                self.helpContent
             case .terms:
-                termsContent
+                self.termsContent
             }
 
             Spacer()
@@ -341,7 +341,7 @@ struct SettingsDetailView: View {
     }
 
     private var subtitle: String {
-        switch detailType {
+        switch self.detailType {
         case .antennaSettings:
             return "UWBアンテナの位置と設定を管理します"
         case .pairingSettings:
@@ -365,7 +365,7 @@ struct SettingsDetailView: View {
     private var antennaSettingsContent: some View {
         VStack(spacing: 16) {
             Button(action: {
-                router.push(.fieldSettingPage)
+                self.router.push(.fieldSettingPage)
             }) {
                 HStack {
                     Image(systemName: "antenna.radiowaves.left.and.right")
@@ -384,7 +384,7 @@ struct SettingsDetailView: View {
     private var pairingSettingsContent: some View {
         VStack(spacing: 16) {
             Button(action: {
-                router.push(.pairingSettingPage)
+                self.router.push(.pairingSettingPage)
             }) {
                 HStack {
                     Image(systemName: "link.circle")
@@ -403,7 +403,7 @@ struct SettingsDetailView: View {
     private var connectionManagementContent: some View {
         VStack(spacing: 16) {
             Button(action: {
-                router.push(.connectionManagementPage)
+                self.router.push(.connectionManagementPage)
             }) {
                 HStack {
                     Image(systemName: "network")
@@ -474,7 +474,7 @@ struct SettingsDetailView: View {
     private var advertiserSettingsContent: some View {
         VStack(spacing: 16) {
             Button(action: {
-                router.push(.advertiserPage)
+                self.router.push(.advertiserPage)
             }) {
                 HStack {
                     Image(systemName: "megaphone")

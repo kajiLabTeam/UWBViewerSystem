@@ -57,13 +57,13 @@ public class CalibrationDataFlow: ObservableObject {
     /// マップから基準座標を取得
     /// - Parameter points: マップ上で指定された基準座標
     public func collectReferencePoints(from points: [MapCalibrationPoint]) {
-        referencePoints = points
-        currentWorkflow = .collectingReference
-        updateProgress()
+        self.referencePoints = points
+        self.currentWorkflow = .collectingReference
+        self.updateProgress()
 
-        logger.info("基準座標を収集: \(points.count)個の点")
+        self.logger.info("基準座標を収集: \(points.count)個の点")
         for point in points {
-            logger.debug(
+            self.logger.debug(
                 "座標: (\(point.realWorldCoordinate.x), \(point.realWorldCoordinate.y), \(point.realWorldCoordinate.z))")
         }
     }
@@ -79,8 +79,8 @@ public class CalibrationDataFlow: ObservableObject {
             antennaId: "",  // 手動追加の場合は空文字
             pointIndex: referencePoints.count + 1
         )
-        referencePoints.append(point)
-        updateProgress()
+        self.referencePoints.append(point)
+        self.updateProgress()
     }
 
     // MARK: - 2. 観測データ取得
@@ -88,20 +88,20 @@ public class CalibrationDataFlow: ObservableObject {
     /// 指定されたアンテナから観測データを収集開始
     /// - Parameter antennaId: 観測対象のアンテナID
     public func startObservationData(for antennaId: String) async {
-        currentWorkflow = .collectingObservation
+        self.currentWorkflow = .collectingObservation
 
         do {
             let session = try await observationUsecase.startObservationSession(
                 for: antennaId,
                 name: "キャリブレーション観測_\(Date().timeIntervalSince1970)"
             )
-            observationSessions[antennaId] = session
-            updateProgress()
+            self.observationSessions[antennaId] = session
+            self.updateProgress()
 
-            logger.info("観測データ収集開始: アンテナ \(antennaId)")
+            self.logger.info("観測データ収集開始: アンテナ \(antennaId)")
         } catch {
-            errorMessage = "観測データ収集の開始に失敗しました: \(error.localizedDescription)"
-            currentWorkflow = .failed
+            self.errorMessage = "観測データ収集の開始に失敗しました: \(error.localizedDescription)"
+            self.currentWorkflow = .failed
         }
     }
 
@@ -112,12 +112,12 @@ public class CalibrationDataFlow: ObservableObject {
 
         do {
             let completedSession = try await observationUsecase.stopObservationSession(session.id)
-            observationSessions[antennaId] = completedSession
-            updateProgress()
+            self.observationSessions[antennaId] = completedSession
+            self.updateProgress()
 
-            logger.info("観測データ収集停止: アンテナ \(antennaId), データ点数: \(completedSession.observations.count)")
+            self.logger.info("観測データ収集停止: アンテナ \(antennaId), データ点数: \(completedSession.observations.count)")
         } catch {
-            errorMessage = "観測データ収集の停止に失敗しました: \(error.localizedDescription)"
+            self.errorMessage = "観測データ収集の停止に失敗しました: \(error.localizedDescription)"
         }
     }
 
@@ -125,18 +125,18 @@ public class CalibrationDataFlow: ObservableObject {
 
     /// 基準座標と観測データをマッピング
     public func mapObservationsToReferences() -> [(reference: Point3D, observation: Point3D)] {
-        currentWorkflow = .calculating
-        mappings.removeAll()
+        self.currentWorkflow = .calculating
+        self.mappings.removeAll()
 
         var mappedPairs: [(reference: Point3D, observation: Point3D)] = []
 
         // 各基準点に対して最も近い観測データを見つける
-        for referencePoint in referencePoints {
+        for referencePoint in self.referencePoints {
             var bestMappings: [ObservationPoint] = []
             var minDistance = Double.infinity
 
             // 全てのアンテナの観測データから最適な点を探す
-            for session in observationSessions.values {
+            for session in self.observationSessions.values {
                 let validObservations = session.observations.filter { observation in
                     observation.quality.strength > 0.5  // 品質閾値
                         && observation.quality.isLineOfSight  // 見通し線が取れている
@@ -158,7 +158,7 @@ public class CalibrationDataFlow: ObservableObject {
                     referencePosition: referencePoint.realWorldCoordinate,
                     observations: bestMappings
                 )
-                mappings.append(mapping)
+                self.mappings.append(mapping)
 
                 // マッピングペアを作成（重心を使用）
                 mappedPairs.append(
@@ -167,13 +167,13 @@ public class CalibrationDataFlow: ObservableObject {
                         observation: mapping.centroidPosition
                     ))
 
-                logger.info(
+                self.logger.info(
                     "マッピング作成: 基準(\(referencePoint.realWorldCoordinate.x), \(referencePoint.realWorldCoordinate.y)) -> 観測(\(mapping.centroidPosition.x), \(mapping.centroidPosition.y)), 誤差: \(mapping.positionError)m"
                 )
             }
         }
 
-        updateProgress()
+        self.updateProgress()
         return mappedPairs
     }
 
@@ -181,75 +181,75 @@ public class CalibrationDataFlow: ObservableObject {
 
     /// 段階的キャリブレーションを開始
     public func startStepByStepCalibration() async {
-        guard !referencePoints.isEmpty else {
-            logger.error("基準点が設定されていません")
-            errorMessage = "基準点が設定されていません"
-            currentWorkflow = .failed
+        guard !self.referencePoints.isEmpty else {
+            self.logger.error("基準点が設定されていません")
+            self.errorMessage = "基準点が設定されていません"
+            self.currentWorkflow = .failed
             return
         }
 
-        currentReferencePointIndex = 0
-        totalReferencePoints = referencePoints.count
-        currentWorkflow = .collectingObservation
-        isCollectingForCurrentPoint = false
+        self.currentReferencePointIndex = 0
+        self.totalReferencePoints = self.referencePoints.count
+        self.currentWorkflow = .collectingObservation
+        self.isCollectingForCurrentPoint = false
 
-        logger.info("段階的キャリブレーション開始 - 基準点数: \(self.totalReferencePoints)")
+        self.logger.info("段階的キャリブレーション開始 - 基準点数: \(self.totalReferencePoints)")
 
-        await processNextReferencePoint()
+        await self.processNextReferencePoint()
     }
 
     /// 次の基準点を処理
     public func processNextReferencePoint() async {
-        guard currentReferencePointIndex < referencePoints.count else {
-            logger.info("全ての基準点の処理が完了しました")
+        guard self.currentReferencePointIndex < self.referencePoints.count else {
+            self.logger.info("全ての基準点の処理が完了しました")
             // データのマッピングとキャリブレーション実行
-            _ = mapObservationsToReferences()
-            _ = await executeCalibration()
+            _ = self.mapObservationsToReferences()
+            _ = await self.executeCalibration()
             return
         }
 
-        let currentPoint = referencePoints[currentReferencePointIndex]
-        let pointNumber = currentReferencePointIndex + 1
+        let currentPoint = self.referencePoints[self.currentReferencePointIndex]
+        let pointNumber = self.currentReferencePointIndex + 1
 
-        currentStepInstructions = "基準点 \(pointNumber)/\(totalReferencePoints) でデータを収集してください\n座標: (\(String(format: "%.2f", currentPoint.realWorldCoordinate.x)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.y)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.z)))"
-        calibrationStepProgress = Double(currentReferencePointIndex) / Double(totalReferencePoints)
+        self.currentStepInstructions = "基準点 \(pointNumber)/\(self.totalReferencePoints) でデータを収集してください\n座標: (\(String(format: "%.2f", currentPoint.realWorldCoordinate.x)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.y)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.z)))"
+        self.calibrationStepProgress = Double(self.currentReferencePointIndex) / Double(self.totalReferencePoints)
 
-        logger.info("基準点 \(pointNumber)/\(self.totalReferencePoints) の処理準備完了")
+        self.logger.info("基準点 \(pointNumber)/\(self.totalReferencePoints) の処理準備完了")
     }
 
     /// 現在の基準点でデータ収集を開始
     public func startDataCollectionForCurrentPoint() async {
-        guard currentReferencePointIndex < referencePoints.count else {
-            logger.error("有効な基準点がありません")
+        guard self.currentReferencePointIndex < self.referencePoints.count else {
+            self.logger.error("有効な基準点がありません")
             return
         }
 
-        let currentPoint = referencePoints[currentReferencePointIndex]
-        isCollectingForCurrentPoint = true
+        let currentPoint = self.referencePoints[self.currentReferencePointIndex]
+        self.isCollectingForCurrentPoint = true
 
-        logger.info("基準点 \(self.currentReferencePointIndex + 1) でのデータ収集開始: アンテナID \(currentPoint.antennaId)")
+        self.logger.info("基準点 \(self.currentReferencePointIndex + 1) でのデータ収集開始: アンテナID \(currentPoint.antennaId)")
 
         // リモートセンシングを開始（sensingControlUsecaseが存在する場合）
         if let sensingControl = sensingControlUsecase {
             let fileName = "calib_point\(currentReferencePointIndex + 1)_\(Date().timeIntervalSince1970)"
             sensingControl.startRemoteSensing(fileName: fileName)
-            logger.info("リモートセンシング開始: \(fileName)")
+            self.logger.info("リモートセンシング開始: \(fileName)")
         }
 
         // 観測データ収集を開始
         do {
-            _ = try await observationUsecase.startCalibrationDataCollectionWithProgress(
+            _ = try await self.observationUsecase.startCalibrationDataCollectionWithProgress(
                 for: currentPoint.antennaId,
-                referencePoint: "Point\(currentReferencePointIndex + 1)"
+                referencePoint: "Point\(self.currentReferencePointIndex + 1)"
             )
 
             // 15秒間のデータ収集を監視
-            await monitorDataCollection()
+            await self.monitorDataCollection()
         } catch {
-            logger.error("データ収集の開始に失敗しました: \(error)")
-            errorMessage = "データ収集の開始に失敗しました: \(error.localizedDescription)"
-            isCollectingForCurrentPoint = false
-            currentWorkflow = .failed
+            self.logger.error("データ収集の開始に失敗しました: \(error)")
+            self.errorMessage = "データ収集の開始に失敗しました: \(error.localizedDescription)"
+            self.isCollectingForCurrentPoint = false
+            self.currentWorkflow = .failed
         }
     }
 
@@ -258,59 +258,59 @@ public class CalibrationDataFlow: ObservableObject {
         // 15秒待機（実際の収集時間）
         try? await Task.sleep(nanoseconds: 15_000_000_000)
 
-        await completeCurrentPointCollection()
+        await self.completeCurrentPointCollection()
     }
 
     /// 現在の基準点のデータ収集を完了
     private func completeCurrentPointCollection() async {
-        isCollectingForCurrentPoint = false
+        self.isCollectingForCurrentPoint = false
 
-        logger.info("基準点 \(self.currentReferencePointIndex + 1) のデータ収集完了")
+        self.logger.info("基準点 \(self.currentReferencePointIndex + 1) のデータ収集完了")
 
         // 次の基準点に進む
-        currentReferencePointIndex += 1
+        self.currentReferencePointIndex += 1
 
-        if currentReferencePointIndex < referencePoints.count {
-            await processNextReferencePoint()
+        if self.currentReferencePointIndex < self.referencePoints.count {
+            await self.processNextReferencePoint()
         } else {
-            logger.info("全ての基準点のデータ収集完了 - キャリブレーション計算開始")
+            self.logger.info("全ての基準点のデータ収集完了 - キャリブレーション計算開始")
             // 全ての基準点の収集が完了したら、マッピングとキャリブレーションを実行
-            _ = mapObservationsToReferences()
-            _ = await executeCalibration()
+            _ = self.mapObservationsToReferences()
+            _ = await self.executeCalibration()
         }
     }
 
     /// ワークフローをキャンセル
     public func cancelWorkflow() async {
-        logger.info("ワークフローキャンセル開始")
+        self.logger.info("ワークフローキャンセル開始")
 
         // 進行中のセッションを停止
-        for sessionId in observationSessions.keys {
+        for sessionId in self.observationSessions.keys {
             do {
-                _ = try await observationUsecase.stopObservationSession(sessionId)
+                _ = try await self.observationUsecase.stopObservationSession(sessionId)
             } catch {
-                logger.error("セッション停止エラー: \(error)")
+                self.logger.error("セッション停止エラー: \(error)")
             }
         }
 
         // リモートセンシングを停止
-        sensingControlUsecase?.stopRemoteSensing()
+        self.sensingControlUsecase?.stopRemoteSensing()
 
         // 状態をリセット
-        isCollectingForCurrentPoint = false
-        currentReferencePointIndex = 0
-        totalReferencePoints = 0
-        currentStepInstructions = ""
-        calibrationStepProgress = 0.0
-        currentWorkflow = .idle
+        self.isCollectingForCurrentPoint = false
+        self.currentReferencePointIndex = 0
+        self.totalReferencePoints = 0
+        self.currentStepInstructions = ""
+        self.calibrationStepProgress = 0.0
+        self.currentWorkflow = .idle
 
-        logger.info("ワークフローキャンセル完了")
+        self.logger.info("ワークフローキャンセル完了")
     }
 
     /// アンテナ位置をデータベースに保存
     private func saveAntennaPositionToDatabase(antennaId: String, position: Point3D, floorMapId: String) async {
         guard let repository = swiftDataRepository else {
-            logger.warning("SwiftDataRepositoryが利用できないため、アンテナ位置を保存できません")
+            self.logger.warning("SwiftDataRepositoryが利用できないため、アンテナ位置を保存できません")
             return
         }
 
@@ -326,10 +326,10 @@ public class CalibrationDataFlow: ObservableObject {
             )
 
             try await repository.saveAntennaPosition(antennaPosition)
-            logger.info("アンテナ位置を保存しました: アンテナID \(antennaId), 位置 (\(position.x), \(position.y), \(position.z))")
+            self.logger.info("アンテナ位置を保存しました: アンテナID \(antennaId), 位置 (\(position.x), \(position.y), \(position.z))")
         } catch {
-            logger.error("アンテナ位置の保存に失敗しました: \(error)")
-            errorMessage = "アンテナ位置の保存に失敗しました: \(error.localizedDescription)"
+            self.logger.error("アンテナ位置の保存に失敗しました: \(error)")
+            self.errorMessage = "アンテナ位置の保存に失敗しました: \(error.localizedDescription)"
         }
     }
 
@@ -337,30 +337,30 @@ public class CalibrationDataFlow: ObservableObject {
 
     /// 完全なキャリブレーションワークフローを実行
     public func executeCalibration() async -> CalibrationWorkflowResult {
-        currentWorkflow = .calculating
+        self.currentWorkflow = .calculating
 
         do {
             // 1. マッピングの検証
-            guard !mappings.isEmpty else {
+            guard !self.mappings.isEmpty else {
                 throw CalibrationWorkflowError.insufficientMappings
             }
 
-            guard mappings.count >= 3 else {
-                throw CalibrationWorkflowError.insufficientPoints(required: 3, provided: mappings.count)
+            guard self.mappings.count >= 3 else {
+                throw CalibrationWorkflowError.insufficientPoints(required: 3, provided: self.mappings.count)
             }
 
             // 2. 各アンテナごとにキャリブレーション実行
             var results: [String: CalibrationResult] = [:]
             var allSuccessful = true
 
-            for (antennaId, _) in observationSessions {
+            for (antennaId, _) in self.observationSessions {
                 // そのアンテナの観測データを使ってキャリブレーション点を作成
-                let calibrationPoints = createCalibrationPoints(for: antennaId, from: mappings)
+                let calibrationPoints = self.createCalibrationPoints(for: antennaId, from: self.mappings)
 
                 if calibrationPoints.count >= 3 {
                     // キャリブレーション点を既存のUseCaseに追加
                     for point in calibrationPoints {
-                        calibrationUsecase.addCalibrationPoint(
+                        self.calibrationUsecase.addCalibrationPoint(
                             for: antennaId,
                             referencePosition: point.referencePosition,
                             measuredPosition: point.measuredPosition
@@ -368,18 +368,18 @@ public class CalibrationDataFlow: ObservableObject {
                     }
 
                     // キャリブレーション実行
-                    await calibrationUsecase.performCalibration(for: antennaId)
+                    await self.calibrationUsecase.performCalibration(for: antennaId)
 
                     if let result = calibrationUsecase.lastCalibrationResult {
                         results[antennaId] = result
                         if !result.success {
                             allSuccessful = false
                         }
-                        logger.info("アンテナ \(antennaId) キャリブレーション完了: \(result.success ? "成功" : "失敗")")
+                        self.logger.info("アンテナ \(antennaId) キャリブレーション完了: \(result.success ? "成功" : "失敗")")
                     }
                 } else {
                     allSuccessful = false
-                    logger.warning("アンテナ \(antennaId): キャリブレーション点が不足 (\(calibrationPoints.count)/3)")
+                    self.logger.warning("アンテナ \(antennaId): キャリブレーション点が不足 (\(calibrationPoints.count)/3)")
                 }
             }
 
@@ -388,15 +388,15 @@ public class CalibrationDataFlow: ObservableObject {
                 success: allSuccessful,
                 processedAntennas: Array(observationSessions.keys),
                 calibrationResults: results,
-                qualityStatistics: calculateOverallQualityStatistics(),
+                qualityStatistics: self.calculateOverallQualityStatistics(),
                 timestamp: Date()
             )
 
-            lastCalibrationResult = workflowResult
-            currentWorkflow = allSuccessful ? .completed : .failed
+            self.lastCalibrationResult = workflowResult
+            self.currentWorkflow = allSuccessful ? .completed : .failed
 
             if !allSuccessful {
-                errorMessage = "一部のアンテナでキャリブレーションに失敗しました"
+                self.errorMessage = "一部のアンテナでキャリブレーションに失敗しました"
             }
 
             // 4. 成功時にアンテナ位置を設定・保存
@@ -418,7 +418,7 @@ public class CalibrationDataFlow: ObservableObject {
                 }
             }
 
-            updateProgress()
+            self.updateProgress()
             return workflowResult
 
         } catch {
@@ -426,14 +426,14 @@ public class CalibrationDataFlow: ObservableObject {
                 success: false,
                 processedAntennas: Array(observationSessions.keys),
                 calibrationResults: [:],
-                qualityStatistics: calculateOverallQualityStatistics(),
+                qualityStatistics: self.calculateOverallQualityStatistics(),
                 timestamp: Date(),
                 errorMessage: error.localizedDescription
             )
 
-            lastCalibrationResult = workflowResult
-            currentWorkflow = .failed
-            errorMessage = error.localizedDescription
+            self.lastCalibrationResult = workflowResult
+            self.currentWorkflow = .failed
+            self.errorMessage = error.localizedDescription
 
             return workflowResult
         }
@@ -443,13 +443,13 @@ public class CalibrationDataFlow: ObservableObject {
 
     /// ワークフローをリセット
     public func resetWorkflow() {
-        currentWorkflow = .idle
-        referencePoints.removeAll()
-        observationSessions.removeAll()
-        mappings.removeAll()
-        workflowProgress = 0.0
-        errorMessage = nil
-        lastCalibrationResult = nil
+        self.currentWorkflow = .idle
+        self.referencePoints.removeAll()
+        self.observationSessions.removeAll()
+        self.mappings.removeAll()
+        self.workflowProgress = 0.0
+        self.errorMessage = nil
+        self.lastCalibrationResult = nil
     }
 
     /// 現在のワークフロー状態の検証
@@ -458,17 +458,17 @@ public class CalibrationDataFlow: ObservableObject {
         var canProceed = true
 
         // 基準点の検証
-        if referencePoints.count < 3 {
-            issues.append("基準点が不足しています (必要: 3点以上, 現在: \(referencePoints.count)点)")
+        if self.referencePoints.count < 3 {
+            issues.append("基準点が不足しています (必要: 3点以上, 現在: \(self.referencePoints.count)点)")
             canProceed = false
         }
 
         // 観測データの検証
-        if observationSessions.isEmpty {
+        if self.observationSessions.isEmpty {
             issues.append("観測データがありません")
             canProceed = false
         } else {
-            for (antennaId, session) in observationSessions {
+            for (antennaId, session) in self.observationSessions {
                 if session.observations.isEmpty {
                     issues.append("アンテナ \(antennaId) の観測データがありません")
                     canProceed = false
@@ -482,8 +482,8 @@ public class CalibrationDataFlow: ObservableObject {
         }
 
         // マッピングの検証
-        if !mappings.isEmpty {
-            let averageQuality = mappings.map { $0.mappingQuality }.reduce(0, +) / Double(mappings.count)
+        if !self.mappings.isEmpty {
+            let averageQuality = self.mappings.map { $0.mappingQuality }.reduce(0, +) / Double(self.mappings.count)
             if averageQuality < 0.6 {
                 issues.append("マッピング品質が低いです (平均品質: \(String(format: "%.1f", averageQuality * 100))%)")
             }
@@ -492,7 +492,7 @@ public class CalibrationDataFlow: ObservableObject {
         return CalibrationWorkflowValidation(
             canProceed: canProceed,
             issues: issues,
-            recommendations: generateRecommendations()
+            recommendations: self.generateRecommendations()
         )
     }
 
@@ -502,13 +502,13 @@ public class CalibrationDataFlow: ObservableObject {
         let totalSteps = 5.0
         var completedSteps = 0.0
 
-        if !referencePoints.isEmpty { completedSteps += 1.0 }
-        if !observationSessions.isEmpty { completedSteps += 1.0 }
-        if !mappings.isEmpty { completedSteps += 1.0 }
-        if currentWorkflow == .calculating || currentWorkflow == .completed { completedSteps += 1.0 }
-        if currentWorkflow == .completed { completedSteps += 1.0 }
+        if !self.referencePoints.isEmpty { completedSteps += 1.0 }
+        if !self.observationSessions.isEmpty { completedSteps += 1.0 }
+        if !self.mappings.isEmpty { completedSteps += 1.0 }
+        if self.currentWorkflow == .calculating || self.currentWorkflow == .completed { completedSteps += 1.0 }
+        if self.currentWorkflow == .completed { completedSteps += 1.0 }
 
-        workflowProgress = completedSteps / totalSteps
+        self.workflowProgress = completedSteps / totalSteps
     }
 
     private func createCalibrationPoints(for antennaId: String, from mappings: [ReferenceObservationMapping])
@@ -545,7 +545,7 @@ public class CalibrationDataFlow: ObservableObject {
         var totalQuality = 0.0
         var losCount = 0
 
-        for session in observationSessions.values {
+        for session in self.observationSessions.values {
             totalObservations += session.observations.count
             for observation in session.observations {
                 if observation.quality.strength > 0.3 {
@@ -561,7 +561,7 @@ public class CalibrationDataFlow: ObservableObject {
         let averageQuality = validObservations > 0 ? totalQuality / Double(validObservations) : 0.0
         let losPercentage = totalObservations > 0 ? Double(losCount) / Double(totalObservations) * 100.0 : 0.0
         let mappingAccuracy =
-            mappings.isEmpty ? 0.0 : mappings.map { $0.mappingQuality }.reduce(0, +) / Double(mappings.count)
+            self.mappings.isEmpty ? 0.0 : self.mappings.map { $0.mappingQuality }.reduce(0, +) / Double(self.mappings.count)
 
         return CalibrationWorkflowQualityStatistics(
             totalObservations: totalObservations,
@@ -569,26 +569,26 @@ public class CalibrationDataFlow: ObservableObject {
             averageSignalQuality: averageQuality,
             lineOfSightPercentage: losPercentage,
             mappingAccuracy: mappingAccuracy,
-            processedAntennas: observationSessions.count
+            processedAntennas: self.observationSessions.count
         )
     }
 
     private func generateRecommendations() -> [String] {
         var recommendations: [String] = []
 
-        if referencePoints.count < 5 {
+        if self.referencePoints.count < 5 {
             recommendations.append("より多くの基準点を設定することで精度が向上します")
         }
 
-        for (antennaId, session) in observationSessions {
+        for (antennaId, session) in self.observationSessions {
             let avgQuality = session.qualityStatistics.averageQuality
             if avgQuality < 0.7 {
                 recommendations.append("アンテナ \(antennaId) の観測環境を改善してください（障害物の除去、位置調整など）")
             }
         }
 
-        if !mappings.isEmpty {
-            let avgMappingQuality = mappings.map { $0.mappingQuality }.reduce(0, +) / Double(mappings.count)
+        if !self.mappings.isEmpty {
+            let avgMappingQuality = self.mappings.map { $0.mappingQuality }.reduce(0, +) / Double(self.mappings.count)
             if avgMappingQuality < 0.7 {
                 recommendations.append("基準点と観測点の対応付けを見直してください")
             }

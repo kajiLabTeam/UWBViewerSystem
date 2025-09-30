@@ -63,7 +63,7 @@ public class CalibrationUsecase: ObservableObject {
 
     public init(dataRepository: DataRepositoryProtocol) {
         self.dataRepository = dataRepository
-        loadCalibrationData()
+        self.loadCalibrationData()
     }
 
     // MARK: - 公開メソッド
@@ -90,7 +90,7 @@ public class CalibrationUsecase: ObservableObject {
     /// - Parameter antennaId: アンテナID
     /// - Returns: キャリブレーションデータ（存在しない場合は新規作成）
     public func getCalibrationData(for antennaId: String) -> CalibrationData {
-        currentCalibrationData[antennaId] ?? CalibrationData(antennaId: antennaId)
+        self.currentCalibrationData[antennaId] ?? CalibrationData(antennaId: antennaId)
     }
 
     /// キャリブレーション点を追加
@@ -109,15 +109,15 @@ public class CalibrationUsecase: ObservableObject {
             antennaId: antennaId
         )
 
-        var calibrationData = getCalibrationData(for: antennaId)
+        var calibrationData = self.getCalibrationData(for: antennaId)
         calibrationData.calibrationPoints.append(point)
         calibrationData.updatedAt = Date()
 
-        currentCalibrationData[antennaId] = calibrationData
-        calibrationStatus = .collecting
+        self.currentCalibrationData[antennaId] = calibrationData
+        self.calibrationStatus = .collecting
 
         // データを永続化
-        saveCalibrationData(calibrationData)
+        self.saveCalibrationData(calibrationData)
     }
 
     /// キャリブレーション点を削除
@@ -133,10 +133,10 @@ public class CalibrationUsecase: ObservableObject {
         // 変換行列をクリア（点が削除されたため）
         calibrationData.transform = nil
 
-        currentCalibrationData[antennaId] = calibrationData
+        self.currentCalibrationData[antennaId] = calibrationData
 
         // データを永続化
-        saveCalibrationData(calibrationData)
+        self.saveCalibrationData(calibrationData)
     }
 
     /// 特定のアンテナのキャリブレーションを実行
@@ -200,9 +200,9 @@ public class CalibrationUsecase: ObservableObject {
             }
 
             // 最小二乗法でキャリブレーション実行
-            logger.info("🔧 アンテナ \(antennaId) のキャリブレーション計算開始: \(calibrationData.calibrationPoints.count)個のポイント")
+            self.logger.info("🔧 アンテナ \(antennaId) のキャリブレーション計算開始: \(calibrationData.calibrationPoints.count)個のポイント")
             for (i, point) in calibrationData.calibrationPoints.enumerated() {
-                logger.info("  Point \(i): ref=(\(String(format: "%.3f", point.referencePosition.x)), \(String(format: "%.3f", point.referencePosition.y)), \(String(format: "%.3f", point.referencePosition.z))), measured=(\(String(format: "%.3f", point.measuredPosition.x)), \(String(format: "%.3f", point.measuredPosition.y)), \(String(format: "%.3f", point.measuredPosition.z)))")
+                self.logger.info("  Point \(i): ref=(\(String(format: "%.3f", point.referencePosition.x)), \(String(format: "%.3f", point.referencePosition.y)), \(String(format: "%.3f", point.referencePosition.z))), measured=(\(String(format: "%.3f", point.measuredPosition.x)), \(String(format: "%.3f", point.measuredPosition.y)), \(String(format: "%.3f", point.measuredPosition.z)))")
             }
 
             let transform = try LeastSquaresCalibration.calculateTransform(
@@ -229,14 +229,14 @@ public class CalibrationUsecase: ObservableObject {
                 self.saveCalibrationData(updatedData)
             }
 
-            logger.info("キャリブレーション成功: \(antennaId)")
+            self.logger.info("キャリブレーション成功: \(antennaId)")
 
         } catch let error as CalibrationError {
             await handleCalibrationError(error)
         } catch let error as LeastSquaresCalibration.CalibrationError {
             await handleCalibrationError(CalibrationError.calculationFailed(error.localizedDescription))
         } catch {
-            await handleCalibrationError(CalibrationError.unexpectedError(error.localizedDescription))
+            await self.handleCalibrationError(CalibrationError.unexpectedError(error.localizedDescription))
         }
     }
 
@@ -253,16 +253,16 @@ public class CalibrationUsecase: ObservableObject {
             self.errorMessage = error.localizedDescription
         }
 
-        logger.error("キャリブレーションエラー: \(error.localizedDescription)")
+        self.logger.error("キャリブレーションエラー: \(error.localizedDescription)")
     }
 
     /// すべてのアンテナのキャリブレーションを実行
     public func performAllCalibrations() async {
-        for antennaId in currentCalibrationData.keys {
-            await performCalibration(for: antennaId)
+        for antennaId in self.currentCalibrationData.keys {
+            await self.performCalibration(for: antennaId)
 
             // 失敗した場合は停止
-            if calibrationStatus == .failed {
+            if self.calibrationStatus == .failed {
                 break
             }
         }
@@ -289,7 +289,7 @@ public class CalibrationUsecase: ObservableObject {
     ///   - antennaId: アンテナID
     /// - Returns: キャリブレーション済み座標配列
     public func applyCalibratedTransform(to points: [Point3D], for antennaId: String) -> [Point3D] {
-        points.map { applyCalibratedTransform(to: $0, for: antennaId) }
+        points.map { self.applyCalibratedTransform(to: $0, for: antennaId) }
     }
 
     /// キャリブレーションデータをクリア
@@ -297,17 +297,17 @@ public class CalibrationUsecase: ObservableObject {
     public func clearCalibrationData(for antennaId: String? = nil) {
         if let antennaId {
             // 特定のアンテナのデータをクリア
-            currentCalibrationData[antennaId] = CalibrationData(antennaId: antennaId)
+            self.currentCalibrationData[antennaId] = CalibrationData(antennaId: antennaId)
             Task {
-                try? await dataRepository.deleteCalibrationData(for: antennaId)
+                try? await self.dataRepository.deleteCalibrationData(for: antennaId)
             }
         } else {
             // すべてのデータをクリア
-            currentCalibrationData.removeAll()
-            calibrationStatus = .notStarted
-            lastCalibrationResult = nil
+            self.currentCalibrationData.removeAll()
+            self.calibrationStatus = .notStarted
+            self.lastCalibrationResult = nil
             Task {
-                try? await dataRepository.deleteAllCalibrationData()
+                try? await self.dataRepository.deleteAllCalibrationData()
             }
         }
     }
@@ -316,7 +316,7 @@ public class CalibrationUsecase: ObservableObject {
     /// - Parameter antennaId: アンテナID
     /// - Returns: 精度情報
     public func getCalibrationAccuracy(for antennaId: String) -> Double? {
-        currentCalibrationData[antennaId]?.accuracy
+        self.currentCalibrationData[antennaId]?.accuracy
     }
 
     /// キャリブレーションが有効かどうかを判定
@@ -335,11 +335,11 @@ public class CalibrationUsecase: ObservableObject {
     /// キャリブレーション統計情報を取得
     /// - Returns: 統計情報
     public func getCalibrationStatistics() -> CalibrationStatistics {
-        let totalAntennas = currentCalibrationData.count
-        let calibratedAntennas = currentCalibrationData.values.filter { $0.isCalibrated }.count
+        let totalAntennas = self.currentCalibrationData.count
+        let calibratedAntennas = self.currentCalibrationData.values.filter { $0.isCalibrated }.count
         let averageAccuracy =
-            currentCalibrationData.values.compactMap { $0.accuracy }.reduce(0, +)
-                / Double(max(1, currentCalibrationData.values.filter { $0.isCalibrated }.count))
+            self.currentCalibrationData.values.compactMap { $0.accuracy }.reduce(0, +)
+                / Double(max(1, self.currentCalibrationData.values.filter { $0.isCalibrated }.count))
 
         return CalibrationStatistics(
             totalAntennas: totalAntennas,
@@ -354,7 +354,7 @@ public class CalibrationUsecase: ObservableObject {
     private func saveCalibrationData(_ data: CalibrationData) {
         Task { @MainActor in
             do {
-                try await dataRepository.saveCalibrationData(data)
+                try await self.dataRepository.saveCalibrationData(data)
             } catch {
                 self.errorMessage = "キャリブレーションデータの保存に失敗しました: \(error.localizedDescription)"
             }
@@ -371,8 +371,8 @@ public struct CalibrationStatistics: Codable {
     public let averageAccuracy: Double
 
     public var completionPercentage: Double {
-        guard totalAntennas > 0 else { return 0.0 }
-        return Double(calibratedAntennas) / Double(totalAntennas) * 100.0
+        guard self.totalAntennas > 0 else { return 0.0 }
+        return Double(self.calibratedAntennas) / Double(self.totalAntennas) * 100.0
     }
 
     public init(totalAntennas: Int, calibratedAntennas: Int, averageAccuracy: Double) {

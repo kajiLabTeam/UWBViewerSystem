@@ -106,7 +106,7 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// 現在のステップタイトル
     var currentStepTitle: String {
-        switch currentStep {
+        switch self.currentStep {
         case 0: return "アンテナ選択"
         case 1: return "基準座標設定"
         case 2: return "キャリブレーション実行"
@@ -116,7 +116,7 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// 現在のステップ説明
     var currentStepDescription: String {
-        switch currentStep {
+        switch self.currentStep {
         case 0: return "キャリブレーションを行うアンテナを選択してください"
         case 1: return "フロアマップ上で3つの基準座標をタップしてください"
         case 2: return "キャリブレーションを開始してください"
@@ -126,9 +126,9 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// 次へボタンが有効かどうか
     var canProceedToNext: Bool {
-        switch currentStep {
-        case 0: return !selectedAntennaId.isEmpty
-        case 1: return referencePoints.count >= 3
+        switch self.currentStep {
+        case 0: return !self.selectedAntennaId.isEmpty
+        case 1: return self.referencePoints.count >= 3
         case 2: return false  // キャリブレーション実行画面では次へボタンは無効
         default: return false
         }
@@ -136,17 +136,17 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// 戻るボタンが有効かどうか
     var canGoBack: Bool {
-        currentStep > 0 && !isCalibrating
+        self.currentStep > 0 && !self.isCalibrating
     }
 
     /// キャリブレーション実行可能かどうか
     var canStartCalibration: Bool {
-        currentStep == 2 && !selectedAntennaId.isEmpty && referencePoints.count >= 3 && !isCalibrating
+        self.currentStep == 2 && !self.selectedAntennaId.isEmpty && self.referencePoints.count >= 3 && !self.isCalibrating
     }
 
     /// 進行状況のパーセンテージ表示
     var progressPercentage: String {
-        "\(Int(calibrationProgress * 100))%"
+        "\(Int(self.calibrationProgress * 100))%"
     }
 
     /// キャリブレーション結果の精度テキスト
@@ -179,10 +179,10 @@ class SimpleCalibrationViewModel: ObservableObject {
     ) {
         self.dataRepository = dataRepository
         self.preferenceRepository = preferenceRepository
-        calibrationUsecase = CalibrationUsecase(dataRepository: dataRepository)
+        self.calibrationUsecase = CalibrationUsecase(dataRepository: dataRepository)
 
-        loadInitialData()
-        setupDataObserver()
+        self.loadInitialData()
+        self.setupDataObserver()
     }
 
     deinit {
@@ -193,116 +193,116 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// SwiftDataのModelContextを設定
     func setModelContext(_ context: ModelContext) {
-        swiftDataRepository = SwiftDataRepository(modelContext: context)
+        self.swiftDataRepository = SwiftDataRepository(modelContext: context)
 
         // SwiftDataRepository設定後にアンテナ位置データを再読み込み
         Task { @MainActor in
-            await loadAntennaPositionsFromSwiftData()
+            await self.loadAntennaPositionsFromSwiftData()
         }
     }
 
     /// 初期データの読み込み
     func loadInitialData() {
-        loadAvailableAntennas()
-        loadCurrentFloorMapData()
-        loadAntennaPositions()
+        self.loadAvailableAntennas()
+        self.loadCurrentFloorMapData()
+        self.loadAntennaPositions()
     }
 
     /// データの再読み込み（外部から呼び出し可能）
     func reloadData() {
-        loadCurrentFloorMapData()
-        loadAntennaPositions()
+        self.loadCurrentFloorMapData()
+        self.loadAntennaPositions()
     }
 
     /// 次のステップに進む
     func proceedToNext() {
-        guard canProceedToNext else { return }
+        guard self.canProceedToNext else { return }
 
         withAnimation {
-            currentStep += 1
+            self.currentStep += 1
         }
     }
 
     /// 前のステップに戻る
     func goBack() {
-        guard canGoBack else { return }
+        guard self.canGoBack else { return }
 
         withAnimation {
-            currentStep -= 1
+            self.currentStep -= 1
         }
     }
 
     /// アンテナを選択
     func selectAntenna(_ antennaId: String) {
-        selectedAntennaId = antennaId
+        self.selectedAntennaId = antennaId
     }
 
     /// 基準座標を設定（マップからの座標）
     func setReferencePoints(_ points: [Point3D]) {
-        referencePoints = points
+        self.referencePoints = points
     }
 
     /// 基準座標を追加
     func addReferencePoint(_ point: Point3D) {
-        if referencePoints.count < 3 {
-            referencePoints.append(point)
+        if self.referencePoints.count < 3 {
+            self.referencePoints.append(point)
         }
     }
 
     /// 基準座標をクリア
     func clearReferencePoints() {
-        referencePoints.removeAll()
+        self.referencePoints.removeAll()
     }
 
     /// キャリブレーションを開始
     /// キャリブレーションを開始
     func startCalibration() {
         // 事前条件チェック
-        guard validateCalibrationPreConditions() else {
+        guard self.validateCalibrationPreConditions() else {
             return
         }
 
-        isCalibrating = true
-        calibrationProgress = 0.0
-        calibrationResult = nil
-        errorMessage = ""
+        self.isCalibrating = true
+        self.calibrationProgress = 0.0
+        self.calibrationResult = nil
+        self.errorMessage = ""
 
         // 基準座標をキャリブレーション用の測定点として設定
-        setupCalibrationPoints()
+        self.setupCalibrationPoints()
 
         // キャリブレーション実行
-        performCalibration()
+        self.performCalibration()
     }
 
     /// キャリブレーション開始前の条件をチェック
     private func validateCalibrationPreConditions() -> Bool {
-        guard canStartCalibration else {
-            showError("キャリブレーションを開始できません。必要な条件が満たされていません。")
+        guard self.canStartCalibration else {
+            self.showError("キャリブレーションを開始できません。必要な条件が満たされていません。")
             return false
         }
 
-        guard !selectedAntennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            showError("アンテナが選択されていません。")
+        guard !self.selectedAntennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            self.showError("アンテナが選択されていません。")
             return false
         }
 
-        guard referencePoints.count >= 3 else {
-            showError("基準座標が不足しています。少なくとも3点の設定が必要です。")
+        guard self.referencePoints.count >= 3 else {
+            self.showError("基準座標が不足しています。少なくとも3点の設定が必要です。")
             return false
         }
 
         // 基準座標の妥当性チェック
-        for (index, point) in referencePoints.enumerated() {
+        for (index, point) in self.referencePoints.enumerated() {
             guard point.x.isFinite && point.y.isFinite && point.z.isFinite else {
-                showError("基準座標\(index + 1)に無効な値が含まれています。")
+                self.showError("基準座標\(index + 1)に無効な値が含まれています。")
                 return false
             }
         }
 
         // 同一座標の重複チェック
         let uniquePoints = Set(referencePoints.map { "\($0.x),\($0.y),\($0.z)" })
-        guard uniquePoints.count == referencePoints.count else {
-            showError("基準座標に重複があります。異なる座標を設定してください。")
+        guard uniquePoints.count == self.referencePoints.count else {
+            self.showError("基準座標に重複があります。異なる座標を設定してください。")
             return false
         }
 
@@ -311,16 +311,16 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// キャリブレーション完了後にリセット
     func resetCalibration() {
-        currentStep = 0
-        selectedAntennaId = ""
-        referencePoints.removeAll()
-        isCalibrating = false
-        calibrationProgress = 0.0
-        calibrationResult = nil
+        self.currentStep = 0
+        self.selectedAntennaId = ""
+        self.referencePoints.removeAll()
+        self.isCalibrating = false
+        self.calibrationProgress = 0.0
+        self.calibrationResult = nil
 
         // 最初のアンテナを再選択
-        if !availableAntennas.isEmpty {
-            selectedAntennaId = availableAntennas.first?.id ?? ""
+        if !self.availableAntennas.isEmpty {
+            self.selectedAntennaId = self.availableAntennas.first?.id ?? ""
         }
     }
 
@@ -334,7 +334,7 @@ class SimpleCalibrationViewModel: ObservableObject {
         self.calibrationDataFlow = calibrationDataFlow
         self.observationUsecase = observationUsecase
 
-        setupCalibrationDataFlowObservers()
+        self.setupCalibrationDataFlowObservers()
     }
 
     /// CalibrationDataFlowのObserver設定
@@ -345,50 +345,50 @@ class SimpleCalibrationViewModel: ObservableObject {
         // 現在のステップ指示を監視
         flow.$currentStepInstructions
             .receive(on: RunLoop.main)
-            .assign(to: &$currentStepInstructions)
+            .assign(to: &self.$currentStepInstructions)
 
         // 現在のステップ番号を監視
         flow.$currentReferencePointIndex
             .receive(on: RunLoop.main)
-            .assign(to: &$currentStepNumber)
+            .assign(to: &self.$currentStepNumber)
 
         // 総ステップ数を監視
         flow.$totalReferencePoints
             .receive(on: RunLoop.main)
-            .assign(to: &$totalSteps)
+            .assign(to: &self.$totalSteps)
 
         // ステップ進行状況を監視
         flow.$calibrationStepProgress
             .receive(on: RunLoop.main)
-            .assign(to: &$stepProgress)
+            .assign(to: &self.$stepProgress)
 
         // データ収集進行状況を監視（CalibrationDataFlowには存在しないため削除）
 
         // アクティブ状態を監視
         flow.$isCollectingForCurrentPoint
             .receive(on: RunLoop.main)
-            .assign(to: &$isStepByStepCalibrationActive)
+            .assign(to: &self.$isStepByStepCalibrationActive)
     }
 
     /// 段階的キャリブレーションを開始
     /// 段階的キャリブレーションを開始
     func startStepByStepCalibration() {
-        guard !referencePoints.isEmpty else {
-            showError("基準座標が設定されていません。")
+        guard !self.referencePoints.isEmpty else {
+            self.showError("基準座標が設定されていません。")
             return
         }
 
         guard let flow = calibrationDataFlow else {
-            showError("CalibrationDataFlowが初期化されていません。")
+            self.showError("CalibrationDataFlowが初期化されていません。")
             return
         }
 
         // 基準座標をCalibrationDataFlowに設定
-        let mapPoints = referencePoints.enumerated().map { index, point in
+        let mapPoints = self.referencePoints.enumerated().map { index, point in
             MapCalibrationPoint(
                 mapCoordinate: point,
                 realWorldCoordinate: point,
-                antennaId: selectedAntennaId,
+                antennaId: self.selectedAntennaId,
                 pointIndex: index + 1
             )
         }
@@ -403,7 +403,7 @@ class SimpleCalibrationViewModel: ObservableObject {
     /// 現在のポイントでデータ収集を開始
     func startDataCollectionForCurrentPoint() {
         guard let flow = calibrationDataFlow else {
-            showError("CalibrationDataFlowが初期化されていません。")
+            self.showError("CalibrationDataFlowが初期化されていません。")
             return
         }
 
@@ -420,54 +420,54 @@ class SimpleCalibrationViewModel: ObservableObject {
 
         // 最終的なアンテナ位置を取得
         if !flow.finalAntennaPositions.isEmpty {
-            finalAntennaPositions = flow.finalAntennaPositions
-            showFinalAntennaPositions()
+            self.finalAntennaPositions = flow.finalAntennaPositions
+            self.showFinalAntennaPositions()
         }
 
         // キャリブレーション結果を取得
         if let workflowResult = flow.lastCalibrationResult {
             // 選択されたアンテナのキャリブレーション結果を取得
             if let antennaResult = workflowResult.calibrationResults[selectedAntennaId] {
-                calibrationResult = antennaResult
+                self.calibrationResult = antennaResult
                 if antennaResult.success {
-                    showSuccessAlert = true
+                    self.showSuccessAlert = true
                 } else {
-                    showError(antennaResult.errorMessage ?? "キャリブレーションに失敗しました")
+                    self.showError(antennaResult.errorMessage ?? "キャリブレーションに失敗しました")
                 }
             } else if !workflowResult.success {
-                showError(workflowResult.errorMessage ?? "キャリブレーションに失敗しました")
+                self.showError(workflowResult.errorMessage ?? "キャリブレーションに失敗しました")
             }
         }
     }
 
     /// 最終的なアンテナ位置を表示
     private func showFinalAntennaPositions() {
-        showAntennaPositionsResult = true
+        self.showAntennaPositionsResult = true
     }
 
     /// アンテナ位置結果を閉じる
     func dismissAntennaPositionsResult() {
-        showAntennaPositionsResult = false
+        self.showAntennaPositionsResult = false
     }
 
     // MARK: - Private Methods
 
     /// 利用可能なアンテナを読み込み
     private func loadAvailableAntennas() {
-        availableAntennas = dataRepository.loadFieldAntennaConfiguration() ?? []
+        self.availableAntennas = self.dataRepository.loadFieldAntennaConfiguration() ?? []
 
         // デフォルトで最初のアンテナを選択
-        if !availableAntennas.isEmpty && selectedAntennaId.isEmpty {
-            selectedAntennaId = availableAntennas.first?.id ?? ""
+        if !self.availableAntennas.isEmpty && self.selectedAntennaId.isEmpty {
+            self.selectedAntennaId = self.availableAntennas.first?.id ?? ""
         }
     }
 
     /// 現在のフロアマップデータを読み込み
     private func loadCurrentFloorMapData() {
         guard let floorMapInfo = preferenceRepository.loadCurrentFloorMapInfo() else {
-            handleError("フロアマップ情報が設定されていません。先にフロアマップを設定してください。")
+            self.handleError("フロアマップ情報が設定されていません。先にフロアマップを設定してください。")
             // 現在の状態をクリア
-            clearFloorMapData()
+            self.clearFloorMapData()
             return
         }
 
@@ -477,21 +477,21 @@ class SimpleCalibrationViewModel: ObservableObject {
               floorMapInfo.width > 0,
               floorMapInfo.depth > 0
         else {
-            handleError("フロアマップデータが無効です")
-            clearFloorMapData()
+            self.handleError("フロアマップデータが無効です")
+            self.clearFloorMapData()
             return
         }
 
-        currentFloorMapId = floorMapInfo.id
-        currentFloorMapInfo = floorMapInfo
-        loadFloorMapImage(for: floorMapInfo.id)
+        self.currentFloorMapId = floorMapInfo.id
+        self.currentFloorMapInfo = floorMapInfo
+        self.loadFloorMapImage(for: floorMapInfo.id)
     }
 
     /// フロアマップデータをクリア
     private func clearFloorMapData() {
-        currentFloorMapId = ""
-        currentFloorMapInfo = nil
-        floorMapImage = nil
+        self.currentFloorMapId = ""
+        self.currentFloorMapInfo = nil
+        self.floorMapImage = nil
     }
 
     /// フロアマップ画像を読み込み
@@ -500,7 +500,7 @@ class SimpleCalibrationViewModel: ObservableObject {
         if let floorMapInfo = currentFloorMapInfo,
            let image = floorMapInfo.image
         {
-            floorMapImage = image
+            self.floorMapImage = image
             return
         }
 
@@ -526,12 +526,12 @@ class SimpleCalibrationViewModel: ObservableObject {
 
                     #if canImport(UIKit)
                         if let image = UIImage(data: imageData) {
-                            floorMapImage = image
+                            self.floorMapImage = image
                             return
                         }
                     #elseif canImport(AppKit)
                         if let image = NSImage(data: imageData) {
-                            floorMapImage = image
+                            self.floorMapImage = image
                             return
                         }
                     #endif
@@ -545,20 +545,20 @@ class SimpleCalibrationViewModel: ObservableObject {
     /// SwiftDataからアンテナ位置データを読み込み
     private func loadAntennaPositionsFromSwiftData() async {
         guard let repository = swiftDataRepository else {
-            antennaPositions = []
+            self.antennaPositions = []
             return
         }
 
         guard let floorMapId = currentFloorMapInfo?.id else {
-            antennaPositions = []
+            self.antennaPositions = []
             return
         }
 
         do {
             let positions = try await repository.loadAntennaPositions(for: floorMapId)
-            antennaPositions = positions
+            self.antennaPositions = positions
         } catch {
-            antennaPositions = []
+            self.antennaPositions = []
         }
     }
 
@@ -567,37 +567,37 @@ class SimpleCalibrationViewModel: ObservableObject {
         // SwiftDataRepositoryが利用可能な場合はそちらを優先
         if let _ = swiftDataRepository {
             Task { @MainActor in
-                await loadAntennaPositionsFromSwiftData()
+                await self.loadAntennaPositionsFromSwiftData()
             }
             return
         }
 
         // フォールバック: DataRepositoryを使用
         guard let floorMapId = currentFloorMapInfo?.id else {
-            antennaPositions = []
+            self.antennaPositions = []
             return
         }
 
         if let positions = dataRepository.loadAntennaPositions() {
             // 現在のフロアマップに関連するアンテナ位置のみをフィルタ
             let filteredPositions = positions.filter { $0.floorMapId == floorMapId }
-            antennaPositions = filteredPositions
+            self.antennaPositions = filteredPositions
         } else {
-            antennaPositions = []
+            self.antennaPositions = []
         }
     }
 
     /// キャリブレーション用の測定点をセットアップ
     private func setupCalibrationPoints() {
         // 既存のキャリブレーションデータをクリア
-        calibrationUsecase.clearCalibrationData(for: selectedAntennaId)
+        self.calibrationUsecase.clearCalibrationData(for: self.selectedAntennaId)
 
         // 基準座標を測定点として追加
         // 注意: 実際の実装では、各基準座標に対応する測定座標を取得する必要があります
         // ここでは簡略化のため、基準座標をそのまま測定座標としています
-        for referencePoint in referencePoints {
-            calibrationUsecase.addCalibrationPoint(
-                for: selectedAntennaId,
+        for referencePoint in self.referencePoints {
+            self.calibrationUsecase.addCalibrationPoint(
+                for: self.selectedAntennaId,
                 referencePosition: referencePoint,
                 measuredPosition: referencePoint  // 実際の実装では実測値を使用
             )
@@ -608,29 +608,29 @@ class SimpleCalibrationViewModel: ObservableObject {
     private func performCalibration() {
         Task {
             // プログレス更新のタイマーを開始
-            startProgressTimer()
+            self.startProgressTimer()
 
             // キャリブレーション実行
-            await calibrationUsecase.performCalibration(for: selectedAntennaId)
+            await self.calibrationUsecase.performCalibration(for: self.selectedAntennaId)
 
             await MainActor.run {
                 // タイマーを停止
-                calibrationTimer?.invalidate()
+                self.calibrationTimer?.invalidate()
 
                 // 結果を取得
                 if let result = calibrationUsecase.lastCalibrationResult {
-                    calibrationResult = result
-                    calibrationProgress = 1.0
-                    isCalibrating = false
+                    self.calibrationResult = result
+                    self.calibrationProgress = 1.0
+                    self.isCalibrating = false
 
                     if result.success {
-                        showSuccessAlert = true
+                        self.showSuccessAlert = true
                     } else {
-                        showError(result.errorMessage ?? "キャリブレーションに失敗しました")
+                        self.showError(result.errorMessage ?? "キャリブレーションに失敗しました")
                     }
                 } else {
-                    isCalibrating = false
-                    showError("キャリブレーション結果を取得できませんでした")
+                    self.isCalibrating = false
+                    self.showError("キャリブレーション結果を取得できませんでした")
                 }
             }
         }
@@ -638,7 +638,7 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// プログレス更新タイマーを開始
     private func startProgressTimer() {
-        calibrationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        self.calibrationTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isCalibrating else { return }
 
@@ -659,19 +659,19 @@ class SimpleCalibrationViewModel: ObservableObject {
                     self?.loadCurrentFloorMapData()
                 }
             }
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
     }
 
     /// エラー表示
     private func showError(_ message: String) {
-        errorMessage = message
-        showErrorAlert = true
-        isCalibrating = false
+        self.errorMessage = message
+        self.showErrorAlert = true
+        self.isCalibrating = false
     }
 
     /// 包括的なエラーハンドリング
     private func handleError(_ message: String) {
-        showError(message)
+        self.showError(message)
     }
 
     /// 安全な非同期タスク実行
@@ -688,7 +688,7 @@ class SimpleCalibrationViewModel: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
-                    handleError(error.localizedDescription)
+                    self.handleError(error.localizedDescription)
                     onFailure(error)
                 }
             }

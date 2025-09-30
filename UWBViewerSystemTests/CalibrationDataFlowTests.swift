@@ -87,7 +87,7 @@ struct CalibrationDataFlowTests {
     @Test("基準データ収集 - マップから基準点を設定")
     func collectReferencePointsFromMap() async throws {
         let dataFlow = await createTestDataFlow()
-        let testPoints = createTestReferencePoints()
+        let testPoints = self.createTestReferencePoints()
 
         // 基準点を設定
         await dataFlow.collectReferencePoints(from: testPoints)
@@ -140,8 +140,8 @@ struct CalibrationDataFlowTests {
     @Test("データマッピング - 基準点と観測データの対応付け")
     func dataMapping() async throws {
         let dataFlow = await createTestDataFlow()
-        let testReferencePoints = createTestReferencePoints()
-        let testObservationPoints = createTestObservationPoints()
+        let testReferencePoints = self.createTestReferencePoints()
+        let testObservationPoints = self.createTestObservationPoints()
 
         // 基準点を設定
         await dataFlow.collectReferencePoints(from: testReferencePoints)
@@ -180,8 +180,8 @@ struct CalibrationDataFlowTests {
     @Test("キャリブレーション実行 - 完全なワークフロー")
     func completeCalibrationWorkflow() async throws {
         let dataFlow = await createTestDataFlow()
-        let testReferencePoints = createTestReferencePoints()
-        let testObservationPoints = createTestObservationPoints()
+        let testReferencePoints = self.createTestReferencePoints()
+        let testObservationPoints = self.createTestObservationPoints()
 
         // 1. 基準点設定
         await dataFlow.collectReferencePoints(from: testReferencePoints)
@@ -231,8 +231,8 @@ struct CalibrationDataFlowTests {
     @Test("ワークフロー検証 - 十分なデータでの検証")
     func workflowValidationWithSufficientData() async throws {
         let dataFlow = await createTestDataFlow()
-        let testReferencePoints = createTestReferencePoints()
-        let testObservationPoints = createTestObservationPoints()
+        let testReferencePoints = self.createTestReferencePoints()
+        let testObservationPoints = self.createTestObservationPoints()
 
         // 十分なデータを設定
         await dataFlow.collectReferencePoints(from: testReferencePoints)
@@ -259,7 +259,7 @@ struct CalibrationDataFlowTests {
     @Test("エラーハンドリング - 観測データなしでのキャリブレーション")
     func calibrationWithoutObservationData() async throws {
         let dataFlow = await createTestDataFlow()
-        let testReferencePoints = createTestReferencePoints()
+        let testReferencePoints = self.createTestReferencePoints()
 
         // 基準点のみ設定（観測データなし）
         await dataFlow.collectReferencePoints(from: testReferencePoints)
@@ -276,7 +276,7 @@ struct CalibrationDataFlowTests {
     @Test("品質統計計算 - 複数セッションの統計")
     func qualityStatisticsCalculation() async throws {
         let dataFlow = await createTestDataFlow()
-        let testObservationPoints = createTestObservationPoints()
+        let testObservationPoints = self.createTestObservationPoints()
 
         // 複数のセッションを作成
         await MainActor.run {
@@ -302,7 +302,7 @@ struct CalibrationDataFlowTests {
     @Test("ワークフローリセット - 状態の初期化")
     func workflowReset() async throws {
         let dataFlow = await createTestDataFlow()
-        let testReferencePoints = createTestReferencePoints()
+        let testReferencePoints = self.createTestReferencePoints()
 
         // データを設定
         await dataFlow.collectReferencePoints(from: testReferencePoints)
@@ -331,12 +331,12 @@ class MockCalibrationDataRepository: DataRepositoryProtocol {
     func saveCalibrationData(_ data: CalibrationData) async throws {
         let encoder = JSONEncoder()
         let encodedData = try encoder.encode(data)
-        calibrationDataStorage[data.antennaId] = encodedData
+        self.calibrationDataStorage[data.antennaId] = encodedData
     }
 
     func loadCalibrationData() async throws -> [CalibrationData] {
         let decoder = JSONDecoder()
-        return calibrationDataStorage.values.compactMap { data in
+        return self.calibrationDataStorage.values.compactMap { data in
             try? decoder.decode(CalibrationData.self, from: data)
         }
     }
@@ -348,11 +348,11 @@ class MockCalibrationDataRepository: DataRepositoryProtocol {
     }
 
     func deleteCalibrationData(for antennaId: String) async throws {
-        calibrationDataStorage.removeValue(forKey: antennaId)
+        self.calibrationDataStorage.removeValue(forKey: antennaId)
     }
 
     func deleteAllCalibrationData() async throws {
-        calibrationDataStorage.removeAll()
+        self.calibrationDataStorage.removeAll()
     }
 
     func saveFieldAntennaConfiguration(_ antennas: [AntennaInfo]) {}
@@ -389,7 +389,7 @@ class MockObservationDataUsecase: ObservationDataUsecase {
 
     override func startObservationSession(for antennaId: String, name: String) async throws -> ObservationSession {
         let session = ObservationSession(name: name, antennaId: antennaId)
-        sessions[session.id] = session
+        self.sessions[session.id] = session
         return session
     }
 
@@ -398,7 +398,7 @@ class MockObservationDataUsecase: ObservationDataUsecase {
             throw ObservationError.sessionNotFound(sessionId)
         }
         session.status = .completed
-        sessions[sessionId] = session
+        self.sessions[sessionId] = session
         return session
     }
 }

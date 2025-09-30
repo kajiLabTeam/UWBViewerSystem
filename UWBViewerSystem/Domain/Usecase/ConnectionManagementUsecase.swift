@@ -22,33 +22,33 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
         // NearbyRepositoryのコールバックとして自身を設定
         nearbyRepository.callback = self
 
-        setupLocationManager()
-        requestLocationPermission()
+        self.setupLocationManager()
+        self.requestLocationPermission()
     }
 
     // MARK: - Location Permission
 
     private func setupLocationManager() {
-        locationManager.delegate = self
+        self.locationManager.delegate = self
     }
 
     private func requestLocationPermission() {
-        switch locationManager.authorizationStatus {
+        switch self.locationManager.authorizationStatus {
         case .notDetermined:
             #if os(macOS)
-                locationManager.requestAlwaysAuthorization()
+                self.locationManager.requestAlwaysAuthorization()
             #else
-                locationManager.requestWhenInUseAuthorization()
+                self.locationManager.requestWhenInUseAuthorization()
             #endif
         #if os(macOS)
             case .authorizedAlways:
-                isLocationPermissionGranted = true
+                self.isLocationPermissionGranted = true
         #else
             case .authorizedWhenInUse, .authorizedAlways:
-                isLocationPermissionGranted = true
+                self.isLocationPermissionGranted = true
         #endif
         case .denied, .restricted:
-            connectState = "位置情報の権限が必要です"
+            self.connectState = "位置情報の権限が必要です"
         @unknown default:
             break
         }
@@ -57,75 +57,75 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     // MARK: - Connection Management
 
     public func startAdvertising() {
-        guard isLocationPermissionGranted else {
-            connectState = "位置情報の権限を許可してください"
+        guard self.isLocationPermissionGranted else {
+            self.connectState = "位置情報の権限を許可してください"
             return
         }
-        nearbyRepository.startAdvertise()
-        isAdvertising = true
+        self.nearbyRepository.startAdvertise()
+        self.isAdvertising = true
     }
 
     public func stopAdvertising() {
-        nearbyRepository.stopAdvertise()
-        isAdvertising = false
+        self.nearbyRepository.stopAdvertise()
+        self.isAdvertising = false
     }
 
     public func startDiscovery() {
-        guard isLocationPermissionGranted else {
-            connectState = "位置情報の権限を許可してください"
+        guard self.isLocationPermissionGranted else {
+            self.connectState = "位置情報の権限を許可してください"
             return
         }
-        nearbyRepository.startDiscovery()
+        self.nearbyRepository.startDiscovery()
     }
 
     public func stopDiscovery() {
-        nearbyRepository.stopDiscoveryOnly()
+        self.nearbyRepository.stopDiscoveryOnly()
     }
 
     public func disconnectFromDevice(endpointId: String) {
-        nearbyRepository.disconnect(endpointId)
-        connectedEndpoints.remove(endpointId)
-        connectedDeviceNames = connectedDeviceNames.filter { $0 != endpointId }
+        self.nearbyRepository.disconnect(endpointId)
+        self.connectedEndpoints.remove(endpointId)
+        self.connectedDeviceNames = self.connectedDeviceNames.filter { $0 != endpointId }
     }
 
     public func disconnectAll() {
         // 各接続を個別に切断
-        for endpoint in connectedEndpoints {
-            nearbyRepository.disconnect(endpoint)
+        for endpoint in self.connectedEndpoints {
+            self.nearbyRepository.disconnect(endpoint)
         }
-        connectedDeviceNames.removeAll()
-        connectedEndpoints.removeAll()
+        self.connectedDeviceNames.removeAll()
+        self.connectedEndpoints.removeAll()
     }
 
     public func resetAll() {
-        nearbyRepository.stopAdvertise()
-        nearbyRepository.stopDiscoveryOnly()
-        connectedDeviceNames.removeAll()
-        connectedEndpoints.removeAll()
-        isAdvertising = false
-        connectState = "初期化完了"
+        self.nearbyRepository.stopAdvertise()
+        self.nearbyRepository.stopDiscoveryOnly()
+        self.connectedDeviceNames.removeAll()
+        self.connectedEndpoints.removeAll()
+        self.isAdvertising = false
+        self.connectState = "初期化完了"
     }
 
     // MARK: - Message Sending
 
     public func sendMessage(_ content: String) {
         if let firstEndpoint = connectedEndpoints.first {
-            nearbyRepository.sendDataToDevice(text: content, toEndpointId: firstEndpoint)
+            self.nearbyRepository.sendDataToDevice(text: content, toEndpointId: firstEndpoint)
         }
     }
 
     public func sendMessageToDevice(_ content: String, to endpointId: String) {
-        nearbyRepository.sendDataToDevice(text: content, toEndpointId: endpointId)
+        self.nearbyRepository.sendDataToDevice(text: content, toEndpointId: endpointId)
     }
 
     // MARK: - Connection Status
 
     public func hasConnectedDevices() -> Bool {
-        !connectedEndpoints.isEmpty
+        !self.connectedEndpoints.isEmpty
     }
 
     public func getConnectedDeviceCount() -> Int {
-        connectedEndpoints.count
+        self.connectedEndpoints.count
     }
 }
 
@@ -141,7 +141,7 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
     nonisolated public func onConnectionStateChanged(state: String) {
         Task { @MainActor in
             print("Connection state changed: \(state)")
-            connectState = state
+            self.connectState = state
         }
     }
 
@@ -218,16 +218,16 @@ extension ConnectionManagementUsecase: CLLocationManagerDelegate {
             switch status {
             #if os(macOS)
                 case .authorizedAlways:
-                    isLocationPermissionGranted = true
-                    connectState = "権限許可完了"
+                    self.isLocationPermissionGranted = true
+                    self.connectState = "権限許可完了"
             #else
                 case .authorizedWhenInUse, .authorizedAlways:
-                    isLocationPermissionGranted = true
-                    connectState = "権限許可完了"
+                    self.isLocationPermissionGranted = true
+                    self.connectState = "権限許可完了"
             #endif
             case .denied, .restricted:
-                isLocationPermissionGranted = false
-                connectState = "位置情報の権限が拒否されました"
+                self.isLocationPermissionGranted = false
+                self.connectState = "位置情報の権限が拒否されました"
             case .notDetermined:
                 break
             @unknown default:

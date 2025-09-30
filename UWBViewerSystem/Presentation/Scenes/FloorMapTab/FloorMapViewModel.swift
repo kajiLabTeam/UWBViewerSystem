@@ -12,26 +12,26 @@ struct FloorMap: Identifiable {
     var projectProgress: ProjectProgress?
 
     var formattedSize: String {
-        String(format: "%.1f × %.1f m", width, height)
+        String(format: "%.1f × %.1f m", self.width, self.height)
     }
 
     var progressPercentage: Double {
-        projectProgress?.completionPercentage ?? 0.0
+        self.projectProgress?.completionPercentage ?? 0.0
     }
 
     var currentStepDisplayName: String {
-        projectProgress?.currentStep.displayName ?? "未開始"
+        self.projectProgress?.currentStep.displayName ?? "未開始"
     }
 
     init(
         from floorMapInfo: FloorMapInfo, antennaCount: Int = 0, isActive: Bool = false,
         projectProgress: ProjectProgress? = nil
     ) {
-        id = floorMapInfo.id
-        name = floorMapInfo.name
+        self.id = floorMapInfo.id
+        self.name = floorMapInfo.name
         self.antennaCount = antennaCount
-        width = floorMapInfo.width
-        height = floorMapInfo.depth
+        self.width = floorMapInfo.width
+        self.height = floorMapInfo.depth
         self.isActive = isActive
         self.projectProgress = projectProgress
     }
@@ -51,11 +51,11 @@ struct FloorMap: Identifiable {
 
     func toFloorMapInfo() -> FloorMapInfo {
         FloorMapInfo(
-            id: id,
-            name: name,
+            id: self.id,
+            name: self.name,
             buildingName: "",  // buildingNameが含まれていない場合は空文字列
-            width: width,
-            depth: height,
+            width: self.width,
+            depth: self.height,
             createdAt: Date()  // 作成日時が含まれていない場合は現在日時
         )
     }
@@ -79,22 +79,22 @@ class FloorMapViewModel: ObservableObject {
 
     func setModelContext(_ context: ModelContext) {
         // 同じModelContextが設定されている場合は何もしない
-        if modelContext === context {
+        if self.modelContext === context {
             print("🔄 FloorMapViewModel: 同じModelContextのため処理をスキップ")
             return
         }
 
-        modelContext = context
+        self.modelContext = context
         if #available(macOS 14, iOS 17, *) {
             swiftDataRepository = SwiftDataRepository(modelContext: context)
         }
         print("🔄 FloorMapViewModel: 新しいModelContextが設定されました、データを再読み込み")
-        loadFloorMaps()
+        self.loadFloorMaps()
     }
 
     func refreshData() {
         print("🔄 FloorMapViewModel: refreshData called (外部から呼び出し)")
-        loadFloorMaps()
+        self.loadFloorMaps()
     }
 
     func loadFloorMaps() {
@@ -102,7 +102,7 @@ class FloorMapViewModel: ObservableObject {
 
         guard let repository = swiftDataRepository else {
             print("❌ FloorMapViewModel: SwiftDataRepository not available, using fallback data")
-            loadFallbackData()
+            self.loadFallbackData()
             return
         }
 
@@ -116,7 +116,7 @@ class FloorMapViewModel: ObservableObject {
 
                 for floorMapInfo in floorMapInfos {
                     // アンテナ数をカウント（TODO: 実際のアンテナ数を取得）
-                    let antennaCount = getAntennaCount(for: floorMapInfo.id)
+                    let antennaCount = self.getAntennaCount(for: floorMapInfo.id)
 
                     // プロジェクト進行状況を取得
                     var projectProgress: ProjectProgress?
@@ -144,21 +144,21 @@ class FloorMapViewModel: ObservableObject {
                        let index = self.floorMaps.firstIndex(where: { $0.id == activeId })
                     {
                         self.floorMaps[index].isActive = true
-                        selectedFloorMap = self.floorMaps[index]
-                        print("🔄 アクティブなフロアマップを復元: \(selectedFloorMap?.name ?? "Unknown")")
+                        self.selectedFloorMap = self.floorMaps[index]
+                        print("🔄 アクティブなフロアマップを復元: \(self.selectedFloorMap?.name ?? "Unknown")")
                     } else if !self.floorMaps.isEmpty {
                         self.floorMaps[0].isActive = true
-                        selectedFloorMap = self.floorMaps[0]
-                        print("🔄 デフォルトで最初のフロアマップを選択: \(selectedFloorMap?.name ?? "Unknown")")
+                        self.selectedFloorMap = self.floorMaps[0]
+                        print("🔄 デフォルトで最初のフロアマップを選択: \(self.selectedFloorMap?.name ?? "Unknown")")
                     }
 
-                    updatePreferences()
+                    self.updatePreferences()
                 }
             } catch {
                 print("❌ SwiftDataからのフロアマップ読み込みエラー: \(error)")
                 await MainActor.run {
                     print("🔄 フォールバックデータを読み込み中...")
-                    loadFallbackData()
+                    self.loadFallbackData()
                 }
             }
         }
@@ -177,16 +177,16 @@ class FloorMapViewModel: ObservableObject {
             print("     Building: \(floorMapInfo.buildingName)")
 
             let floorMap = FloorMap(from: floorMapInfo, antennaCount: 0, isActive: true)
-            floorMaps = [floorMap]
-            selectedFloorMap = floorMap
-            updatePreferences()
+            self.floorMaps = [floorMap]
+            self.selectedFloorMap = floorMap
+            self.updatePreferences()
             print("✅ フォールバックデータから1件のフロアマップを復元")
         } else {
             print("   currentFloorMapInfo not found")
             // 完全にデータがない場合は空の状態に
-            floorMaps = []
-            selectedFloorMap = nil
-            preferenceRepository.setHasFloorMapConfigured(false)
+            self.floorMaps = []
+            self.selectedFloorMap = nil
+            self.preferenceRepository.setHasFloorMapConfigured(false)
             print("💭 フォールバックデータなし、空の状態に設定")
         }
     }
@@ -197,25 +197,25 @@ class FloorMapViewModel: ObservableObject {
     }
 
     private func getCurrentActiveFloorMapId() -> String? {
-        preferenceRepository.loadCurrentFloorMapInfo()?.id
+        self.preferenceRepository.loadCurrentFloorMapInfo()?.id
     }
 
     private func updatePreferences() {
-        preferenceRepository.setHasFloorMapConfigured(!floorMaps.isEmpty)
+        self.preferenceRepository.setHasFloorMapConfigured(!self.floorMaps.isEmpty)
     }
 
     func selectFloorMap(_ map: FloorMap) {
-        for i in 0..<floorMaps.count {
-            floorMaps[i].isActive = (floorMaps[i].id == map.id)
+        for i in 0..<self.floorMaps.count {
+            self.floorMaps[i].isActive = (self.floorMaps[i].id == map.id)
         }
-        selectedFloorMap = map
+        self.selectedFloorMap = map
 
         // UserDefaultsのcurrentFloorMapInfoを更新
-        updateCurrentFloorMapInfo(map.toFloorMapInfo())
+        self.updateCurrentFloorMapInfo(map.toFloorMapInfo())
     }
 
     private func updateCurrentFloorMapInfo(_ floorMapInfo: FloorMapInfo) {
-        preferenceRepository.saveCurrentFloorMapInfo(floorMapInfo)
+        self.preferenceRepository.saveCurrentFloorMapInfo(floorMapInfo)
         print("📍 FloorMapViewModel: currentFloorMapInfo updated to: \(floorMapInfo.name)")
 
         // フロアマップ変更を通知
@@ -223,23 +223,23 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func toggleActiveFloorMap(_ map: FloorMap) {
-        for i in 0..<floorMaps.count {
-            if floorMaps[i].id == map.id {
-                floorMaps[i].isActive.toggle()
-                if floorMaps[i].isActive {
-                    selectedFloorMap = floorMaps[i]
+        for i in 0..<self.floorMaps.count {
+            if self.floorMaps[i].id == map.id {
+                self.floorMaps[i].isActive.toggle()
+                if self.floorMaps[i].isActive {
+                    self.selectedFloorMap = self.floorMaps[i]
                     // UserDefaultsのcurrentFloorMapInfoを更新
-                    updateCurrentFloorMapInfo(floorMaps[i].toFloorMapInfo())
-                    for j in 0..<floorMaps.count {
-                        if j != i && floorMaps[j].isActive {
-                            floorMaps[j].isActive = false
+                    self.updateCurrentFloorMapInfo(self.floorMaps[i].toFloorMapInfo())
+                    for j in 0..<self.floorMaps.count {
+                        if j != i && self.floorMaps[j].isActive {
+                            self.floorMaps[j].isActive = false
                         }
                     }
-                } else if selectedFloorMap?.id == map.id {
-                    selectedFloorMap = floorMaps.first { $0.isActive }
+                } else if self.selectedFloorMap?.id == map.id {
+                    self.selectedFloorMap = self.floorMaps.first { $0.isActive }
                     // 新しく選択されたフロアマップのcurrentFloorMapInfoを更新
                     if let newSelectedMap = selectedFloorMap {
-                        updateCurrentFloorMapInfo(newSelectedMap.toFloorMapInfo())
+                        self.updateCurrentFloorMapInfo(newSelectedMap.toFloorMapInfo())
                     }
                 }
                 break
@@ -248,14 +248,14 @@ class FloorMapViewModel: ObservableObject {
     }
 
     func deleteFloorMap(_ map: FloorMap) {
-        guard !deletingFloorMapIds.contains(map.id) else {
+        guard !self.deletingFloorMapIds.contains(map.id) else {
             #if DEBUG
                 print("⚠️ すでに削除処理中: \(map.id)")
             #endif
             return
         }
 
-        deletingFloorMapIds.insert(map.id)
+        self.deletingFloorMapIds.insert(map.id)
 
         Task {
             defer {
@@ -264,16 +264,16 @@ class FloorMapViewModel: ObservableObject {
                 }
             }
             do {
-                try await deleteFloorMapFromRepository(map.id)
+                try await self.deleteFloorMapFromRepository(map.id)
                 await MainActor.run {
-                    updateUIAfterDeletion(map)
+                    self.updateUIAfterDeletion(map)
                 }
             } catch {
                 await MainActor.run {
                     #if DEBUG
                         print("❌ フロアマップの削除エラー: \(error)")
                     #endif
-                    errorMessage = "フロアマップの削除に失敗しました: \(error.localizedDescription)"
+                    self.errorMessage = "フロアマップの削除に失敗しました: \(error.localizedDescription)"
                 }
             }
         }
@@ -287,7 +287,7 @@ class FloorMapViewModel: ObservableObject {
             print("✅ SwiftDataからフロアマップを削除: \(mapId)")
         #endif
 
-        await deleteCascadingData(for: mapId, repository: repository)
+        await self.deleteCascadingData(for: mapId, repository: repository)
     }
 
     private func deleteCascadingData(for mapId: String, repository: SwiftDataRepository) async {
@@ -319,33 +319,33 @@ class FloorMapViewModel: ObservableObject {
     }
 
     private func updateUIAfterDeletion(_ map: FloorMap) {
-        floorMaps.removeAll { $0.id == map.id }
+        self.floorMaps.removeAll { $0.id == map.id }
 
         // PreferenceRepositoryからの削除
         if let currentFloorMapInfo = preferenceRepository.loadCurrentFloorMapInfo(),
            currentFloorMapInfo.id == map.id {
-            preferenceRepository.removeCurrentFloorMapInfo()
+            self.preferenceRepository.removeCurrentFloorMapInfo()
             #if DEBUG
                 print("🗑️ PreferenceRepositoryの現在のフロアマップ情報をクリア")
             #endif
         }
 
-        updateActiveStateAfterDeletion(deletedMap: map)
+        self.updateActiveStateAfterDeletion(deletedMap: map)
     }
 
     private func updateActiveStateAfterDeletion(deletedMap: FloorMap) {
-        if floorMaps.isEmpty {
-            preferenceRepository.setHasFloorMapConfigured(false)
-            selectedFloorMap = nil
+        if self.floorMaps.isEmpty {
+            self.preferenceRepository.setHasFloorMapConfigured(false)
+            self.selectedFloorMap = nil
             #if DEBUG
                 print("📝 全てのフロアマップが削除されたため、設定状態をクリア")
             #endif
         } else if deletedMap.isActive {
-            floorMaps[0].isActive = true
-            selectedFloorMap = floorMaps[0]
-            updateCurrentFloorMapInfo(floorMaps[0].toFloorMapInfo())
+            self.floorMaps[0].isActive = true
+            self.selectedFloorMap = self.floorMaps[0]
+            self.updateCurrentFloorMapInfo(self.floorMaps[0].toFloorMapInfo())
             #if DEBUG
-                print("🔄 新しいアクティブフロアマップ: \(floorMaps[0].name)")
+                print("🔄 新しいアクティブフロアマップ: \(self.floorMaps[0].name)")
             #endif
         }
     }
@@ -357,15 +357,15 @@ class FloorMapViewModel: ObservableObject {
             antennaCount: antennaCount,
             width: width,
             height: height,
-            isActive: floorMaps.isEmpty
+            isActive: self.floorMaps.isEmpty
         )
 
-        floorMaps.append(newMap)
+        self.floorMaps.append(newMap)
 
-        if floorMaps.count == 1 {
-            selectedFloorMap = newMap
+        if self.floorMaps.count == 1 {
+            self.selectedFloorMap = newMap
         }
 
-        preferenceRepository.setHasFloorMapConfigured(true)
+        self.preferenceRepository.setHasFloorMapConfigured(true)
     }
 }

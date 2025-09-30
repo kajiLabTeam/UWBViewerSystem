@@ -22,7 +22,7 @@ struct CalibrationTests {
     @Test("完全に一致する3点でのキャリブレーション")
     func perfectCalibration() throws {
         // Arrange
-        let leastSquaresCalibration = createLeastSquaresCalibration()
+        let leastSquaresCalibration = self.createLeastSquaresCalibration()
 
         // 正解座標と測定座標が完全に一致するケース（分散が十分なデータを使用）
         let points = [
@@ -59,7 +59,7 @@ struct CalibrationTests {
     @Test("平行移動のみのキャリブレーション")
     func translationOnlyCalibration() throws {
         // Arrange
-        let leastSquaresCalibration = createLeastSquaresCalibration()
+        let leastSquaresCalibration = self.createLeastSquaresCalibration()
 
         // 測定座標が正解座標から一定量ずれているケース
         let offset = Point3D(x: 1.5, y: 1.0, z: 0)
@@ -97,7 +97,7 @@ struct CalibrationTests {
     @Test("スケール変換のキャリブレーション")
     func scaleCalibration() throws {
         // Arrange
-        let leastSquaresCalibration = createLeastSquaresCalibration()
+        let leastSquaresCalibration = self.createLeastSquaresCalibration()
 
         // 測定座標が正解座標の2倍になっているケース
         let scaleFactor = 0.5
@@ -132,7 +132,7 @@ struct CalibrationTests {
     @Test("不十分な点数でのエラー")
     func insufficientPointsError() {
         // Arrange
-        let leastSquaresCalibration = createLeastSquaresCalibration()
+        let leastSquaresCalibration = self.createLeastSquaresCalibration()
 
         let points = [
             CalibrationPoint(
@@ -167,7 +167,7 @@ struct CalibrationTests {
     @Test("無効な入力データでのエラー")
     func invalidInputError() {
         // Arrange
-        let leastSquaresCalibration = createLeastSquaresCalibration()
+        let leastSquaresCalibration = self.createLeastSquaresCalibration()
 
         // 全ての測定点が同じ位置にあるケース
         let points = [
@@ -202,7 +202,7 @@ struct CalibrationTests {
     @Test("キャリブレーション適用")
     func calibrationApplication() throws {
         // Arrange
-        let leastSquaresCalibration = createLeastSquaresCalibration()
+        let leastSquaresCalibration = self.createLeastSquaresCalibration()
 
         let points = [
             CalibrationPoint(
@@ -242,7 +242,7 @@ struct CalibrationTests {
     @MainActor
     func addAndRemoveCalibrationPoint() async {
         // Arrange
-        let (_, _, calibrationUsecase) = createTestContext()
+        let (_, _, calibrationUsecase) = self.createTestContext()
 
         let antennaId = "test_antenna"
         let referencePosition = Point3D(x: 1, y: 1, z: 0)
@@ -277,7 +277,7 @@ struct CalibrationTests {
     @MainActor
     func testPerformCalibration() async {
         // Arrange
-        let (_, _, calibrationUsecase) = createTestContext()
+        let (_, _, calibrationUsecase) = self.createTestContext()
 
         let antennaId = "test_antenna"
 
@@ -318,7 +318,7 @@ struct CalibrationTests {
     @MainActor
     func calibrationStatistics() async {
         // Arrange
-        let (_, _, calibrationUsecase) = createTestContext()
+        let (_, _, calibrationUsecase) = self.createTestContext()
 
         let antenna1 = "antenna1"
         let antenna2 = "antenna2"
@@ -460,22 +460,22 @@ class MockCalibrationTestRepository: DataRepositoryProtocol {
         let encodedData = try encoder.encode(data)
 
         // 同期的にスレッドセーフな保存
-        storageQueue.sync(flags: .barrier) {
+        self.storageQueue.sync(flags: .barrier) {
             self.calibrationDataStorage[data.antennaId] = encodedData
         }
     }
 
     func loadCalibrationData() async throws -> [CalibrationData] {
-        storageQueue.sync {
+        self.storageQueue.sync {
             let decoder = JSONDecoder()
-            return calibrationDataStorage.values.compactMap { data in
+            return self.calibrationDataStorage.values.compactMap { data in
                 try? decoder.decode(CalibrationData.self, from: data)
             }
         }
     }
 
     func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        storageQueue.sync {
+        self.storageQueue.sync {
             guard let data = calibrationDataStorage[antennaId] else { return nil }
             let decoder = JSONDecoder()
             return try? decoder.decode(CalibrationData.self, from: data)
@@ -483,13 +483,13 @@ class MockCalibrationTestRepository: DataRepositoryProtocol {
     }
 
     func deleteCalibrationData(for antennaId: String) async throws {
-        storageQueue.sync(flags: .barrier) {
+        self.storageQueue.sync(flags: .barrier) {
             self.calibrationDataStorage.removeValue(forKey: antennaId)
         }
     }
 
     func deleteAllCalibrationData() async throws {
-        storageQueue.sync(flags: .barrier) {
+        self.storageQueue.sync(flags: .barrier) {
             self.calibrationDataStorage.removeAll()
         }
     }

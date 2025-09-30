@@ -36,35 +36,35 @@ public class LeastSquaresCalibration {
     /// - Returns: 計算された変換行列
     /// - Throws: キャリブレーションエラー
     public static func calculateTransform(from points: [CalibrationPoint]) throws -> CalibrationTransform {
-        logger.info("🔧 キャリブレーション変換計算開始: \(points.count)個のキャリブレーション点")
+        self.logger.info("🔧 キャリブレーション変換計算開始: \(points.count)個のキャリブレーション点")
 
         guard points.count >= 3 else {
             throw CalibrationError.insufficientPoints(required: 3, provided: points.count)
         }
 
         // データ点の妥当性をチェック
-        try validatePoints(points)
+        try self.validatePoints(points)
 
         // 測定座標と正解座標を分離
         let measuredPoints = points.map { $0.measuredPosition }
         let referencePoints = points.map { $0.referencePosition }
 
-        logger.info("📍 測定点:")
+        self.logger.info("📍 測定点:")
         for (i, point) in measuredPoints.enumerated() {
-            logger.info("  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))")
+            self.logger.info("  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))")
         }
 
-        logger.info("📍 基準点:")
+        self.logger.info("📍 基準点:")
         for (i, point) in referencePoints.enumerated() {
-            logger.info("  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))")
+            self.logger.info("  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))")
         }
 
         // 重心を計算
-        let measuredCentroid = calculateCentroid(measuredPoints)
-        let referenceCentroid = calculateCentroid(referencePoints)
+        let measuredCentroid = self.calculateCentroid(measuredPoints)
+        let referenceCentroid = self.calculateCentroid(referencePoints)
 
-        logger.info("📊 測定点重心: (\(String(format: "%.3f", measuredCentroid.x)), \(String(format: "%.3f", measuredCentroid.y)), \(String(format: "%.3f", measuredCentroid.z)))")
-        logger.info("📊 基準点重心: (\(String(format: "%.3f", referenceCentroid.x)), \(String(format: "%.3f", referenceCentroid.y)), \(String(format: "%.3f", referenceCentroid.z)))")
+        self.logger.info("📊 測定点重心: (\(String(format: "%.3f", measuredCentroid.x)), \(String(format: "%.3f", measuredCentroid.y)), \(String(format: "%.3f", measuredCentroid.z)))")
+        self.logger.info("📊 基準点重心: (\(String(format: "%.3f", referenceCentroid.x)), \(String(format: "%.3f", referenceCentroid.y)), \(String(format: "%.3f", referenceCentroid.z)))")
 
         // 重心を原点に移動
         let centeredMeasured = measuredPoints.map { $0 - measuredCentroid }
@@ -77,7 +77,7 @@ public class LeastSquaresCalibration {
         )
 
         // 平行移動を計算（回転・スケール適用後の重心差）
-        let rotatedScaledCentroid = applyRotationAndScale(
+        let rotatedScaledCentroid = self.applyRotationAndScale(
             point: measuredCentroid,
             rotation: rotation,
             scale: scale
@@ -85,7 +85,7 @@ public class LeastSquaresCalibration {
         let translation = referenceCentroid - rotatedScaledCentroid
 
         // 精度（RMSE）を計算
-        let accuracy = calculateRMSE(
+        let accuracy = self.calculateRMSE(
             measured: measuredPoints,
             reference: referencePoints,
             transform: CalibrationTransform(
@@ -118,7 +118,7 @@ public class LeastSquaresCalibration {
         )
 
         // 2. 回転適用（2D回転のみサポート）
-        let rotated = applyRotation(point: scaled, rotation: transform.rotation)
+        let rotated = self.applyRotation(point: scaled, rotation: transform.rotation)
 
         // 3. 平行移動適用
         return rotated + transform.translation
@@ -130,7 +130,7 @@ public class LeastSquaresCalibration {
     ///   - transform: 変換行列
     /// - Returns: 変換後の座標配列
     public static func applyCalibration(to points: [Point3D], using transform: CalibrationTransform) -> [Point3D] {
-        points.map { applyCalibration(to: $0, using: transform) }
+        points.map { self.applyCalibration(to: $0, using: transform) }
     }
 
     // MARK: - プライベートメソッド
@@ -215,7 +215,7 @@ public class LeastSquaresCalibration {
             let variance = measured.reduce(0.0) { $0 + $1 * $1 }
             if variance > 1e-12 {
                 do {
-                    return try calculateScale(measured: measured, reference: reference)
+                    return try self.calculateScale(measured: measured, reference: reference)
                 } catch {
                     return 1.0  // エラーが発生した場合はスケール1.0を使用
                 }
@@ -241,26 +241,26 @@ public class LeastSquaresCalibration {
         let h21 = H[2]
         let h22 = H[3]
 
-        logger.info("🔢 共分散行列 H:")
-        logger.info("  | \(String(format: "%10.6f", h11))  \(String(format: "%10.6f", h12)) |")
-        logger.info("  | \(String(format: "%10.6f", h21))  \(String(format: "%10.6f", h22)) |")
+        self.logger.info("🔢 共分散行列 H:")
+        self.logger.info("  | \(String(format: "%10.6f", h11))  \(String(format: "%10.6f", h12)) |")
+        self.logger.info("  | \(String(format: "%10.6f", h21))  \(String(format: "%10.6f", h22)) |")
 
         // 行列式がゼロに近い場合はエラー
         let determinant = h11 * h22 - h12 * h21
-        logger.info("📐 行列式 det(H) = \(String(format: "%.10f", determinant))")
+        self.logger.info("📐 行列式 det(H) = \(String(format: "%.10f", determinant))")
 
         if abs(determinant) < 1e-10 {
-            logger.error("❌ 特異行列エラー: 行列式が \(String(format: "%.10e", determinant)) でしきい値 1e-10 未満です")
-            logger.error("💡 これは以下のいずれかの原因が考えられます:")
-            logger.error("   1. 全てのキャリブレーション点が同一線上にある")
-            logger.error("   2. 測定点と基準点の対応関係が正しくない")
-            logger.error("   3. データに数値的な問題がある")
+            self.logger.error("❌ 特異行列エラー: 行列式が \(String(format: "%.10e", determinant)) でしきい値 1e-10 未満です")
+            self.logger.error("💡 これは以下のいずれかの原因が考えられます:")
+            self.logger.error("   1. 全てのキャリブレーション点が同一線上にある")
+            self.logger.error("   2. 測定点と基準点の対応関係が正しくない")
+            self.logger.error("   3. データに数値的な問題がある")
             throw CalibrationError.singularMatrix
         }
 
         // 最適回転角を計算
         let rotation = atan2(h21 - h12, h11 + h22)
-        logger.info("🔄 計算された回転角: \(String(format: "%.3f", rotation * 180 / .pi))度")
+        self.logger.info("🔄 計算された回転角: \(String(format: "%.3f", rotation * 180 / .pi))度")
         return rotation
     }
 
@@ -302,7 +302,7 @@ public class LeastSquaresCalibration {
         )
 
         // 回転適用
-        return applyRotation(point: scaled, rotation: rotation)
+        return self.applyRotation(point: scaled, rotation: rotation)
     }
 
     /// RMSE（Root Mean Square Error）を計算
@@ -315,7 +315,7 @@ public class LeastSquaresCalibration {
             return 0.0
         }
 
-        let transformedPoints = measured.map { applyCalibration(to: $0, using: transform) }
+        let transformedPoints = measured.map { self.applyCalibration(to: $0, using: transform) }
 
         let sumSquaredErrors = zip(transformedPoints, reference).reduce(0.0) { sum, pair in
             let (transformed, ref) = pair

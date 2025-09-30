@@ -38,31 +38,31 @@ class SensingManagementViewModel: ObservableObject {
                     connectionUsecase: ConnectionManagementUsecase(nearbyRepository: NearbyRepository())
                 )
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
-        initialize()
+        self.initialize()
     }
 
     /// 実際のModelContextを使用してSwiftDataRepositoryを設定
     func setSwiftDataRepository(_ repository: SwiftDataRepositoryProtocol) {
-        swiftDataRepository = repository
-        loadAntennaDevices()
+        self.swiftDataRepository = repository
+        self.loadAntennaDevices()
     }
 
     var canStartSensing: Bool {
-        !sensingFileName.isEmpty && antennaDevices.filter { $0.connectionStatus == .connected }.count >= 3
+        !self.sensingFileName.isEmpty && self.antennaDevices.filter { $0.connectionStatus == .connected }.count >= 3
     }
 
     var hasDataToView: Bool {
-        dataPointCount > 0 || !realtimeData.isEmpty
+        self.dataPointCount > 0 || !self.realtimeData.isEmpty
     }
 
     var canProceedToNext: Bool {
-        hasDataToView
+        self.hasDataToView
     }
 
     func initialize() {
-        loadAntennaDevices()
-        setupObservers()
-        generateDefaultFileName()
+        self.loadAntennaDevices()
+        self.setupObservers()
+        self.generateDefaultFileName()
     }
 
     private func loadAntennaDevices() {
@@ -71,14 +71,14 @@ class SensingManagementViewModel: ObservableObject {
             do {
                 let positions = try await swiftDataRepository.loadAntennaPositions()
 
-                antennaDevices = positions.map { position in
+                self.antennaDevices = positions.map { position in
                     AntennaDevice(
                         id: position.id,
                         name: position.antennaName,
                         connectionStatus: .connected,  // 実際の実装では実際のステータスを取得
                         rssi: Int.random(in: -60...(-40)),
                         batteryLevel: Int.random(in: 70...100),
-                        dataRate: sampleRate,
+                        dataRate: self.sampleRate,
                         position: RealWorldPosition(
                             x: position.position.x,
                             y: position.position.y,
@@ -89,125 +89,125 @@ class SensingManagementViewModel: ObservableObject {
                 }
             } catch {
                 print("Error loading antenna positions: \(error)")
-                antennaDevices = []
+                self.antennaDevices = []
             }
         }
     }
 
     private func setupObservers() {
         // 直接注入されたUsecaseからの状態を監視
-        sensingControlUsecase.$isSensingControlActive
-            .assign(to: &$isSensingActive)
+        self.sensingControlUsecase.$isSensingControlActive
+            .assign(to: &self.$isSensingActive)
 
         // RealtimeDataUsecaseからのリアルタイムデータを監視
-        realtimeDataUsecase.$deviceRealtimeDataList
+        self.realtimeDataUsecase.$deviceRealtimeDataList
             .map { deviceDataList in
                 // デバイスリストから最新のリアルタイムデータを抽出
                 deviceDataList.compactMap { deviceData in
                     deviceData.latestData
                 }
             }
-            .assign(to: &$realtimeData)
+            .assign(to: &self.$realtimeData)
 
         // データポイント数を監視
-        $realtimeData
+        self.$realtimeData
             .map { $0.count }
-            .assign(to: &$dataPointCount)
+            .assign(to: &self.$dataPointCount)
     }
 
     private func generateDefaultFileName() {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd_HHmmss"
-        sensingFileName = "sensing_\(formatter.string(from: Date()))"
+        self.sensingFileName = "sensing_\(formatter.string(from: Date()))"
     }
 
     func refreshAntennaStatus() {
         // 実際の実装ではデバイスから最新の状態を取得
-        for index in antennaDevices.indices {
-            antennaDevices[index].rssi = Int.random(in: -60...(-40))
-            antennaDevices[index].batteryLevel = max(0, antennaDevices[index].batteryLevel - Int.random(in: 0...2))
-            antennaDevices[index].lastUpdate = Date()
+        for index in self.antennaDevices.indices {
+            self.antennaDevices[index].rssi = Int.random(in: -60...(-40))
+            self.antennaDevices[index].batteryLevel = max(0, self.antennaDevices[index].batteryLevel - Int.random(in: 0...2))
+            self.antennaDevices[index].lastUpdate = Date()
 
             // バッテリーレベルに基づいて接続状態を更新
-            if antennaDevices[index].batteryLevel < 10 {
-                antennaDevices[index].connectionStatus = .disconnected
-            } else if antennaDevices[index].batteryLevel < 30 {
-                antennaDevices[index].connectionStatus = .unstable
+            if self.antennaDevices[index].batteryLevel < 10 {
+                self.antennaDevices[index].connectionStatus = .disconnected
+            } else if self.antennaDevices[index].batteryLevel < 30 {
+                self.antennaDevices[index].connectionStatus = .unstable
             } else {
-                antennaDevices[index].connectionStatus = .connected
+                self.antennaDevices[index].connectionStatus = .connected
             }
         }
     }
 
     func startSensing() {
-        guard canStartSensing else { return }
+        guard self.canStartSensing else { return }
 
-        currentFileName = sensingFileName
-        sensingStartTime = Date()
+        self.currentFileName = self.sensingFileName
+        self.sensingStartTime = Date()
 
         // 直接SensingControlUsecaseを使用してセンシング開始
-        sensingControlUsecase.startRemoteSensing(fileName: currentFileName)
+        self.sensingControlUsecase.startRemoteSensing(fileName: self.currentFileName)
 
         // リアルタイム表示の準備
         print("🚀 センシング開始: UWBリアルタイムデータ受信準備完了")
 
         // 継続時間タイマーを開始
-        startDurationTimer()
+        self.startDurationTimer()
 
         // データレートを更新
-        for index in antennaDevices.indices {
-            antennaDevices[index].dataRate = sampleRate
+        for index in self.antennaDevices.indices {
+            self.antennaDevices[index].dataRate = self.sampleRate
         }
 
         // 次回のファイル名を生成
-        generateDefaultFileName()
+        self.generateDefaultFileName()
     }
 
     func stopSensing() {
         // 直接SensingControlUsecaseを使用してセンシング停止
-        sensingControlUsecase.stopRemoteSensing()
-        stopDurationTimer()
+        self.sensingControlUsecase.stopRemoteSensing()
+        self.stopDurationTimer()
 
         // リアルタイムデータクリア
         print("🛑 センシング停止: リアルタイムデータをクリア")
-        realtimeDataUsecase.clearAllRealtimeData()
+        self.realtimeDataUsecase.clearAllRealtimeData()
 
         // センシング完了時の処理
-        if autoSave {
-            saveCurrentSession()
+        if self.autoSave {
+            self.saveCurrentSession()
         }
 
-        sensingStartTime = nil
-        currentFileName = ""
-        isPaused = false
+        self.sensingStartTime = nil
+        self.currentFileName = ""
+        self.isPaused = false
     }
 
     func pauseSensing() {
-        isPaused = true
-        sensingControlUsecase.pauseRemoteSensing()
-        stopDurationTimer()
+        self.isPaused = true
+        self.sensingControlUsecase.pauseRemoteSensing()
+        self.stopDurationTimer()
     }
 
     func saveSensingSessionForFlow() -> Bool {
         // センシングセッションが実行されたかどうかを確認
-        guard hasDataToView else {
+        guard self.hasDataToView else {
             return false
         }
 
         // セッション実行フラグを保存
-        preferenceRepository.setHasExecutedSensingSession(true)
+        self.preferenceRepository.setHasExecutedSensingSession(true)
 
         return true
     }
 
     func resumeSensing() {
-        isPaused = false
-        sensingControlUsecase.resumeRemoteSensing()
-        startDurationTimer()
+        self.isPaused = false
+        self.sensingControlUsecase.resumeRemoteSensing()
+        self.startDurationTimer()
     }
 
     private func startDurationTimer() {
-        durationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        self.durationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateSensingDuration()
             }
@@ -215,8 +215,8 @@ class SensingManagementViewModel: ObservableObject {
     }
 
     private func stopDurationTimer() {
-        durationTimer?.invalidate()
-        durationTimer = nil
+        self.durationTimer?.invalidate()
+        self.durationTimer = nil
     }
 
     private func updateSensingDuration() {
@@ -227,7 +227,7 @@ class SensingManagementViewModel: ObservableObject {
         let minutes = Int(elapsed) / 60 % 60
         let seconds = Int(elapsed) % 60
 
-        sensingDuration = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        self.sensingDuration = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 
     private func saveCurrentSession() {
@@ -235,7 +235,7 @@ class SensingManagementViewModel: ObservableObject {
 
         let session = SensingSession(
             id: UUID().uuidString,
-            name: currentFileName,
+            name: self.currentFileName,
             startTime: startTime,
             endTime: Date(),
             isActive: false
@@ -244,7 +244,7 @@ class SensingManagementViewModel: ObservableObject {
         // SwiftDataに保存
         Task {
             do {
-                try await swiftDataRepository.saveSensingSession(session)
+                try await self.swiftDataRepository.saveSensingSession(session)
             } catch {
                 print("Error saving sensing session: \(error)")
             }
@@ -279,14 +279,14 @@ struct AntennaDevice: Identifiable {
     var lastUpdate: Date?
 
     var rssiColor: Color {
-        if rssi > -50 { return .green }
-        if rssi > -70 { return .orange }
+        if self.rssi > -50 { return .green }
+        if self.rssi > -70 { return .orange }
         return .red
     }
 
     var batteryColor: Color {
-        if batteryLevel > 50 { return .green }
-        if batteryLevel > 20 { return .orange }
+        if self.batteryLevel > 50 { return .green }
+        if self.batteryLevel > 20 { return .orange }
         return .red
     }
 }

@@ -11,18 +11,18 @@ struct SimpleCalibrationView: View {
     var body: some View {
         VStack(spacing: 0) {
             // フロープログレス表示
-            SensingFlowProgressView(navigator: flowNavigator)
+            SensingFlowProgressView(navigator: self.flowNavigator)
 
             ScrollView {
                 VStack(spacing: 24) {
                     // ヘッダー
-                    headerSection
+                    self.headerSection
 
                     // ステップ内容
-                    currentStepContent
+                    self.currentStepContent
 
                     // ナビゲーションボタン
-                    navigationButtons
+                    self.navigationButtons
 
                     Spacer(minLength: 80)
                 }
@@ -31,12 +31,12 @@ struct SimpleCalibrationView: View {
         }
         .onAppear {
             // SwiftDataのModelContextを設定
-            viewModel.setModelContext(modelContext)
+            self.viewModel.setModelContext(self.modelContext)
 
-            viewModel.loadInitialData()
-            viewModel.reloadData()  // 常に最新のフロアマップデータを取得
-            flowNavigator.currentStep = .systemCalibration
-            flowNavigator.setRouter(router)
+            self.viewModel.loadInitialData()
+            self.viewModel.reloadData()  // 常に最新のフロアマップデータを取得
+            self.flowNavigator.currentStep = .systemCalibration
+            self.flowNavigator.setRouter(self.router)
 
             // CalibrationDataFlowとObservationDataUsecaseを初期化
             let dataRepository = DataRepository()
@@ -65,22 +65,22 @@ struct SimpleCalibrationView: View {
                 swiftDataRepository: swiftDataRepository,
                 sensingControlUsecase: sensingControlUsecase
             )
-            viewModel.setupStepByStepCalibration(
+            self.viewModel.setupStepByStepCalibration(
                 calibrationDataFlow: calibrationDataFlow,
                 observationUsecase: observationUsecase
             )
         }
-        .alert("エラー", isPresented: $viewModel.showErrorAlert) {
+        .alert("エラー", isPresented: self.$viewModel.showErrorAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(viewModel.errorMessage)
+            Text(self.viewModel.errorMessage)
         }
-        .alert("キャリブレーション完了", isPresented: $viewModel.showSuccessAlert) {
+        .alert("キャリブレーション完了", isPresented: self.$viewModel.showSuccessAlert) {
             Button("新しいキャリブレーション", role: .none) {
-                viewModel.resetCalibration()
+                self.viewModel.resetCalibration()
             }
             Button("完了", role: .cancel) {
-                flowNavigator.proceedToNextStep()
+                self.flowNavigator.proceedToNextStep()
             }
         } message: {
             Text("キャリブレーションが正常に完了しました")
@@ -101,7 +101,7 @@ struct SimpleCalibrationView: View {
                         .font(.title2)
                         .fontWeight(.bold)
 
-                    Text("ステップ \(viewModel.currentStep + 1) / 3: \(viewModel.currentStepTitle)")
+                    Text("ステップ \(self.viewModel.currentStep + 1) / 3: \(self.viewModel.currentStepTitle)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -110,7 +110,7 @@ struct SimpleCalibrationView: View {
             }
 
             // プログレスバー
-            ProgressView(value: Double(viewModel.currentStep), total: 2.0)
+            ProgressView(value: Double(self.viewModel.currentStep), total: 2.0)
                 .progressViewStyle(LinearProgressViewStyle(tint: .blue))
         }
         .padding()
@@ -122,13 +122,13 @@ struct SimpleCalibrationView: View {
 
     @ViewBuilder
     private var currentStepContent: some View {
-        switch viewModel.currentStep {
+        switch self.viewModel.currentStep {
         case 0:
-            antennaSelectionContent
+            self.antennaSelectionContent
         case 1:
-            coordinateSelectionContent
+            self.coordinateSelectionContent
         case 2:
-            calibrationExecutionContent
+            self.calibrationExecutionContent
         default:
             EmptyView()
         }
@@ -150,7 +150,7 @@ struct SimpleCalibrationView: View {
                     .foregroundColor(.secondary)
             }
 
-            if viewModel.availableAntennas.isEmpty {
+            if self.viewModel.availableAntennas.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "antenna.radiowaves.left.and.right.slash")
                         .font(.largeTitle)
@@ -163,12 +163,12 @@ struct SimpleCalibrationView: View {
                 .frame(maxWidth: .infinity, minHeight: 200)
             } else {
                 VStack(spacing: 12) {
-                    ForEach(viewModel.availableAntennas, id: \.id) { antenna in
-                        let isPositioned = viewModel.antennaPositions.contains { $0.antennaId == antenna.id }
-                        let antennaPosition = viewModel.antennaPositions.first { $0.antennaId == antenna.id }
+                    ForEach(self.viewModel.availableAntennas, id: \.id) { antenna in
+                        let isPositioned = self.viewModel.antennaPositions.contains { $0.antennaId == antenna.id }
+                        let antennaPosition = self.viewModel.antennaPositions.first { $0.antennaId == antenna.id }
 
                         Button(action: {
-                            viewModel.selectAntenna(antenna.id)
+                            self.viewModel.selectAntenna(antenna.id)
                         }) {
                             HStack {
                                 // アンテナアイコンと状態表示
@@ -223,7 +223,7 @@ struct SimpleCalibrationView: View {
                                 Spacer()
 
                                 VStack {
-                                    if antenna.id == viewModel.selectedAntennaId {
+                                    if antenna.id == self.viewModel.selectedAntennaId {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundColor(.blue)
                                             .font(.title2)
@@ -239,7 +239,7 @@ struct SimpleCalibrationView: View {
                             }
                             .padding()
                             .background(
-                                antenna.id == viewModel.selectedAntennaId
+                                antenna.id == self.viewModel.selectedAntennaId
                                     ? Color.blue.opacity(0.1) : Color.secondary.opacity(0.05)
                             )
                             .cornerRadius(12)
@@ -256,9 +256,9 @@ struct SimpleCalibrationView: View {
 
     private var coordinateSelectionContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            coordinateSelectionHeader
-            floorMapDisplayView
-            referencePointsList
+            self.coordinateSelectionHeader
+            self.floorMapDisplayView
+            self.referencePointsList
         }
         .padding()
         .background(Color.secondary.opacity(0.05))
@@ -272,12 +272,12 @@ struct SimpleCalibrationView: View {
                 .foregroundColor(.primary)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("フロアマップ上で3つの基準座標を設定してください (\(viewModel.referencePoints.count)/3)")
+                Text("フロアマップ上で3つの基準座標を設定してください (\(self.viewModel.referencePoints.count)/3)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                if !viewModel.antennaPositions.isEmpty {
-                    antennaInfoHint
+                if !self.viewModel.antennaPositions.isEmpty {
+                    self.antennaInfoHint
                 }
             }
         }
@@ -297,17 +297,17 @@ struct SimpleCalibrationView: View {
 
     private var floorMapDisplayView: some View {
         FloorMapCanvas(
-            floorMapImage: viewModel.floorMapImage,
-            floorMapInfo: viewModel.currentFloorMapInfo,
-            onMapTap: handleMapTap
+            floorMapImage: self.viewModel.floorMapImage,
+            floorMapInfo: self.viewModel.currentFloorMapInfo,
+            onMapTap: self.handleMapTap
         ) { geometry in
             // アンテナ表示
-            ForEach(viewModel.antennaPositions) { antenna in
+            ForEach(self.viewModel.antennaPositions) { antenna in
                 let antennaDisplayData = AntennaDisplayData(
                     id: antenna.antennaId,
                     name: antenna.antennaName,
                     rotation: antenna.rotation,
-                    color: antenna.antennaId == viewModel.selectedAntennaId ? .blue : .gray
+                    color: antenna.antennaId == self.viewModel.selectedAntennaId ? .blue : .gray
                 )
 
                 let normalizedPosition = geometry.realWorldToNormalized(
@@ -320,14 +320,14 @@ struct SimpleCalibrationView: View {
                     position: displayPosition,
                     size: geometry.antennaSizeInPixels(),
                     sensorRange: geometry.sensorRangeInPixels(),
-                    isSelected: antenna.antennaId == viewModel.selectedAntennaId,
+                    isSelected: antenna.antennaId == self.viewModel.selectedAntennaId,
                     isDraggable: false,
                     showRotationControls: false
                 )
             }
 
             // 基準点表示
-            ForEach(Array(viewModel.referencePoints.enumerated()), id: \.offset) { index, point in
+            ForEach(Array(self.viewModel.referencePoints.enumerated()), id: \.offset) { index, point in
                 let referencePointData = ReferencePointDisplayData(
                     id: "\(index)",
                     label: "\(index + 1)",
@@ -349,18 +349,18 @@ struct SimpleCalibrationView: View {
     }
 
     private func handleMapTap(at location: CGPoint) {
-        if viewModel.referencePoints.count < 3 {
+        if self.viewModel.referencePoints.count < 3 {
             let point = Point3D(
                 x: Double(location.x),
                 y: Double(location.y),
                 z: 0.0
             )
-            viewModel.addReferencePoint(point)
+            self.viewModel.addReferencePoint(point)
         }
     }
 
     private var referencePointsList: some View {
-        let referencePointsData = viewModel.referencePoints.enumerated().map { index, point in
+        let referencePointsData = self.viewModel.referencePoints.enumerated().map { index, point in
             ReferencePointDisplayData(
                 id: "\(index)",
                 label: "\(index + 1)",
@@ -371,7 +371,7 @@ struct SimpleCalibrationView: View {
 
         return ReferencePointList(
             points: referencePointsData,
-            onClear: { viewModel.clearReferencePoints() },
+            onClear: { self.viewModel.clearReferencePoints() },
             onPointTap: nil
         )
     }
@@ -387,7 +387,7 @@ struct SimpleCalibrationView: View {
                     HStack {
                         Text("選択アンテナ:")
                             .font(.subheadline)
-                        Text(viewModel.selectedAntennaId)
+                        Text(self.viewModel.selectedAntennaId)
                             .font(.subheadline)
                             .fontWeight(.medium)
                         Spacer()
@@ -396,7 +396,7 @@ struct SimpleCalibrationView: View {
                     HStack {
                         Text("基準座標数:")
                             .font(.subheadline)
-                        Text("\(viewModel.referencePoints.count)個")
+                        Text("\(self.viewModel.referencePoints.count)個")
                             .font(.subheadline)
                             .fontWeight(.medium)
                         Spacer()
@@ -409,12 +409,12 @@ struct SimpleCalibrationView: View {
 
             // キャリブレーション実行セクション
             VStack(spacing: 16) {
-                if viewModel.isCalibrating {
+                if self.viewModel.isCalibrating {
                     VStack(spacing: 16) {
-                        ProgressView(value: viewModel.calibrationProgress)
+                        ProgressView(value: self.viewModel.calibrationProgress)
                             .progressViewStyle(LinearProgressViewStyle(tint: .blue))
 
-                        Text("キャリブレーション実行中... \(viewModel.progressPercentage)")
+                        Text("キャリブレーション実行中... \(self.viewModel.progressPercentage)")
                             .font(.subheadline)
                             .foregroundColor(.blue)
                     }
@@ -426,14 +426,14 @@ struct SimpleCalibrationView: View {
                         HStack {
                             Image(systemName: result.success ? "checkmark.circle.fill" : "xmark.circle.fill")
                                 .font(.largeTitle)
-                                .foregroundColor(viewModel.calibrationResultColor)
+                                .foregroundColor(self.viewModel.calibrationResultColor)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("キャリブレーション\(viewModel.calibrationResultText)")
+                                Text("キャリブレーション\(self.viewModel.calibrationResultText)")
                                     .font(.headline)
-                                    .foregroundColor(viewModel.calibrationResultColor)
+                                    .foregroundColor(self.viewModel.calibrationResultColor)
 
-                                Text("精度: \(viewModel.calibrationAccuracyText)")
+                                Text("精度: \(self.viewModel.calibrationAccuracyText)")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             }
@@ -442,12 +442,12 @@ struct SimpleCalibrationView: View {
                         }
                     }
                     .padding()
-                    .background(viewModel.calibrationResultColor.opacity(0.1))
+                    .background(self.viewModel.calibrationResultColor.opacity(0.1))
                     .cornerRadius(12)
                 } else {
                     VStack(spacing: 12) {
                         // 通常のキャリブレーション実行ボタン
-                        Button(action: viewModel.startCalibration) {
+                        Button(action: self.viewModel.startCalibration) {
                             HStack {
                                 Image(systemName: "play.fill")
                                 Text("キャリブレーション開始")
@@ -458,10 +458,10 @@ struct SimpleCalibrationView: View {
                             .background(Color.blue)
                             .cornerRadius(12)
                         }
-                        .disabled(!viewModel.canStartCalibration)
+                        .disabled(!self.viewModel.canStartCalibration)
 
                         // 段階的キャリブレーション実行ボタン
-                        Button(action: viewModel.startStepByStepCalibration) {
+                        Button(action: self.viewModel.startStepByStepCalibration) {
                             HStack {
                                 Image(systemName: "figure.walk")
                                 Text("段階的キャリブレーション開始")
@@ -472,19 +472,19 @@ struct SimpleCalibrationView: View {
                             .background(Color.green)
                             .cornerRadius(12)
                         }
-                        .disabled(!viewModel.canStartCalibration)
+                        .disabled(!self.viewModel.canStartCalibration)
                     }
                 }
             }
 
             // 段階的キャリブレーション進行状況表示
-            if viewModel.isStepByStepCalibrationActive {
-                stepByStepCalibrationProgressView
+            if self.viewModel.isStepByStepCalibrationActive {
+                self.stepByStepCalibrationProgressView
             }
 
             // アンテナ位置結果表示
-            if viewModel.showAntennaPositionsResult {
-                antennaPositionsResultView
+            if self.viewModel.showAntennaPositionsResult {
+                self.antennaPositionsResultView
             }
         }
         .padding()
@@ -503,29 +503,29 @@ struct SimpleCalibrationView: View {
             // 現在のステップ情報
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("ステップ \(viewModel.currentStepNumber) / \(viewModel.totalSteps)")
+                    Text("ステップ \(self.viewModel.currentStepNumber) / \(self.viewModel.totalSteps)")
                         .font(.subheadline)
                         .fontWeight(.medium)
 
                     Spacer()
 
-                    Text(String(format: "%.0f%%", viewModel.stepProgress * 100))
+                    Text(String(format: "%.0f%%", self.viewModel.stepProgress * 100))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
 
-                ProgressView(value: viewModel.stepProgress)
+                ProgressView(value: self.viewModel.stepProgress)
                     .progressViewStyle(LinearProgressViewStyle(tint: .green))
             }
 
             // 現在のステップ指示
-            if !viewModel.currentStepInstructions.isEmpty {
+            if !self.viewModel.currentStepInstructions.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("指示:")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    Text(viewModel.currentStepInstructions)
+                    Text(self.viewModel.currentStepInstructions)
                         .font(.subheadline)
                         .foregroundColor(.primary)
                 }
@@ -535,7 +535,7 @@ struct SimpleCalibrationView: View {
             }
 
             // データ収集進行状況
-            if viewModel.dataCollectionProgress > 0 {
+            if self.viewModel.dataCollectionProgress > 0 {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("データ収集中:")
@@ -544,20 +544,20 @@ struct SimpleCalibrationView: View {
 
                         Spacer()
 
-                        if viewModel.timeRemaining > 0 {
-                            Text("残り \(Int(viewModel.timeRemaining))秒")
+                        if self.viewModel.timeRemaining > 0 {
+                            Text("残り \(Int(self.viewModel.timeRemaining))秒")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
 
-                    ProgressView(value: viewModel.dataCollectionProgress)
+                    ProgressView(value: self.viewModel.dataCollectionProgress)
                         .progressViewStyle(LinearProgressViewStyle(tint: .orange))
                 }
             }
 
             // データ収集開始ボタン
-            Button(action: viewModel.startDataCollectionForCurrentPoint) {
+            Button(action: self.viewModel.startDataCollectionForCurrentPoint) {
                 HStack {
                     Image(systemName: "antenna.radiowaves.left.and.right")
                     Text("データ収集開始")
@@ -583,7 +583,7 @@ struct SimpleCalibrationView: View {
 
                 Spacer()
 
-                Button(action: viewModel.dismissAntennaPositionsResult) {
+                Button(action: self.viewModel.dismissAntennaPositionsResult) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
                         .font(.title3)
@@ -595,7 +595,7 @@ struct SimpleCalibrationView: View {
                 .foregroundColor(.secondary)
 
             VStack(spacing: 8) {
-                ForEach(Array(viewModel.finalAntennaPositions.keys.sorted()), id: \.self) { antennaId in
+                ForEach(Array(self.viewModel.finalAntennaPositions.keys.sorted()), id: \.self) { antennaId in
                     if let position = viewModel.finalAntennaPositions[antennaId] {
                         HStack {
                             Image(systemName: "antenna.radiowaves.left.and.right")
@@ -635,9 +635,9 @@ struct SimpleCalibrationView: View {
 
     private var navigationButtons: some View {
         HStack(spacing: 16) {
-            if viewModel.canGoBack {
+            if self.viewModel.canGoBack {
                 Button("戻る") {
-                    viewModel.goBack()
+                    self.viewModel.goBack()
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -646,9 +646,9 @@ struct SimpleCalibrationView: View {
                 .cornerRadius(12)
             }
 
-            if viewModel.canProceedToNext {
+            if self.viewModel.canProceedToNext {
                 Button("次へ") {
-                    viewModel.proceedToNext()
+                    self.viewModel.proceedToNext()
                 }
                 .frame(maxWidth: .infinity)
                 .padding()

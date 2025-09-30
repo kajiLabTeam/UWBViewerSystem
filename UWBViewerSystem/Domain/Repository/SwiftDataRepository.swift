@@ -157,9 +157,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             }
 
             let persistentSession = session.toPersistent()
-            modelContext.insert(persistentSession)
+            self.modelContext.insert(persistentSession)
 
-            try modelContext.save()
+            try self.modelContext.save()
             #if DEBUG
                 print("✅ センシングセッション保存完了: \(session.name) (ID: \(session.id))")
             #endif
@@ -207,9 +207,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let sessions = try modelContext.fetch(descriptor)
         for session in sessions {
-            modelContext.delete(session)
+            self.modelContext.delete(session)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     public func updateSensingSession(_ session: SensingSession) async throws {
@@ -222,7 +222,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             existingSession.startTime = session.startTime
             existingSession.endTime = session.endTime
             existingSession.isActive = session.isActive
-            try modelContext.save()
+            try self.modelContext.save()
         }
     }
 
@@ -269,7 +269,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                         #if DEBUG
                             print("🗑️ 重複データを削除: ID=\(duplicate.id), Name=\(duplicate.antennaName)")
                         #endif
-                        modelContext.delete(duplicate)
+                        self.modelContext.delete(duplicate)
                     }
 
                     // 最新データを更新
@@ -279,7 +279,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                     latestPosition.z = position.position.z
                     latestPosition.rotation = position.rotation
 
-                    try modelContext.save()
+                    try self.modelContext.save()
                     #if DEBUG
                         print("🔄 アンテナ位置を更新しました（重複削除後）: \(position.antennaName)")
                     #endif
@@ -292,7 +292,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                     existingPosition.z = position.position.z
                     existingPosition.rotation = position.rotation
 
-                    try modelContext.save()
+                    try self.modelContext.save()
                     #if DEBUG
                         print("🔄 アンテナ位置を更新しました: \(position.antennaName)")
                     #endif
@@ -300,9 +300,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             } else {
                 // 新規データとして保存
                 let persistentPosition = position.toPersistent()
-                modelContext.insert(persistentPosition)
+                self.modelContext.insert(persistentPosition)
 
-                try modelContext.save()
+                try self.modelContext.save()
                 #if DEBUG
                     print("✅ アンテナ位置保存完了: \(position.antennaName) (ID: \(position.antennaId))")
                 #endif
@@ -392,10 +392,10 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                         "🗑️ SwiftDataRepository: 削除中 - ID: \(position.id), AntennaID: \(position.antennaId), Name: \(position.antennaName)"
                     )
                 #endif
-                modelContext.delete(position)
+                self.modelContext.delete(position)
             }
 
-            try modelContext.save()
+            try self.modelContext.save()
             #if DEBUG
                 print("✅ アンテナ位置削除完了: \(positions.count)件")
             #endif
@@ -416,10 +416,10 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         #endif
 
         for position in positions {
-            modelContext.delete(position)
+            self.modelContext.delete(position)
         }
 
-        try modelContext.save()
+        try self.modelContext.save()
 
         #if DEBUG
             print("✅ アンテナ位置データ一括削除完了: \(positions.count)件")
@@ -438,7 +438,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             existingPosition.y = position.position.y
             existingPosition.z = position.position.z
             existingPosition.rotation = position.rotation
-            try modelContext.save()
+            try self.modelContext.save()
         }
     }
 
@@ -446,8 +446,8 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
     public func saveAntennaPairing(_ pairing: AntennaPairing) async throws {
         let persistentPairing = pairing.toPersistent()
-        modelContext.insert(persistentPairing)
-        try modelContext.save()
+        self.modelContext.insert(persistentPairing)
+        try self.modelContext.save()
     }
 
     public func loadAntennaPairings() async throws -> [AntennaPairing] {
@@ -465,9 +465,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let pairings = try modelContext.fetch(descriptor)
         for pairing in pairings {
-            modelContext.delete(pairing)
+            self.modelContext.delete(pairing)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     public func updateAntennaPairing(_ pairing: AntennaPairing) async throws {
@@ -478,7 +478,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         if let existingPairing = existingPairings.first {
             existingPairing.deviceName = pairing.device.name
             existingPairing.isConnected = pairing.device.isConnected
-            try modelContext.save()
+            try self.modelContext.save()
         }
     }
 
@@ -496,8 +496,8 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         //     persistentData.session = session
         // }
 
-        modelContext.insert(persistentData)
-        try modelContext.save()
+        self.modelContext.insert(persistentData)
+        try self.modelContext.save()
     }
 
     public func loadRealtimeData(for sessionId: String) async throws -> [RealtimeData] {
@@ -518,17 +518,17 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let data = try modelContext.fetch(descriptor)
         for item in data {
-            modelContext.delete(item)
+            self.modelContext.delete(item)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     // MARK: - システム活動履歴関連
 
     public func saveSystemActivity(_ activity: SystemActivity) async throws {
         let persistentActivity = activity.toPersistent()
-        modelContext.insert(persistentActivity)
-        try modelContext.save()
+        self.modelContext.insert(persistentActivity)
+        try self.modelContext.save()
     }
 
     public func loadRecentSystemActivities(limit: Int = 50) async throws -> [SystemActivity] {
@@ -547,17 +547,17 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let activities = try modelContext.fetch(descriptor)
         for activity in activities {
-            modelContext.delete(activity)
+            self.modelContext.delete(activity)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     // MARK: - 受信ファイル関連
 
     public func saveReceivedFile(_ file: ReceivedFile) async throws {
         let persistentFile = file.toPersistent()
-        modelContext.insert(persistentFile)
-        try modelContext.save()
+        self.modelContext.insert(persistentFile)
+        try self.modelContext.save()
     }
 
     public func loadReceivedFiles() async throws -> [ReceivedFile] {
@@ -575,9 +575,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let files = try modelContext.fetch(descriptor)
         for file in files {
-            modelContext.delete(file)
+            self.modelContext.delete(file)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     public func deleteAllReceivedFiles() async throws {
@@ -585,9 +585,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let files = try modelContext.fetch(descriptor)
         for file in files {
-            modelContext.delete(file)
+            self.modelContext.delete(file)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     // MARK: - フロアマップ関連
@@ -613,9 +613,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             }
 
             let persistentFloorMap = floorMap.toPersistent()
-            modelContext.insert(persistentFloorMap)
+            self.modelContext.insert(persistentFloorMap)
 
-            try modelContext.save()
+            try self.modelContext.save()
             #if DEBUG
                 print("✅ フロアマップ保存完了 - ID: \(floorMap.id), Name: \(floorMap.name)")
             #endif
@@ -658,9 +658,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let floorMaps = try modelContext.fetch(descriptor)
         for floorMap in floorMaps {
-            modelContext.delete(floorMap)
+            self.modelContext.delete(floorMap)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     public func setActiveFloorMap(id: String) async throws {
@@ -672,15 +672,15 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             floorMap.isActive = (floorMap.id == id)
         }
 
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     // MARK: - プロジェクト進行状況関連
 
     public func saveProjectProgress(_ progress: ProjectProgress) async throws {
         let persistentProgress = progress.toPersistent()
-        modelContext.insert(persistentProgress)
-        try modelContext.save()
+        self.modelContext.insert(persistentProgress)
+        try self.modelContext.save()
     }
 
     public func loadProjectProgress(by id: String) async throws -> ProjectProgress? {
@@ -717,9 +717,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let progresses = try modelContext.fetch(descriptor)
         for progress in progresses {
-            modelContext.delete(progress)
+            self.modelContext.delete(progress)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     public func updateProjectProgress(_ progress: ProjectProgress) async throws {
@@ -740,10 +740,10 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
             // stepDataの更新
             existingProgress.stepData = (try? encoder.encode(progress.stepData)) ?? Data()
 
-            try modelContext.save()
+            try self.modelContext.save()
         } else {
             // 存在しない場合は新規作成
-            try await saveProjectProgress(progress)
+            try await self.saveProjectProgress(progress)
         }
     }
 
@@ -780,15 +780,15 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                 existing.updatedAt = data.updatedAt
                 existing.isActive = data.isActive
 
-                try modelContext.save()
+                try self.modelContext.save()
                 #if DEBUG
                     print("🔄 キャリブレーションデータを更新しました: \(data.antennaId)")
                 #endif
             } else {
                 // 新規作成
                 let persistentData = data.toPersistent()
-                modelContext.insert(persistentData)
-                try modelContext.save()
+                self.modelContext.insert(persistentData)
+                try self.modelContext.save()
                 #if DEBUG
                     print("✅ キャリブレーションデータ保存完了: \(data.antennaId)")
                 #endif
@@ -826,9 +826,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let dataToDelete = try modelContext.fetch(descriptor)
         for data in dataToDelete {
-            modelContext.delete(data)
+            self.modelContext.delete(data)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     public func deleteAllCalibrationData() async throws {
@@ -836,9 +836,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         let allData = try modelContext.fetch(descriptor)
 
         for data in allData {
-            modelContext.delete(data)
+            self.modelContext.delete(data)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     // MARK: - マップベースキャリブレーション関連
@@ -867,10 +867,10 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         } else {
             // 新規データを挿入
             let persistentData = data.toPersistent()
-            modelContext.insert(persistentData)
+            self.modelContext.insert(persistentData)
         }
 
-        try modelContext.save()
+        try self.modelContext.save()
 
         #if DEBUG
             print("🗄️ SwiftDataRepository: マップキャリブレーションデータ保存完了 - アンテナ: \(data.antennaId), フロアマップ: \(data.floorMapId)")
@@ -909,9 +909,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
 
         let dataToDelete = try modelContext.fetch(descriptor)
         for data in dataToDelete {
-            modelContext.delete(data)
+            self.modelContext.delete(data)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     public func deleteAllMapCalibrationData() async throws {
@@ -919,9 +919,9 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         let allData = try modelContext.fetch(descriptor)
 
         for data in allData {
-            modelContext.delete(data)
+            self.modelContext.delete(data)
         }
-        try modelContext.save()
+        try self.modelContext.save()
     }
 
     // MARK: - データ整合性機能
@@ -957,14 +957,14 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
                             "🗑️ 重複データを削除: ID=\(duplicate.id), AntennaID=\(duplicate.antennaId), Name=\(duplicate.antennaName)"
                         )
                     #endif
-                    modelContext.delete(duplicate)
+                    self.modelContext.delete(duplicate)
                     deletedCount += 1
                 }
             }
         }
 
         if deletedCount > 0 {
-            try modelContext.save()
+            try self.modelContext.save()
             #if DEBUG
                 print("✅ 重複データクリーンアップ完了: \(deletedCount)件削除")
             #endif
@@ -982,7 +982,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         var results: [String: Int] = [:]
 
         // アンテナ位置データの重複クリーンアップ
-        results["antennaPositions"] = try await cleanupDuplicateAntennaPositions()
+        results["antennaPositions"] = try await self.cleanupDuplicateAntennaPositions()
 
         // 他のデータタイプも必要に応じて追加可能
 

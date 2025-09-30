@@ -11,20 +11,20 @@ public struct SensingSession: Identifiable, Codable {
     public let duration: String
 
     public init(name: String, startTime: Date = Date(), dataPoints: Int = 0, isActive: Bool = true) {
-        id = UUID().uuidString
+        self.id = UUID().uuidString
         self.name = name
         self.startTime = startTime
-        endTime = nil
+        self.endTime = nil
         self.isActive = isActive
         self.dataPoints = dataPoints
-        createdAt = startTime
+        self.createdAt = startTime
 
         // Durationの計算
         if let end = endTime {
             let interval = end.timeIntervalSince(startTime)
-            duration = String(format: "%.1fs", interval)
+            self.duration = String(format: "%.1fs", interval)
         } else {
-            duration = "進行中"
+            self.duration = "進行中"
         }
     }
 
@@ -67,6 +67,6 @@ public struct SensingSession: Identifiable, Codable {
         formatter.dateStyle = .short
         formatter.timeStyle = .short
         formatter.locale = Locale(identifier: "ja_JP")
-        return formatter.string(from: createdAt)
+        return formatter.string(from: self.createdAt)
     }
 }

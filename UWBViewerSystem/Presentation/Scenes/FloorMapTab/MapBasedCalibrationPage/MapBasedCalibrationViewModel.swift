@@ -41,15 +41,15 @@ class MapBasedCalibrationViewModel: ObservableObject {
     // MARK: - 計算プロパティ
 
     var instructionText: String {
-        if currentPointIndex < 3 {
-            return "基準座標 \(currentPointIndex + 1) を設定してください。\nマップ上をタップして位置を選択し、実世界座標を入力してください。"
+        if self.currentPointIndex < 3 {
+            return "基準座標 \(self.currentPointIndex + 1) を設定してください。\nマップ上をタップして位置を選択し、実世界座標を入力してください。"
         } else {
             return "3つの基準座標が設定されました。アフィン変換を実行してキャリブレーションを完了してください。"
         }
     }
 
     var canComplete: Bool {
-        calibrationPoints.count >= 3 && currentCalibrationData?.affineTransform != nil
+        self.calibrationPoints.count >= 3 && self.currentCalibrationData?.affineTransform != nil
     }
 
     // MARK: - 初期化
@@ -59,7 +59,7 @@ class MapBasedCalibrationViewModel: ObservableObject {
         self.floorMapId = floorMapId
         self.dataRepository = dataRepository ?? DummySwiftDataRepository()
 
-        loadExistingCalibrationData()
+        self.loadExistingCalibrationData()
     }
 
     // MARK: - 公開メソッド
@@ -67,20 +67,20 @@ class MapBasedCalibrationViewModel: ObservableObject {
     /// フロアマップ画像を読み込む
     func loadFloorMapImage() {
         Task {
-            await loadFloorMapImageAsync()
+            await self.loadFloorMapImageAsync()
         }
     }
 
     /// マップのタップを処理
     func handleMapTap(at location: CGPoint) {
-        guard currentPointIndex < 3 else { return }
+        guard self.currentPointIndex < 3 else { return }
 
-        pendingMapLocation = location
-        showPreviewMarker = true
-        previewLocation = location
+        self.pendingMapLocation = location
+        self.showPreviewMarker = true
+        self.previewLocation = location
 
         // 入力フィールドにフォーカス
-        clearInputFields()
+        self.clearInputFields()
     }
 
     /// キャリブレーション点を追加
@@ -90,7 +90,7 @@ class MapBasedCalibrationViewModel: ObservableObject {
               let realY = Double(inputY),
               let realZ = Double(inputZ)
         else {
-            showErrorMessage("座標値を正しく入力してください")
+            self.showErrorMessage("座標値を正しく入力してください")
             return
         }
 
@@ -104,48 +104,48 @@ class MapBasedCalibrationViewModel: ObservableObject {
             pointIndex: currentPointIndex + 1
         )
 
-        calibrationPoints.append(calibrationPoint)
-        currentPointIndex += 1
+        self.calibrationPoints.append(calibrationPoint)
+        self.currentPointIndex += 1
 
         // UIリセット
-        clearInputFields()
-        pendingMapLocation = nil
-        showPreviewMarker = false
-        previewLocation = nil
+        self.clearInputFields()
+        self.pendingMapLocation = nil
+        self.showPreviewMarker = false
+        self.previewLocation = nil
     }
 
     /// キャリブレーション点を削除
     func removeCalibrationPoint(_ point: MapCalibrationPoint) {
-        calibrationPoints.removeAll { $0.id == point.id }
+        self.calibrationPoints.removeAll { $0.id == point.id }
 
         // インデックスを再調整
-        recalculatePointIndices()
+        self.recalculatePointIndices()
     }
 
     /// すべての点をクリア
     func clearAllPoints() {
-        calibrationPoints.removeAll()
-        currentPointIndex = 0
-        clearInputFields()
-        pendingMapLocation = nil
-        showPreviewMarker = false
-        previewLocation = nil
-        calibrationAccuracy = nil
+        self.calibrationPoints.removeAll()
+        self.currentPointIndex = 0
+        self.clearInputFields()
+        self.pendingMapLocation = nil
+        self.showPreviewMarker = false
+        self.previewLocation = nil
+        self.calibrationAccuracy = nil
     }
 
     /// キャリブレーション実行
     func performCalibration() async {
-        guard calibrationPoints.count >= 3 else {
-            showErrorMessage("3つの基準座標が必要です")
+        guard self.calibrationPoints.count >= 3 else {
+            self.showErrorMessage("3つの基準座標が必要です")
             return
         }
 
-        isCalculating = true
+        self.isCalculating = true
         defer { isCalculating = false }
 
         do {
             // アフィン変換行列を計算
-            let affineTransform = try AffineTransform.calculateAffineTransform(from: calibrationPoints)
+            let affineTransform = try AffineTransform.calculateAffineTransform(from: self.calibrationPoints)
 
             // キャリブレーションデータを更新
             let calibrationData = MapCalibrationData(
@@ -155,28 +155,28 @@ class MapBasedCalibrationViewModel: ObservableObject {
                 affineTransform: affineTransform
             )
 
-            currentCalibrationData = calibrationData
-            calibrationAccuracy = affineTransform.accuracy
+            self.currentCalibrationData = calibrationData
+            self.calibrationAccuracy = affineTransform.accuracy
 
-            showSuccess = true
+            self.showSuccess = true
 
         } catch {
-            showErrorMessage("キャリブレーション計算に失敗しました: \(error.localizedDescription)")
+            self.showErrorMessage("キャリブレーション計算に失敗しました: \(error.localizedDescription)")
         }
     }
 
     /// キャリブレーション結果を保存
     func saveCalibration() async {
         guard let calibrationData = currentCalibrationData else {
-            showErrorMessage("保存するキャリブレーションデータがありません")
+            self.showErrorMessage("保存するキャリブレーションデータがありません")
             return
         }
 
         do {
             // データベースに保存
-            try await saveMapCalibrationData(calibrationData)
+            try await self.saveMapCalibrationData(calibrationData)
         } catch {
-            showErrorMessage("キャリブレーションデータの保存に失敗しました: \(error.localizedDescription)")
+            self.showErrorMessage("キャリブレーションデータの保存に失敗しました: \(error.localizedDescription)")
         }
     }
 
@@ -247,7 +247,7 @@ class MapBasedCalibrationViewModel: ObservableObject {
               let floorMapInfo = try? JSONDecoder().decode(FloorMapInfo.self, from: data),
               floorMapInfo.id == floorMapId
         else {
-            print("❌ MapBasedCalibrationViewModel: FloorMapInfo not found for ID: \(floorMapId)")
+            print("❌ MapBasedCalibrationViewModel: FloorMapInfo not found for ID: \(self.floorMapId)")
             return
         }
 
@@ -270,35 +270,35 @@ class MapBasedCalibrationViewModel: ObservableObject {
 
     /// 入力フィールドをクリア
     private func clearInputFields() {
-        inputX = ""
-        inputY = ""
-        inputZ = ""
+        self.inputX = ""
+        self.inputY = ""
+        self.inputZ = ""
     }
 
     /// ポイントインデックスを再計算
     private func recalculatePointIndices() {
-        for (index, _) in calibrationPoints.enumerated() {
-            calibrationPoints[index] = MapCalibrationPoint(
-                id: calibrationPoints[index].id,
-                mapCoordinate: calibrationPoints[index].mapCoordinate,
-                realWorldCoordinate: calibrationPoints[index].realWorldCoordinate,
-                antennaId: calibrationPoints[index].antennaId,
-                timestamp: calibrationPoints[index].timestamp,
+        for (index, _) in self.calibrationPoints.enumerated() {
+            self.calibrationPoints[index] = MapCalibrationPoint(
+                id: self.calibrationPoints[index].id,
+                mapCoordinate: self.calibrationPoints[index].mapCoordinate,
+                realWorldCoordinate: self.calibrationPoints[index].realWorldCoordinate,
+                antennaId: self.calibrationPoints[index].antennaId,
+                timestamp: self.calibrationPoints[index].timestamp,
                 pointIndex: index + 1
             )
         }
-        currentPointIndex = calibrationPoints.count
+        self.currentPointIndex = self.calibrationPoints.count
     }
 
     /// エラーメッセージを表示
     private func showErrorMessage(_ message: String) {
-        errorMessage = message
-        showError = true
+        self.errorMessage = message
+        self.showError = true
     }
 
     /// マップキャリブレーションデータを保存
     private func saveMapCalibrationData(_ data: MapCalibrationData) async throws {
-        try await dataRepository.saveMapCalibrationData(data)
+        try await self.dataRepository.saveMapCalibrationData(data)
         print("🗄️ MapCalibrationData saved for antenna: \(data.antennaId)")
         print("   FloorMapId: \(data.floorMapId)")
         print("   Calibration Points: \(data.calibrationPoints.count)")
@@ -311,11 +311,11 @@ class MapBasedCalibrationViewModel: ObservableObject {
 extension MapBasedCalibrationViewModel {
     /// キーボード入力完了時の処理
     func handleInputCompletion() {
-        guard pendingMapLocation != nil,
-              !inputX.isEmpty && !inputY.isEmpty && !inputZ.isEmpty
+        guard self.pendingMapLocation != nil,
+              !self.inputX.isEmpty && !self.inputY.isEmpty && !self.inputZ.isEmpty
         else {
             return
         }
-        addCalibrationPoint()
+        self.addCalibrationPoint()
     }
 }

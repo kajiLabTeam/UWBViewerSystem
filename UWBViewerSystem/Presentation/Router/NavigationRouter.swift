@@ -16,13 +16,13 @@ struct NavigationRouter: View {
 
     var body: some View {
         Group {
-            NavigationStack(path: $router.path) {
-                rootView
+            NavigationStack(path: self.$router.path) {
+                self.rootView
                     .navigationDestination(for: Route.self) { route in
                         print("🎯 NavigationStack destinationView called for route: \(route)")
-                        return destinationView(for: route)
+                        return self.destinationView(for: route)
                     }
-                    .onChange(of: router.path) { _, newPath in
+                    .onChange(of: self.router.path) { _, newPath in
                         print("🎯 NavigationStack path changed, count: \(newPath.count)")
                     }
             }
@@ -31,14 +31,14 @@ struct NavigationRouter: View {
             print("🔍 NavigationRouter: NavigationStack appeared")
             // アプリ起動時の初期化
             Task {
-                await router.initializeApp()
+                await self.router.initializeApp()
             }
         }
     }
 
     @ViewBuilder
     private var rootView: some View {
-        switch router.appState {
+        switch self.router.appState {
         case .initializing:
             WelcomeView()
         case .authenticated:

@@ -28,14 +28,14 @@ struct MapBasedCalibrationView: View {
         NavigationView {
             VStack(spacing: 0) {
                 // ヘッダー情報
-                headerSection
+                self.headerSection
 
                 // マップ表示エリア
-                mapDisplaySection
+                self.mapDisplaySection
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 // コントロールパネル
-                controlPanelSection
+                self.controlPanelSection
             }
             .navigationTitle("マップキャリブレーション")
             #if os(iOS)
@@ -44,35 +44,35 @@ struct MapBasedCalibrationView: View {
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("キャンセル") {
-                            dismiss()
+                            self.dismiss()
                         }
                     }
 
                     ToolbarItem(placement: .confirmationAction) {
                         Button("完了") {
                             Task {
-                                await viewModel.saveCalibration()
-                                dismiss()
+                                await self.viewModel.saveCalibration()
+                                self.dismiss()
                             }
                         }
-                        .disabled(!viewModel.canComplete)
+                        .disabled(!self.viewModel.canComplete)
                     }
                 }
-                .alert("エラー", isPresented: $viewModel.showError) {
+                .alert("エラー", isPresented: self.$viewModel.showError) {
                     Button("OK") {}
                 } message: {
-                    Text(viewModel.errorMessage)
+                    Text(self.viewModel.errorMessage)
                 }
-                .alert("キャリブレーション完了", isPresented: $viewModel.showSuccess) {
+                .alert("キャリブレーション完了", isPresented: self.$viewModel.showSuccess) {
                     Button("OK") {
-                        dismiss()
+                        self.dismiss()
                     }
                 } message: {
-                    Text("アフィン変換による座標変換が設定されました。\n精度: \(String(format: "%.3f", viewModel.calibrationAccuracy ?? 0.0))m")
+                    Text("アフィン変換による座標変換が設定されました。\n精度: \(String(format: "%.3f", self.viewModel.calibrationAccuracy ?? 0.0))m")
                 }
         }
         .onAppear {
-            viewModel.loadFloorMapImage()
+            self.viewModel.loadFloorMapImage()
         }
     }
 
@@ -81,15 +81,15 @@ struct MapBasedCalibrationView: View {
     private var headerSection: some View {
         VStack(spacing: 8) {
             HStack {
-                Text("アンテナ: \(antennaId)")
+                Text("アンテナ: \(self.antennaId)")
                     .font(.headline)
                 Spacer()
-                Text("進捗: \(viewModel.currentPointIndex)/3")
+                Text("進捗: \(self.viewModel.currentPointIndex)/3")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
 
-            Text(viewModel.instructionText)
+            Text(self.viewModel.instructionText)
                 .font(.caption)
                 .multilineTextAlignment(.center)
                 .foregroundColor(.blue)
@@ -108,8 +108,8 @@ struct MapBasedCalibrationView: View {
             if let mapImage = viewModel.floorMapImage {
                 // フロアマップ画像
                 GeometryReader { geometry in
-                    let imageSize = viewModel.calculateImageSize(for: geometry.size)
-                    let imageOffset = viewModel.calculateImageOffset(for: geometry.size, imageSize: imageSize)
+                    let imageSize = self.viewModel.calculateImageSize(for: geometry.size)
+                    let imageOffset = self.viewModel.calculateImageOffset(for: geometry.size, imageSize: imageSize)
 
                     ZStack {
                         // マップ画像
@@ -121,7 +121,7 @@ struct MapBasedCalibrationView: View {
                                 .offset(imageOffset)
                                 .onTapGesture { location in
                                     // タップ位置を画像座標系に変換
-                                    let imageLocation = viewModel.convertTapToImageCoordinates(
+                                    let imageLocation = self.viewModel.convertTapToImageCoordinates(
                                         tapLocation: location,
                                         containerSize: geometry.size,
                                         imageSize: imageSize,
@@ -129,7 +129,7 @@ struct MapBasedCalibrationView: View {
                                     )
 
                                     if let imageLocation {
-                                        viewModel.handleMapTap(at: imageLocation)
+                                        self.viewModel.handleMapTap(at: imageLocation)
                                     }
                                 }
                         #else
@@ -140,7 +140,7 @@ struct MapBasedCalibrationView: View {
                                 .offset(imageOffset)
                                 .onTapGesture { location in
                                     // タップ位置を画像座標系に変換
-                                    let imageLocation = viewModel.convertTapToImageCoordinates(
+                                    let imageLocation = self.viewModel.convertTapToImageCoordinates(
                                         tapLocation: location,
                                         containerSize: geometry.size,
                                         imageSize: imageSize,
@@ -148,28 +148,28 @@ struct MapBasedCalibrationView: View {
                                     )
 
                                     if let imageLocation {
-                                        viewModel.handleMapTap(at: imageLocation)
+                                        self.viewModel.handleMapTap(at: imageLocation)
                                     }
                                 }
                         #endif
 
                         // キャリブレーション点マーカー
-                        ForEach(viewModel.calibrationPoints) { point in
+                        ForEach(self.viewModel.calibrationPoints) { point in
                             CalibrationPointMarker(
                                 point: point,
                                 containerSize: geometry.size,
                                 imageSize: imageSize,
                                 imageOffset: imageOffset
                             ) {
-                                viewModel.removeCalibrationPoint(point)
+                                self.viewModel.removeCalibrationPoint(point)
                             }
                         }
 
                         // 次に設定する点のプレビュー
-                        if viewModel.showPreviewMarker, let previewLocation = viewModel.previewLocation {
+                        if self.viewModel.showPreviewMarker, let previewLocation = viewModel.previewLocation {
                             PreviewMarker(
                                 location: previewLocation,
-                                pointIndex: viewModel.currentPointIndex + 1,
+                                pointIndex: self.viewModel.currentPointIndex + 1,
                                 containerSize: geometry.size,
                                 imageSize: imageSize,
                                 imageOffset: imageOffset
@@ -196,15 +196,15 @@ struct MapBasedCalibrationView: View {
     private var controlPanelSection: some View {
         VStack(spacing: 16) {
             // 現在設定中の座標入力
-            currentCoordinateInput
+            self.currentCoordinateInput
 
             // 設定済み座標一覧
-            if !viewModel.calibrationPoints.isEmpty {
-                coordinatesList
+            if !self.viewModel.calibrationPoints.isEmpty {
+                self.coordinatesList
             }
 
             // アクションボタン
-            actionButtons
+            self.actionButtons
         }
         .padding()
         .background(Color.secondary.opacity(0.1))
@@ -214,13 +214,13 @@ struct MapBasedCalibrationView: View {
 
     private var currentCoordinateInput: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("基準座標 \(viewModel.currentPointIndex + 1) の実世界座標を入力")
+            Text("基準座標 \(self.viewModel.currentPointIndex + 1) の実世界座標を入力")
                 .font(.headline)
 
             HStack(spacing: 16) {
                 VStack(alignment: .leading) {
                     Text("X (m)")
-                    TextField("0.0", text: $viewModel.inputX)
+                    TextField("0.0", text: self.$viewModel.inputX)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                     #if os(iOS)
                         .keyboardType(.decimalPad)
@@ -229,7 +229,7 @@ struct MapBasedCalibrationView: View {
 
                 VStack(alignment: .leading) {
                     Text("Y (m)")
-                    TextField("0.0", text: $viewModel.inputY)
+                    TextField("0.0", text: self.$viewModel.inputY)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                     #if os(iOS)
                         .keyboardType(.decimalPad)
@@ -238,7 +238,7 @@ struct MapBasedCalibrationView: View {
 
                 VStack(alignment: .leading) {
                     Text("Z (m)")
-                    TextField("0.0", text: $viewModel.inputZ)
+                    TextField("0.0", text: self.$viewModel.inputZ)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                     #if os(iOS)
                         .keyboardType(.decimalPad)
@@ -256,9 +256,9 @@ struct MapBasedCalibrationView: View {
                 .font(.headline)
 
             LazyVStack(spacing: 4) {
-                ForEach(viewModel.calibrationPoints) { point in
+                ForEach(self.viewModel.calibrationPoints) { point in
                     MapCalibrationPointRow(point: point) {
-                        viewModel.removeCalibrationPoint(point)
+                        self.viewModel.removeCalibrationPoint(point)
                     }
                 }
             }
@@ -270,31 +270,31 @@ struct MapBasedCalibrationView: View {
     private var actionButtons: some View {
         VStack(spacing: 12) {
             // キャリブレーション実行ボタン
-            if viewModel.calibrationPoints.count >= 3 {
+            if self.viewModel.calibrationPoints.count >= 3 {
                 Button(action: {
                     Task {
-                        await viewModel.performCalibration()
+                        await self.viewModel.performCalibration()
                     }
                 }) {
                     HStack {
-                        if viewModel.isCalculating {
+                        if self.viewModel.isCalculating {
                             ProgressView()
                                 .scaleEffect(0.8)
                         } else {
                             Image(systemName: "function")
                         }
-                        Text(viewModel.isCalculating ? "計算中..." : "アフィン変換実行")
+                        Text(self.viewModel.isCalculating ? "計算中..." : "アフィン変換実行")
                     }
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(viewModel.isCalculating)
+                .disabled(self.viewModel.isCalculating)
             }
 
             // リセットボタン
-            if !viewModel.calibrationPoints.isEmpty {
+            if !self.viewModel.calibrationPoints.isEmpty {
                 Button("すべてクリア") {
-                    viewModel.clearAllPoints()
+                    self.viewModel.clearAllPoints()
                 }
                 .buttonStyle(.bordered)
                 .foregroundColor(.red)
@@ -313,15 +313,15 @@ struct CalibrationPointMarker: View {
     let onRemove: () -> Void
 
     var body: some View {
-        let markerPosition = calculateMarkerPosition()
+        let markerPosition = self.calculateMarkerPosition()
 
-        Button(action: onRemove) {
+        Button(action: self.onRemove) {
             ZStack {
                 Circle()
                     .fill(Color.red)
                     .frame(width: 24, height: 24)
 
-                Text("\(point.pointIndex)")
+                Text("\(self.point.pointIndex)")
                     .font(.caption)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
@@ -331,11 +331,11 @@ struct CalibrationPointMarker: View {
     }
 
     private func calculateMarkerPosition() -> CGPoint {
-        let xRatio = point.mapCoordinate.x / imageSize.width
-        let yRatio = point.mapCoordinate.y / imageSize.height
+        let xRatio = self.point.mapCoordinate.x / self.imageSize.width
+        let yRatio = self.point.mapCoordinate.y / self.imageSize.height
 
-        let x = imageOffset.width + imageSize.width * xRatio
-        let y = imageOffset.height + imageSize.height * yRatio
+        let x = self.imageOffset.width + self.imageSize.width * xRatio
+        let y = self.imageOffset.height + self.imageSize.height * yRatio
 
         return CGPoint(x: x, y: y)
     }
@@ -357,13 +357,13 @@ struct PreviewMarker: View {
                 .fill(Color.blue.opacity(0.3))
                 .frame(width: 24, height: 24)
 
-            Text("\(pointIndex)")
+            Text("\(self.pointIndex)")
                 .font(.caption)
                 .fontWeight(.bold)
                 .foregroundColor(.blue)
         }
-        .position(x: location.x, y: location.y)
-        .animation(.easeInOut(duration: 0.3), value: location)
+        .position(x: self.location.x, y: self.location.y)
+        .animation(.easeInOut(duration: 0.3), value: self.location)
     }
 }
 
@@ -375,7 +375,7 @@ struct MapCalibrationPointRow: View {
 
     var body: some View {
         HStack {
-            Text("基準点 \(point.pointIndex)")
+            Text("基準点 \(self.point.pointIndex)")
                 .font(.subheadline)
                 .fontWeight(.medium)
 
@@ -383,18 +383,18 @@ struct MapCalibrationPointRow: View {
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(
-                    "実座標: (\(String(format: "%.2f", point.realWorldCoordinate.x)), \(String(format: "%.2f", point.realWorldCoordinate.y)))"
+                    "実座標: (\(String(format: "%.2f", self.point.realWorldCoordinate.x)), \(String(format: "%.2f", self.point.realWorldCoordinate.y)))"
                 )
                 .font(.caption)
                 .foregroundColor(.secondary)
                 Text(
-                    "地図座標: (\(String(format: "%.0f", point.mapCoordinate.x)), \(String(format: "%.0f", point.mapCoordinate.y)))"
+                    "地図座標: (\(String(format: "%.0f", self.point.mapCoordinate.x)), \(String(format: "%.0f", self.point.mapCoordinate.y)))"
                 )
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
 
-            Button(action: onRemove) {
+            Button(action: self.onRemove) {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundColor(.red)
             }

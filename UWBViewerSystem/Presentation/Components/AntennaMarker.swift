@@ -42,14 +42,14 @@ struct AntennaMarker: View {
     }
 
     private var displaySize: CGFloat {
-        max(min(size, 80), 20)  // 最小20px、最大80px
+        max(min(self.size, 80), 20)  // 最小20px、最大80px
     }
 
     var body: some View {
         ZStack {
             // センサー範囲を示す扇形（選択時のみ表示）
-            if isSelected, let range = sensorRange {
-                SensorRangeView(rotation: antenna.rotation, sensorRange: range)
+            if self.isSelected, let range = sensorRange {
+                SensorRangeView(rotation: self.antenna.rotation, sensorRange: range)
                     .frame(width: range, height: range)
                     .allowsHitTesting(false)
             }
@@ -58,85 +58,85 @@ struct AntennaMarker: View {
                 ZStack {
                     // アンテナ背景円
                     Circle()
-                        .fill(isSelected ? Color.blue : (antenna.color ?? Color.gray.opacity(0.8)))
-                        .frame(width: displaySize, height: displaySize)
-                        .shadow(radius: isSelected ? 4 : 2)
+                        .fill(self.isSelected ? Color.blue : (self.antenna.color ?? Color.gray.opacity(0.8)))
+                        .frame(width: self.displaySize, height: self.displaySize)
+                        .shadow(radius: self.isSelected ? 4 : 2)
 
                     // アンテナアイコン（回転対応）
                     Image(systemName: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: displaySize * 0.5))
+                        .font(.system(size: self.displaySize * 0.5))
                         .foregroundColor(.white)
-                        .rotationEffect(.degrees(antenna.rotation))
+                        .rotationEffect(.degrees(self.antenna.rotation))
 
                     // 向きを示す矢印
-                    if (showRotationControls || showRotationControlsState) && antenna.rotation != 0 {
+                    if (self.showRotationControls || self.showRotationControlsState) && self.antenna.rotation != 0 {
                         Image(systemName: "arrow.up")
-                            .font(.system(size: displaySize * 0.3))
+                            .font(.system(size: self.displaySize * 0.3))
                             .foregroundColor(.yellow)
-                            .offset(y: -displaySize * 0.6)
-                            .rotationEffect(.degrees(antenna.rotation))
+                            .offset(y: -self.displaySize * 0.6)
+                            .rotationEffect(.degrees(self.antenna.rotation))
                     }
                 }
-                .onTapGesture(count: isDraggable ? 2 : 1) {
-                    if isDraggable {
+                .onTapGesture(count: self.isDraggable ? 2 : 1) {
+                    if self.isDraggable {
                         withAnimation(.easeInOut(duration: 0.3)) {
-                            showRotationControlsState.toggle()
+                            self.showRotationControlsState.toggle()
                         }
                     } else {
-                        onTap?()
+                        self.onTap?()
                     }
                 }
 
                 // アンテナ名表示
-                Text(antenna.name)
+                Text(self.antenna.name)
                     .font(.caption)
                     .fontWeight(.semibold)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(antennaNameBackground)
-                    .foregroundColor(isSelected ? .blue : .primary)
+                    .background(self.antennaNameBackground)
+                    .foregroundColor(self.isSelected ? .blue : .primary)
             }
 
             // 回転コントロール（表示時のみ、固定サイズ）
-            if showRotationControls || showRotationControlsState, isDraggable {
+            if self.showRotationControls || self.showRotationControlsState, self.isDraggable {
                 AntennaRotationControl(
-                    rotation: antenna.rotation,
+                    rotation: self.antenna.rotation,
                     onRotationChanged: { newRotation in
-                        onRotationChanged?(newRotation)
+                        self.onRotationChanged?(newRotation)
                     }
                 )
-                .offset(y: displaySize + 50)  // アンテナアイコンの下に十分な余白を確保
+                .offset(y: self.displaySize + 50)  // アンテナアイコンの下に十分な余白を確保
                 .zIndex(1000)  // 最前面に表示
                 .transition(.scale.combined(with: .opacity))
             }
         }
         .position(
-            x: position.x + dragOffset.width,
-            y: position.y + dragOffset.height
+            x: self.position.x + self.dragOffset.width,
+            y: self.position.y + self.dragOffset.height
         )
-        .scaleEffect(isSelected ? 1.1 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-        .zIndex(isSelected ? 100 : 10)
+        .scaleEffect(self.isSelected ? 1.1 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: self.isSelected)
+        .zIndex(self.isSelected ? 100 : 10)
         .gesture(
-            isDraggable
+            self.isDraggable
                 ? DragGesture()
                 .onChanged { value in
-                    dragOffset = value.translation
+                    self.dragOffset = value.translation
                 }
                 .onEnded { value in
                     let newPosition = CGPoint(
                         x: position.x + value.translation.width,
-                        y: position.y + value.translation.height
+                        y: self.position.y + value.translation.height
                     )
-                    onPositionChanged?(newPosition)
-                    dragOffset = .zero
+                    self.onPositionChanged?(newPosition)
+                    self.dragOffset = .zero
                 } : nil
         )
     }
 
     private var antennaNameBackground: some View {
         RoundedRectangle(cornerRadius: 4)
-            .fill(backgroundFillColor)
+            .fill(self.backgroundFillColor)
             .shadow(radius: 1)
     }
 
@@ -228,7 +228,7 @@ struct SensorRangeView: View {
                 .stroke(Color.blue.opacity(0.5), lineWidth: 1)
             )
         }
-        .rotationEffect(.degrees(rotation))
+        .rotationEffect(.degrees(self.rotation))
     }
 }
 
@@ -245,18 +245,18 @@ struct AntennaRotationControl: View {
                 .fontWeight(.medium)
 
             HStack(spacing: 12) {
-                Button(action: { onRotationChanged(rotation - 15) }) {
+                Button(action: { self.onRotationChanged(self.rotation - 15) }) {
                     Image(systemName: "arrow.counterclockwise")
                         .font(.caption)
                 }
                 .buttonStyle(.borderless)
 
-                Text("\(Int(rotation))°")
+                Text("\(Int(self.rotation))°")
                     .font(.caption)
                     .fontDesign(.monospaced)
                     .frame(width: 40)
 
-                Button(action: { onRotationChanged(rotation + 15) }) {
+                Button(action: { self.onRotationChanged(self.rotation + 15) }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.caption)
                 }
@@ -266,7 +266,7 @@ struct AntennaRotationControl: View {
             HStack(spacing: 8) {
                 ForEach([0, 90, 180, 270], id: \.self) { angle in
                     Button("\(angle)°") {
-                        onRotationChanged(Double(angle))
+                        self.onRotationChanged(Double(angle))
                     }
                     .font(.caption2)
                     .buttonStyle(.borderless)

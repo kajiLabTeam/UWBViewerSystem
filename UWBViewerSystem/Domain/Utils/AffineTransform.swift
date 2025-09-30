@@ -44,7 +44,7 @@ public class AffineTransform {
         }
 
         // データ点の妥当性をチェック
-        try validateMapCalibrationPoints(points)
+        try self.validateMapCalibrationPoints(points)
 
         // マップ座標と実世界座標を分離
         let mapCoordinates = points.map { $0.mapCoordinate }
@@ -70,7 +70,7 @@ public class AffineTransform {
             accuracy: 0.0  // 暫定値
         )
 
-        let accuracy = calculateRMSE(
+        let accuracy = self.calculateRMSE(
             mapPoints: mapCoordinates,
             realWorldPoints: realWorldCoordinates,
             using: transform
@@ -107,7 +107,7 @@ public class AffineTransform {
     {
         // 逆変換行列を計算
         let inverseTransform = try calculateInverseTransform(transform)
-        return mapToRealWorld(mapPoint: realWorldPoint, using: inverseTransform)
+        return self.mapToRealWorld(mapPoint: realWorldPoint, using: inverseTransform)
     }
 
     /// 複数の座標を変換
@@ -116,7 +116,7 @@ public class AffineTransform {
     ///   - transform: アフィン変換行列
     /// - Returns: 実世界座標の配列
     public static func mapToRealWorld(mapPoints: [Point3D], using transform: AffineTransformMatrix) -> [Point3D] {
-        mapPoints.map { mapToRealWorld(mapPoint: $0, using: transform) }
+        mapPoints.map { self.mapToRealWorld(mapPoint: $0, using: transform) }
     }
 
     // MARK: - プライベートメソッド
@@ -127,11 +127,11 @@ public class AffineTransform {
 
         // マップ座標が同一線上にないかチェック
         let mapCoords = points.map { $0.mapCoordinate }
-        try validateCoordinatesNotCollinear(mapCoords, coordinateType: "マップ")
+        try self.validateCoordinatesNotCollinear(mapCoords, coordinateType: "マップ")
 
         // 実世界座標が同一線上にないかチェック
         let realWorldCoords = points.map { $0.realWorldCoordinate }
-        try validateCoordinatesNotCollinear(realWorldCoords, coordinateType: "実世界")
+        try self.validateCoordinatesNotCollinear(realWorldCoords, coordinateType: "実世界")
 
         // 座標値が有効範囲内かチェック
         for point in points {
@@ -291,7 +291,7 @@ public class AffineTransform {
         }
 
         // ガウス・ジョルダン法で連立方程式を解く
-        return try solveLinearSystem(AtA, Atb)
+        return try self.solveLinearSystem(AtA, Atb)
     }
 
     /// ガウス・ジョルダン法で連立方程式を解く
@@ -373,7 +373,7 @@ public class AffineTransform {
             return 0.0
         }
 
-        let transformedPoints = mapPoints.map { mapToRealWorld(mapPoint: $0, using: transform) }
+        let transformedPoints = mapPoints.map { self.mapToRealWorld(mapPoint: $0, using: transform) }
 
         let sumSquaredErrors = zip(transformedPoints, realWorldPoints).reduce(0.0) { sum, pair in
             let (transformed, reference) = pair

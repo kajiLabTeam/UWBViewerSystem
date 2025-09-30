@@ -45,8 +45,8 @@ struct FloorMapCanvas<Content: View>: View {
     var body: some View {
         GeometryReader { geometry in
             let currentCanvasSize = geometry.size
-            let imageAspectRatio = floorMapInfo?.aspectRatio ?? 1.0
-            let actualImageFrame = calculateActualImageFrame(
+            let imageAspectRatio = self.floorMapInfo?.aspectRatio ?? 1.0
+            let actualImageFrame = self.calculateActualImageFrame(
                 canvasSize: currentCanvasSize, imageAspectRatio: imageAspectRatio)
 
             let canvasGeometry = FloorMapCanvasGeometry(
@@ -58,24 +58,24 @@ struct FloorMapCanvas<Content: View>: View {
 
             ZStack {
                 // マップ背景
-                FloorMapBackground(image: floorMapImage, floorMapInfo: floorMapInfo)
+                FloorMapBackground(image: self.floorMapImage, floorMapInfo: self.floorMapInfo)
                     .allowsHitTesting(false)
 
                 // タップ領域（背景層）
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture(coordinateSpace: .local) { location in
-                        handleMapTap(location: location, geometry: canvasGeometry)
+                        self.handleMapTap(location: location, geometry: canvasGeometry)
                     }
 
                 // コンテンツ（アンテナ、基準点など）- 最前面
-                content(canvasGeometry)
+                self.content(canvasGeometry)
             }
             .onAppear {
-                canvasSize = currentCanvasSize
+                self.canvasSize = currentCanvasSize
             }
             .onChange(of: geometry.size) { _, newSize in
-                canvasSize = newSize
+                self.canvasSize = newSize
             }
         }
         .frame(height: 300)
@@ -122,16 +122,16 @@ struct FloorMapCanvasGeometry {
     // 正規化座標を実際の画像表示座標に変換
     func normalizedToImageCoordinate(_ normalizedPoint: CGPoint) -> CGPoint {
         CGPoint(
-            x: imageFrame.origin.x + normalizedPoint.x * imageFrame.width,
-            y: imageFrame.origin.y + normalizedPoint.y * imageFrame.height
+            x: self.imageFrame.origin.x + normalizedPoint.x * self.imageFrame.width,
+            y: self.imageFrame.origin.y + normalizedPoint.y * self.imageFrame.height
         )
     }
 
     // 実際の画像表示座標を正規化座標に変換
     func imageCoordinateToNormalized(_ imagePoint: CGPoint) -> CGPoint {
         CGPoint(
-            x: (imagePoint.x - imageFrame.origin.x) / imageFrame.width,
-            y: (imagePoint.y - imageFrame.origin.y) / imageFrame.height
+            x: (imagePoint.x - self.imageFrame.origin.x) / self.imageFrame.width,
+            y: (imagePoint.y - self.imageFrame.origin.y) / self.imageFrame.height
         )
     }
 
@@ -142,8 +142,8 @@ struct FloorMapCanvasGeometry {
             let pixelX = realWorldPoint.x * 100.0  // デフォルトスケール 100px/m
             let pixelY = realWorldPoint.y * 100.0
             return CGPoint(
-                x: pixelX / canvasSize.width,
-                y: pixelY / canvasSize.height
+                x: pixelX / self.canvasSize.width,
+                y: pixelY / self.canvasSize.height
             )
         }
 
@@ -176,20 +176,20 @@ struct FloorMapCanvasGeometry {
     // アンテナサイズを計算（30cmの実寸サイズ）
     func antennaSizeInPixels() -> CGFloat {
         let baseCanvasSize: Double = 400.0
-        let actualCanvasSize = min(canvasSize.width, canvasSize.height)
+        let actualCanvasSize = min(canvasSize.width, self.canvasSize.height)
         let scale = Double(actualCanvasSize) / baseCanvasSize
 
-        let sizeInPixels = CGFloat(0.30 * mapScale * scale)  // 0.30m = 30cm
+        let sizeInPixels = CGFloat(0.30 * self.mapScale * scale)  // 0.30m = 30cm
         return max(min(sizeInPixels, 80), 20)  // 最小20px、最大80px
     }
 
     // センサー範囲（50m）をピクセルに変換
     func sensorRangeInPixels() -> CGFloat {
         let baseCanvasSize: Double = 400.0
-        let actualCanvasSize = min(canvasSize.width, canvasSize.height)
+        let actualCanvasSize = min(canvasSize.width, self.canvasSize.height)
         let scale = Double(actualCanvasSize) / baseCanvasSize
 
-        return CGFloat(50.0 * mapScale * scale)
+        return CGFloat(50.0 * self.mapScale * scale)
     }
 }
 

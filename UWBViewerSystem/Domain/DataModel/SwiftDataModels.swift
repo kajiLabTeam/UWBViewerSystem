@@ -33,11 +33,11 @@ public final class PersistentSensingSession {
     // Entity層への変換メソッド
     public func toEntity() -> SensingSession {
         SensingSession(
-            id: id,
-            name: name,
-            startTime: startTime,
-            endTime: endTime,
-            isActive: isActive
+            id: self.id,
+            name: self.name,
+            startTime: self.startTime,
+            endTime: self.endTime,
+            isActive: self.isActive
         )
     }
 }
@@ -77,12 +77,12 @@ public final class PersistentAntennaPosition {
 
     public func toEntity() -> AntennaPositionData {
         AntennaPositionData(
-            id: id,
-            antennaId: antennaId,
-            antennaName: antennaName,
-            position: Point3D(x: x, y: y, z: z),
-            rotation: rotation,
-            floorMapId: floorMapId
+            id: self.id,
+            antennaId: self.antennaId,
+            antennaName: self.antennaName,
+            position: Point3D(x: self.x, y: self.y, z: self.z),
+            rotation: self.rotation,
+            floorMapId: self.floorMapId
         )
     }
 }
@@ -137,7 +137,7 @@ public final class PersistentAntennaPairing {
             name: deviceName,
             isConnected: isConnected
         )
-        return AntennaPairing(id: id, antenna: antenna, device: device, pairedAt: pairedAt)
+        return AntennaPairing(id: self.id, antenna: antenna, device: device, pairedAt: self.pairedAt)
     }
 }
 
@@ -181,15 +181,15 @@ public final class PersistentRealtimeData {
 
     public func toEntity() -> RealtimeData {
         RealtimeData(
-            id: id,
-            deviceName: deviceName,
-            timestamp: timestamp,
-            elevation: elevation,
-            azimuth: azimuth,
-            distance: distance,
-            nlos: nlos,
-            rssi: rssi,
-            seqCount: seqCount
+            id: self.id,
+            deviceName: self.deviceName,
+            timestamp: self.timestamp,
+            elevation: self.elevation,
+            azimuth: self.azimuth,
+            distance: self.distance,
+            nlos: self.nlos,
+            rssi: self.rssi,
+            seqCount: self.seqCount
         )
     }
 }
@@ -226,12 +226,12 @@ public final class PersistentFloorMap {
 
     public func toEntity() -> FloorMapInfo {
         FloorMapInfo(
-            id: id,
-            name: name,
-            buildingName: buildingName,
-            width: width,
-            depth: depth,
-            createdAt: createdAt
+            id: self.id,
+            name: self.name,
+            buildingName: self.buildingName,
+            width: self.width,
+            depth: self.depth,
+            createdAt: self.createdAt
         )
     }
 }
@@ -269,11 +269,11 @@ public final class PersistentSystemActivity {
         }
 
         return SystemActivity(
-            id: UUID(uuidString: id) ?? UUID(),
-            timestamp: timestamp,
-            activityType: activityType,
-            activityDescription: activityDescription,
-            status: ActivityStatus(rawValue: status) ?? .completed,
+            id: UUID(uuidString: self.id) ?? UUID(),
+            timestamp: self.timestamp,
+            activityType: self.activityType,
+            activityDescription: self.activityDescription,
+            status: ActivityStatus(rawValue: self.status) ?? .completed,
             additionalData: additionalData
         )
     }
@@ -313,7 +313,7 @@ public final class PersistentProjectProgress {
 
         // completedStepsの復元
         var completedSteps: Set<SetupStep> = []
-        if !completedStepsData.isEmpty {
+        if !self.completedStepsData.isEmpty {
             if let stepStrings = try? decoder.decode([String].self, from: completedStepsData) {
                 completedSteps = Set(stepStrings.compactMap { SetupStep(rawValue: $0) })
             }
@@ -321,20 +321,20 @@ public final class PersistentProjectProgress {
 
         // stepDataの復元
         var projectStepData: [String: Data] = [:]
-        if !stepData.isEmpty {
+        if !self.stepData.isEmpty {
             if let decodedStepData = try? decoder.decode([String: Data].self, from: stepData) {
                 projectStepData = decodedStepData
             }
         }
 
         return ProjectProgress(
-            id: id,
-            floorMapId: floorMapId,
-            currentStep: SetupStep(rawValue: currentStep) ?? .floorMapSetting,
+            id: self.id,
+            floorMapId: self.floorMapId,
+            currentStep: SetupStep(rawValue: self.currentStep) ?? .floorMapSetting,
             completedSteps: completedSteps,
             stepData: projectStepData,
-            createdAt: createdAt,
-            updatedAt: updatedAt
+            createdAt: self.createdAt,
+            updatedAt: self.updatedAt
         )
     }
 }
@@ -375,8 +375,8 @@ public final class PersistentCalibrationData {
 
         // CalibrationPointsの復元
         var calibrationPoints: [CalibrationPoint] = []
-        if !calibrationPointsData.isEmpty {
-            calibrationPoints = (try? decoder.decode([CalibrationPoint].self, from: calibrationPointsData)) ?? []
+        if !self.calibrationPointsData.isEmpty {
+            calibrationPoints = (try? decoder.decode([CalibrationPoint].self, from: self.calibrationPointsData)) ?? []
         }
 
         // CalibrationTransformの復元
@@ -386,13 +386,13 @@ public final class PersistentCalibrationData {
         }
 
         return CalibrationData(
-            id: id,
-            antennaId: antennaId,
+            id: self.id,
+            antennaId: self.antennaId,
             calibrationPoints: calibrationPoints,
             transform: transform,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            isActive: isActive
+            createdAt: self.createdAt,
+            updatedAt: self.updatedAt,
+            isActive: self.isActive
         )
     }
 }
@@ -573,8 +573,8 @@ public final class PersistentMapCalibrationData {
 
         // MapCalibrationPointsの復元
         var calibrationPoints: [MapCalibrationPoint] = []
-        if !calibrationPointsData.isEmpty {
-            calibrationPoints = (try? decoder.decode([MapCalibrationPoint].self, from: calibrationPointsData)) ?? []
+        if !self.calibrationPointsData.isEmpty {
+            calibrationPoints = (try? decoder.decode([MapCalibrationPoint].self, from: self.calibrationPointsData)) ?? []
         }
 
         // AffineTransformMatrixの復元
@@ -584,14 +584,14 @@ public final class PersistentMapCalibrationData {
         }
 
         return MapCalibrationData(
-            id: id,
-            antennaId: antennaId,
-            floorMapId: floorMapId,
+            id: self.id,
+            antennaId: self.antennaId,
+            floorMapId: self.floorMapId,
             calibrationPoints: calibrationPoints,
             affineTransform: affineTransform,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-            isActive: isActive
+            createdAt: self.createdAt,
+            updatedAt: self.updatedAt,
+            isActive: self.isActive
         )
     }
 }

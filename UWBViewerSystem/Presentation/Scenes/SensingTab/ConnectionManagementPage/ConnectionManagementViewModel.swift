@@ -14,13 +14,13 @@ struct ConnectionDeviceInfo: Identifiable {
     var formattedConnectionTime: String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
-        return formatter.string(from: connectionTime)
+        return formatter.string(from: self.connectionTime)
     }
 
     var formattedLastMessage: String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
-        return formatter.string(from: lastMessageTime)
+        return formatter.string(from: self.lastMessageTime)
     }
 }
 
@@ -32,7 +32,7 @@ struct ConnectionMessage: Identifiable {
     let isOutgoing: Bool
 
     init(content: String, deviceName: String, timestamp: Date = Date(), isOutgoing: Bool = false) {
-        id = UUID().uuidString
+        self.id = UUID().uuidString
         self.content = content
         self.deviceName = deviceName
         self.timestamp = timestamp
@@ -42,7 +42,7 @@ struct ConnectionMessage: Identifiable {
     var formattedTime: String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
-        return formatter.string(from: timestamp)
+        return formatter.string(from: self.timestamp)
     }
 }
 
@@ -71,7 +71,7 @@ class ConnectionManagementViewModel: ObservableObject {
     var formattedDataTransferred: String {
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useKB, .useMB]
-        return formatter.string(fromByteCount: dataTransferred)
+        return formatter.string(fromByteCount: self.dataTransferred)
     }
 
     init(
@@ -84,8 +84,8 @@ class ConnectionManagementViewModel: ObservableObject {
                     nearbyRepository: NearbyRepository()
                 )
         self.preferenceRepository = preferenceRepository
-        setupObservers()
-        loadStatistics()
+        self.setupObservers()
+        self.loadStatistics()
     }
 
     deinit {
@@ -94,10 +94,10 @@ class ConnectionManagementViewModel: ObservableObject {
 
     private func setupObservers() {
         // 直接注入されたUsecaseからの状態を監視
-        connectionUsecase.$isAdvertising
-            .assign(to: &$isAdvertising)
+        self.connectionUsecase.$isAdvertising
+            .assign(to: &self.$isAdvertising)
 
-        connectionUsecase.$connectedEndpoints
+        self.connectionUsecase.$connectedEndpoints
             .map { endpoints in
                 endpoints.map { endpointId in
                     ConnectionDeviceInfo(
@@ -109,32 +109,32 @@ class ConnectionManagementViewModel: ObservableObject {
                     )
                 }
             }
-            .assign(to: &$connectedDevices)
+            .assign(to: &self.$connectedDevices)
 
-        connectionUsecase.$connectedEndpoints
+        self.connectionUsecase.$connectedEndpoints
             .map { $0.count }
-            .assign(to: &$activeConnections)
+            .assign(to: &self.$activeConnections)
     }
 
     // MARK: - Connection Control
 
     func initializeConnection() {
-        startUptimeTimer()
-        loadStatistics()
+        self.startUptimeTimer()
+        self.loadStatistics()
     }
 
     func toggleAdvertising() {
-        if isAdvertising {
-            connectionUsecase.stopAdvertising()
+        if self.isAdvertising {
+            self.connectionUsecase.stopAdvertising()
         } else {
-            connectionUsecase.startAdvertising()
-            startTime = Date()
+            self.connectionUsecase.startAdvertising()
+            self.startTime = Date()
         }
     }
 
     func startDiscovery() {
-        isDiscovering = true
-        connectionUsecase.startDiscovery()
+        self.isDiscovering = true
+        self.connectionUsecase.startDiscovery()
 
         // 5秒後に自動停止
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
@@ -148,7 +148,7 @@ class ConnectionManagementViewModel: ObservableObject {
     }
 
     func disconnectDevice(_ device: ConnectionDeviceInfo) {
-        connectionUsecase.disconnectFromDevice(endpointId: device.id)
+        self.connectionUsecase.disconnectFromDevice(endpointId: device.id)
 
         // メッセージ履歴に切断ログを追加
         let disconnectMessage = ConnectionMessage(
@@ -156,30 +156,30 @@ class ConnectionManagementViewModel: ObservableObject {
             deviceName: "System",
             isOutgoing: false
         )
-        messageHistory.append(disconnectMessage)
-        totalMessages += 1
+        self.messageHistory.append(disconnectMessage)
+        self.totalMessages += 1
     }
 
     func disconnectAll() {
-        connectionUsecase.disconnectAll()
+        self.connectionUsecase.disconnectAll()
 
         let disconnectAllMessage = ConnectionMessage(
             content: "全ての端末が切断されました",
             deviceName: "System",
             isOutgoing: false
         )
-        messageHistory.append(disconnectAllMessage)
-        totalMessages += 1
+        self.messageHistory.append(disconnectAllMessage)
+        self.totalMessages += 1
     }
 
     // MARK: - Messaging
 
     func sendMessage(_ content: String) {
-        guard !content.isEmpty && !connectedDevices.isEmpty else { return }
+        guard !content.isEmpty && !self.connectedDevices.isEmpty else { return }
 
         // 全ての接続端末にメッセージを送信
-        for device in connectedDevices {
-            connectionUsecase.sendMessageToDevice(content, to: device.id)
+        for device in self.connectedDevices {
+            self.connectionUsecase.sendMessageToDevice(content, to: device.id)
         }
 
         // メッセージ履歴に追加
@@ -188,21 +188,21 @@ class ConnectionManagementViewModel: ObservableObject {
             deviceName: "Mac",
             isOutgoing: true
         )
-        messageHistory.append(outgoingMessage)
-        totalMessages += 1
+        self.messageHistory.append(outgoingMessage)
+        self.totalMessages += 1
 
-        saveStatistics()
+        self.saveStatistics()
     }
 
     func clearMessages() {
-        messageHistory.removeAll()
+        self.messageHistory.removeAll()
     }
 
     // MARK: - Statistics
 
     private func startUptimeTimer() {
-        startTime = Date()
-        uptimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        self.startTime = Date()
+        self.uptimeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateUptime()
             }
@@ -215,7 +215,7 @@ class ConnectionManagementViewModel: ObservableObject {
         let hours = Int(elapsed) / 3600
         let minutes = Int(elapsed.truncatingRemainder(dividingBy: 3600)) / 60
         let seconds = Int(elapsed) % 60
-        uptime = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        self.uptime = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 
     private func saveStatistics() {
@@ -225,14 +225,14 @@ class ConnectionManagementViewModel: ObservableObject {
             "dataTransferred": Int(dataTransferred),
         ]
 
-        preferenceRepository.saveConnectionStatistics(statistics)
+        self.preferenceRepository.saveConnectionStatistics(statistics)
     }
 
     private func loadStatistics() {
         if let statistics = preferenceRepository.loadConnectionStatistics() {
-            totalConnections = statistics["totalConnections"] as? Int ?? 0
-            totalMessages = statistics["totalMessages"] as? Int ?? 0
-            dataTransferred = Int64(statistics["dataTransferred"] as? Int ?? 0)
+            self.totalConnections = statistics["totalConnections"] as? Int ?? 0
+            self.totalMessages = statistics["totalMessages"] as? Int ?? 0
+            self.dataTransferred = Int64(statistics["dataTransferred"] as? Int ?? 0)
         }
     }
 
@@ -240,22 +240,22 @@ class ConnectionManagementViewModel: ObservableObject {
 
     func getDeviceStatistics() -> DeviceStatistics {
         DeviceStatistics(
-            totalDevices: connectedDevices.count,
-            activeDevices: connectedDevices.filter { $0.isConnected }.count,
-            averageConnectionTime: calculateAverageConnectionTime(),
-            messagesSent: messageHistory.filter { $0.isOutgoing }.count,
-            messagesReceived: messageHistory.filter { !$0.isOutgoing }.count
+            totalDevices: self.connectedDevices.count,
+            activeDevices: self.connectedDevices.filter { $0.isConnected }.count,
+            averageConnectionTime: self.calculateAverageConnectionTime(),
+            messagesSent: self.messageHistory.filter { $0.isOutgoing }.count,
+            messagesReceived: self.messageHistory.filter { !$0.isOutgoing }.count
         )
     }
 
     private func calculateAverageConnectionTime() -> TimeInterval {
-        guard !connectedDevices.isEmpty else { return 0 }
+        guard !self.connectedDevices.isEmpty else { return 0 }
 
-        let totalTime = connectedDevices.reduce(0.0) { result, device in
+        let totalTime = self.connectedDevices.reduce(0.0) { result, device in
             result + Date().timeIntervalSince(device.connectionTime)
         }
 
-        return totalTime / Double(connectedDevices.count)
+        return totalTime / Double(self.connectedDevices.count)
     }
 }
 

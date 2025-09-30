@@ -79,10 +79,10 @@ public class CalibrationCoordinator: ObservableObject {
             self.floorMapId = floorMapId
             self.calibrationType = calibrationType
             self.currentStep = currentStep
-            completedSteps = []
-            isCompleted = false
-            startedAt = Date()
-            updatedAt = Date()
+            self.completedSteps = []
+            self.isCompleted = false
+            self.startedAt = Date()
+            self.updatedAt = Date()
         }
     }
 
@@ -119,8 +119,8 @@ public class CalibrationCoordinator: ObservableObject {
             calibrationType: type
         )
 
-        currentProgress[antennaId] = progress
-        isCalibrationInProgress = true
+        self.currentProgress[antennaId] = progress
+        self.isCalibrationInProgress = true
 
         print("🎯 キャリブレーション開始: \(antennaId) (\(type.rawValue))")
     }
@@ -142,12 +142,12 @@ public class CalibrationCoordinator: ObservableObject {
             progress.currentStep = CalibrationStep.allCases[nextStepIndex]
             progress.updatedAt = Date()
 
-            currentProgress[antennaId] = progress
+            self.currentProgress[antennaId] = progress
 
             print("➡️ ステップ進行: \(antennaId) -> \(progress.currentStep.displayName)")
         } else {
             // 全ステップ完了
-            try completeCalibration(for: antennaId)
+            try self.completeCalibration(for: antennaId)
         }
     }
 
@@ -168,19 +168,19 @@ public class CalibrationCoordinator: ObservableObject {
             progress.accuracyScore = accuracy
         }
 
-        currentProgress[antennaId] = progress
+        self.currentProgress[antennaId] = progress
 
         print("✅ ステップ完了: \(antennaId) - \(step.displayName)")
 
         // 全ステップが完了した場合、キャリブレーション終了
         if progress.completedSteps.count == CalibrationStep.allCases.count {
-            try completeCalibration(for: antennaId)
+            try self.completeCalibration(for: antennaId)
         }
     }
 
     /// マップキャリブレーションデータを登録
     public func registerMapCalibrationData(_ data: MapCalibrationData) {
-        mapCalibrationData[data.antennaId] = data
+        self.mapCalibrationData[data.antennaId] = data
         print("📍 マップキャリブレーションデータ登録: \(data.antennaId)")
     }
 
@@ -233,21 +233,21 @@ public class CalibrationCoordinator: ObservableObject {
 
     /// キャリブレーション進捗情報を取得
     public func getProgress(for antennaId: String) -> CalibrationProgress? {
-        currentProgress[antennaId]
+        self.currentProgress[antennaId]
     }
 
     /// すべての進捗情報を取得
     public func getAllProgress() -> [CalibrationProgress] {
-        Array(currentProgress.values)
+        Array(self.currentProgress.values)
     }
 
     /// キャリブレーション中止
     public func cancelCalibration(for antennaId: String) {
-        currentProgress.removeValue(forKey: antennaId)
-        mapCalibrationData.removeValue(forKey: antennaId)
+        self.currentProgress.removeValue(forKey: antennaId)
+        self.mapCalibrationData.removeValue(forKey: antennaId)
 
-        if currentProgress.isEmpty {
-            isCalibrationInProgress = false
+        if self.currentProgress.isEmpty {
+            self.isCalibrationInProgress = false
         }
 
         print("🚫 キャリブレーション中止: \(antennaId)")
@@ -255,9 +255,9 @@ public class CalibrationCoordinator: ObservableObject {
 
     /// 全キャリブレーション中止
     public func cancelAllCalibrations() {
-        currentProgress.removeAll()
-        mapCalibrationData.removeAll()
-        isCalibrationInProgress = false
+        self.currentProgress.removeAll()
+        self.mapCalibrationData.removeAll()
+        self.isCalibrationInProgress = false
         print("🚫 全キャリブレーション中止")
     }
 
@@ -273,12 +273,12 @@ public class CalibrationCoordinator: ObservableObject {
         progress.currentStep = .completion
         progress.updatedAt = Date()
 
-        currentProgress[antennaId] = progress
+        self.currentProgress[antennaId] = progress
 
         // 他にアクティブなキャリブレーションがない場合、全体の進行を停止
-        let activeCount = currentProgress.values.filter { !$0.isCompleted }.count
+        let activeCount = self.currentProgress.values.filter { !$0.isCompleted }.count
         if activeCount == 0 {
-            isCalibrationInProgress = false
+            self.isCalibrationInProgress = false
         }
 
         print("🎉 キャリブレーション完了: \(antennaId)")

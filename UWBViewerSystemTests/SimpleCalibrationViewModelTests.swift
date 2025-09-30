@@ -27,7 +27,7 @@ struct SimpleCalibrationViewModelTests {
         let mockPreferenceRepository = MockPreferenceRepository()
 
         // テスト用のフロアマップ情報を設定
-        let testFloorMapInfo = createTestFloorMapInfo()
+        let testFloorMapInfo = self.createTestFloorMapInfo()
         mockPreferenceRepository.saveCurrentFloorMapInfo(testFloorMapInfo)
 
         let viewModel = SimpleCalibrationViewModel(dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
@@ -161,7 +161,7 @@ struct SimpleCalibrationViewModelTests {
 
     @Test("基準点表示 - 複数の基準点が正しく設定される")
     func referencePointsDisplay() async throws {
-        setupTestEnvironment()
+        self.setupTestEnvironment()
         defer { cleanupTestEnvironment() }
 
         let viewModel = await createTestViewModel()
@@ -371,7 +371,7 @@ struct SimpleCalibrationViewModelTests {
         defer { cleanupTestEnvironment() }
 
         // MockPreferenceRepositoryにテストデータを設定
-        let testFloorMapInfo = createTestFloorMapInfo()
+        let testFloorMapInfo = self.createTestFloorMapInfo()
         let mockPreferenceRepository = MockPreferenceRepository()
         mockPreferenceRepository.saveCurrentFloorMapInfo(testFloorMapInfo)
 
@@ -457,7 +457,7 @@ struct SimpleCalibrationViewModelTests {
         #expect(await viewModel.currentFloorMapInfo == nil)
 
         // フロアマップ情報をMockPreferenceRepositoryに設定
-        let testFloorMapInfo = createTestFloorMapInfo()
+        let testFloorMapInfo = self.createTestFloorMapInfo()
         mockPreferenceRepository.saveCurrentFloorMapInfo(testFloorMapInfo)
 
         // フロアマップ情報の再読み込みをトリガー

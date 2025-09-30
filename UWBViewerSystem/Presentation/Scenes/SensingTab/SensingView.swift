@@ -10,17 +10,17 @@ struct SensingView: View {
         #if os(macOS)
             NavigationSplitView {
                 VStack(spacing: 20) {
-                    headerSection
+                    self.headerSection
 
-                    if viewModel.savedSensingData.isEmpty {
-                        emptyStateView
+                    if self.viewModel.savedSensingData.isEmpty {
+                        self.emptyStateView
                     } else {
-                        sensingDataList
+                        self.sensingDataList
                     }
 
                     Spacer()
 
-                    startSensingButton
+                    self.startSensingButton
                 }
                 .padding()
                 .navigationSplitViewColumnWidth(min: 300, ideal: 350)
@@ -37,35 +37,35 @@ struct SensingView: View {
         #else
             NavigationView {
                 VStack(spacing: 20) {
-                    headerSection
+                    self.headerSection
 
-                    if viewModel.savedSensingData.isEmpty {
-                        emptyStateView
+                    if self.viewModel.savedSensingData.isEmpty {
+                        self.emptyStateView
                     } else {
-                        sensingDataList
+                        self.sensingDataList
                     }
 
                     Spacer()
 
-                    startSensingButton
+                    self.startSensingButton
                 }
                 .padding()
                 .navigationTitle("センシング")
                 .navigationBarTitleDisplayMode(.large)
             }
-            .alert("設定が必要です", isPresented: $showValidationAlert) {
+            .alert("設定が必要です", isPresented: self.$showValidationAlert) {
                 Button("フロアマップ設定へ") {
-                    router.push(.fieldSettingPage)
+                    self.router.push(.fieldSettingPage)
                 }
                 Button("端末接続設定へ") {
-                    router.push(.connectionManagementPage)
+                    self.router.push(.connectionManagementPage)
                 }
                 Button("キャンセル", role: .cancel) {}
             } message: {
-                Text(validationMessage)
+                Text(self.validationMessage)
             }
             .onAppear {
-                viewModel.loadSavedData()
+                self.viewModel.loadSavedData()
             }
         #endif
     }
@@ -113,17 +113,17 @@ struct SensingView: View {
     private var sensingDataList: some View {
         ScrollView {
             VStack(spacing: 12) {
-                ForEach(viewModel.savedSensingData) { data in
+                ForEach(self.viewModel.savedSensingData) { data in
                     SensingDataRow(
                         data: data,
                         onTap: {
-                            viewModel.selectSensingData(data)
+                            self.viewModel.selectSensingData(data)
                             #if os(iOS)
-                                router.push(.dataDisplayPage)
+                                self.router.push(.dataDisplayPage)
                             #endif
                         }
                     ) {
-                        viewModel.deleteSensingData(data)
+                        self.viewModel.deleteSensingData(data)
                     }
                 }
             }
@@ -132,7 +132,7 @@ struct SensingView: View {
 
     private var startSensingButton: some View {
         Button(action: {
-            validateAndStartSensing()
+            self.validateAndStartSensing()
         }) {
             HStack {
                 Image(systemName: "play.circle.fill")
@@ -150,13 +150,13 @@ struct SensingView: View {
     }
 
     private func validateAndStartSensing() {
-        let validation = viewModel.validateSensingRequirements()
+        let validation = self.viewModel.validateSensingRequirements()
 
         if validation.isValid {
-            router.push(.dataCollectionPage)
+            self.router.push(.dataCollectionPage)
         } else {
-            validationMessage = validation.message
-            showValidationAlert = true
+            self.validationMessage = validation.message
+            self.showValidationAlert = true
         }
     }
 }
@@ -168,21 +168,21 @@ struct SensingDataRow: View {
 
     var body: some View {
         HStack {
-            Button(action: onTap) {
+            Button(action: self.onTap) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(data.name)
+                    Text(self.data.name)
                         .font(.headline)
                         .foregroundColor(.primary)
 
                     HStack {
-                        Label("\(data.dataPoints) データポイント", systemImage: "chart.line.uptrend.xyaxis")
+                        Label("\(self.data.dataPoints) データポイント", systemImage: "chart.line.uptrend.xyaxis")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
                         Text("•")
                             .foregroundColor(.secondary)
 
-                        Text(data.formattedDate)
+                        Text(self.data.formattedDate)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -191,7 +191,7 @@ struct SensingDataRow: View {
             }
             .buttonStyle(PlainButtonStyle())
 
-            Button(action: onDelete) {
+            Button(action: self.onDelete) {
                 Image(systemName: "trash")
                     .foregroundColor(.red)
             }
@@ -211,18 +211,18 @@ struct SensingDetailView: View {
         VStack(spacing: 30) {
             // ヘッダー
             VStack(alignment: .leading, spacing: 16) {
-                Text(sensingData.name)
+                Text(self.sensingData.name)
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
                 HStack {
-                    Label("\(sensingData.dataPoints) データポイント", systemImage: "chart.line.uptrend.xyaxis")
+                    Label("\(self.sensingData.dataPoints) データポイント", systemImage: "chart.line.uptrend.xyaxis")
                         .foregroundColor(.secondary)
 
                     Text("•")
                         .foregroundColor(.secondary)
 
-                    Text(sensingData.formattedDate)
+                    Text(self.sensingData.formattedDate)
                         .foregroundColor(.secondary)
                 }
             }
@@ -253,7 +253,7 @@ struct SensingDetailView: View {
             // アクション
             VStack(spacing: 16) {
                 Button(action: {
-                    router.push(.trajectoryView)
+                    self.router.push(.trajectoryView)
                 }) {
                     HStack {
                         Image(systemName: "map")

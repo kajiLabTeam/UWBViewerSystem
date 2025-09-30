@@ -23,30 +23,30 @@ struct FieldSettingView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            headerSection
+            self.headerSection
 
             HStack(spacing: 20) {
-                fieldMapSection
-                antennaListSection
+                self.fieldMapSection
+                self.antennaListSection
             }
             .padding()
 
-            controlSection
+            self.controlSection
         }
         .padding()
-        .sheet(isPresented: $showAddDialog) {
-            SimpleAddAntennaSheet(viewModel: viewModel, isPresented: $showAddDialog)
+        .sheet(isPresented: self.$showAddDialog) {
+            SimpleAddAntennaSheet(viewModel: self.viewModel, isPresented: self.$showAddDialog)
         }
-        .sheet(item: $presentedSheet) { sheetType in
+        .sheet(item: self.$presentedSheet) { sheetType in
             switch sheetType {
             case .addAntenna:
                 EmptyView()  // 使用しない
             case .editAntenna(let antenna):
                 EditAntennaSheet(
-                    antenna: antenna, viewModel: viewModel,
+                    antenna: antenna, viewModel: self.viewModel,
                     showDialog: Binding(
-                        get: { presentedSheet != nil },
-                        set: { if !$0 { presentedSheet = nil } }
+                        get: { self.presentedSheet != nil },
+                        set: { if !$0 { self.presentedSheet = nil } }
                     ))
             }
         }
@@ -67,9 +67,9 @@ struct FieldSettingView: View {
 
     private var fieldMapSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            fieldMapHeader
-            fieldMapCanvas
-            fieldMapFooter
+            self.fieldMapHeader
+            self.fieldMapCanvas
+            self.fieldMapFooter
         }
         .frame(maxWidth: .infinity)
     }
@@ -81,7 +81,7 @@ struct FieldSettingView: View {
 
             Spacer()
 
-            Button(action: { viewModel.resetField() }) {
+            Button(action: { self.viewModel.resetField() }) {
                 Label("リセット", systemImage: "arrow.clockwise")
                     .font(.caption)
                     .foregroundColor(.primary)
@@ -93,8 +93,8 @@ struct FieldSettingView: View {
     private var fieldMapCanvas: some View {
         ZStack {
             GeometryReader { geometry in
-                gridBackground(for: geometry.size)
-                antennaOverlay(for: geometry)
+                self.gridBackground(for: geometry.size)
+                self.antennaOverlay(for: geometry)
             }
         }
         .frame(height: 400)
@@ -132,34 +132,34 @@ struct FieldSettingView: View {
     }
 
     private func antennaOverlay(for geometry: GeometryProxy) -> some View {
-        ForEach(viewModel.antennas) { antenna in
+        ForEach(self.viewModel.antennas) { antenna in
             FieldAntennaMarker(antenna: antenna)
                 .position(
                     x: antenna.position.x * geometry.size.width,
                     y: antenna.position.y * geometry.size.height
                 )
                 .onTapGesture {
-                    presentedSheet = .editAntenna(antenna.toDomainEntity())
+                    self.presentedSheet = .editAntenna(antenna.toDomainEntity())
                 }
                 .onDrag {
                     NSItemProvider(object: antenna.id as NSString)
                 }
         }
         .onDrop(of: [.text], isTargeted: nil) { providers, location in
-            handleDrop(providers: providers, location: location, in: geometry.size)
+            self.handleDrop(providers: providers, location: location, in: geometry.size)
             return true
         }
     }
 
     private var fieldMapFooter: some View {
         HStack {
-            Text("フィールドサイズ: \(Int(fieldSize.width)) x \(Int(fieldSize.height)) m")
+            Text("フィールドサイズ: \(Int(self.fieldSize.width)) x \(Int(self.fieldSize.height)) m")
                 .font(.caption)
                 .foregroundColor(.secondary)
 
             Spacer()
 
-            Text("アンテナ数: \(viewModel.antennas.count)")
+            Text("アンテナ数: \(self.viewModel.antennas.count)")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -173,7 +173,7 @@ struct FieldSettingView: View {
 
                 Spacer()
 
-                Button(action: { showAddDialog = true }) {
+                Button(action: { self.showAddDialog = true }) {
                     Label("追加", systemImage: "plus.circle.fill")
                         .foregroundColor(.white)
                 }
@@ -182,15 +182,15 @@ struct FieldSettingView: View {
 
             ScrollView {
                 VStack(spacing: 8) {
-                    ForEach(viewModel.antennas) { antenna in
+                    ForEach(self.viewModel.antennas) { antenna in
                         AntennaListItem(antenna: antenna) {
-                            presentedSheet = .editAntenna(antenna.toDomainEntity())
+                            self.presentedSheet = .editAntenna(antenna.toDomainEntity())
                         } onDelete: {
-                            viewModel.removeAntenna(antenna)
+                            self.viewModel.removeAntenna(antenna)
                         }
                     }
 
-                    if viewModel.antennas.isEmpty {
+                    if self.viewModel.antennas.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "antenna.radiowaves.left.and.right")
                                 .font(.system(size: 48))
@@ -201,7 +201,7 @@ struct FieldSettingView: View {
                                 .foregroundColor(.secondary)
 
                             Button("アンテナを追加") {
-                                showAddDialog = true
+                                self.showAddDialog = true
                             }
                             .buttonStyle(.bordered)
                             .foregroundColor(.primary)
@@ -220,13 +220,13 @@ struct FieldSettingView: View {
 
     private var controlSection: some View {
         HStack(spacing: 16) {
-            Button(action: viewModel.loadConfiguration) {
+            Button(action: self.viewModel.loadConfiguration) {
                 Label("設定を読み込む", systemImage: "doc.badge.arrow.up")
                     .foregroundColor(.primary)
             }
             .buttonStyle(.bordered)
 
-            Button(action: viewModel.saveConfiguration) {
+            Button(action: self.viewModel.saveConfiguration) {
                 Label("設定を保存", systemImage: "square.and.arrow.down")
                     .foregroundColor(.primary)
             }
@@ -236,14 +236,14 @@ struct FieldSettingView: View {
 
             Button(action: {
                 // Navigate to next screen
-                viewModel.proceedToNextStep()
+                self.viewModel.proceedToNextStep()
             }) {
                 Label("次へ", systemImage: "arrow.right.circle.fill")
                     .padding(.horizontal, 20)
                     .foregroundColor(.white)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(viewModel.antennas.isEmpty)
+            .disabled(self.viewModel.antennas.isEmpty)
         }
         .padding()
     }
@@ -258,7 +258,7 @@ struct FieldSettingView: View {
             Task { @MainActor in
                 guard let antenna = viewModel.antennas.first(where: { $0.id == antennaId }) else { return }
 
-                viewModel.updateAntennaPosition(
+                self.viewModel.updateAntennaPosition(
                     antenna,
                     position: CGPoint(
                         x: location.x / size.width,
@@ -277,7 +277,7 @@ struct FieldAntennaMarker: View {
         VStack(spacing: 4) {
             ZStack {
                 Circle()
-                    .fill(antenna.color.gradient)
+                    .fill(self.antenna.color.gradient)
                     .frame(width: 40, height: 40)
 
                 Image(systemName: "antenna.radiowaves.left.and.right")
@@ -285,7 +285,7 @@ struct FieldAntennaMarker: View {
                     .font(.system(size: 20))
             }
 
-            Text(antenna.name)
+            Text(self.antenna.name)
                 .font(.caption2)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
@@ -304,16 +304,16 @@ struct AntennaListItem: View {
     var body: some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(antenna.color.gradient)
+                .fill(self.antenna.color.gradient)
                 .frame(width: 12, height: 12)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(antenna.name)
+                Text(self.antenna.name)
                     .font(.system(.body, design: .rounded))
                     .fontWeight(.medium)
 
                 Text(
-                    "X: \(antenna.coordinates.x, specifier: "%.1f")m, Y: \(antenna.coordinates.y, specifier: "%.1f")m, Z: \(antenna.coordinates.z, specifier: "%.1f")m"
+                    "X: \(self.antenna.coordinates.x, specifier: "%.1f")m, Y: \(self.antenna.coordinates.y, specifier: "%.1f")m, Z: \(self.antenna.coordinates.z, specifier: "%.1f")m"
                 )
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -321,13 +321,13 @@ struct AntennaListItem: View {
 
             Spacer()
 
-            Button(action: onEdit) {
+            Button(action: self.onEdit) {
                 Image(systemName: "pencil.circle")
                     .foregroundColor(.blue)
             }
             .buttonStyle(.plain)
 
-            Button(action: onDelete) {
+            Button(action: self.onDelete) {
                 Image(systemName: "trash.circle")
                     .foregroundColor(.red)
             }
@@ -355,14 +355,14 @@ struct AddAntennaSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                antennaInfoSection
-                coordinatesSection
+                self.antennaInfoSection
+                self.coordinatesSection
             }
             .navigationTitle("アンテナを追加")
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-                .toolbar(content: toolbarContent)
+                .toolbar(content: self.toolbarContent)
         }
         #if os(macOS)
         .frame(minWidth: 400, minHeight: 350)
@@ -374,8 +374,8 @@ struct AddAntennaSheet: View {
 
     private var antennaInfoSection: some View {
         Section("アンテナ情報") {
-            TextField("アンテナ名", text: $antennaName)
-            Picker("識別色", selection: $selectedColor) {
+            TextField("アンテナ名", text: self.$antennaName)
+            Picker("識別色", selection: self.$selectedColor) {
                 ForEach(AntennaColor.allCases, id: \.self) { color in
                     HStack {
                         Circle()
@@ -393,19 +393,19 @@ struct AddAntennaSheet: View {
         Section("座標 (メートル)") {
             HStack {
                 Text("X:")
-                TextField("0.0", text: $xCoordinate)
+                TextField("0.0", text: self.$xCoordinate)
                     .textFieldStyle(.roundedBorder)
             }
 
             HStack {
                 Text("Y:")
-                TextField("0.0", text: $yCoordinate)
+                TextField("0.0", text: self.$yCoordinate)
                     .textFieldStyle(.roundedBorder)
             }
 
             HStack {
                 Text("Z:")
-                TextField("1.5", text: $zCoordinate)
+                TextField("1.5", text: self.$zCoordinate)
                     .textFieldStyle(.roundedBorder)
             }
         }
@@ -415,32 +415,32 @@ struct AddAntennaSheet: View {
     private func toolbarContent() -> some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
             Button("キャンセル") {
-                showDialog = false
-                dismiss()
+                self.showDialog = false
+                self.dismiss()
             }
         }
 
         ToolbarItem(placement: .confirmationAction) {
             Button("追加") {
                 let antenna = FieldAntennaInfo(
-                    name: antennaName.isEmpty ? "アンテナ\(viewModel.antennas.count + 1)" : antennaName,
+                    name: antennaName.isEmpty ? "アンテナ\(self.viewModel.antennas.count + 1)" : self.antennaName,
                     coordinates: Point3D(
-                        x: Double(xCoordinate) ?? 0,
-                        y: Double(yCoordinate) ?? 0,
-                        z: Double(zCoordinate) ?? 1.5
+                        x: Double(self.xCoordinate) ?? 0,
+                        y: Double(self.yCoordinate) ?? 0,
+                        z: Double(self.zCoordinate) ?? 1.5
                     ),
-                    antennaColor: selectedColor
+                    antennaColor: self.selectedColor
                 )
 
                 print("アンテナ追加開始: \(antenna.name)")
-                viewModel.addAntenna(antenna)
+                self.viewModel.addAntenna(antenna)
                 print("アンテナ追加完了、ダイアログクローズ開始")
 
                 // メインスレッドで確実に実行
                 Task { @MainActor in
-                    showDialog = false
+                    self.showDialog = false
                     print("showDialog = false 実行完了")
-                    dismiss()
+                    self.dismiss()
                     print("dismiss() 実行完了")
                 }
             }
@@ -463,8 +463,8 @@ struct SimpleAddAntennaSheet: View {
         NavigationStack {
             Form {
                 Section("アンテナ情報") {
-                    TextField("アンテナ名", text: $antennaName)
-                    Picker("識別色", selection: $selectedColor) {
+                    TextField("アンテナ名", text: self.$antennaName)
+                    Picker("識別色", selection: self.$selectedColor) {
                         ForEach(AntennaColor.allCases, id: \.self) { color in
                             HStack {
                                 Circle()
@@ -480,19 +480,19 @@ struct SimpleAddAntennaSheet: View {
                 Section("座標 (メートル)") {
                     HStack {
                         Text("X:")
-                        TextField("0.0", text: $xCoordinate)
+                        TextField("0.0", text: self.$xCoordinate)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     HStack {
                         Text("Y:")
-                        TextField("0.0", text: $yCoordinate)
+                        TextField("0.0", text: self.$yCoordinate)
                             .textFieldStyle(.roundedBorder)
                     }
 
                     HStack {
                         Text("Z:")
-                        TextField("1.5", text: $zCoordinate)
+                        TextField("1.5", text: self.$zCoordinate)
                             .textFieldStyle(.roundedBorder)
                     }
                 }
@@ -504,24 +504,24 @@ struct SimpleAddAntennaSheet: View {
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("キャンセル") {
-                            isPresented = false
+                            self.isPresented = false
                         }
                     }
 
                     ToolbarItem(placement: .confirmationAction) {
                         Button("追加") {
                             let antenna = FieldAntennaInfo(
-                                name: antennaName.isEmpty ? "アンテナ\(viewModel.antennas.count + 1)" : antennaName,
+                                name: antennaName.isEmpty ? "アンテナ\(self.viewModel.antennas.count + 1)" : self.antennaName,
                                 coordinates: Point3D(
-                                    x: Double(xCoordinate) ?? 0,
-                                    y: Double(yCoordinate) ?? 0,
-                                    z: Double(zCoordinate) ?? 1.5
+                                    x: Double(self.xCoordinate) ?? 0,
+                                    y: Double(self.yCoordinate) ?? 0,
+                                    z: Double(self.zCoordinate) ?? 1.5
                                 ),
-                                antennaColor: selectedColor
+                                antennaColor: self.selectedColor
                             )
 
-                            viewModel.addAntenna(antenna)
-                            isPresented = false
+                            self.viewModel.addAntenna(antenna)
+                            self.isPresented = false
                         }
                     }
                 }
@@ -549,29 +549,29 @@ struct EditAntennaSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                editAntennaInfoSection
-                editCoordinatesSection
+                self.editAntennaInfoSection
+                self.editCoordinatesSection
             }
             .navigationTitle("アンテナを編集")
             #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-                .toolbar(content: editToolbarContent)
+                .toolbar(content: self.editToolbarContent)
         }
         .frame(width: 400, height: 350)
         .onAppear {
-            antennaName = antenna.name
-            xCoordinate = String(antenna.coordinates.x)
-            yCoordinate = String(antenna.coordinates.y)
-            zCoordinate = String(antenna.coordinates.z)
-            selectedColor = .blue  // デフォルト値
+            self.antennaName = self.antenna.name
+            self.xCoordinate = String(self.antenna.coordinates.x)
+            self.yCoordinate = String(self.antenna.coordinates.y)
+            self.zCoordinate = String(self.antenna.coordinates.z)
+            self.selectedColor = .blue  // デフォルト値
         }
     }
 
     private var editAntennaInfoSection: some View {
         Section("アンテナ情報") {
-            TextField("アンテナ名", text: $antennaName)
-            Picker("識別色", selection: $selectedColor) {
+            TextField("アンテナ名", text: self.$antennaName)
+            Picker("識別色", selection: self.$selectedColor) {
                 ForEach(AntennaColor.allCases, id: \.self) { color in
                     HStack {
                         Circle()
@@ -589,19 +589,19 @@ struct EditAntennaSheet: View {
         Section("座標 (メートル)") {
             HStack {
                 Text("X:")
-                TextField("0.0", text: $xCoordinate)
+                TextField("0.0", text: self.$xCoordinate)
                     .textFieldStyle(.roundedBorder)
             }
 
             HStack {
                 Text("Y:")
-                TextField("0.0", text: $yCoordinate)
+                TextField("0.0", text: self.$yCoordinate)
                     .textFieldStyle(.roundedBorder)
             }
 
             HStack {
                 Text("Z:")
-                TextField("1.5", text: $zCoordinate)
+                TextField("1.5", text: self.$zCoordinate)
                     .textFieldStyle(.roundedBorder)
             }
         }
@@ -611,8 +611,8 @@ struct EditAntennaSheet: View {
     private func editToolbarContent() -> some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
             Button("キャンセル") {
-                showDialog = false
-                dismiss()
+                self.showDialog = false
+                self.dismiss()
             }
         }
 
@@ -620,17 +620,17 @@ struct EditAntennaSheet: View {
             Button("保存") {
                 let updatedAntenna = FieldAntennaInfo(
                     id: antenna.id,
-                    name: antennaName,
+                    name: self.antennaName,
                     coordinates: Point3D(
-                        x: Double(xCoordinate) ?? antenna.coordinates.x,
-                        y: Double(yCoordinate) ?? antenna.coordinates.y,
-                        z: Double(zCoordinate) ?? antenna.coordinates.z
+                        x: Double(self.xCoordinate) ?? self.antenna.coordinates.x,
+                        y: Double(self.yCoordinate) ?? self.antenna.coordinates.y,
+                        z: Double(self.zCoordinate) ?? self.antenna.coordinates.z
                     ),
-                    antennaColor: selectedColor
+                    antennaColor: self.selectedColor
                 )
-                viewModel.updateAntenna(updatedAntenna)
-                showDialog = false
-                dismiss()
+                self.viewModel.updateAntenna(updatedAntenna)
+                self.showDialog = false
+                self.dismiss()
             }
         }
     }

@@ -193,7 +193,7 @@ public class CalibrationDataFlow: ObservableObject {
         currentWorkflow = .collectingObservation
         isCollectingForCurrentPoint = false
 
-        logger.info("段階的キャリブレーション開始 - 基準点数: \(self.totalReferencePoints)")
+        logger.info("段階的キャリブレーション開始 - 基準点数: \(totalReferencePoints)")
 
         await processNextReferencePoint()
     }
@@ -214,7 +214,7 @@ public class CalibrationDataFlow: ObservableObject {
         currentStepInstructions = "基準点 \(pointNumber)/\(totalReferencePoints) でデータを収集してください\n座標: (\(String(format: "%.2f", currentPoint.realWorldCoordinate.x)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.y)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.z)))"
         calibrationStepProgress = Double(currentReferencePointIndex) / Double(totalReferencePoints)
 
-        logger.info("基準点 \(pointNumber)/\(self.totalReferencePoints) の処理準備完了")
+        logger.info("基準点 \(pointNumber)/\(totalReferencePoints) の処理準備完了")
     }
 
     /// 現在の基準点でデータ収集を開始
@@ -227,7 +227,7 @@ public class CalibrationDataFlow: ObservableObject {
         let currentPoint = referencePoints[currentReferencePointIndex]
         isCollectingForCurrentPoint = true
 
-        logger.info("基準点 \(self.currentReferencePointIndex + 1) でのデータ収集開始: アンテナID \(currentPoint.antennaId)")
+        logger.info("基準点 \(currentReferencePointIndex + 1) でのデータ収集開始: アンテナID \(currentPoint.antennaId)")
 
         // リモートセンシングを開始（sensingControlUsecaseが存在する場合）
         if let sensingControl = sensingControlUsecase {
@@ -265,7 +265,7 @@ public class CalibrationDataFlow: ObservableObject {
     private func completeCurrentPointCollection() async {
         isCollectingForCurrentPoint = false
 
-        logger.info("基準点 \(self.currentReferencePointIndex + 1) のデータ収集完了")
+        logger.info("基準点 \(currentReferencePointIndex + 1) のデータ収集完了")
 
         // 次の基準点に進む
         currentReferencePointIndex += 1

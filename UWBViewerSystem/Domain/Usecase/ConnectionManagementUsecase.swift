@@ -18,6 +18,10 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     init(nearbyRepository: NearbyRepository) {
         self.nearbyRepository = nearbyRepository
         super.init()
+
+        // NearbyRepositoryのコールバックとして自身を設定
+        nearbyRepository.callback = self
+
         setupLocationManager()
         requestLocationPermission()
     }
@@ -123,23 +127,84 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     public func getConnectedDeviceCount() -> Int {
         connectedEndpoints.count
     }
+}
 
-    // MARK: - Event Handlers
+// MARK: - NearbyRepositoryCallback
 
-    func onDeviceConnected(device: ConnectedDevice) {
-        connectedDeviceNames.insert(device.deviceName)
-        connectedEndpoints.insert(device.endpointId)
-        connectState = "端末接続: \(device.deviceName)"
+extension ConnectionManagementUsecase: NearbyRepositoryCallback {
+    nonisolated public func onDiscoveryStateChanged(isDiscovering: Bool) {
+        Task { @MainActor in
+            print("Discovery state changed: \(isDiscovering)")
+        }
     }
 
-    func onDeviceDisconnected(endpointId: String) {
-        connectedEndpoints.remove(endpointId)
-        // endpointIdから端末名を特定するのが難しいため、必要に応じて追加処理
-        connectState = "端末切断: \(endpointId)"
+    nonisolated public func onConnectionStateChanged(state: String) {
+        Task { @MainActor in
+            print("Connection state changed: \(state)")
+            connectState = state
+        }
     }
 
-    func onConnectionStateChanged(state: String) {
-        connectState = state
+    nonisolated public func onDeviceFound(endpointId: String, name: String, isConnectable: Bool) {
+        Task { @MainActor in
+            print("Device found: \(name) (\(endpointId))")
+        }
+    }
+
+    nonisolated public func onDeviceLost(endpointId: String) {
+        Task { @MainActor in
+            print("Device lost: \(endpointId)")
+        }
+    }
+
+    nonisolated public func onConnectionRequest(
+        endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void
+    ) {
+        Task { @MainActor in
+            print("Connection request from: \(deviceName) (\(endpointId))")
+            // 自動的に接続を承認
+            accept(true)
+        }
+    }
+
+    nonisolated public func onConnectionResult(_ endpointId: String, _ success: Bool) {
+        Task { @MainActor in
+            print("Connection result for \(endpointId): \(success)")
+            if success {
+                self.connectedEndpoints.insert(endpointId)
+            }
+        }
+    }
+
+    nonisolated public func onDeviceConnected(endpointId: String, deviceName: String) {
+        Task { @MainActor in
+            print("Device connected: \(deviceName) (\(endpointId))")
+            self.connectedDeviceNames.insert(deviceName)
+            self.connectedEndpoints.insert(endpointId)
+            self.connectState = "端末接続: \(deviceName)"
+        }
+    }
+
+    nonisolated public func onDeviceDisconnected(endpointId: String) {
+        Task { @MainActor in
+            print("Device disconnected: \(endpointId)")
+            self.connectedEndpoints.remove(endpointId)
+            self.connectState = "端末切断: \(endpointId)"
+        }
+    }
+
+    nonisolated public func onDataReceived(endpointId: String, data: Data) {
+        Task { @MainActor in
+            if let text = String(data: data, encoding: .utf8) {
+                print("Data received from \(endpointId): \(text)")
+            }
+        }
+    }
+
+    nonisolated public func onDataReceived(data: String, fromEndpointId: String) {
+        Task { @MainActor in
+            print("Data received from \(fromEndpointId): \(data)")
+        }
     }
 }
 

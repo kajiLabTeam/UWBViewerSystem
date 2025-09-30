@@ -546,8 +546,21 @@ import Foundation
             case .connecting:
                 callback?.onConnectionStateChanged(state: "接続中: \(endpointID)")
             case .connected:
+                // 接続完了時に接続情報を確実に登録
+                remoteEndpointIds.insert(endpointID)
+
                 let deviceName = deviceNames[endpointID] ?? endpointID
+                let device = ConnectedDevice(
+                    endpointId: endpointID,
+                    deviceName: deviceName,
+                    connectTime: Date()
+                )
+                connectedDevices[endpointID] = device
+
+                // コールバックを呼び出し
                 callback?.onConnectionStateChanged(state: "接続完了: \(deviceName)")
+                callback?.onConnectionResult(endpointID, true)
+                callback?.onDeviceConnected(endpointId: endpointID, deviceName: deviceName)
             case .disconnected:
                 remoteEndpointIds.remove(endpointID)
                 connectedDevices.removeValue(forKey: endpointID)

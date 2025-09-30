@@ -67,6 +67,9 @@ import Foundation
     }
 
     class NearbyRepository: NSObject {
+        // シングルトンインスタンス
+        static let shared = NearbyRepository()
+
         weak var callback: NearbyRepositoryCallback?
         private let nickName: String
         private let serviceId: String

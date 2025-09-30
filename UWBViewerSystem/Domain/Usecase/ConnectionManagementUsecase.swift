@@ -6,6 +6,9 @@ import Foundation
 
 @MainActor
 public class ConnectionManagementUsecase: NSObject, ObservableObject {
+    // シングルトンインスタンス
+    public static let shared = ConnectionManagementUsecase(nearbyRepository: NearbyRepository.shared)
+
     @Published var connectState: String = ""
     @Published var isLocationPermissionGranted = false
     @Published var connectedDeviceNames: Set<String> = []

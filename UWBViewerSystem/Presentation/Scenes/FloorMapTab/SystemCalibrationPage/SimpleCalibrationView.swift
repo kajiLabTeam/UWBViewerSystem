@@ -50,8 +50,8 @@ struct SimpleCalibrationView: View {
             )
 
             // SensingControlUsecaseを初期化（Androidデバイスへのセンシングコマンド送信用）
-            let nearbyRepository = NearbyRepository()
-            let connectionUsecase = ConnectionManagementUsecase(nearbyRepository: nearbyRepository)
+            // シングルトンインスタンスを使用して、アプリ全体で接続状態を共有
+            let connectionUsecase = ConnectionManagementUsecase.shared
             let swiftDataRepository = SwiftDataRepository(modelContext: modelContext)
             let sensingControlUsecase = SensingControlUsecase(
                 connectionUsecase: connectionUsecase,

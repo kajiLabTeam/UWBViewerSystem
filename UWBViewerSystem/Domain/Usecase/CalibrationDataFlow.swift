@@ -256,10 +256,24 @@ public class CalibrationDataFlow: ObservableObject {
         }
     }
 
-    /// データ収集を監視
+    /// データ収集を監視（10秒間）
     private func monitorDataCollection() async {
-        // 15秒待機（実際の収集時間）
-        try? await Task.sleep(nanoseconds: 15_000_000_000)
+        let totalSeconds = 10
+        let updateInterval: UInt64 = 1_000_000_000  // 1秒
+
+        for second in 1...totalSeconds {
+            try? await Task.sleep(nanoseconds: updateInterval)
+
+            // 残り時間を更新
+            let remainingSeconds = totalSeconds - second
+            let pointNumber = self.currentReferencePointIndex + 1
+            self.currentStepInstructions = """
+            基準点 \(pointNumber)/\(self.totalReferencePoints) でデータを収集中...
+            残り時間: \(remainingSeconds)秒
+            """
+
+            self.logger.info("基準点\(pointNumber)データ収集中: 残り\(remainingSeconds)秒")
+        }
 
         await self.completeCurrentPointCollection()
     }
@@ -268,7 +282,8 @@ public class CalibrationDataFlow: ObservableObject {
     private func completeCurrentPointCollection() async {
         self.isCollectingForCurrentPoint = false
 
-        self.logger.info("基準点 \(self.currentReferencePointIndex + 1) のデータ収集完了")
+        let completedPointNumber = self.currentReferencePointIndex + 1
+        self.logger.info("基準点 \(completedPointNumber) のデータ収集完了")
 
         // リモートセンシングを停止
         self.sensingControlUsecase?.stopRemoteSensing()
@@ -277,14 +292,56 @@ public class CalibrationDataFlow: ObservableObject {
         self.currentReferencePointIndex += 1
 
         if self.currentReferencePointIndex < self.referencePoints.count {
+            let nextPointNumber = self.currentReferencePointIndex + 1
+            let nextPoint = self.referencePoints[self.currentReferencePointIndex]
+
+            // 次の基準点への移動指示を表示
+            self.currentStepInstructions = """
+            基準点 \(completedPointNumber) のデータ収集完了！
+
+            次は基準点 \(nextPointNumber)/\(self.totalReferencePoints) に移動してください
+            座標: (\(String(format: "%.2f", nextPoint.realWorldCoordinate.x)), \(String(format: "%.2f", nextPoint.realWorldCoordinate.y)), \(String(format: "%.2f", nextPoint.realWorldCoordinate.z)))
+
+            移動したら「データ収集開始」を押してください
+            """
+
+            self.logger.info("次の基準点 \(nextPointNumber) への移動を指示")
+
             await self.processNextReferencePoint()
-            // 次の基準点でのデータ収集を自動的に開始
+
+            // 5秒待機してから自動的に次のデータ収集を開始
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
             await self.startDataCollectionForCurrentPoint()
         } else {
             self.logger.info("全ての基準点のデータ収集完了 - キャリブレーション計算開始")
+
+            self.currentStepInstructions = """
+            全ての基準点のデータ収集が完了しました！
+
+            キャリブレーション計算を開始します...
+            """
+
             // 全ての基準点の収集が完了したら、マッピングとキャリブレーションを実行
             _ = self.mapObservationsToReferences()
-            _ = await self.executeCalibration()
+            let result = await self.executeCalibration()
+
+            // 最終結果を表示
+            if result.success {
+                self.currentStepInstructions = """
+                キャリブレーション完了！
+
+                全 \(self.totalReferencePoints) 点のキャリブレーションが成功しました
+                アンテナ位置が確定しました
+                """
+                self.logger.info("段階的キャリブレーション成功")
+            } else {
+                self.currentStepInstructions = """
+                キャリブレーションエラー
+
+                \(result.errorMessage ?? "計算中にエラーが発生しました")
+                """
+                self.logger.error("段階的キャリブレーション失敗: \(result.errorMessage ?? "不明なエラー")")
+            }
         }
     }
 

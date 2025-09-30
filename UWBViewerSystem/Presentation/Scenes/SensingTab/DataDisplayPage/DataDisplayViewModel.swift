@@ -58,10 +58,7 @@ class DataDisplayViewModel: ObservableObject {
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
         self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase()
         self.connectionUsecase =
-            connectionUsecase
-                ?? ConnectionManagementUsecase(
-                    nearbyRepository: NearbyRepository()
-                )
+            connectionUsecase ?? ConnectionManagementUsecase.shared
 
         self.setupObservers()
         Task {

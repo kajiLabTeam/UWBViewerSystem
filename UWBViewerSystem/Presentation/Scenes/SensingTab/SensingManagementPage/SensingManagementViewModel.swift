@@ -35,7 +35,7 @@ class SensingManagementViewModel: ObservableObject {
         self.sensingControlUsecase =
             sensingControlUsecase
                 ?? SensingControlUsecase(
-                    connectionUsecase: ConnectionManagementUsecase(nearbyRepository: NearbyRepository())
+                    connectionUsecase: ConnectionManagementUsecase.shared
                 )
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
         self.initialize()

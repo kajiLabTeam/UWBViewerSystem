@@ -32,9 +32,8 @@ class DataCollectionViewModel: ObservableObject {
         realtimeDataUsecase: RealtimeDataUsecase? = nil,
         preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
     ) {
-        let nearbyRepository = NearbyRepository()
         let defaultConnectionUsecase =
-            connectionUsecase ?? ConnectionManagementUsecase(nearbyRepository: nearbyRepository)
+            connectionUsecase ?? ConnectionManagementUsecase.shared
 
         self.connectionUsecase = defaultConnectionUsecase
         self.sensingControlUsecase =

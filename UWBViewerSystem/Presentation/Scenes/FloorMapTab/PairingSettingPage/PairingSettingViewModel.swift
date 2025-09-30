@@ -49,9 +49,9 @@ class PairingSettingViewModel: ObservableObject {
         autoLoadData: Bool = true
     ) {
         // DI対応: 必要な依存関係を注入または生成
-        self.nearbyRepository = nearbyRepository ?? NearbyRepository()
+        self.nearbyRepository = nearbyRepository ?? NearbyRepository.shared
         self.connectionUsecase =
-            connectionUsecase ?? ConnectionManagementUsecase(nearbyRepository: self.nearbyRepository)
+            connectionUsecase ?? ConnectionManagementUsecase.shared
         self.swiftDataRepository = swiftDataRepository
 
         // 複数のcallbackをサポートするために、一時的にcallbackを切り替える

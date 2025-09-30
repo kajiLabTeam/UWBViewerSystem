@@ -30,7 +30,7 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     // MARK: - Initialization
 
     override init() {
-        self.nearbyRepository = NearbyRepository()
+        self.nearbyRepository = NearbyRepository.shared
         super.init()
         self.setupLocationManager()
         self.setupNearbyRepository()

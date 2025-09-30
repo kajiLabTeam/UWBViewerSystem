@@ -1,8 +1,10 @@
 import Accelerate
 import Foundation
+import os.log
 
 /// 最小二乗法を使用したアンテナキャリブレーション機能
 public class LeastSquaresCalibration {
+    private static let logger = Logger(subsystem: "com.uwbviewer.system", category: "least-squares")
 
     // MARK: - エラータイプ
 
@@ -34,6 +36,8 @@ public class LeastSquaresCalibration {
     /// - Returns: 計算された変換行列
     /// - Throws: キャリブレーションエラー
     public static func calculateTransform(from points: [CalibrationPoint]) throws -> CalibrationTransform {
+        logger.info("🔧 キャリブレーション変換計算開始: \(points.count)個のキャリブレーション点")
+
         guard points.count >= 3 else {
             throw CalibrationError.insufficientPoints(required: 3, provided: points.count)
         }
@@ -45,9 +49,22 @@ public class LeastSquaresCalibration {
         let measuredPoints = points.map { $0.measuredPosition }
         let referencePoints = points.map { $0.referencePosition }
 
+        logger.info("📍 測定点:")
+        for (i, point) in measuredPoints.enumerated() {
+            logger.info("  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))")
+        }
+
+        logger.info("📍 基準点:")
+        for (i, point) in referencePoints.enumerated() {
+            logger.info("  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))")
+        }
+
         // 重心を計算
         let measuredCentroid = calculateCentroid(measuredPoints)
         let referenceCentroid = calculateCentroid(referencePoints)
+
+        logger.info("📊 測定点重心: (\(String(format: "%.3f", measuredCentroid.x)), \(String(format: "%.3f", measuredCentroid.y)), \(String(format: "%.3f", measuredCentroid.z)))")
+        logger.info("📊 基準点重心: (\(String(format: "%.3f", referenceCentroid.x)), \(String(format: "%.3f", referenceCentroid.y)), \(String(format: "%.3f", referenceCentroid.z)))")
 
         // 重心を原点に移動
         let centeredMeasured = measuredPoints.map { $0 - measuredCentroid }
@@ -224,14 +241,26 @@ public class LeastSquaresCalibration {
         let h21 = H[2]
         let h22 = H[3]
 
+        logger.info("🔢 共分散行列 H:")
+        logger.info("  | \(String(format: "%10.6f", h11))  \(String(format: "%10.6f", h12)) |")
+        logger.info("  | \(String(format: "%10.6f", h21))  \(String(format: "%10.6f", h22)) |")
+
         // 行列式がゼロに近い場合はエラー
         let determinant = h11 * h22 - h12 * h21
+        logger.info("📐 行列式 det(H) = \(String(format: "%.10f", determinant))")
+
         if abs(determinant) < 1e-10 {
+            logger.error("❌ 特異行列エラー: 行列式が \(String(format: "%.10e", determinant)) でしきい値 1e-10 未満です")
+            logger.error("💡 これは以下のいずれかの原因が考えられます:")
+            logger.error("   1. 全てのキャリブレーション点が同一線上にある")
+            logger.error("   2. 測定点と基準点の対応関係が正しくない")
+            logger.error("   3. データに数値的な問題がある")
             throw CalibrationError.singularMatrix
         }
 
         // 最適回転角を計算
         let rotation = atan2(h21 - h12, h11 + h22)
+        logger.info("🔄 計算された回転角: \(String(format: "%.3f", rotation * 180 / .pi))度")
         return rotation
     }
 

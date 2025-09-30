@@ -200,6 +200,11 @@ public class CalibrationUsecase: ObservableObject {
             }
 
             // 最小二乗法でキャリブレーション実行
+            logger.info("🔧 アンテナ \(antennaId) のキャリブレーション計算開始: \(calibrationData.calibrationPoints.count)個のポイント")
+            for (i, point) in calibrationData.calibrationPoints.enumerated() {
+                logger.info("  Point \(i): ref=(\(String(format: "%.3f", point.referencePosition.x)), \(String(format: "%.3f", point.referencePosition.y)), \(String(format: "%.3f", point.referencePosition.z))), measured=(\(String(format: "%.3f", point.measuredPosition.x)), \(String(format: "%.3f", point.measuredPosition.y)), \(String(format: "%.3f", point.measuredPosition.z)))")
+            }
+
             let transform = try LeastSquaresCalibration.calculateTransform(
                 from: calibrationData.calibrationPoints
             )

@@ -59,7 +59,7 @@ struct NavigationRouter: View {
         case .devicePairing:
             PairingSettingView()
         case .systemCalibration:
-            // シンプルなキャリブレーション画面を使用
+            // シンプルなキャリブレーション画面（段階的キャリブレーション機能を含む）
             SimpleCalibrationView()
         case .sensingExecution:
             SensingManagementView()

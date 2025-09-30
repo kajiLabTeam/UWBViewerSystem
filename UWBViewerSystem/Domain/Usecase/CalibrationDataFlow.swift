@@ -16,11 +16,22 @@ public class CalibrationDataFlow: ObservableObject {
     @Published public var errorMessage: String?
     @Published public var lastCalibrationResult: CalibrationWorkflowResult?
 
+    // 段階的キャリブレーション用プロパティ
+    @Published public var currentReferencePointIndex: Int = 0
+    @Published public var totalReferencePoints: Int = 0
+    @Published public var isCollectingForCurrentPoint: Bool = false
+    @Published public var currentStepInstructions: String = ""
+    @Published public var calibrationStepProgress: Double = 0.0
+    @Published public var finalAntennaPositions: [String: Point3D] = [:]
+
     // MARK: - Private Properties
 
     private let dataRepository: DataRepositoryProtocol
     private let calibrationUsecase: CalibrationUsecase
     private let observationUsecase: ObservationDataUsecase
+    private let swiftDataRepository: SwiftDataRepositoryProtocol?
+    private let sensingControlUsecase: SensingControlUsecase?
+    private let preferenceRepository: PreferenceRepositoryProtocol
     private let logger = Logger(subsystem: "com.uwbviewer.system", category: "calibration-dataflow")
 
     // MARK: - Initialization
@@ -28,11 +39,17 @@ public class CalibrationDataFlow: ObservableObject {
     public init(
         dataRepository: DataRepositoryProtocol,
         calibrationUsecase: CalibrationUsecase,
-        observationUsecase: ObservationDataUsecase
+        observationUsecase: ObservationDataUsecase,
+        swiftDataRepository: SwiftDataRepositoryProtocol? = nil,
+        sensingControlUsecase: SensingControlUsecase? = nil,
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
     ) {
         self.dataRepository = dataRepository
         self.calibrationUsecase = calibrationUsecase
         self.observationUsecase = observationUsecase
+        self.swiftDataRepository = swiftDataRepository
+        self.sensingControlUsecase = sensingControlUsecase
+        self.preferenceRepository = preferenceRepository
     }
 
     // MARK: - 1. 基準データ取得
@@ -160,6 +177,162 @@ public class CalibrationDataFlow: ObservableObject {
         return mappedPairs
     }
 
+    // MARK: - 段階的キャリブレーション
+
+    /// 段階的キャリブレーションを開始
+    public func startStepByStepCalibration() async {
+        guard !referencePoints.isEmpty else {
+            logger.error("基準点が設定されていません")
+            errorMessage = "基準点が設定されていません"
+            currentWorkflow = .failed
+            return
+        }
+
+        currentReferencePointIndex = 0
+        totalReferencePoints = referencePoints.count
+        currentWorkflow = .collectingObservation
+        isCollectingForCurrentPoint = false
+
+        logger.info("段階的キャリブレーション開始 - 基準点数: \(self.totalReferencePoints)")
+
+        await processNextReferencePoint()
+    }
+
+    /// 次の基準点を処理
+    public func processNextReferencePoint() async {
+        guard currentReferencePointIndex < referencePoints.count else {
+            logger.info("全ての基準点の処理が完了しました")
+            // データのマッピングとキャリブレーション実行
+            _ = mapObservationsToReferences()
+            _ = await executeCalibration()
+            return
+        }
+
+        let currentPoint = referencePoints[currentReferencePointIndex]
+        let pointNumber = currentReferencePointIndex + 1
+
+        currentStepInstructions = "基準点 \(pointNumber)/\(totalReferencePoints) でデータを収集してください\n座標: (\(String(format: "%.2f", currentPoint.realWorldCoordinate.x)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.y)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.z)))"
+        calibrationStepProgress = Double(currentReferencePointIndex) / Double(totalReferencePoints)
+
+        logger.info("基準点 \(pointNumber)/\(self.totalReferencePoints) の処理準備完了")
+    }
+
+    /// 現在の基準点でデータ収集を開始
+    public func startDataCollectionForCurrentPoint() async {
+        guard currentReferencePointIndex < referencePoints.count else {
+            logger.error("有効な基準点がありません")
+            return
+        }
+
+        let currentPoint = referencePoints[currentReferencePointIndex]
+        isCollectingForCurrentPoint = true
+
+        logger.info("基準点 \(self.currentReferencePointIndex + 1) でのデータ収集開始: アンテナID \(currentPoint.antennaId)")
+
+        // リモートセンシングを開始（sensingControlUsecaseが存在する場合）
+        if let sensingControl = sensingControlUsecase {
+            let fileName = "calib_point\(currentReferencePointIndex + 1)_\(Date().timeIntervalSince1970)"
+            sensingControl.startRemoteSensing(fileName: fileName)
+            logger.info("リモートセンシング開始: \(fileName)")
+        }
+
+        // 観測データ収集を開始
+        do {
+            _ = try await observationUsecase.startCalibrationDataCollectionWithProgress(
+                for: currentPoint.antennaId,
+                referencePoint: "Point\(currentReferencePointIndex + 1)"
+            )
+
+            // 15秒間のデータ収集を監視
+            await monitorDataCollection()
+        } catch {
+            logger.error("データ収集の開始に失敗しました: \(error)")
+            errorMessage = "データ収集の開始に失敗しました: \(error.localizedDescription)"
+            isCollectingForCurrentPoint = false
+            currentWorkflow = .failed
+        }
+    }
+
+    /// データ収集を監視
+    private func monitorDataCollection() async {
+        // 15秒待機（実際の収集時間）
+        try? await Task.sleep(nanoseconds: 15_000_000_000)
+
+        await completeCurrentPointCollection()
+    }
+
+    /// 現在の基準点のデータ収集を完了
+    private func completeCurrentPointCollection() async {
+        isCollectingForCurrentPoint = false
+
+        logger.info("基準点 \(self.currentReferencePointIndex + 1) のデータ収集完了")
+
+        // 次の基準点に進む
+        currentReferencePointIndex += 1
+
+        if currentReferencePointIndex < referencePoints.count {
+            await processNextReferencePoint()
+        } else {
+            logger.info("全ての基準点のデータ収集完了 - キャリブレーション計算開始")
+            // 全ての基準点の収集が完了したら、マッピングとキャリブレーションを実行
+            _ = mapObservationsToReferences()
+            _ = await executeCalibration()
+        }
+    }
+
+    /// ワークフローをキャンセル
+    public func cancelWorkflow() async {
+        logger.info("ワークフローキャンセル開始")
+
+        // 進行中のセッションを停止
+        for sessionId in observationSessions.keys {
+            do {
+                _ = try await observationUsecase.stopObservationSession(sessionId)
+            } catch {
+                logger.error("セッション停止エラー: \(error)")
+            }
+        }
+
+        // リモートセンシングを停止
+        sensingControlUsecase?.stopRemoteSensing()
+
+        // 状態をリセット
+        isCollectingForCurrentPoint = false
+        currentReferencePointIndex = 0
+        totalReferencePoints = 0
+        currentStepInstructions = ""
+        calibrationStepProgress = 0.0
+        currentWorkflow = .idle
+
+        logger.info("ワークフローキャンセル完了")
+    }
+
+    /// アンテナ位置をデータベースに保存
+    private func saveAntennaPositionToDatabase(antennaId: String, position: Point3D, floorMapId: String) async {
+        guard let repository = swiftDataRepository else {
+            logger.warning("SwiftDataRepositoryが利用できないため、アンテナ位置を保存できません")
+            return
+        }
+
+        do {
+            let antennaPosition = AntennaPositionData(
+                id: UUID().uuidString,
+                antennaId: antennaId,
+                antennaName: "Antenna_\(antennaId)",
+                position: position,
+                rotation: 0.0,
+                calibratedAt: Date(),
+                floorMapId: floorMapId
+            )
+
+            try await repository.saveAntennaPosition(antennaPosition)
+            logger.info("アンテナ位置を保存しました: アンテナID \(antennaId), 位置 (\(position.x), \(position.y), \(position.z))")
+        } catch {
+            logger.error("アンテナ位置の保存に失敗しました: \(error)")
+            errorMessage = "アンテナ位置の保存に失敗しました: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: - 4. 変換行列算出とキャリブレーション実行
 
     /// 完全なキャリブレーションワークフローを実行
@@ -224,6 +397,25 @@ public class CalibrationDataFlow: ObservableObject {
 
             if !allSuccessful {
                 errorMessage = "一部のアンテナでキャリブレーションに失敗しました"
+            }
+
+            // 4. 成功時にアンテナ位置を設定・保存
+            if allSuccessful {
+                for (antennaId, result) in results where result.success {
+                    if let transform = result.transform {
+                        // translationをアンテナ位置として使用
+                        let antennaPosition = transform.translation
+                        finalAntennaPositions[antennaId] = antennaPosition
+                        logger.info("アンテナ位置を設定しました: \(antennaId) -> (\(antennaPosition.x), \(antennaPosition.y), \(antennaPosition.z))")
+
+                        // データベースに保存（フロアマップIDが必要）
+                        if let floorMapId = preferenceRepository.loadCurrentFloorMapInfo()?.id {
+                            await saveAntennaPositionToDatabase(antennaId: antennaId, position: antennaPosition, floorMapId: floorMapId)
+                        } else {
+                            logger.warning("フロアマップIDが取得できないため、アンテナ位置をデータベースに保存できません")
+                        }
+                    }
+                }
             }
 
             updateProgress()

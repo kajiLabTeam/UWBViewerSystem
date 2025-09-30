@@ -37,6 +37,38 @@ struct SimpleCalibrationView: View {
             viewModel.reloadData()  // 常に最新のフロアマップデータを取得
             flowNavigator.currentStep = .systemCalibration
             flowNavigator.setRouter(router)
+
+            // CalibrationDataFlowとObservationDataUsecaseを初期化
+            let dataRepository = DataRepository()
+            let calibrationUsecase = CalibrationUsecase(dataRepository: dataRepository)
+            let uwbManager = UWBDataManager()
+            let preferenceRepository = PreferenceRepository()
+            let observationUsecase = ObservationDataUsecase(
+                dataRepository: dataRepository,
+                uwbManager: uwbManager,
+                preferenceRepository: preferenceRepository
+            )
+
+            // SensingControlUsecaseを初期化（Androidデバイスへのセンシングコマンド送信用）
+            let nearbyRepository = NearbyRepository()
+            let connectionUsecase = ConnectionManagementUsecase(nearbyRepository: nearbyRepository)
+            let swiftDataRepository = SwiftDataRepository(modelContext: modelContext)
+            let sensingControlUsecase = SensingControlUsecase(
+                connectionUsecase: connectionUsecase,
+                swiftDataRepository: swiftDataRepository
+            )
+
+            let calibrationDataFlow = CalibrationDataFlow(
+                dataRepository: dataRepository,
+                calibrationUsecase: calibrationUsecase,
+                observationUsecase: observationUsecase,
+                swiftDataRepository: swiftDataRepository,
+                sensingControlUsecase: sensingControlUsecase
+            )
+            viewModel.setupStepByStepCalibration(
+                calibrationDataFlow: calibrationDataFlow,
+                observationUsecase: observationUsecase
+            )
         }
         .alert("エラー", isPresented: $viewModel.showErrorAlert) {
             Button("OK", role: .cancel) {}
@@ -413,23 +445,189 @@ struct SimpleCalibrationView: View {
                     .background(viewModel.calibrationResultColor.opacity(0.1))
                     .cornerRadius(12)
                 } else {
-                    Button(action: viewModel.startCalibration) {
-                        HStack {
-                            Image(systemName: "play.fill")
-                            Text("キャリブレーション開始")
+                    VStack(spacing: 12) {
+                        // 通常のキャリブレーション実行ボタン
+                        Button(action: viewModel.startCalibration) {
+                            HStack {
+                                Image(systemName: "play.fill")
+                                Text("キャリブレーション開始")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .foregroundColor(.white)
+                            .background(Color.blue)
+                            .cornerRadius(12)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .foregroundColor(.white)
-                        .background(Color.blue)
-                        .cornerRadius(12)
+                        .disabled(!viewModel.canStartCalibration)
+
+                        // 段階的キャリブレーション実行ボタン
+                        Button(action: viewModel.startStepByStepCalibration) {
+                            HStack {
+                                Image(systemName: "figure.walk")
+                                Text("段階的キャリブレーション開始")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .foregroundColor(.white)
+                            .background(Color.green)
+                            .cornerRadius(12)
+                        }
+                        .disabled(!viewModel.canStartCalibration)
                     }
-                    .disabled(!viewModel.canStartCalibration)
                 }
+            }
+
+            // 段階的キャリブレーション進行状況表示
+            if viewModel.isStepByStepCalibrationActive {
+                stepByStepCalibrationProgressView
+            }
+
+            // アンテナ位置結果表示
+            if viewModel.showAntennaPositionsResult {
+                antennaPositionsResultView
             }
         }
         .padding()
         .background(Color.secondary.opacity(0.05))
+        .cornerRadius(12)
+    }
+
+    // MARK: - 段階的キャリブレーション関連ビュー
+
+    private var stepByStepCalibrationProgressView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("段階的キャリブレーション実行中")
+                .font(.headline)
+                .foregroundColor(.green)
+
+            // 現在のステップ情報
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("ステップ \(viewModel.currentStepNumber) / \(viewModel.totalSteps)")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+
+                    Spacer()
+
+                    Text(String(format: "%.0f%%", viewModel.stepProgress * 100))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                ProgressView(value: viewModel.stepProgress)
+                    .progressViewStyle(LinearProgressViewStyle(tint: .green))
+            }
+
+            // 現在のステップ指示
+            if !viewModel.currentStepInstructions.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("指示:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Text(viewModel.currentStepInstructions)
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                }
+                .padding()
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            // データ収集進行状況
+            if viewModel.dataCollectionProgress > 0 {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("データ収集中:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Spacer()
+
+                        if viewModel.timeRemaining > 0 {
+                            Text("残り \(Int(viewModel.timeRemaining))秒")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    ProgressView(value: viewModel.dataCollectionProgress)
+                        .progressViewStyle(LinearProgressViewStyle(tint: .orange))
+                }
+            }
+
+            // データ収集開始ボタン
+            Button(action: viewModel.startDataCollectionForCurrentPoint) {
+                HStack {
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                    Text("データ収集開始")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.white)
+                .background(Color.orange)
+                .cornerRadius(12)
+            }
+        }
+        .padding()
+        .background(Color.green.opacity(0.1))
+        .cornerRadius(12)
+    }
+
+    private var antennaPositionsResultView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("キャリブレーション結果")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                Button(action: viewModel.dismissAntennaPositionsResult) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.title3)
+                }
+            }
+
+            Text("計算されたアンテナ位置:")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            VStack(spacing: 8) {
+                ForEach(Array(viewModel.finalAntennaPositions.keys.sorted()), id: \.self) { antennaId in
+                    if let position = viewModel.finalAntennaPositions[antennaId] {
+                        HStack {
+                            Image(systemName: "antenna.radiowaves.left.and.right")
+                                .foregroundColor(.blue)
+
+                            Text(antennaId)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+
+                            Spacer()
+
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text("X: \(String(format: "%.2f", position.x)) m")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("Y: \(String(format: "%.2f", position.y)) m")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("Z: \(String(format: "%.2f", position.z)) m")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding()
+                        .background(Color.secondary.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.blue.opacity(0.1))
         .cornerRadius(12)
     }
 

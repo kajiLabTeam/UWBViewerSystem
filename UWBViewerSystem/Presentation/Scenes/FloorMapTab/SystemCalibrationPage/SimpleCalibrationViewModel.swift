@@ -58,6 +58,41 @@ class SimpleCalibrationViewModel: ObservableObject {
     /// 配置済みアンテナ位置データ
     @Published var antennaPositions: [AntennaPositionData] = []
 
+    // MARK: - 段階的キャリブレーション用プロパティ
+
+    /// 段階的キャリブレーション実行中フラグ
+    @Published var isStepByStepCalibrationActive: Bool = false
+
+    /// 現在のステップ指示
+    @Published var currentStepInstructions: String = ""
+
+    /// ステップ進行状況
+    @Published var stepProgress: Double = 0.0
+
+    /// 現在のステップ番号
+    @Published var currentStepNumber: Int = 0
+
+    /// 総ステップ数
+    @Published var totalSteps: Int = 0
+
+    /// データ収集進行状況
+    @Published var dataCollectionProgress: Double = 0.0
+
+    /// 残り時間
+    @Published var timeRemaining: TimeInterval = 0.0
+
+    /// 最終的なアンテナ位置
+    @Published var finalAntennaPositions: [String: Point3D] = [:]
+
+    /// アンテナ位置結果表示フラグ
+    @Published var showAntennaPositionsResult: Bool = false
+
+    /// CalibrationDataFlow
+    private var calibrationDataFlow: CalibrationDataFlow?
+
+    /// ObservationDataUsecase
+    private var observationUsecase: ObservationDataUsecase?
+
     // MARK: - Private Properties
 
     private let dataRepository: DataRepositoryProtocol
@@ -287,6 +322,132 @@ class SimpleCalibrationViewModel: ObservableObject {
         if !availableAntennas.isEmpty {
             selectedAntennaId = availableAntennas.first?.id ?? ""
         }
+    }
+
+    // MARK: - 段階的キャリブレーション関連メソッド
+
+    /// 段階的キャリブレーションの初期化
+    func setupStepByStepCalibration(
+        calibrationDataFlow: CalibrationDataFlow,
+        observationUsecase: ObservationDataUsecase
+    ) {
+        self.calibrationDataFlow = calibrationDataFlow
+        self.observationUsecase = observationUsecase
+
+        setupCalibrationDataFlowObservers()
+    }
+
+    /// CalibrationDataFlowのObserver設定
+    /// CalibrationDataFlowのObserver設定
+    private func setupCalibrationDataFlowObservers() {
+        guard let flow = calibrationDataFlow else { return }
+
+        // 現在のステップ指示を監視
+        flow.$currentStepInstructions
+            .receive(on: RunLoop.main)
+            .assign(to: &$currentStepInstructions)
+
+        // 現在のステップ番号を監視
+        flow.$currentReferencePointIndex
+            .receive(on: RunLoop.main)
+            .assign(to: &$currentStepNumber)
+
+        // 総ステップ数を監視
+        flow.$totalReferencePoints
+            .receive(on: RunLoop.main)
+            .assign(to: &$totalSteps)
+
+        // ステップ進行状況を監視
+        flow.$calibrationStepProgress
+            .receive(on: RunLoop.main)
+            .assign(to: &$stepProgress)
+
+        // データ収集進行状況を監視（CalibrationDataFlowには存在しないため削除）
+
+        // アクティブ状態を監視
+        flow.$isCollectingForCurrentPoint
+            .receive(on: RunLoop.main)
+            .assign(to: &$isStepByStepCalibrationActive)
+    }
+
+    /// 段階的キャリブレーションを開始
+    /// 段階的キャリブレーションを開始
+    func startStepByStepCalibration() {
+        guard !referencePoints.isEmpty else {
+            showError("基準座標が設定されていません。")
+            return
+        }
+
+        guard let flow = calibrationDataFlow else {
+            showError("CalibrationDataFlowが初期化されていません。")
+            return
+        }
+
+        // 基準座標をCalibrationDataFlowに設定
+        let mapPoints = referencePoints.enumerated().map { index, point in
+            MapCalibrationPoint(
+                mapCoordinate: point,
+                realWorldCoordinate: point,
+                antennaId: selectedAntennaId,
+                pointIndex: index + 1
+            )
+        }
+        flow.collectReferencePoints(from: mapPoints)
+
+        Task {
+            await flow.startStepByStepCalibration()
+        }
+    }
+
+    /// 現在のポイントでデータ収集を開始
+    /// 現在のポイントでデータ収集を開始
+    func startDataCollectionForCurrentPoint() {
+        guard let flow = calibrationDataFlow else {
+            showError("CalibrationDataFlowが初期化されていません。")
+            return
+        }
+
+        Task {
+            await flow.startDataCollectionForCurrentPoint()
+        }
+    }
+
+    /// 段階的キャリブレーション完了時の処理
+    /// 段階的キャリブレーション完了時の処理
+    /// 段階的キャリブレーション完了時の処理
+    func handleStepByStepCalibrationCompletion() {
+        guard let flow = calibrationDataFlow else { return }
+
+        // 最終的なアンテナ位置を取得
+        if !flow.finalAntennaPositions.isEmpty {
+            finalAntennaPositions = flow.finalAntennaPositions
+            showFinalAntennaPositions()
+        }
+
+        // キャリブレーション結果を取得
+        if let workflowResult = flow.lastCalibrationResult {
+            // 選択されたアンテナのキャリブレーション結果を取得
+            if let antennaResult = workflowResult.calibrationResults[selectedAntennaId] {
+                calibrationResult = antennaResult
+                if antennaResult.success {
+                    showSuccessAlert = true
+                } else {
+                    showError(antennaResult.errorMessage ?? "キャリブレーションに失敗しました")
+                }
+            } else if !workflowResult.success {
+                showError(workflowResult.errorMessage ?? "キャリブレーションに失敗しました")
+            }
+        }
+    }
+
+    /// 最終的なアンテナ位置を表示
+    private func showFinalAntennaPositions() {
+        showAntennaPositionsResult = true
+    }
+
+    /// アンテナ位置結果を閉じる
+    func dismissAntennaPositionsResult() {
+        showAntennaPositionsResult = false
     }
 
     // MARK: - Private Methods

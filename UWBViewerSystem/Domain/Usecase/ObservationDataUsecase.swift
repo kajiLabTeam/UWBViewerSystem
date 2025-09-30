@@ -106,6 +106,12 @@ public class ObservationDataUsecase: ObservableObject {
     /// UWBデバイスとの接続状態
     @Published public var connectionStatus: UWBConnectionStatus = .disconnected
 
+    /// キャリブレーション用のプロパティ
+    @Published public var calibrationProgress: Double = 0.0
+    @Published public var calibrationTimeRemaining: TimeInterval = 0.0
+    @Published public var isCalibrationCollecting: Bool = false
+    @Published public var currentReferencePoint: String = ""
+
     // MARK: - Private Properties
 
     /// データ永続化を担当するリポジトリ
@@ -121,6 +127,10 @@ public class ObservationDataUsecase: ObservableObject {
 
     /// データ品質監視インスタンス
     private var qualityMonitor = DataQualityMonitor()
+
+    // キャリブレーション用のタイマー管理
+    private var calibrationTimers: [String: Timer] = [:]
+    private var calibrationDuration: TimeInterval = 15.0 // 15秒間のデータ収集
 
     // MARK: - Initialization
 
@@ -291,6 +301,87 @@ public class ObservationDataUsecase: ObservableObject {
 
         try await uwbManager.resumeDataCollection(sessionId: sessionId)
         print("▶️ 観測セッション再開: \(session.name)")
+    }
+
+    /// キャリブレーション用の15秒間データ収集
+    public func startCalibrationDataCollection(for antennaId: String, referencePoint: String) async throws -> ObservationSession {
+        print("🎯 キャリブレーション用データ収集開始: アンテナ\(antennaId), 基準点\(referencePoint)")
+
+        let sessionName = "キャリブレーション_\(referencePoint)_\(Date().timeIntervalSince1970)"
+        let session = try await startObservationSession(for: antennaId, name: sessionName)
+
+        // 15秒後に自動停止するタイマーを設定
+        let timer = Timer.scheduledTimer(withTimeInterval: calibrationDuration, repeats: false) { [weak self] _ in
+            Task { [weak self] in
+                do {
+                    _ = try await self?.stopObservationSession(session.id)
+                    print("⏰ 15秒間のデータ収集完了: \(sessionName)")
+                } catch {
+                    print("❌ 自動停止中にエラー: \(error)")
+                }
+            }
+        }
+
+        calibrationTimers[session.id] = timer
+        return session
+    }
+
+    /// キャリブレーション用データ収集の手動停止
+    public func stopCalibrationDataCollection(_ sessionId: String) async throws -> ObservationSession {
+        // タイマーをキャンセル
+        calibrationTimers[sessionId]?.invalidate()
+        calibrationTimers.removeValue(forKey: sessionId)
+
+        return try await stopObservationSession(sessionId)
+    }
+
+    /// キャリブレーション用の進捗付きデータ収集（進捗表示機能付き）
+    public func startCalibrationDataCollectionWithProgress(for antennaId: String, referencePoint: String) async throws -> ObservationSession {
+        print("🎯 進捗付きキャリブレーション開始: アンテナ\(antennaId), 基準点\(referencePoint)")
+
+        currentReferencePoint = referencePoint
+        isCalibrationCollecting = true
+        calibrationProgress = 0.0
+        calibrationTimeRemaining = calibrationDuration
+
+        let sessionName = "キャリブレーション_\(referencePoint)_\(Date().timeIntervalSince1970)"
+        let session = try await startObservationSession(for: antennaId, name: sessionName)
+
+        // 進捗更新タイマー（0.1秒間隔）
+        let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+
+            DispatchQueue.main.async {
+                self.calibrationTimeRemaining = max(0, self.calibrationTimeRemaining - 0.1)
+                self.calibrationProgress = (self.calibrationDuration - self.calibrationTimeRemaining) / self.calibrationDuration
+
+                if self.calibrationTimeRemaining <= 0 {
+                    timer.invalidate()
+                    Task {
+                        do {
+                            _ = try await self.stopObservationSession(session.id)
+                            await MainActor.run {
+                                self.isCalibrationCollecting = false
+                                self.calibrationProgress = 1.0
+                                self.calibrationTimeRemaining = 0.0
+                            }
+                            print("⏰ 15秒間のデータ収集完了: \(sessionName)")
+                        } catch {
+                            print("❌ 自動停止中にエラー: \(error)")
+                            await MainActor.run {
+                                self.isCalibrationCollecting = false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        calibrationTimers[session.id] = progressTimer
+        return session
     }
 
     // MARK: - データ品質管理

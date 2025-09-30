@@ -565,7 +565,9 @@ class AntennaPositioningViewModel: ObservableObject {
                         if let index = antennaPositions.firstIndex(where: { $0.id == position.antennaId }) {
                             // スケール変換: 実世界座標からピクセル座標へ
                             let pixelX = CGFloat(position.position.x / mapScale)
-                            let pixelY = CGFloat(position.position.y / mapScale)
+                            // Y座標を反転（実世界座標は下から上、SwiftUIは上から下）
+                            let realWorldPixelY = CGFloat(position.position.y / mapScale)
+                            let pixelY = 400.0 - realWorldPixelY
 
                             // 基準キャンバスサイズでの位置を設定
                             antennaPositions[index].position = CGPoint(x: pixelX, y: pixelY)
@@ -648,7 +650,9 @@ class AntennaPositioningViewModel: ObservableObject {
             do {
                 // ピクセル座標を実世界座標に変換
                 let realWorldX = Double(antennaPosition.position.x) * mapScale
-                let realWorldY = Double(antennaPosition.position.y) * mapScale
+                // Y座標を反転（SwiftUIは上から下、実世界座標は下から上）
+                let flippedPixelY = 400.0 - antennaPosition.position.y
+                let realWorldY = Double(flippedPixelY) * mapScale
 
                 let positionData = AntennaPositionData(
                     id: antennaPosition.id,

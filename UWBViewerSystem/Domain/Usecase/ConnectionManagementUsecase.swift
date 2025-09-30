@@ -23,7 +23,7 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
         super.init()
 
         // NearbyRepositoryのコールバックとして自身を設定
-        nearbyRepository.callback = self
+        nearbyRepository.addCallback(self)
 
         self.setupLocationManager()
         self.requestLocationPermission()

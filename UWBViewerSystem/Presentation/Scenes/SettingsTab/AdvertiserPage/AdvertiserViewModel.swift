@@ -45,7 +45,7 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     private func setupNearbyRepository() {
-        self.nearbyRepository.callback = self
+        self.nearbyRepository.addCallback(self)
     }
 
     private func requestLocationPermission() {

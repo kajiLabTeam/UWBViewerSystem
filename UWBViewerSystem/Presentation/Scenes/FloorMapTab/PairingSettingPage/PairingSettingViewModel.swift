@@ -54,8 +54,8 @@ class PairingSettingViewModel: ObservableObject {
             connectionUsecase ?? ConnectionManagementUsecase.shared
         self.swiftDataRepository = swiftDataRepository
 
-        // 複数のcallbackをサポートするために、一時的にcallbackを切り替える
-        self.nearbyRepository.callback = self
+        // 複数のcallbackをサポートするために、コールバックリスナーを追加
+        self.nearbyRepository.addCallback(self)
 
         self.loadSampleAntennas()
         if autoLoadData {

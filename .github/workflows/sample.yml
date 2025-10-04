@@ -1,0 +1,9 @@
+name: Sample
+on:
+  - push
+jobs:
+  echo:
+    runs-on: [self-hosted, macOS, X64]
+    steps:
+      - name: Hello world
+        run: echo hello, world!

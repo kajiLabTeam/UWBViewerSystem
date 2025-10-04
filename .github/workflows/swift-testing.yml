@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     name: Run Swift Tests
-    runs-on: macos-latest
+    runs-on: [self-hosted, macOS, X64]
 
     steps:
     - name: Checkout Repository
@@ -32,7 +32,7 @@ jobs:
 
   format-check:
     name: Check Code Format
-    runs-on: macos-latest
+    runs-on: [self-hosted, macOS, X64]
 
     steps:
     - name: Checkout Repository

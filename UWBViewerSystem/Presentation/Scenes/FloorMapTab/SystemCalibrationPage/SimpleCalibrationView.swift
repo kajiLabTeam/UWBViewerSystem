@@ -345,6 +345,34 @@ struct SimpleCalibrationView: View {
                     position: displayPosition
                 )
             }
+
+            // 現在位置表示（データ収集中のみ）
+            if self.viewModel.calibrationStep == .collecting,
+               let currentPos = self.viewModel.currentPosition
+            {
+                let normalizedPos = geometry.realWorldToNormalized(
+                    CGPoint(x: currentPos.x, y: currentPos.y)
+                )
+                let displayPos = geometry.normalizedToImageCoordinate(normalizedPos)
+
+                ZStack {
+                    // 外側の円（パルスアニメーション）
+                    Circle()
+                        .stroke(Color.green.opacity(0.3), lineWidth: 2)
+                        .frame(width: 40, height: 40)
+
+                    // 内側の円
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 16, height: 16)
+
+                    // 中心点
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 8, height: 8)
+                }
+                .position(displayPos)
+            }
         }
     }
 
@@ -445,42 +473,24 @@ struct SimpleCalibrationView: View {
                     .background(self.viewModel.calibrationResultColor.opacity(0.1))
                     .cornerRadius(12)
                 } else {
-                    VStack(spacing: 12) {
-                        // 通常のキャリブレーション実行ボタン
-                        Button(action: self.viewModel.startCalibration) {
-                            HStack {
-                                Image(systemName: "play.fill")
-                                Text("キャリブレーション開始")
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .foregroundColor(.white)
-                            .background(Color.blue)
-                            .cornerRadius(12)
+                    // 段階的キャリブレーション実行ボタン
+                    Button(action: self.viewModel.startStepByStepCalibration) {
+                        HStack {
+                            Image(systemName: "figure.walk")
+                            Text("キャリブレーション開始")
                         }
-                        .disabled(!self.viewModel.canStartCalibration)
-
-                        // 段階的キャリブレーション実行ボタン
-                        Button(action: self.viewModel.startStepByStepCalibration) {
-                            HStack {
-                                Image(systemName: "figure.walk")
-                                Text("段階的キャリブレーション開始")
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .foregroundColor(.white)
-                            .background(Color.green)
-                            .cornerRadius(12)
-                        }
-                        .disabled(!self.viewModel.canStartCalibration)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .foregroundColor(.white)
+                        .background(Color.green)
+                        .cornerRadius(12)
                     }
+                    .disabled(!self.viewModel.canStartCalibration)
                 }
             }
 
-            // 段階的キャリブレーション進行状況表示
-            if self.viewModel.isStepByStepCalibrationActive {
-                self.stepByStepCalibrationProgressView
-            }
+            // 段階的キャリブレーション進行状況表示（常に表示）
+            self.stepByStepCalibrationProgressView
 
             // アンテナ位置結果表示
             if self.viewModel.showAntennaPositionsResult {
@@ -496,26 +506,37 @@ struct SimpleCalibrationView: View {
 
     private var stepByStepCalibrationProgressView: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("段階的キャリブレーション実行中")
-                .font(.headline)
-                .foregroundColor(.green)
+            // ヘッダー - 現在のステータス
+            HStack {
+                Image(systemName: self.statusIcon)
+                    .foregroundColor(self.statusColor)
+                    .font(.headline)
 
-            // 現在のステップ情報
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("ステップ \(self.viewModel.currentStepNumber) / \(self.viewModel.totalSteps)")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                Text(self.statusTitle)
+                    .font(.headline)
+                    .foregroundColor(self.statusColor)
 
-                    Spacer()
+                Spacer()
+            }
 
-                    Text(String(format: "%.0f%%", self.viewModel.stepProgress * 100))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+            // 進行状況（開始後のみ表示）
+            if self.viewModel.totalSteps > 0 {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("進行状況: \(self.viewModel.currentStepNumber + 1) / \(self.viewModel.totalSteps)")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        Spacer()
+
+                        Text(String(format: "%.0f%%", self.viewModel.stepProgress * 100))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    ProgressView(value: self.viewModel.stepProgress)
+                        .progressViewStyle(LinearProgressViewStyle(tint: .green))
                 }
-
-                ProgressView(value: self.viewModel.stepProgress)
-                    .progressViewStyle(LinearProgressViewStyle(tint: .green))
             }
 
             // 現在のステップ指示
@@ -528,50 +549,294 @@ struct SimpleCalibrationView: View {
                     Text(self.viewModel.currentStepInstructions)
                         .font(.subheadline)
                         .foregroundColor(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding()
                 .background(Color.blue.opacity(0.1))
                 .cornerRadius(8)
-            }
-
-            // データ収集進行状況
-            if self.viewModel.dataCollectionProgress > 0 {
+            } else if self.viewModel.calibrationStep == .idle {
+                // 未開始時の説明
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("データ収集中:")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    Text("キャリブレーションの流れ:")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
 
-                        Spacer()
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("1.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("指定された場所にタグを置く")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
 
-                        if self.viewModel.timeRemaining > 0 {
-                            Text("残り \(Int(self.viewModel.timeRemaining))秒")
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("2.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("「センシング開始」ボタンを押す")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("3.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("10秒間データを収集")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("4.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("推定アンテナ位置を確認")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("5.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("全ての基準点で1-4を繰り返す")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
+                }
+                .padding()
+                .background(Color.secondary.opacity(0.1))
+                .cornerRadius(8)
+            }
 
-                    ProgressView(value: self.viewModel.dataCollectionProgress)
-                        .progressViewStyle(LinearProgressViewStyle(tint: .orange))
+            // リアルタイムデータ表示（データ収集中のみ）
+            if self.viewModel.calibrationStep == .collecting {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .foregroundColor(.green)
+                        Text("リアルタイムデータ")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("収集: \(self.viewModel.collectedDataCount)件")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
+                    }
+
+                    // 現在位置表示
+                    if let currentPos = self.viewModel.currentPosition {
+                        HStack {
+                            Image(systemName: "location.fill")
+                                .foregroundColor(.green)
+                                .font(.caption)
+                            Text("現在位置: X:\(String(format: "%.2f", currentPos.x))m Y:\(String(format: "%.2f", currentPos.y))m")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.green)
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    if self.viewModel.realtimeDataList.isEmpty {
+                        Text("データ受信待機中...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 8)
+                    } else {
+                        VStack(spacing: 6) {
+                            ForEach(self.viewModel.realtimeDataList, id: \.deviceName) { deviceData in
+                                if let latestData = deviceData.latestData {
+                                    HStack(spacing: 8) {
+                                        // デバイス名
+                                        Text(deviceData.deviceName)
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .foregroundColor(.blue)
+                                            .frame(width: 60, alignment: .leading)
+
+                                        // 距離
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("距離")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            Text(String(format: "%.2fm", latestData.distance))
+                                                .font(.caption)
+                                                .fontWeight(.medium)
+                                        }
+                                        .frame(width: 55, alignment: .leading)
+
+                                        // RSSI
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("RSSI")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            Text("\(latestData.rssi)dBm")
+                                                .font(.caption)
+                                                .fontWeight(.medium)
+                                        }
+                                        .frame(width: 60, alignment: .leading)
+
+                                        // NLOS
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("LOS")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            HStack(spacing: 2) {
+                                                Circle()
+                                                    .fill(latestData.nlos == 0 ? Color.green : Color.orange)
+                                                    .frame(width: 6, height: 6)
+                                                Text(latestData.nlos == 0 ? "○" : "×")
+                                                    .font(.caption)
+                                                    .fontWeight(.medium)
+                                            }
+                                        }
+                                        .frame(width: 40, alignment: .leading)
+
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 8)
+                                    .background(Color.secondary.opacity(0.05))
+                                    .cornerRadius(6)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.green.opacity(0.1))
+                .cornerRadius(8)
+            }
+
+            // センシング開始ボタン（タグ配置段階でのみ表示）
+            if self.viewModel.canStartSensing {
+                Button(action: self.viewModel.startDataCollectionForCurrentPoint) {
+                    HStack {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                        Text("センシング開始")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .foregroundColor(.white)
+                    .background(Color.orange)
+                    .cornerRadius(12)
                 }
             }
 
-            // データ収集開始ボタン
-            Button(action: self.viewModel.startDataCollectionForCurrentPoint) {
-                HStack {
-                    Image(systemName: "antenna.radiowaves.left.and.right")
-                    Text("データ収集開始")
+            // アンテナ位置表示（推定位置表示段階）
+            if self.viewModel.isShowingAntennaPosition,
+               let estimatedPosition = self.viewModel.estimatedAntennaPosition
+            {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("推定アンテナ位置:")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+
+                    HStack {
+                        Image(systemName: "location.fill")
+                            .foregroundColor(.blue)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("X: \(String(format: "%.2f", estimatedPosition.x)) m")
+                                .font(.subheadline)
+                            Text("Y: \(String(format: "%.2f", estimatedPosition.y)) m")
+                                .font(.subheadline)
+                            Text("Z: \(String(format: "%.2f", estimatedPosition.z)) m")
+                                .font(.subheadline)
+                        }
+
+                        Spacer()
+                    }
                 }
-                .frame(maxWidth: .infinity)
                 .padding()
-                .foregroundColor(.white)
-                .background(Color.orange)
-                .cornerRadius(12)
+                .background(Color.green.opacity(0.2))
+                .cornerRadius(8)
             }
         }
         .padding()
-        .background(Color.green.opacity(0.1))
+        .background(self.statusBackgroundColor)
         .cornerRadius(12)
+    }
+
+    // ステータス表示用のヘルパー
+    private var statusIcon: String {
+        switch self.viewModel.calibrationStep {
+        case .idle:
+            return "circle.dashed"
+        case .placingTag:
+            return "hand.point.up.left.fill"
+        case .readyToStart, .collecting:
+            return "antenna.radiowaves.left.and.right"
+        case .showingAntennaPosition:
+            return "location.fill"
+        case .completed:
+            return "checkmark.circle.fill"
+        case .failed:
+            return "xmark.circle.fill"
+        }
+    }
+
+    private var statusColor: Color {
+        switch self.viewModel.calibrationStep {
+        case .idle:
+            return .secondary
+        case .placingTag:
+            return .orange
+        case .readyToStart, .collecting:
+            return .blue
+        case .showingAntennaPosition:
+            return .green
+        case .completed:
+            return .green
+        case .failed:
+            return .red
+        }
+    }
+
+    private var statusTitle: String {
+        switch self.viewModel.calibrationStep {
+        case .idle:
+            return "キャリブレーション待機中"
+        case .placingTag:
+            return "タグ配置中"
+        case .readyToStart:
+            return "センシング準備完了"
+        case .collecting:
+            return "データ収集中"
+        case .showingAntennaPosition:
+            return "アンテナ位置推定完了"
+        case .completed:
+            return "キャリブレーション完了"
+        case .failed:
+            return "エラー発生"
+        }
+    }
+
+    private var statusBackgroundColor: Color {
+        switch self.viewModel.calibrationStep {
+        case .idle:
+            return Color.secondary.opacity(0.05)
+        case .placingTag:
+            return Color.orange.opacity(0.1)
+        case .readyToStart, .collecting:
+            return Color.blue.opacity(0.1)
+        case .showingAntennaPosition:
+            return Color.green.opacity(0.1)
+        case .completed:
+            return Color.green.opacity(0.1)
+        case .failed:
+            return Color.red.opacity(0.1)
+        }
     }
 
     private var antennaPositionsResultView: some View {

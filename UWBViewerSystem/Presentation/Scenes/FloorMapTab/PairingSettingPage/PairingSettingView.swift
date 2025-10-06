@@ -327,39 +327,62 @@ struct DeviceListItem: View {
             // アンテナと紐付け済みかチェック
             let isAntennaLinked = self.antennaPairings.contains(where: { $0.device.id == self.device.id })
 
-            if isAntennaLinked {
-                // アンテナと紐付け済みの場合は「ペア済み」を表示
-                Text("ペア済み")
-                    .font(.caption)
-                    .foregroundColor(.green)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(4)
-            } else if !self.availableAntennas.isEmpty {
-                // 未接続で利用可能なアンテナがある場合のみアンテナ紐付けボタンを表示
-                Button("アンテナ紐付け") {
-                    if self.availableAntennas.count == 1 {
-                        self.onPair(self.availableAntennas.first!)
-                    } else {
-                        self.showingPairAlert = true
+            VStack(spacing: 4) {
+                // 接続状態表示
+                if self.device.isConnected {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                        Text("接続中")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                    }
+                } else {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.red)
+                            .frame(width: 6, height: 6)
+                        Text("未接続")
+                            .font(.caption2)
+                            .foregroundColor(.red)
                     }
                 }
-                .font(.caption)
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.orange)
-                .cornerRadius(8)
-            } else {
-                // 利用可能なアンテナがない場合（すべてのアンテナが他の端末と紐付け済み）
-                Text("アンテナなし")
+
+                if isAntennaLinked {
+                    // アンテナと紐付け済みの場合は「ペア済み」を表示
+                    Text("ペア済み")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(4)
+                } else if !self.availableAntennas.isEmpty {
+                    // 未接続で利用可能なアンテナがある場合のみアンテナ紐付けボタンを表示
+                    Button("アンテナ紐付け") {
+                        if self.availableAntennas.count == 1 {
+                            self.onPair(self.availableAntennas.first!)
+                        } else {
+                            self.showingPairAlert = true
+                        }
+                    }
                     .font(.caption)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(4)
+                    .background(Color.orange)
+                    .cornerRadius(8)
+                } else {
+                    // 利用可能なアンテナがない場合（すべてのアンテナが他の端末と紐付け済み）
+                    Text("アンテナなし")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(4)
+                }
             }
         }
         .padding()

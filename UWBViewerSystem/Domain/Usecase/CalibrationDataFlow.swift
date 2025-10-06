@@ -3,6 +3,17 @@ import os.log
 import SwiftUI
 
 /// キャリブレーションデータフローを管理するクラス
+/// 段階的キャリブレーションのステップ
+public enum StepByStepCalibrationStep {
+    case idle  // 未開始
+    case placingTag  // タグを配置する段階
+    case readyToStart  // センシング開始可能
+    case collecting  // データ収集中
+    case showingAntennaPosition  // アンテナ位置を表示中
+    case completed  // 全て完了
+    case failed  // エラー発生
+}
+
 @MainActor
 public class CalibrationDataFlow: ObservableObject {
 
@@ -23,14 +34,18 @@ public class CalibrationDataFlow: ObservableObject {
     @Published public var currentStepInstructions: String = ""
     @Published public var calibrationStepProgress: Double = 0.0
     @Published public var finalAntennaPositions: [String: Point3D] = [:]
+    @Published public var currentStep: StepByStepCalibrationStep = .idle
+    @Published public var estimatedAntennaPosition: Point3D? = nil  // 推定アンテナ位置
 
     // MARK: - Private Properties
 
     private let dataRepository: DataRepositoryProtocol
     private let calibrationUsecase: CalibrationUsecase
     private let observationUsecase: ObservationDataUsecase
+    public let realtimeDataUsecase: RealtimeDataUsecase
     private let swiftDataRepository: SwiftDataRepositoryProtocol?
     private let sensingControlUsecase: SensingControlUsecase?
+    private let connectionManagement: ConnectionManagementUsecase?
     private let preferenceRepository: PreferenceRepositoryProtocol
     private let logger = Logger(subsystem: "com.uwbviewer.system", category: "calibration-dataflow")
 
@@ -40,15 +55,19 @@ public class CalibrationDataFlow: ObservableObject {
         dataRepository: DataRepositoryProtocol,
         calibrationUsecase: CalibrationUsecase,
         observationUsecase: ObservationDataUsecase,
+        realtimeDataUsecase: RealtimeDataUsecase? = nil,
         swiftDataRepository: SwiftDataRepositoryProtocol? = nil,
         sensingControlUsecase: SensingControlUsecase? = nil,
+        connectionManagement: ConnectionManagementUsecase? = nil,
         preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
     ) {
         self.dataRepository = dataRepository
         self.calibrationUsecase = calibrationUsecase
         self.observationUsecase = observationUsecase
+        self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
         self.swiftDataRepository = swiftDataRepository
         self.sensingControlUsecase = sensingControlUsecase
+        self.connectionManagement = connectionManagement
         self.preferenceRepository = preferenceRepository
     }
 
@@ -188,17 +207,39 @@ public class CalibrationDataFlow: ObservableObject {
             return
         }
 
+        // 前回のリアルタイムデータとペアリング情報をクリア
+        self.realtimeDataUsecase.clearAllRealtimeData()
+        self.logger.info("🗑️ リアルタイムデータをクリアしました")
+
+        // 接続済み端末をすべて切断して新しい接続に備える
+        if let connectionMgmt = self.connectionManagement {
+            connectionMgmt.resetAll()
+            self.logger.info("🔌 接続済み端末をリセットしました")
+
+            // iOS側で広告を開始し、Android側から発見・接続できるようにする
+            connectionMgmt.startAdvertising()
+            self.logger.info("📡 広告を開始しました（Android端末が接続できる状態）")
+        }
+
         self.currentReferencePointIndex = 0
         self.totalReferencePoints = self.referencePoints.count
         self.currentWorkflow = .collectingObservation
         self.isCollectingForCurrentPoint = false
 
+        // 初期ステートをタグ配置に設定
+        self.currentStep = .placingTag
+
+        let currentPoint = self.referencePoints[0]
+        self.currentStepInstructions = """
+        タグ1の場所にタグを置いてください
+        座標: (\(String(format: "%.2f", currentPoint.realWorldCoordinate.x)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.y)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.z)))
+
+        タグを置いたら「センシング開始」ボタンを押してください
+        """
+
         self.logger.info("段階的キャリブレーション開始 - 基準点数: \(self.totalReferencePoints)")
 
-        await self.processNextReferencePoint()
-
-        // 最初の基準点でのデータ収集を自動的に開始
-        await self.startDataCollectionForCurrentPoint()
+        // 自動開始は行わない - ユーザーのボタン押下を待つ
     }
 
     /// 次の基準点を処理
@@ -229,6 +270,7 @@ public class CalibrationDataFlow: ObservableObject {
 
         let currentPoint = self.referencePoints[self.currentReferencePointIndex]
         self.isCollectingForCurrentPoint = true
+        self.currentStep = .collecting
 
         self.logger.info("基準点 \(self.currentReferencePointIndex + 1) でのデータ収集開始: アンテナID \(currentPoint.antennaId)")
 
@@ -237,36 +279,125 @@ public class CalibrationDataFlow: ObservableObject {
             let fileName = "calib_point\(currentReferencePointIndex + 1)_\(Date().timeIntervalSince1970)"
             sensingControl.startRemoteSensing(fileName: fileName)
             self.logger.info("リモートセンシング開始: \(fileName)")
-        }
-
-        // 観測データ収集を開始
-        do {
-            _ = try await self.observationUsecase.startCalibrationDataCollectionWithProgress(
-                for: currentPoint.antennaId,
-                referencePoint: "Point\(self.currentReferencePointIndex + 1)"
-            )
-
-            // 15秒間のデータ収集を監視
-            await self.monitorDataCollection()
-        } catch {
-            self.logger.error("データ収集の開始に失敗しました: \(error)")
-            self.errorMessage = "データ収集の開始に失敗しました: \(error.localizedDescription)"
+        } else {
+            self.logger.error("SensingControlUsecaseが初期化されていません")
+            self.errorMessage = "センシング制御が初期化されていません"
             self.isCollectingForCurrentPoint = false
             self.currentWorkflow = .failed
+            self.currentStep = .failed
+            return
         }
+
+        // 10秒間のデータ収集を監視（ローカルのUWB接続チェックはスキップ）
+        await self.monitorDataCollection()
     }
 
     /// データ収集を監視（10秒間）
     private func monitorDataCollection() async {
         let totalSeconds = 10
         let updateInterval: UInt64 = 1_000_000_000  // 1秒
+        let pointNumber = self.currentReferencePointIndex + 1
+        let pointId = "point_\(self.currentReferencePointIndex)"
+
+        // セッションを初期化（まだ存在しない場合）
+        if self.observationSessions[pointId] == nil {
+            let currentPoint = self.referencePoints[self.currentReferencePointIndex]
+            self.observationSessions[pointId] = ObservationSession(
+                id: pointId,
+                name: "CalibPoint_\(pointNumber)",
+                startTime: Date(),
+                antennaId: currentPoint.antennaId,
+                floorMapId: nil
+            )
+            self.logger.info("観測セッション初期化: \(pointId)")
+        }
 
         for second in 1...totalSeconds {
             try? await Task.sleep(nanoseconds: updateInterval)
 
+            // リアルタイムデータを収集して observationSessions に追加
+            let realtimeDataList = self.realtimeDataUsecase.deviceRealtimeDataList
+            self.logger.info("📊 データ収集ループ \(second)/\(totalSeconds): デバイス数=\(realtimeDataList.count)")
+
+            for deviceData in realtimeDataList {
+                self.logger.debug("🔍 デバイス: \(deviceData.deviceName), latestData=\(deviceData.latestData != nil ? "あり" : "なし")")
+
+                if let latestData = deviceData.latestData {
+                    self.logger.debug("📡 受信データ: distance=\(latestData.distance), elevation=\(latestData.elevation), azimuth=\(latestData.azimuth)")
+
+                    // 無効なデータをフィルタリング（distance=0のデータを除外）
+                    guard latestData.distance > 0 else {
+                        self.logger.debug("❌ 無効なデータをスキップ: distance=\(latestData.distance)")
+                        continue
+                    }
+
+                    // 球面座標から直交座標への変換
+                    let azimuthRad = latestData.azimuth * .pi / 180
+                    let elevationRad = latestData.elevation * .pi / 180
+                    let position = Point3D(
+                        x: latestData.distance * cos(azimuthRad) * cos(elevationRad),
+                        y: latestData.distance * sin(azimuthRad) * cos(elevationRad),
+                        z: latestData.distance * sin(elevationRad)
+                    )
+
+                    // 信号品質を計算
+                    let quality = SignalQuality(
+                        strength: latestData.rssi > -70 ? 0.8 : (latestData.rssi > -90 ? 0.5 : 0.2),
+                        isLineOfSight: latestData.nlos == 0,
+                        confidenceLevel: latestData.nlos == 0 ? 0.9 : 0.5,
+                        errorEstimate: latestData.nlos == 0 ? 0.5 : 2.0
+                    )
+
+                    // TimeIntervalをDateに変換
+                    let timestamp = Date(timeIntervalSince1970: latestData.timestamp / 1000)
+
+                    let observation = ObservationPoint(
+                        antennaId: deviceData.deviceName,
+                        position: position,
+                        timestamp: timestamp,
+                        quality: quality,
+                        distance: latestData.distance,
+                        rssi: latestData.rssi,
+                        sessionId: pointId
+                    )
+
+                    // CalibrationDataFlowのobservationSessionsに追加
+                    self.observationSessions[pointId]?.observations.append(observation)
+
+                    // ObservationDataUsecaseのcurrentSessionsにも追加
+                    if var usecaseSession = self.observationUsecase.currentSessions[pointId] {
+                        usecaseSession.observations.append(observation)
+                        self.observationUsecase.currentSessions[pointId] = usecaseSession
+                        self.logger.debug("💾 ObservationDataUsecaseにデータ追加: \(pointId)")
+                    } else {
+                        // セッションが存在しない場合は作成
+                        let currentPoint = self.referencePoints[self.currentReferencePointIndex]
+                        var newSession = ObservationSession(
+                            id: pointId,
+                            name: "CalibPoint_\(pointNumber)",
+                            startTime: Date(),
+                            antennaId: currentPoint.antennaId,
+                            floorMapId: nil
+                        )
+                        newSession.observations.append(observation)
+                        self.observationUsecase.currentSessions[pointId] = newSession
+                        self.logger.info("📝 ObservationDataUsecaseに新セッション作成: \(pointId)")
+                    }
+
+                    self.logger.info("✅ 有効なデータを追加: distance=\(latestData.distance), position=(\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)), \(String(format: "%.2f", position.z)))")
+                } else {
+                    self.logger.debug("⚠️ デバイス \(deviceData.deviceName) の latestData が nil")
+                }
+            }
+
+            // 現在の observationSessions の状態をログ出力
+            let currentObservationCount = self.observationSessions[pointId]?.observations.count ?? 0
+            let usecaseObservationCount = self.observationUsecase.currentSessions[pointId]?.observations.count ?? 0
+            self.logger.info("📈 CalibrationDataFlow観測データ数: \(currentObservationCount)")
+            self.logger.info("📈 ObservationDataUsecase観測データ数: \(usecaseObservationCount)")
+
             // 残り時間を更新
             let remainingSeconds = totalSeconds - second
-            let pointNumber = self.currentReferencePointIndex + 1
             self.currentStepInstructions = """
             基準点 \(pointNumber)/\(self.totalReferencePoints) でデータを収集中...
             残り時間: \(remainingSeconds)秒
@@ -275,6 +406,11 @@ public class CalibrationDataFlow: ObservableObject {
             self.logger.info("基準点\(pointNumber)データ収集中: 残り\(remainingSeconds)秒")
         }
 
+        // 収集したデータ数をログに出力
+        let collectedCount = self.observationSessions[pointId]?.observations.count ?? 0
+        let usecaseCollectedCount = self.observationUsecase.currentSessions[pointId]?.observations.count ?? 0
+        self.logger.info("基準点\(pointNumber)でのデータ収集完了: CalibrationDataFlow=\(collectedCount)件, ObservationDataUsecase=\(usecaseCollectedCount)件")
+
         await self.completeCurrentPointCollection()
     }
 
@@ -282,67 +418,149 @@ public class CalibrationDataFlow: ObservableObject {
     private func completeCurrentPointCollection() async {
         self.isCollectingForCurrentPoint = false
 
-        let completedPointNumber = self.currentReferencePointIndex + 1
-        self.logger.info("基準点 \(completedPointNumber) のデータ収集完了")
+        let pointNumber = self.currentReferencePointIndex + 1
+        self.logger.info("基準点\(pointNumber)のデータ収集が完了しました")
 
-        // リモートセンシングを停止
-        self.sensingControlUsecase?.stopRemoteSensing()
+        // データ収集完了のメッセージ
+        self.currentStepInstructions = """
+        基準点 \(pointNumber)/\(self.totalReferencePoints) のデータ収集が完了しました
+        データを処理しています...
+        """
 
-        // 次の基準点に進む
+        // アンテナ位置を推定して表示
+        await self.calculateAndShowAntennaPosition()
+
+        // 次の基準点に進むかどうかチェック
         self.currentReferencePointIndex += 1
 
         if self.currentReferencePointIndex < self.referencePoints.count {
+            // まだ基準点が残っている場合
             let nextPointNumber = self.currentReferencePointIndex + 1
             let nextPoint = self.referencePoints[self.currentReferencePointIndex]
 
-            // 次の基準点への移動指示を表示
+            self.currentStep = .placingTag
             self.currentStepInstructions = """
-            基準点 \(completedPointNumber) のデータ収集完了！
-
-            次は基準点 \(nextPointNumber)/\(self.totalReferencePoints) に移動してください
+            タグ\(nextPointNumber)の場所にタグを置いてください
             座標: (\(String(format: "%.2f", nextPoint.realWorldCoordinate.x)), \(String(format: "%.2f", nextPoint.realWorldCoordinate.y)), \(String(format: "%.2f", nextPoint.realWorldCoordinate.z)))
 
-            移動したら「データ収集開始」を押してください
+            タグを置いたら「センシング開始」ボタンを押してください
             """
 
-            self.logger.info("次の基準点 \(nextPointNumber) への移動を指示")
-
-            await self.processNextReferencePoint()
-
-            // 5秒待機してから自動的に次のデータ収集を開始
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            await self.startDataCollectionForCurrentPoint()
+            self.logger.info("次の基準点\(nextPointNumber)の準備完了")
         } else {
-            self.logger.info("全ての基準点のデータ収集完了 - キャリブレーション計算開始")
+            // 全ての基準点の収集が完了
+            self.logger.info("全ての基準点のデータ収集が完了しました")
 
             self.currentStepInstructions = """
-            全ての基準点のデータ収集が完了しました！
-
-            キャリブレーション計算を開始します...
+            全ての基準点のデータ収集が完了しました
+            キャリブレーションを実行しています...
             """
 
-            // 全ての基準点の収集が完了したら、マッピングとキャリブレーションを実行
-            _ = self.mapObservationsToReferences()
-            let result = await self.executeCalibration()
+            // キャリブレーション実行
+            _ = await self.executeCalibration()
 
-            // 最終結果を表示
-            if result.success {
+            if self.currentWorkflow == .completed {
+                self.currentStep = .completed
+
                 self.currentStepInstructions = """
-                キャリブレーション完了！
+                キャリブレーション完了
 
-                全 \(self.totalReferencePoints) 点のキャリブレーションが成功しました
-                アンテナ位置が確定しました
+                最終的なアンテナ位置:
+                \(self.formatAntennaPositions())
                 """
-                self.logger.info("段階的キャリブレーション成功")
             } else {
+                self.currentStep = .failed
                 self.currentStepInstructions = """
-                キャリブレーションエラー
-
-                \(result.errorMessage ?? "計算中にエラーが発生しました")
+                キャリブレーションに失敗しました
+                \(self.errorMessage ?? "不明なエラー")
                 """
-                self.logger.error("段階的キャリブレーション失敗: \(result.errorMessage ?? "不明なエラー")")
             }
         }
+    }
+
+    /// ユーザーが「センシング開始」ボタンを押したときに呼ばれる
+    public func startSensingForCurrentPoint() async {
+        guard self.currentStep == .placingTag else {
+            self.logger.warning("現在のステップではセンシング開始できません")
+            return
+        }
+
+        self.currentStep = .readyToStart
+        self.logger.info("センシング開始準備完了 - データ収集を開始します")
+
+        // データ収集を開始
+        await self.startDataCollectionForCurrentPoint()
+    }
+
+    /// アンテナ位置を推定して表示
+    private func calculateAndShowAntennaPosition() async {
+        self.currentStep = .showingAntennaPosition
+
+        // 現在収集したデータからアンテナ位置を推定
+        let currentPointIndex = self.currentReferencePointIndex
+
+        // observationSessionsは[String: ObservationSession]なので、indexではなくpointIdで検索
+        let pointId = "point_\(currentPointIndex)"
+
+        if let session = self.observationSessions[pointId] {
+            // 最も多くデータを取得したアンテナのIDを取得
+            let antennaCounts = session.observations.reduce(into: [String: Int]()) { counts, obs in
+                counts[obs.antennaId, default: 0] += 1
+            }
+
+            if let mostFrequentAntenna = antennaCounts.max(by: { $0.value < $1.value })?.key {
+                // そのアンテナの最新の観測データを取得
+                let antennaObservations = session.observations.filter { $0.antennaId == mostFrequentAntenna }
+                if let latestObs = antennaObservations.last {
+                    // 観測座標をアンテナ位置の推定値として使用
+                    self.estimatedAntennaPosition = latestObs.position
+
+                    self.logger.info(
+                        "推定アンテナ位置: (\(String(format: "%.2f", latestObs.position.x)), \(String(format: "%.2f", latestObs.position.y)), \(String(format: "%.2f", latestObs.position.z)))"
+                    )
+
+                    let pointNumber = currentPointIndex + 1
+                    self.currentStepInstructions = """
+                    基準点 \(pointNumber)/\(self.totalReferencePoints) のデータ収集完了
+
+                    このあたりにアンテナがあると思います:
+                    座標: (\(String(format: "%.2f", latestObs.position.x)), \(String(format: "%.2f", latestObs.position.y)), \(String(format: "%.2f", latestObs.position.z)))
+
+                    フロアマップで位置を確認してください
+                    """
+
+                    // 3秒間表示してから次のステップへ
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    return
+                }
+            }
+        }
+
+        // データが取得できなかった場合
+        self.estimatedAntennaPosition = nil
+        self.logger.warning("アンテナ位置を推定できませんでした - データが不足しています")
+
+        let pointNumber = currentPointIndex + 1
+        self.currentStepInstructions = """
+        基準点 \(pointNumber)/\(self.totalReferencePoints) のデータ収集完了
+
+        ⚠️ アンテナ位置を推定できませんでした
+        データが不足している可能性があります
+        """
+
+        // 3秒間表示してから次のステップへ
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
+    }
+
+    /// 最終的なアンテナ位置をフォーマット
+    private func formatAntennaPositions() -> String {
+        guard !self.finalAntennaPositions.isEmpty else {
+            return "アンテナ位置情報がありません"
+        }
+
+        return self.finalAntennaPositions.map { antennaId, position in
+            "\(antennaId): (\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)), \(String(format: "%.2f", position.z)))"
+        }.joined(separator: "\n")
     }
 
     /// ワークフローをキャンセル
@@ -515,6 +733,16 @@ public class CalibrationDataFlow: ObservableObject {
         self.workflowProgress = 0.0
         self.errorMessage = nil
         self.lastCalibrationResult = nil
+
+        // リアルタイムデータとペアリング情報もクリア
+        self.realtimeDataUsecase.clearAllRealtimeData()
+        self.logger.info("🗑️ ワークフローリセット時にリアルタイムデータをクリアしました")
+
+        // 接続済み端末もリセット
+        if let connectionMgmt = self.connectionManagement {
+            connectionMgmt.resetAll()
+            self.logger.info("🔌 ワークフローリセット時に接続済み端末をリセットしました")
+        }
     }
 
     /// 現在のワークフロー状態の検証

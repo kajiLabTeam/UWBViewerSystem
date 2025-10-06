@@ -101,12 +101,33 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     }
 
     public func resetAll() {
-        self.nearbyRepository.stopAdvertise()
+        print("🔄 ConnectionManagement.resetAll() 開始")
+        print("📊 リセット前の状態: 接続端末数=\(self.connectedEndpoints.count), 広告中=\(self.isAdvertising)")
+
+        // 既存の接続をすべて切断
+        if !self.connectedEndpoints.isEmpty {
+            print("🔌 \(self.connectedEndpoints.count)個の接続を切断します: \(self.connectedEndpoints)")
+            for endpoint in self.connectedEndpoints {
+                self.nearbyRepository.disconnect(endpoint)
+                print("  ✂️ 切断: \(endpoint)")
+            }
+        }
+
+        // 広告と検索を停止
+        if self.isAdvertising {
+            print("📡 広告を停止します")
+            self.nearbyRepository.stopAdvertise()
+        }
+        print("🔍 検索を停止します")
         self.nearbyRepository.stopDiscoveryOnly()
+
+        // 状態をクリア
         self.connectedDeviceNames.removeAll()
         self.connectedEndpoints.removeAll()
         self.isAdvertising = false
         self.connectState = "初期化完了"
+
+        print("✅ ConnectionManagement.resetAll() 完了")
     }
 
     // MARK: - Message Sending

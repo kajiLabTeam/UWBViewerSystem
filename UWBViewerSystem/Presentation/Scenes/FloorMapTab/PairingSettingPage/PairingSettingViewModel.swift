@@ -213,34 +213,29 @@ class PairingSettingViewModel: ObservableObject {
     // MARK: - Device Discovery
 
     func startDeviceDiscovery() {
+        print("🔍 ペアリング画面: デバイス検索開始")
+        print("  📊 検索前のデバイス数: \(self.availableDevices.count)")
         self.isScanning = true
 
-        // 接続済みデバイスとペアリング済みデバイスのみ保持し、それ以外を削除
-        self.availableDevices.removeAll { device in
-            // 接続済みの場合は保持
-            if device.isConnected {
-                return false
-            }
-            // ペアリング済み（アンテナと紐付け済み）の場合も保持
-            if self.antennaPairings.contains(where: { $0.device.id == device.id }) {
-                return false
-            }
-            // それ以外（未接続かつ未ペアリング）は削除
-            return true
-        }
+        // 新しい検索を開始する前に、すべてのデバイスリストをクリア
+        self.availableDevices.removeAll()
+        print("  🗑️ デバイスリストをクリアしました")
 
-        // NearBy Connectionでデバイス検索を開始
+        // ペアリング画面では、iOS側がDiscoveryモード（Android側を検索する）
+        print("  📡 Discoveryモードを開始（Android側のAdvertiseを検索）")
         self.nearbyRepository.startDiscovery()
 
         // 10秒後に自動で検索を停止
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            print("⏰ 10秒経過: Discoveryモードを自動停止")
             self?.stopDeviceDiscovery()
         }
     }
 
     func stopDeviceDiscovery() {
         self.isScanning = false
-        // 検索のみを停止し、既存の接続は維持する
+        // 検索を停止
+        print("  📡 Discoveryモードを停止")
         self.nearbyRepository.stopDiscoveryOnly()
     }
 
@@ -281,27 +276,18 @@ class PairingSettingViewModel: ObservableObject {
             } else {
                 // 未接続の場合は、保存された接続要求ハンドラーでペアリング（接続）を実行
                 if let handler = connectionRequestHandlers[device.id] {
+                    print("📞 [pairAntennaWithDevice] 接続要求ハンドラーを使用して接続承認")
                     handler(true)  // 接続を承認してペアリング完了
                     self.connectionRequestHandlers.removeValue(forKey: device.id)
                     self.alertMessage = "\(antenna.name) と \(device.name) の紐付け・接続を開始しました"
                 } else {
-                    // ハンドラーがない場合は、Mac側から能動的にペアリングを開始
+                    // ハンドラーがない場合は、直接接続要求を送信
+                    print("📞 [pairAntennaWithDevice] ハンドラーなし。直接接続要求を送信")
+                    print("   デバイスID: \(device.id)")
+                    print("   デバイス名: \(device.name)")
 
-                    // 1. まずDiscoveryを開始（Android側の再接続を促す）
-                    if !self.isScanning {
-                        self.nearbyRepository.startDiscovery()
-                        self.isScanning = true
-
-                        // 10秒後に自動停止
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) { [weak self] in
-                            self?.stopDeviceDiscovery()
-                        }
-                    }
-
-                    // 2. Android側に再接続指示メッセージを送信（もし既に何らかの接続がある場合）
-                    let reconnectCommand = "RECONNECT_REQUEST:\(device.id)"
-                    // 他のAndroid端末経由で再接続指示を送る可能性もある
-                    self.nearbyRepository.sendDataToDevice(text: reconnectCommand, toEndpointId: device.id)
+                    // 直接接続要求を送信
+                    self.nearbyRepository.requestConnection(to: device.id, deviceName: device.name)
 
                     self.alertMessage = "\(antenna.name) と \(device.name) の紐付けを作成し、接続を開始中..."
                 }
@@ -579,6 +565,7 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
 
     nonisolated func onDeviceFound(endpointId: String, name: String, isConnectable: Bool) {
         Task { @MainActor in
+            print("📱 [PairingSettingViewModel] デバイス発見: \(name) (ID: \(endpointId), 接続可能: \(isConnectable))")
             let device = AndroidDevice(
                 id: endpointId,
                 name: name,
@@ -588,13 +575,35 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
 
             if !self.availableDevices.contains(where: { $0.id == endpointId }) {
                 self.availableDevices.append(device)
+                print("  ✅ デバイスリストに追加しました。現在のデバイス数: \(self.availableDevices.count)")
+                print("  📋 現在のデバイスリスト: \(self.availableDevices.map { "\($0.name)(\($0.id))" }.joined(separator: ", "))")
+
+                // Android側に合わせて手動で接続要求を送信
+                if isConnectable {
+                    print("  📞 [PairingSettingViewModel] 手動接続要求を送信開始: \(name)")
+                    print("     endpointId=\(endpointId), deviceName=\(name)")
+                    self.nearbyRepository.requestConnection(to: endpointId, deviceName: name)
+                    print("  ✅ [PairingSettingViewModel] 手動接続要求を送信完了")
+                } else {
+                    print("  ⚠️ [PairingSettingViewModel] 接続不可のデバイス: \(name)")
+                }
+            } else {
+                print("  ⚠️ すでにリストに存在します")
             }
         }
     }
 
     nonisolated func onDeviceLost(endpointId: String) {
         Task { @MainActor in
+            print("📉 デバイス消失: ID=\(endpointId)")
+            let beforeCount = self.availableDevices.count
             self.availableDevices.removeAll { $0.id == endpointId && !$0.isConnected }
+            let afterCount = self.availableDevices.count
+            if beforeCount != afterCount {
+                print("  ✅ リストから削除しました。デバイス数: \(beforeCount) → \(afterCount)")
+            } else {
+                print("  ⚠️ リストに変更なし（接続済みまたは存在しない）")
+            }
         }
     }
 
@@ -621,6 +630,7 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
 
     nonisolated func onDeviceConnected(endpointId: String, deviceName: String) {
         Task { @MainActor in
+            print("🔗 デバイス接続完了: \(deviceName) (ID: \(endpointId))")
             let device = AndroidDevice(
                 id: endpointId,
                 name: deviceName,
@@ -629,14 +639,17 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
             )
 
             if let index = availableDevices.firstIndex(where: { $0.id == endpointId }) {
+                print("  📝 既存デバイスの接続状態を更新")
                 self.availableDevices[index] = device
             } else {
+                print("  ➕ 新しいデバイスとして追加")
                 self.availableDevices.append(device)
                 self.alertMessage = "接続完了: \(deviceName) が一覧に追加されました"
                 self.showingConnectionAlert = true
             }
 
             self.isConnected = true
+            print("  📋 接続後のデバイスリスト: \(self.availableDevices.map { "\($0.name)(\($0.id), 接続:\($0.isConnected))" }.joined(separator: ", "))")
         }
     }
 

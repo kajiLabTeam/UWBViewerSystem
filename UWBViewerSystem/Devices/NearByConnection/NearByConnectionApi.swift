@@ -186,6 +186,29 @@ import Foundation
             self.notifyCallbacks { $0.onDiscoveryStateChanged(isDiscovering: false) }
         }
 
+        // 手動で特定のデバイスに接続リクエストを送信
+        func requestConnection(to endpointId: String, deviceName: String) {
+            print("🔗 [NearbyRepository] requestConnection開始")
+            print("  - endpointId: \(endpointId)")
+            print("  - deviceName: \(deviceName)")
+            print("  - nickName: \(nickName)")
+
+            guard let discoverer else {
+                print("❌ [NearbyRepository] Discoverer未初期化")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "Discoverer未初期化") }
+                return
+            }
+
+            let connectionContext = Data(nickName.utf8)
+            print("  - connectionContext: \(String(data: connectionContext, encoding: .utf8) ?? "nil")")
+            print("  📞 discoverer.requestConnectionを呼び出し")
+
+            discoverer.requestConnection(to: endpointId, using: connectionContext)
+
+            print("✅ [NearbyRepository] 接続リクエスト送信完了")
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続リクエスト送信: \(deviceName) (自分: \(nickName))") }
+        }
+
         func sendData(text: String) {
             print("=== NearbyRepository sendData開始 ===")
             print("送信データ: \(text)")
@@ -372,9 +395,7 @@ import Foundation
             // デバイス名を保存
             self.deviceNames[endpointID] = deviceName
 
-            // 発見したエンドポイントに自動で接続要求を送信
-            let connectionContext = Data(nickName.utf8)
-            discoverer.requestConnection(to: endpointID, using: connectionContext)
+            // Android側に合わせて自動接続を削除 - 手動で接続できるようにする
             self.notifyCallbacks { $0.onConnectionStateChanged(state: "エンドポイント発見: \(deviceName) (\(endpointID))") }
             self.notifyCallbacks { $0.onDeviceFound(endpointId: endpointID, name: deviceName, isConnectable: true) }
         }

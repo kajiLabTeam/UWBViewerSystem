@@ -87,6 +87,30 @@ class SimpleCalibrationViewModel: ObservableObject {
     /// アンテナ位置結果表示フラグ
     @Published var showAntennaPositionsResult: Bool = false
 
+    /// 現在のキャリブレーションステップ
+    @Published var calibrationStep: StepByStepCalibrationStep = .idle
+
+    /// 推定アンテナ位置
+    @Published var estimatedAntennaPosition: Point3D? = nil
+
+    /// リアルタイムデータ（可視化用）
+    @Published var realtimeDataList: [DeviceRealtimeData] = []
+
+    /// 収集中のデータ数
+    @Published var collectedDataCount: Int = 0
+    /// 現在位置（リアルタイム計算）
+    @Published var currentPosition: Point3D?
+
+    /// センシング開始ボタンの有効/無効
+    var canStartSensing: Bool {
+        self.calibrationStep == .placingTag
+    }
+
+    /// アンテナ位置表示中かどうか
+    var isShowingAntennaPosition: Bool {
+        self.calibrationStep == .showingAntennaPosition
+    }
+
     /// CalibrationDataFlow
     private var calibrationDataFlow: CalibrationDataFlow?
 
@@ -362,12 +386,54 @@ class SimpleCalibrationViewModel: ObservableObject {
             .receive(on: RunLoop.main)
             .assign(to: &self.$stepProgress)
 
-        // データ収集進行状況を監視（CalibrationDataFlowには存在しないため削除）
-
         // アクティブ状態を監視
         flow.$isCollectingForCurrentPoint
             .receive(on: RunLoop.main)
             .assign(to: &self.$isStepByStepCalibrationActive)
+
+        // 現在のキャリブレーションステップを監視
+        flow.$currentStep
+            .receive(on: RunLoop.main)
+            .assign(to: &self.$calibrationStep)
+
+        // 推定アンテナ位置を監視
+        flow.$estimatedAntennaPosition
+            .receive(on: RunLoop.main)
+            .assign(to: &self.$estimatedAntennaPosition)
+
+        // 最終的なアンテナ位置を監視
+        flow.$finalAntennaPositions
+            .receive(on: RunLoop.main)
+            .sink { [weak self] positions in
+                guard let self else { return }
+                self.finalAntennaPositions = positions
+                if !positions.isEmpty {
+                    self.showAntennaPositionsResult = true
+                }
+            }
+            .store(in: &self.cancellables)
+
+        // リアルタイムデータを監視（CalibrationDataFlowから取得）
+        flow.realtimeDataUsecase.$deviceRealtimeDataList
+            .receive(on: RunLoop.main)
+            .sink { [weak self] dataList in
+                guard let self else { return }
+                self.realtimeDataList = dataList
+
+                // リアルタイムデータから現在位置を計算
+                self.calculateCurrentPosition(from: dataList)
+            }
+            .store(in: &self.cancellables)
+
+        // 収集中のデータ数を監視
+        flow.$observationSessions
+            .receive(on: RunLoop.main)
+            .sink { [weak self] sessions in
+                guard let self else { return }
+                let currentPointId = "point_\(flow.currentReferencePointIndex)"
+                self.collectedDataCount = sessions[currentPointId]?.observations.count ?? 0
+            }
+            .store(in: &self.cancellables)
     }
 
     /// 段階的キャリブレーションを開始
@@ -408,7 +474,7 @@ class SimpleCalibrationViewModel: ObservableObject {
         }
 
         Task {
-            await flow.startDataCollectionForCurrentPoint()
+            await flow.startSensingForCurrentPoint()
         }
     }
 
@@ -672,6 +738,76 @@ class SimpleCalibrationViewModel: ObservableObject {
     /// 包括的なエラーハンドリング
     private func handleError(_ message: String) {
         self.showError(message)
+    }
+
+    /// リアルタイムデータから現在位置を計算（三辺測量）
+    private func calculateCurrentPosition(from dataList: [DeviceRealtimeData]) {
+        // 最低3つのアンテナからのデータが必要
+        guard dataList.count >= 3 else {
+            self.currentPosition = nil
+            return
+        }
+
+        // アンテナ位置が設定されているか確認
+        guard !self.antennaPositions.isEmpty else {
+            self.currentPosition = nil
+            return
+        }
+
+        // 距離データを収集
+        var measurements: [(antennaPosition: Point3D, distance: Double)] = []
+        for deviceData in dataList {
+            guard let latestData = deviceData.latestData else { continue }
+
+            // 無効なデータをフィルタリング（distance=0のデータを除外）
+            guard latestData.distance > 0 else { continue }
+
+            // 対応するアンテナ位置を取得
+            if let antennaPos = self.antennaPositions.first(where: { $0.antennaId == deviceData.deviceName }) {
+                let position = Point3D(
+                    x: antennaPos.position.x,
+                    y: antennaPos.position.y,
+                    z: antennaPos.position.z
+                )
+                measurements.append((antennaPosition: position, distance: latestData.distance))
+            }
+        }
+
+        // 最低3つの測定値が必要
+        guard measurements.count >= 3 else {
+            self.currentPosition = nil
+            return
+        }
+
+        // 三辺測量で位置を計算（最初の3つを使用）
+        let p1 = measurements[0].antennaPosition
+        let p2 = measurements[1].antennaPosition
+        let p3 = measurements[2].antennaPosition
+        let d1 = measurements[0].distance
+        let d2 = measurements[1].distance
+        let d3 = measurements[2].distance
+
+        // 簡易的な2D三辺測量（z座標は平均値）
+        let A = 2 * (p2.x - p1.x)
+        let B = 2 * (p2.y - p1.y)
+        let C = d1 * d1 - d2 * d2 - p1.x * p1.x - p1.y * p1.y + p2.x * p2.x + p2.y * p2.y
+        let D = 2 * (p3.x - p2.x)
+        let E = 2 * (p3.y - p2.y)
+        let F = d2 * d2 - d3 * d3 - p2.x * p2.x - p2.y * p2.y + p3.x * p3.x + p3.y * p3.y
+
+        // 連立方程式を解く
+        let denominator = A * E - B * D
+        guard abs(denominator) > 0.001 else {
+            // アンテナが一直線上にある場合は計算不可
+            self.currentPosition = nil
+            return
+        }
+
+        let x = (C * E - B * F) / denominator
+        let y = (A * F - C * D) / denominator
+        let z = (p1.z + p2.z + p3.z) / 3.0  // z座標は平均値
+
+        self.currentPosition = Point3D(x: x, y: y, z: z)
     }
 
     /// 安全な非同期タスク実行

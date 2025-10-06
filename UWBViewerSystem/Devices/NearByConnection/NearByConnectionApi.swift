@@ -191,7 +191,7 @@ import Foundation
             print("🔗 [NearbyRepository] requestConnection開始")
             print("  - endpointId: \(endpointId)")
             print("  - deviceName: \(deviceName)")
-            print("  - nickName: \(nickName)")
+            print("  - nickName: \(self.nickName)")
 
             guard let discoverer else {
                 print("❌ [NearbyRepository] Discoverer未初期化")
@@ -206,7 +206,7 @@ import Foundation
             discoverer.requestConnection(to: endpointId, using: connectionContext)
 
             print("✅ [NearbyRepository] 接続リクエスト送信完了")
-            self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続リクエスト送信: \(deviceName) (自分: \(nickName))") }
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続リクエスト送信: \(deviceName) (自分: \(self.nickName))") }
         }
 
         func sendData(text: String) {

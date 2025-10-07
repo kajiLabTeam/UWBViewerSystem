@@ -151,6 +151,13 @@ public class CalibrationDataFlow: ObservableObject {
         self.currentWorkflow = .calculating
         self.mappings.removeAll()
 
+        self.logger.info("🔍 マッピング開始: 基準点数=\(self.referencePoints.count), セッション数=\(self.observationSessions.count)")
+
+        // セッション内の観測データ数をログ出力
+        for (sessionId, session) in self.observationSessions {
+            self.logger.info("  セッション[\(sessionId)]: 観測データ数=\(session.observations.count), アンテナID=\(session.antennaId)")
+        }
+
         var mappedPairs: [(reference: Point3D, observation: Point3D)] = []
 
         // 各基準点に対して最も近い観測データを見つける
@@ -194,6 +201,14 @@ public class CalibrationDataFlow: ObservableObject {
                     "マッピング作成: 基準(\(referencePoint.realWorldCoordinate.x), \(referencePoint.realWorldCoordinate.y)) -> 観測(\(mapping.centroidPosition.x), \(mapping.centroidPosition.y)), 誤差: \(mapping.positionError)m"
                 )
             }
+        }
+
+        self.logger.info("🔍 マッピング完了: 成功したマッピング数=\(mappedPairs.count)/\(self.referencePoints.count)")
+
+        if mappedPairs.isEmpty {
+            self.logger.error("❌ マッピングが0件です - データ収集が正しく行われていない可能性があります")
+        } else if mappedPairs.count < 3 {
+            self.logger.warning("⚠️ マッピングが\(mappedPairs.count)件のみです - キャリブレーションには最低3件必要です")
         }
 
         self.updateProgress()
@@ -467,6 +482,9 @@ public class CalibrationDataFlow: ObservableObject {
             キャリブレーションを実行しています...
             """
 
+            // マッピング処理を実行
+            _ = self.mapObservationsToReferences()
+
             // キャリブレーション実行
             _ = await self.executeCalibration()
 
@@ -480,6 +498,10 @@ public class CalibrationDataFlow: ObservableObject {
                 \(self.formatAntennaPositions())
                 """
 
+                // Android側のセンシングを停止
+                self.sensingControlUsecase?.stopRemoteSensing()
+                self.logger.info("📡 Android側のセンシングを停止しました")
+
                 // Android側にキャリブレーション完了を通知
                 self.sendCalibrationCompletedNotification()
             } else {
@@ -488,6 +510,10 @@ public class CalibrationDataFlow: ObservableObject {
                 キャリブレーションに失敗しました
                 \(self.errorMessage ?? "不明なエラー")
                 """
+
+                // Android側のセンシングを停止
+                self.sensingControlUsecase?.stopRemoteSensing()
+                self.logger.info("📡 Android側のセンシングを停止しました（失敗時）")
 
                 // Android側にキャリブレーション失敗を通知
                 self.sendCalibrationFailedNotification()

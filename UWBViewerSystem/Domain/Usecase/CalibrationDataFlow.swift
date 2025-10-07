@@ -69,6 +69,10 @@ public class CalibrationDataFlow: ObservableObject {
         self.sensingControlUsecase = sensingControlUsecase
         self.connectionManagement = connectionManagement
         self.preferenceRepository = preferenceRepository
+
+        // ConnectionManagementUsecaseにRealtimeDataUsecaseを設定
+        connectionManagement?.setRealtimeDataUsecase(self.realtimeDataUsecase)
+        self.logger.info("🔗 ConnectionManagementUsecaseにRealtimeDataUsecaseを設定しました")
     }
 
     // MARK: - 1. 基準データ取得
@@ -207,19 +211,9 @@ public class CalibrationDataFlow: ObservableObject {
             return
         }
 
-        // 前回のリアルタイムデータとペアリング情報をクリア
+        // 前回のリアルタイムデータをクリア（接続は維持）
         self.realtimeDataUsecase.clearAllRealtimeData()
-        self.logger.info("🗑️ リアルタイムデータをクリアしました")
-
-        // 接続済み端末をすべて切断して新しい接続に備える
-        if let connectionMgmt = self.connectionManagement {
-            connectionMgmt.resetAll()
-            self.logger.info("🔌 接続済み端末をリセットしました")
-
-            // iOS側で広告を開始し、Android側から発見・接続できるようにする
-            connectionMgmt.startAdvertising()
-            self.logger.info("📡 広告を開始しました（Android端末が接続できる状態）")
-        }
+        self.logger.info("🗑️ リアルタイムデータをクリアしました（既存の接続は維持）")
 
         self.currentReferencePointIndex = 0
         self.totalReferencePoints = self.referencePoints.count
@@ -318,6 +312,23 @@ public class CalibrationDataFlow: ObservableObject {
             // リアルタイムデータを収集して observationSessions に追加
             let realtimeDataList = self.realtimeDataUsecase.deviceRealtimeDataList
             self.logger.info("📊 データ収集ループ \(second)/\(totalSeconds): デバイス数=\(realtimeDataList.count)")
+
+            // デバイスリストの詳細をログ出力
+            if realtimeDataList.isEmpty {
+                self.logger.warning("⚠️ デバイスリストが空です - RealtimeDataUsecaseにデータが届いていません")
+                self.logger.info("💡 確認ポイント: ConnectionManagementにRealtimeDataUsecaseが設定されているか確認してください")
+            } else {
+                for (index, device) in realtimeDataList.enumerated() {
+                    self.logger.debug("🔍 デバイス[\(index)]: \(device.deviceName)")
+                    self.logger.debug("  - isActive: \(device.isActive)")
+                    self.logger.debug("  - latestData: \(device.latestData != nil ? "あり" : "なし")")
+                    if let latest = device.latestData {
+                        self.logger.debug("  - 距離: \(latest.distance)mm")
+                        self.logger.debug("  - 方位角: \(latest.azimuth)°")
+                        self.logger.debug("  - 仰角: \(latest.elevation)°")
+                    }
+                }
+            }
 
             for deviceData in realtimeDataList {
                 self.logger.debug("🔍 デバイス: \(deviceData.deviceName), latestData=\(deviceData.latestData != nil ? "あり" : "なし")")
@@ -468,12 +479,18 @@ public class CalibrationDataFlow: ObservableObject {
                 最終的なアンテナ位置:
                 \(self.formatAntennaPositions())
                 """
+
+                // Android側にキャリブレーション完了を通知
+                self.sendCalibrationCompletedNotification()
             } else {
                 self.currentStep = .failed
                 self.currentStepInstructions = """
                 キャリブレーションに失敗しました
                 \(self.errorMessage ?? "不明なエラー")
                 """
+
+                // Android側にキャリブレーション失敗を通知
+                self.sendCalibrationFailedNotification()
             }
         }
     }
@@ -561,6 +578,31 @@ public class CalibrationDataFlow: ObservableObject {
         return self.finalAntennaPositions.map { antennaId, position in
             "\(antennaId): (\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)), \(String(format: "%.2f", position.z)))"
         }.joined(separator: "\n")
+    }
+
+    /// Android側にキャリブレーション完了を通知
+    private func sendCalibrationCompletedNotification() {
+        guard let connectionMgmt = self.connectionManagement else {
+            self.logger.warning("ConnectionManagementが利用できません - 通知を送信できません")
+            return
+        }
+
+        let message = "CALIBRATION_COMPLETED"
+        connectionMgmt.sendMessage(message)
+        self.logger.info("📤 Android側にキャリブレーション完了を通知: \(message)")
+    }
+
+    /// Android側にキャリブレーション失敗を通知
+    private func sendCalibrationFailedNotification() {
+        guard let connectionMgmt = self.connectionManagement else {
+            self.logger.warning("ConnectionManagementが利用できません - 通知を送信できません")
+            return
+        }
+
+        let errorMsg = self.errorMessage ?? "不明なエラー"
+        let message = "CALIBRATION_FAILED:\(errorMsg)"
+        connectionMgmt.sendMessage(message)
+        self.logger.info("📤 Android側にキャリブレーション失敗を通知: \(message)")
     }
 
     /// ワークフローをキャンセル
@@ -889,6 +931,43 @@ public class CalibrationDataFlow: ObservableObject {
 
         return recommendations
     }
+
+    // MARK: - テスト用ダミーデータ送信
+
+    #if DEBUG
+        /// デバッグ用: ダミーのリアルタイムデータを送信してキャリブレーションフローをテスト
+        public func sendDummyRealtimeData(deviceName: String = "TestDevice", count: Int = 10) {
+            self.logger.info("🧪 ダミーデータ送信開始: デバイス名=\(deviceName), データ数=\(count)")
+
+            // デバイスを追加
+            self.realtimeDataUsecase.addConnectedDevice(deviceName)
+
+            // ダミーデータを送信
+            for i in 0..<count {
+                let json: [String: Any] = [
+                    "type": "REALTIME_DATA",
+                    "timestamp": Int(Date().timeIntervalSince1970 * 1000),
+                    "deviceName": deviceName,
+                    "data": [
+                        "nlos": 0,
+                        "distance": Int.random(in: 10...100),
+                        "elevation": Double.random(in: -45.0...45.0),
+                        "azimuth": Double.random(in: -180.0...180.0),
+                        "elevationFom": 100,
+                        "rssi": Double.random(in: -90.0...(-50.0)),
+                        "pDoA1": Double.random(in: -90.0...90.0),
+                        "pDoA2": Double.random(in: -90.0...90.0),
+                        "seqCount": i
+                    ]
+                ]
+
+                self.realtimeDataUsecase.processRealtimeDataMessage(json, fromEndpointId: "DUMMY")
+                self.logger.debug("📤 ダミーデータ送信 [\(i + 1)/\(count)]")
+            }
+
+            self.logger.info("✅ ダミーデータ送信完了: \(count)件")
+        }
+    #endif
 }
 
 // MARK: - Supporting Types

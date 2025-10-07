@@ -63,7 +63,8 @@ struct SimpleCalibrationView: View {
                 calibrationUsecase: calibrationUsecase,
                 observationUsecase: observationUsecase,
                 swiftDataRepository: swiftDataRepository,
-                sensingControlUsecase: sensingControlUsecase
+                sensingControlUsecase: sensingControlUsecase,
+                connectionManagement: connectionUsecase
             )
             self.viewModel.setupStepByStepCalibration(
                 calibrationDataFlow: calibrationDataFlow,
@@ -486,6 +487,27 @@ struct SimpleCalibrationView: View {
                         .cornerRadius(12)
                     }
                     .disabled(!self.viewModel.canStartCalibration)
+
+                    #if DEBUG
+                        // ダミーデータテストボタン（デバッグビルドのみ）
+                        Button(action: {
+                            self.viewModel.sendDummyRealtimeDataForTesting(
+                                deviceName: "TestDevice",
+                                count: 10
+                            )
+                            print("🧪 ダミーデータ送信を実行しました")
+                        }) {
+                            HStack {
+                                Image(systemName: "testtube.2")
+                                Text("ダミーデータテスト")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .foregroundColor(.white)
+                            .background(Color.orange)
+                            .cornerRadius(12)
+                        }
+                    #endif
                 }
             }
 

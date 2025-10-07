@@ -18,6 +18,9 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     private let locationManager = CLLocationManager()
     private let nearbyRepository: NearbyRepository
 
+    // RealtimeDataUsecaseへの参照を追加
+    public weak var realtimeDataUsecase: RealtimeDataUsecase?
+
     init(nearbyRepository: NearbyRepository) {
         self.nearbyRepository = nearbyRepository
         super.init()
@@ -151,6 +154,13 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     public func getConnectedDeviceCount() -> Int {
         self.connectedEndpoints.count
     }
+
+    // MARK: - RealtimeDataUsecase Integration
+
+    public func setRealtimeDataUsecase(_ usecase: RealtimeDataUsecase) {
+        self.realtimeDataUsecase = usecase
+        print("✅ RealtimeDataUsecaseを設定しました")
+    }
 }
 
 // MARK: - NearbyRepositoryCallback
@@ -206,6 +216,10 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
             self.connectedDeviceNames.insert(deviceName)
             self.connectedEndpoints.insert(endpointId)
             self.connectState = "端末接続: \(deviceName)"
+
+            // RealtimeDataUsecaseにデバイス接続を通知
+            self.realtimeDataUsecase?.addConnectedDevice(deviceName)
+            print("📱 RealtimeDataUsecaseに端末接続を通知: \(deviceName)")
         }
     }
 
@@ -214,20 +228,86 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
             print("Device disconnected: \(endpointId)")
             self.connectedEndpoints.remove(endpointId)
             self.connectState = "端末切断: \(endpointId)"
+
+            // RealtimeDataUsecaseに端末切断を通知
+            // endpointIdではなくdeviceNameが必要だが、ここではendpointIdしかないので
+            // 接続中のdeviceNamesから削除する
+            if let deviceName = self.connectedDeviceNames.first(where: { _ in true }) {
+                self.realtimeDataUsecase?.removeDisconnectedDevice(deviceName)
+                print("📱 RealtimeDataUsecaseに端末切断を通知: \(deviceName)")
+            }
         }
     }
 
     nonisolated public func onDataReceived(endpointId: String, data: Data) {
         Task { @MainActor in
+            print("📥 [Data版] データ受信 from \(endpointId)")
+            print("  データサイズ: \(data.count) bytes")
+
             if let text = String(data: data, encoding: .utf8) {
-                print("Data received from \(endpointId): \(text)")
+                print("  データ内容: \(text)")
+
+                // JSONが整形されている場合も考慮して、空白ありバージョンもチェック
+                let hasRealtimeData = text.contains("\"type\":\"REALTIME_DATA\"") || text.contains("\"type\": \"REALTIME_DATA\"")
+                print("  検索対象文字列が含まれるか: \(hasRealtimeData)")
+
+                // JSON形式のリアルタイムデータをパース
+                if hasRealtimeData {
+                    print("🎯 リアルタイムデータ検出 (Data版) - パース処理開始")
+                    self.parseAndForwardRealtimeData(text, fromEndpointId: endpointId)
+                } else {
+                    print("ℹ️ リアルタイムデータではありません")
+                    print("  先頭100文字: \(text.prefix(100))")
+                }
+            } else {
+                print("⚠️ データをUTF-8文字列に変換できませんでした")
             }
         }
     }
 
     nonisolated public func onDataReceived(data: String, fromEndpointId: String) {
         Task { @MainActor in
-            print("Data received from \(fromEndpointId): \(data)")
+            print("📥 [String版] データ受信 from \(fromEndpointId)")
+            print("  データ長: \(data.count) 文字")
+            print("  データ内容: \(data)")
+
+            // JSONが整形されている場合も考慮して、空白ありバージョンもチェック
+            let hasRealtimeData = data.contains("\"type\":\"REALTIME_DATA\"") || data.contains("\"type\": \"REALTIME_DATA\"")
+            print("  検索対象文字列が含まれるか: \(hasRealtimeData)")
+
+            // JSON形式のリアルタイムデータをパース
+            if hasRealtimeData {
+                print("🎯 リアルタイムデータ検出 (String版) - パース処理開始")
+                self.parseAndForwardRealtimeData(data, fromEndpointId: fromEndpointId)
+            } else {
+                print("ℹ️ リアルタイムデータではありません")
+                print("  先頭100文字: \(data.prefix(100))")
+            }
+        }
+    }
+
+    private func parseAndForwardRealtimeData(_ jsonString: String, fromEndpointId: String) {
+        print("🔍 リアルタイムデータをパース開始: \(fromEndpointId)")
+
+        guard let jsonData = jsonString.data(using: .utf8) else {
+            print("❌ JSON文字列をDataに変換失敗")
+            return
+        }
+
+        do {
+            if let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                print("✅ JSONオブジェクトに変換成功")
+
+                // RealtimeDataUsecaseに渡す
+                if let realtimeUsecase = self.realtimeDataUsecase {
+                    print("📤 RealtimeDataUsecaseにデータを転送: \(fromEndpointId)")
+                    realtimeUsecase.processRealtimeDataMessage(json, fromEndpointId: fromEndpointId)
+                } else {
+                    print("⚠️ RealtimeDataUsecaseが設定されていません")
+                }
+            }
+        } catch {
+            print("❌ JSONパースエラー: \(error)")
         }
     }
 }

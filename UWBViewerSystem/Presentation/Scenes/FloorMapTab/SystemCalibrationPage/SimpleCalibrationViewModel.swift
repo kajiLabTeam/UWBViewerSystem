@@ -516,6 +516,17 @@ class SimpleCalibrationViewModel: ObservableObject {
         self.showAntennaPositionsResult = false
     }
 
+    #if DEBUG
+        /// ダミーデータをテスト送信（デバッグビルド専用）
+        func sendDummyRealtimeDataForTesting(deviceName: String = "TestDevice", count: Int = 10) {
+            guard let calibrationDataFlow = self.calibrationDataFlow else {
+                print("⚠️ calibrationDataFlowが設定されていません")
+                return
+            }
+            calibrationDataFlow.sendDummyRealtimeData(deviceName: deviceName, count: count)
+        }
+    #endif
+
     // MARK: - Private Methods
 
     /// 利用可能なアンテナを読み込み

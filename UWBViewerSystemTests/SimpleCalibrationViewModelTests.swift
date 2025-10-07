@@ -1,11 +1,13 @@
 import Foundation
 import Testing
+
+@testable import UWBViewerSystem
+
 #if canImport(UIKit)
     import UIKit
 #elseif canImport(AppKit)
     import AppKit
 #endif
-@testable import UWBViewerSystem
 
 @Suite("シンプルキャリブレーションViewModel フロアマップ画像表示テスト")
 struct SimpleCalibrationViewModelTests {
@@ -17,7 +19,8 @@ struct SimpleCalibrationViewModelTests {
         // テスト用のMockRepositoryを作成
         let mockDataRepository = MockDataRepository()
         let mockPreferenceRepository = MockPreferenceRepository()
-        return SimpleCalibrationViewModel(dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
+        return SimpleCalibrationViewModel(
+            dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
     }
 
     @MainActor
@@ -30,7 +33,8 @@ struct SimpleCalibrationViewModelTests {
         let testFloorMapInfo = self.createTestFloorMapInfo()
         mockPreferenceRepository.saveCurrentFloorMapInfo(testFloorMapInfo)
 
-        let viewModel = SimpleCalibrationViewModel(dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
+        let viewModel = SimpleCalibrationViewModel(
+            dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
         return (viewModel, mockPreferenceRepository)
     }
 
@@ -40,7 +44,8 @@ struct SimpleCalibrationViewModelTests {
         let mockDataRepository = MockDataRepository()
         let mockPreferenceRepository = MockPreferenceRepository()
 
-        let viewModel = SimpleCalibrationViewModel(dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
+        let viewModel = SimpleCalibrationViewModel(
+            dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
 
         return viewModel
     }
@@ -52,7 +57,8 @@ struct SimpleCalibrationViewModelTests {
         // テスト用のMockRepositoryを作成
         let mockDataRepository = MockDataRepository()
 
-        let viewModel = SimpleCalibrationViewModel(dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
+        let viewModel = SimpleCalibrationViewModel(
+            dataRepository: mockDataRepository, preferenceRepository: mockPreferenceRepository)
 
         return viewModel
     }
@@ -170,7 +176,7 @@ struct SimpleCalibrationViewModelTests {
         let testPoints = [
             Point3D(x: 1.0, y: 1.0, z: 0.0),
             Point3D(x: 2.0, y: 1.0, z: 0.0),
-            Point3D(x: 1.5, y: 2.0, z: 0.0)
+            Point3D(x: 1.5, y: 2.0, z: 0.0),
         ]
 
         await viewModel.setReferencePoints(testPoints)
@@ -258,10 +264,10 @@ struct SimpleCalibrationViewModelTests {
 
         // 無効なデータを持つフロアマップ情報を設定
         let invalidFloorMapInfo = FloorMapInfo(
-            id: "", // 空のID
+            id: "",  // 空のID
             name: "テストフロアマップ",
             buildingName: "テストビル",
-            width: -1.0, // 無効なサイズ
+            width: -1.0,  // 無効なサイズ
             depth: 800.0,
             createdAt: Date()
         )
@@ -327,8 +333,8 @@ struct SimpleCalibrationViewModelTests {
         // 重複する座標を設定
         let duplicatePoints = [
             Point3D(x: 1.0, y: 1.0, z: 0.0),
-            Point3D(x: 1.0, y: 1.0, z: 0.0), // 重複
-            Point3D(x: 2.0, y: 2.0, z: 0.0)
+            Point3D(x: 1.0, y: 1.0, z: 0.0),  // 重複
+            Point3D(x: 2.0, y: 2.0, z: 0.0),
         ]
 
         await viewModel.setReferencePoints(duplicatePoints)
@@ -348,9 +354,9 @@ struct SimpleCalibrationViewModelTests {
 
         // 無効な座標値（NaN、Infinity）を含む基準点を設定
         let invalidPoints = [
-            Point3D(x: Double.nan, y: 1.0, z: 0.0), // NaN
-            Point3D(x: 2.0, y: Double.infinity, z: 0.0), // Infinity
-            Point3D(x: 3.0, y: 3.0, z: 0.0)
+            Point3D(x: Double.nan, y: 1.0, z: 0.0),  // NaN
+            Point3D(x: 2.0, y: Double.infinity, z: 0.0),  // Infinity
+            Point3D(x: 3.0, y: 3.0, z: 0.0),
         ]
 
         await viewModel.setReferencePoints(invalidPoints)
@@ -404,7 +410,7 @@ struct SimpleCalibrationViewModelTests {
         // Step 3: 基準点を設定
         let testPoints = [
             Point3D(x: 100.0, y: 100.0, z: 0.0),
-            Point3D(x: 200.0, y: 200.0, z: 0.0)
+            Point3D(x: 200.0, y: 200.0, z: 0.0),
         ]
 
         await viewModel.setReferencePoints(testPoints)
@@ -435,7 +441,7 @@ struct SimpleCalibrationViewModelTests {
         #endif
 
         // テストが通ることで、適切な型が定義されていることを確認
-        #expect(true) // 型チェックのため必要
+        #expect(true)  // 型チェックのため必要
     }
 
     // MARK: - リアルタイム更新テスト

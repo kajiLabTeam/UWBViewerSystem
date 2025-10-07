@@ -488,6 +488,7 @@ public struct CalibrationData: Codable, Identifiable, Equatable {
 /// キャリブレーション処理の結果
 public struct CalibrationResult: Codable {
     public let success: Bool
+    public let antennaPosition: Point3D?
     public let transform: CalibrationTransform?
     public let errorMessage: String?
     public let processedPoints: [CalibrationPoint]
@@ -495,12 +496,14 @@ public struct CalibrationResult: Codable {
 
     public init(
         success: Bool,
+        antennaPosition: Point3D? = nil,
         transform: CalibrationTransform? = nil,
         errorMessage: String? = nil,
         processedPoints: [CalibrationPoint] = [],
         timestamp: Date = Date()
     ) {
         self.success = success
+        self.antennaPosition = antennaPosition
         self.transform = transform
         self.errorMessage = errorMessage
         self.processedPoints = processedPoints
@@ -611,7 +614,10 @@ public struct AffineTransformMatrix: Codable, Equatable {
 
     /// 変換が有効かチェック
     public var isValid: Bool {
-        abs(self.determinant) > 1e-10 && [self.a, self.b, self.c, self.d, self.tx, self.ty, self.scaleZ, self.translateZ].allSatisfy { $0.isFinite }
+        abs(self.determinant) > 1e-10
+            && [self.a, self.b, self.c, self.d, self.tx, self.ty, self.scaleZ, self.translateZ].allSatisfy {
+                $0.isFinite
+            }
     }
 }
 

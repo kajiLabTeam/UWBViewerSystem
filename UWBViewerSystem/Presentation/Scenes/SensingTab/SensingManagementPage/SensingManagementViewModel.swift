@@ -125,7 +125,8 @@ class SensingManagementViewModel: ObservableObject {
         // 実際の実装ではデバイスから最新の状態を取得
         for index in self.antennaDevices.indices {
             self.antennaDevices[index].rssi = Int.random(in: -60...(-40))
-            self.antennaDevices[index].batteryLevel = max(0, self.antennaDevices[index].batteryLevel - Int.random(in: 0...2))
+            self.antennaDevices[index].batteryLevel = max(
+                0, self.antennaDevices[index].batteryLevel - Int.random(in: 0...2))
             self.antennaDevices[index].lastUpdate = Date()
 
             // バッテリーレベルに基づいて接続状態を更新

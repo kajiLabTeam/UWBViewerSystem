@@ -51,20 +51,28 @@ public class LeastSquaresCalibration {
 
         self.logger.info("📍 測定点:")
         for (i, point) in measuredPoints.enumerated() {
-            self.logger.info("  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))")
+            self.logger.info(
+                "  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))"
+            )
         }
 
         self.logger.info("📍 基準点:")
         for (i, point) in referencePoints.enumerated() {
-            self.logger.info("  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))")
+            self.logger.info(
+                "  Point \(i): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)), \(String(format: "%.3f", point.z)))"
+            )
         }
 
         // 重心を計算
         let measuredCentroid = self.calculateCentroid(measuredPoints)
         let referenceCentroid = self.calculateCentroid(referencePoints)
 
-        self.logger.info("📊 測定点重心: (\(String(format: "%.3f", measuredCentroid.x)), \(String(format: "%.3f", measuredCentroid.y)), \(String(format: "%.3f", measuredCentroid.z)))")
-        self.logger.info("📊 基準点重心: (\(String(format: "%.3f", referenceCentroid.x)), \(String(format: "%.3f", referenceCentroid.y)), \(String(format: "%.3f", referenceCentroid.z)))")
+        self.logger.info(
+            "📊 測定点重心: (\(String(format: "%.3f", measuredCentroid.x)), \(String(format: "%.3f", measuredCentroid.y)), \(String(format: "%.3f", measuredCentroid.z)))"
+        )
+        self.logger.info(
+            "📊 基準点重心: (\(String(format: "%.3f", referenceCentroid.x)), \(String(format: "%.3f", referenceCentroid.y)), \(String(format: "%.3f", referenceCentroid.z)))"
+        )
 
         // 重心を原点に移動
         let centeredMeasured = measuredPoints.map { $0 - measuredCentroid }

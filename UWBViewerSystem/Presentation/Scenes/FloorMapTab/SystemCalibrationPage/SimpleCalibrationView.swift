@@ -518,11 +518,122 @@ struct SimpleCalibrationView: View {
             if self.viewModel.showAntennaPositionsResult {
                 self.antennaPositionsResultView
             }
+
+            #if DEBUG
+                // デバッグビュー（デバッグビルドのみ）
+                self.calibrationDebugView
+            #endif
         }
         .padding()
         .background(Color.secondary.opacity(0.05))
         .cornerRadius(12)
     }
+
+    // MARK: - デバッグビュー
+
+    #if DEBUG
+        private var calibrationDebugView: some View {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "ant.circle.fill")
+                        .foregroundColor(.orange)
+                    Text("キャリブレーションデバッグ情報")
+                        .font(.headline)
+                        .foregroundColor(.orange)
+                }
+
+                Divider()
+
+                // 基準点（タグ位置）情報
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("📍 基準点（タグ位置）")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    if self.viewModel.referencePoints.isEmpty {
+                        Text("基準点が設定されていません")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(Array(self.viewModel.referencePoints.enumerated()), id: \.offset) { index, point in
+                            HStack {
+                                Circle()
+                                    .fill(Color.blue)
+                                    .frame(width: 8, height: 8)
+                                Text("点\(index + 1):")
+                                    .font(.caption)
+                                Text("X: \(String(format: "%.1f", point.x)), Y: \(String(format: "%.1f", point.y))")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.blue)
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+
+                Divider()
+
+                // 推定アンテナ位置情報
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("📡 推定アンテナ位置")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    if let position = self.viewModel.estimatedAntennaPosition {
+                        HStack {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 8, height: 8)
+                            Text("推定位置:")
+                                .font(.caption)
+                            Text("X: \(String(format: "%.1f", position.x)), Y: \(String(format: "%.1f", position.y))")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.green)
+                            Spacer()
+                        }
+                    } else {
+                        Text("まだ推定されていません")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Divider()
+
+                // リアルタイムデータ情報
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("📊 リアルタイムデータ")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    HStack {
+                        Text("接続デバイス数:")
+                            .font(.caption)
+                        Text("\(self.viewModel.realtimeDataList.count)")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                        Spacer()
+                    }
+
+                    HStack {
+                        Text("収集データ数:")
+                            .font(.caption)
+                        Text("\(self.viewModel.collectedDataCount)")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                        Spacer()
+                    }
+                }
+            }
+            .padding()
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(12)
+        }
+    #endif
 
     // MARK: - 段階的キャリブレーション関連ビュー
 
@@ -659,10 +770,12 @@ struct SimpleCalibrationView: View {
                             Image(systemName: "location.fill")
                                 .foregroundColor(.green)
                                 .font(.caption)
-                            Text("現在位置: X:\(String(format: "%.2f", currentPos.x))m Y:\(String(format: "%.2f", currentPos.y))m")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.green)
+                            Text(
+                                "現在位置: X:\(String(format: "%.2f", currentPos.x))m Y:\(String(format: "%.2f", currentPos.y))m"
+                            )
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.green)
                         }
                         .padding(.vertical, 4)
                     }

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
+
 @testable import UWBViewerSystem
 
 @MainActor
@@ -14,7 +15,7 @@ struct CalibrationUsecaseTests {
         self.usecase = CalibrationUsecase(dataRepository: self.mockRepository)
 
         // 非同期初期化待機
-        try await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
+        try await Task.sleep(nanoseconds: 50_000_000)  // 0.05秒
     }
 
     // MARK: - キャリブレーションポイント追加テスト
@@ -48,7 +49,7 @@ struct CalibrationUsecaseTests {
         let points = [
             (Point3D(x: 1.0, y: 1.0, z: 0.0), Point3D(x: 1.1, y: 1.1, z: 0.1)),
             (Point3D(x: 2.0, y: 2.0, z: 0.0), Point3D(x: 2.1, y: 2.1, z: 0.1)),
-            (Point3D(x: 3.0, y: 3.0, z: 0.0), Point3D(x: 3.1, y: 3.1, z: 0.1))
+            (Point3D(x: 3.0, y: 3.0, z: 0.0), Point3D(x: 3.1, y: 3.1, z: 0.1)),
         ]
 
         // Act
@@ -70,13 +71,13 @@ struct CalibrationUsecaseTests {
     @Test("キャリブレーション実行 - 成功ケース")
     func performCalibration_成功ケース() async throws {
         // Arrange - 初期化完了を待機
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
 
         let antennaId = "test-antenna-1"
         let points = [
             (Point3D(x: 0.0, y: 0.0, z: 0.0), Point3D(x: 0.1, y: 0.1, z: 0.0)),
             (Point3D(x: 5.0, y: 0.0, z: 0.0), Point3D(x: 5.1, y: 0.1, z: 0.0)),
-            (Point3D(x: 0.0, y: 5.0, z: 0.0), Point3D(x: 0.1, y: 5.1, z: 0.0))
+            (Point3D(x: 0.0, y: 5.0, z: 0.0), Point3D(x: 0.1, y: 5.1, z: 0.0)),
         ]
 
         for (reference, measured) in points {
@@ -88,7 +89,7 @@ struct CalibrationUsecaseTests {
         }
 
         // 非同期保存処理が完了するまで待機
-        try await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
+        try await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
 
         // キャリブレーションデータが正しく設定されているか確認
         let calibrationData = self.usecase.getCalibrationData(for: antennaId)
@@ -149,13 +150,13 @@ struct CalibrationUsecaseTests {
     @Test("キャリブレーション実行 - 無効な座標値でエラー")
     func performCalibration_無効な座標値でエラー() async throws {
         // Arrange - 初期化完了を待機
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
 
-        let antennaId = "test-antenna-invalid-\(UUID().uuidString)" // 一意のIDを使用
+        let antennaId = "test-antenna-invalid-\(UUID().uuidString)"  // 一意のIDを使用
         let invalidPoints = [
             (Point3D(x: Double.nan, y: 1.0, z: 0.0), Point3D(x: 1.1, y: 1.1, z: 0.1)),
             (Point3D(x: 2.0, y: Double.infinity, z: 0.0), Point3D(x: 2.1, y: 2.1, z: 0.1)),
-            (Point3D(x: 3.0, y: 3.0, z: 0.0), Point3D(x: 3.1, y: 3.1, z: 0.1))
+            (Point3D(x: 3.0, y: 3.0, z: 0.0), Point3D(x: 3.1, y: 3.1, z: 0.1)),
         ]
 
         for (reference, measured) in invalidPoints {
@@ -167,7 +168,7 @@ struct CalibrationUsecaseTests {
         }
 
         // 非同期保存処理が完了するまで待機
-        try await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
+        try await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
 
         // Act
         await self.usecase.performCalibration(for: antennaId)
@@ -183,24 +184,23 @@ struct CalibrationUsecaseTests {
         #expect(!result.success, "キャリブレーションが失敗すべきです")
 
         // エラーメッセージをより柔軟にチェック
-        let hasRelevantError = result.errorMessage?.contains("無効な座標値") == true ||
-            result.errorMessage?.contains("invalid") == true ||
-            result.errorMessage?.contains("NaN") == true ||
-            result.errorMessage?.contains("infinity") == true ||
-            self.usecase.calibrationStatus == .failed
+        let hasRelevantError =
+            result.errorMessage?.contains("無効な座標値") == true || result.errorMessage?.contains("invalid") == true
+                || result.errorMessage?.contains("NaN") == true || result.errorMessage?.contains("infinity") == true
+                || self.usecase.calibrationStatus == .failed
         #expect(hasRelevantError, "無効な座標値に関連するエラーまたは失敗状態であるべきです")
     }
 
     @Test("キャリブレーション実行 - 重複する基準座標でエラー")
     func performCalibration_重複する基準座標でエラー() async throws {
         // Arrange - 初期化完了を待機
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
 
-        let antennaId = "test-antenna-duplicate-\(UUID().uuidString)" // 一意のIDを使用
+        let antennaId = "test-antenna-duplicate-\(UUID().uuidString)"  // 一意のIDを使用
         let duplicatePoints = [
             (Point3D(x: 1.0, y: 1.0, z: 0.0), Point3D(x: 1.1, y: 1.1, z: 0.1)),
-            (Point3D(x: 1.0, y: 1.0, z: 0.0), Point3D(x: 1.2, y: 1.2, z: 0.1)), // 同じ基準座標
-            (Point3D(x: 3.0, y: 3.0, z: 0.0), Point3D(x: 3.1, y: 3.1, z: 0.1))
+            (Point3D(x: 1.0, y: 1.0, z: 0.0), Point3D(x: 1.2, y: 1.2, z: 0.1)),  // 同じ基準座標
+            (Point3D(x: 3.0, y: 3.0, z: 0.0), Point3D(x: 3.1, y: 3.1, z: 0.1)),
         ]
 
         for (reference, measured) in duplicatePoints {
@@ -212,7 +212,7 @@ struct CalibrationUsecaseTests {
         }
 
         // 非同期保存処理が完了するまで待機
-        try await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
+        try await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
 
         // Act
         await self.usecase.performCalibration(for: antennaId)
@@ -228,10 +228,9 @@ struct CalibrationUsecaseTests {
         #expect(!result.success, "キャリブレーションが失敗すべきです")
 
         // エラーメッセージをより柔軟にチェック（実装依存の詳細を考慮）
-        let hasRelevantError = result.errorMessage?.contains("重複") == true ||
-            result.errorMessage?.contains("duplicate") == true ||
-            result.errorMessage?.contains("同じ") == true ||
-            self.usecase.calibrationStatus == .failed
+        let hasRelevantError =
+            result.errorMessage?.contains("重複") == true || result.errorMessage?.contains("duplicate") == true
+                || result.errorMessage?.contains("同じ") == true || self.usecase.calibrationStatus == .failed
         #expect(hasRelevantError, "重複に関連するエラーまたは失敗状態であるべきです")
     }
 
@@ -240,13 +239,13 @@ struct CalibrationUsecaseTests {
     @Test("キャリブレーション適用 - キャリブレーション済み")
     func applyCalibratedTransform_キャリブレーション済み() async throws {
         // Arrange - 初期化完了を待機
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
 
-        let antennaId = "test-antenna-calibrated-\(UUID().uuidString)" // 一意のIDを使用
+        let antennaId = "test-antenna-calibrated-\(UUID().uuidString)"  // 一意のIDを使用
         let points = [
             (Point3D(x: 0.0, y: 0.0, z: 0.0), Point3D(x: 0.1, y: 0.1, z: 0.0)),
             (Point3D(x: 1.0, y: 0.0, z: 0.0), Point3D(x: 1.1, y: 0.1, z: 0.0)),
-            (Point3D(x: 0.0, y: 1.0, z: 0.0), Point3D(x: 0.1, y: 1.1, z: 0.0))
+            (Point3D(x: 0.0, y: 1.0, z: 0.0), Point3D(x: 0.1, y: 1.1, z: 0.0)),
         ]
 
         for (reference, measured) in points {
@@ -258,7 +257,7 @@ struct CalibrationUsecaseTests {
         }
 
         // 非同期保存処理が完了するまで待機
-        try await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
+        try await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
 
         await self.usecase.performCalibration(for: antennaId)
 
@@ -359,7 +358,7 @@ struct CalibrationUsecaseTests {
         // Assert
         let updatedData = self.usecase.getCalibrationData(for: antennaId)
         #expect(updatedData.calibrationPoints.count == 1)
-        #expect(updatedData.transform == nil) // 変換行列がクリアされること
+        #expect(updatedData.transform == nil)  // 変換行列がクリアされること
     }
 
     // MARK: - 統計情報テスト
@@ -367,13 +366,13 @@ struct CalibrationUsecaseTests {
     @Test("キャリブレーション統計情報取得")
     func getCalibrationStatistics() async throws {
         // Arrange - 初期化完了を待機
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
 
-        let antennas = ["antenna-stats-1-\(UUID().uuidString)", "antenna-stats-2-\(UUID().uuidString)"] // 一意のIDを使用
+        let antennas = ["antenna-stats-1-\(UUID().uuidString)", "antenna-stats-2-\(UUID().uuidString)"]  // 一意のIDを使用
         let points = [
             (Point3D(x: 0.0, y: 0.0, z: 0.0), Point3D(x: 0.1, y: 0.1, z: 0.0)),
             (Point3D(x: 1.0, y: 0.0, z: 0.0), Point3D(x: 1.1, y: 0.1, z: 0.0)),
-            (Point3D(x: 0.0, y: 1.0, z: 0.0), Point3D(x: 0.1, y: 1.1, z: 0.0))
+            (Point3D(x: 0.0, y: 1.0, z: 0.0), Point3D(x: 0.1, y: 1.1, z: 0.0)),
         ]
 
         var successfulCalibrations = 0
@@ -389,7 +388,7 @@ struct CalibrationUsecaseTests {
             }
 
             // 非同期保存処理の完了を待つ
-            try await Task.sleep(nanoseconds: 200_000_000) // 0.2秒
+            try await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
 
             await self.usecase.performCalibration(for: antenna)
 
@@ -409,7 +408,9 @@ struct CalibrationUsecaseTests {
         #expect(statistics.averageAccuracy >= 0)
 
         // 並列実行時は他のテストの影響があるため、最小限の期待値で確認
-        #expect(statistics.calibratedAntennas == successfulCalibrations || statistics.calibratedAntennas >= successfulCalibrations)
+        #expect(
+            statistics.calibratedAntennas == successfulCalibrations
+                || statistics.calibratedAntennas >= successfulCalibrations)
     }
 
     // MARK: - パフォーマンステスト

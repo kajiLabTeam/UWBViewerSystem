@@ -160,47 +160,47 @@ public class CalibrationDataFlow: ObservableObject {
 
         var mappedPairs: [(reference: Point3D, observation: Point3D)] = []
 
-        // 各基準点に対して最も近い観測データを見つける
-        for referencePoint in self.referencePoints {
-            var bestMappings: [ObservationPoint] = []
-            var minDistance = Double.infinity
+        // 各基準点をセッションIDでマッピング
+        for (index, referencePoint) in self.referencePoints.enumerated() {
+            let sessionId = "point_\(index)"
 
-            // 全てのアンテナの観測データから最適な点を探す
-            for session in self.observationSessions.values {
-                let validObservations = session.observations.filter { observation in
-                    observation.quality.strength > 0.5  // 品質閾値
-                        && observation.quality.isLineOfSight  // 見通し線が取れている
-                }
+            self.logger.info("  🔍 基準点[\(index)]: sessionId=\(sessionId)")
 
-                for observation in validObservations {
-                    let distance = referencePoint.realWorldCoordinate.distance(to: observation.position)
-                    if distance < minDistance && distance < 5.0 {  // 5m以内の観測点のみ考慮
-                        minDistance = distance
-                        bestMappings = [observation]
-                    } else if abs(distance - minDistance) < 0.1 {  // 同程度の距離の場合は追加
-                        bestMappings.append(observation)
-                    }
-                }
+            guard let session = self.observationSessions[sessionId] else {
+                self.logger.warning("  ⚠️ セッション[\(sessionId)]が見つかりません")
+                continue
             }
 
-            if !bestMappings.isEmpty {
-                let mapping = ReferenceObservationMapping(
-                    referencePosition: referencePoint.realWorldCoordinate,
-                    observations: bestMappings
-                )
-                self.mappings.append(mapping)
+            self.logger.info("  ✅ セッション[\(sessionId)]を発見: 観測データ数=\(session.observations.count)")
 
-                // マッピングペアを作成（重心を使用）
-                mappedPairs.append(
-                    (
-                        reference: referencePoint.realWorldCoordinate,
-                        observation: mapping.centroidPosition
-                    ))
-
-                self.logger.info(
-                    "マッピング作成: 基準(\(referencePoint.realWorldCoordinate.x), \(referencePoint.realWorldCoordinate.y)) -> 観測(\(mapping.centroidPosition.x), \(mapping.centroidPosition.y)), 誤差: \(mapping.positionError)m"
-                )
+            // 品質フィルタリング
+            let validObservations = session.observations.filter { observation in
+                observation.quality.strength > 0.3
             }
+
+            self.logger.info("  ✅ フィルタ後の有効観測数: \(validObservations.count)/\(session.observations.count)")
+
+            guard !validObservations.isEmpty else {
+                self.logger.warning("  ⚠️ 有効な観測データがありません")
+                continue
+            }
+
+            let mapping = ReferenceObservationMapping(
+                referencePosition: referencePoint.realWorldCoordinate,
+                observations: validObservations
+            )
+            self.mappings.append(mapping)
+
+            // マッピングペアを作成（重心を使用）
+            mappedPairs.append(
+                (
+                    reference: referencePoint.realWorldCoordinate,
+                    observation: mapping.centroidPosition
+                ))
+
+            self.logger.info(
+                "✅ マッピング作成: 基準(\(referencePoint.realWorldCoordinate.x), \(referencePoint.realWorldCoordinate.y)) -> 観測(\(mapping.centroidPosition.x), \(mapping.centroidPosition.y)), 誤差: \(mapping.positionError)m"
+            )
         }
 
         self.logger.info("🔍 マッピング完了: 成功したマッピング数=\(mappedPairs.count)/\(self.referencePoints.count)")
@@ -264,7 +264,8 @@ public class CalibrationDataFlow: ObservableObject {
         let currentPoint = self.referencePoints[self.currentReferencePointIndex]
         let pointNumber = self.currentReferencePointIndex + 1
 
-        self.currentStepInstructions = "基準点 \(pointNumber)/\(self.totalReferencePoints) でデータを収集してください\n座標: (\(String(format: "%.2f", currentPoint.realWorldCoordinate.x)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.y)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.z)))"
+        self.currentStepInstructions =
+            "基準点 \(pointNumber)/\(self.totalReferencePoints) でデータを収集してください\n座標: (\(String(format: "%.2f", currentPoint.realWorldCoordinate.x)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.y)), \(String(format: "%.2f", currentPoint.realWorldCoordinate.z)))"
         self.calibrationStepProgress = Double(self.currentReferencePointIndex) / Double(self.totalReferencePoints)
 
         self.logger.info("基準点 \(pointNumber)/\(self.totalReferencePoints) の処理準備完了")
@@ -346,10 +347,13 @@ public class CalibrationDataFlow: ObservableObject {
             }
 
             for deviceData in realtimeDataList {
-                self.logger.debug("🔍 デバイス: \(deviceData.deviceName), latestData=\(deviceData.latestData != nil ? "あり" : "なし")")
+                self.logger.debug(
+                    "🔍 デバイス: \(deviceData.deviceName), latestData=\(deviceData.latestData != nil ? "あり" : "なし")")
 
                 if let latestData = deviceData.latestData {
-                    self.logger.debug("📡 受信データ: distance=\(latestData.distance), elevation=\(latestData.elevation), azimuth=\(latestData.azimuth)")
+                    self.logger.debug(
+                        "📡 受信データ: distance=\(latestData.distance), elevation=\(latestData.elevation), azimuth=\(latestData.azimuth)"
+                    )
 
                     // 無効なデータをフィルタリング（distance=0のデータを除外）
                     guard latestData.distance > 0 else {
@@ -357,13 +361,16 @@ public class CalibrationDataFlow: ObservableObject {
                         continue
                     }
 
+                    // 距離の単位変換: cm → m
+                    let distanceInMeters = latestData.distance / 100.0
+
                     // 球面座標から直交座標への変換
                     let azimuthRad = latestData.azimuth * .pi / 180
                     let elevationRad = latestData.elevation * .pi / 180
                     let position = Point3D(
-                        x: latestData.distance * cos(azimuthRad) * cos(elevationRad),
-                        y: latestData.distance * sin(azimuthRad) * cos(elevationRad),
-                        z: latestData.distance * sin(elevationRad)
+                        x: distanceInMeters * cos(azimuthRad) * cos(elevationRad),
+                        y: distanceInMeters * sin(azimuthRad) * cos(elevationRad),
+                        z: distanceInMeters * sin(elevationRad)
                     )
 
                     // 信号品質を計算
@@ -377,12 +384,15 @@ public class CalibrationDataFlow: ObservableObject {
                     // TimeIntervalをDateに変換
                     let timestamp = Date(timeIntervalSince1970: latestData.timestamp / 1000)
 
+                    // 現在の基準点から antennaId を取得
+                    let currentPoint = self.referencePoints[self.currentReferencePointIndex]
+
                     let observation = ObservationPoint(
-                        antennaId: deviceData.deviceName,
+                        antennaId: currentPoint.antennaId,
                         position: position,
                         timestamp: timestamp,
                         quality: quality,
-                        distance: latestData.distance,
+                        distance: distanceInMeters,
                         rssi: latestData.rssi,
                         sessionId: pointId
                     )
@@ -397,7 +407,6 @@ public class CalibrationDataFlow: ObservableObject {
                         self.logger.debug("💾 ObservationDataUsecaseにデータ追加: \(pointId)")
                     } else {
                         // セッションが存在しない場合は作成
-                        let currentPoint = self.referencePoints[self.currentReferencePointIndex]
                         var newSession = ObservationSession(
                             id: pointId,
                             name: "CalibPoint_\(pointNumber)",
@@ -410,7 +419,9 @@ public class CalibrationDataFlow: ObservableObject {
                         self.logger.info("📝 ObservationDataUsecaseに新セッション作成: \(pointId)")
                     }
 
-                    self.logger.info("✅ 有効なデータを追加: distance=\(latestData.distance), position=(\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)), \(String(format: "%.2f", position.z)))")
+                    self.logger.info(
+                        "✅ 有効なデータを追加: distance=\(String(format: "%.2f", distanceInMeters))m (元: \(latestData.distance)cm), position=(\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)), \(String(format: "%.2f", position.z)))"
+                    )
                 } else {
                     self.logger.debug("⚠️ デバイス \(deviceData.deviceName) の latestData が nil")
                 }
@@ -435,7 +446,9 @@ public class CalibrationDataFlow: ObservableObject {
         // 収集したデータ数をログに出力
         let collectedCount = self.observationSessions[pointId]?.observations.count ?? 0
         let usecaseCollectedCount = self.observationUsecase.currentSessions[pointId]?.observations.count ?? 0
-        self.logger.info("基準点\(pointNumber)でのデータ収集完了: CalibrationDataFlow=\(collectedCount)件, ObservationDataUsecase=\(usecaseCollectedCount)件")
+        self.logger.info(
+            "基準点\(pointNumber)でのデータ収集完了: CalibrationDataFlow=\(collectedCount)件, ObservationDataUsecase=\(usecaseCollectedCount)件"
+        )
 
         await self.completeCurrentPointCollection()
     }
@@ -688,56 +701,137 @@ public class CalibrationDataFlow: ObservableObject {
 
     /// 完全なキャリブレーションワークフローを実行
     public func executeCalibration() async -> CalibrationWorkflowResult {
+        self.logger.info("🚀 executeCalibration() 開始")
         self.currentWorkflow = .calculating
 
         do {
+            self.logger.info("📊 ステップ1: マッピング検証開始")
             // 1. マッピングの検証
             guard !self.mappings.isEmpty else {
+                self.logger.error("❌ マッピングが空です")
                 throw CalibrationWorkflowError.insufficientMappings
             }
 
             guard self.mappings.count >= 3 else {
+                self.logger.error("❌ マッピング数不足: \(self.mappings.count)/3")
                 throw CalibrationWorkflowError.insufficientPoints(required: 3, provided: self.mappings.count)
             }
 
+            self.logger.info("✅ マッピング検証成功: \(self.mappings.count)件")
+
             // 2. 各アンテナごとにキャリブレーション実行
+            self.logger.info("📊 ステップ2: アンテナごとのキャリブレーション実行")
+
+            // 全セッションからユニークなアンテナIDを抽出
+            let uniqueAntennaIds = Set(self.observationSessions.values.map { $0.antennaId })
+            self.logger.info("  対象アンテナ数: \(uniqueAntennaIds.count)")
+
             var results: [String: CalibrationResult] = [:]
             var allSuccessful = true
 
-            for (antennaId, _) in self.observationSessions {
+            for antennaId in uniqueAntennaIds {
+                self.logger.info("🔧 アンテナ[\(antennaId)]のキャリブレーション開始")
+
                 // そのアンテナの観測データを使ってキャリブレーション点を作成
                 let calibrationPoints = self.createCalibrationPoints(for: antennaId, from: self.mappings)
+                self.logger.info("  キャリブレーション点数: \(calibrationPoints.count)")
 
                 if calibrationPoints.count >= 3 {
-                    // キャリブレーション点を既存のUseCaseに追加
-                    for point in calibrationPoints {
-                        self.calibrationUsecase.addCalibrationPoint(
-                            for: antennaId,
-                            referencePosition: point.referencePosition,
-                            measuredPosition: point.measuredPosition
+                    do {
+                        // 最小二乗法で変換行列を計算
+                        self.logger.info("  🔄 最小二乗法で変換行列を計算中...")
+                        let transform = try LeastSquaresCalibration.calculateTransform(from: calibrationPoints)
+                        self.logger.info("  ✅ 変換行列計算成功")
+                        self.logger.info(
+                            "    回転: \(String(format: "%.3f", transform.rotation * 180 / .pi))度, スケール: (\(String(format: "%.3f", transform.scale.x)), \(String(format: "%.3f", transform.scale.y)), \(String(format: "%.3f", transform.scale.z)))"
                         )
-                    }
 
-                    // キャリブレーション実行
-                    await self.calibrationUsecase.performCalibration(for: antennaId)
+                        // 各基準点からアンテナ位置を逆算
+                        // 関係式: Pr = Pa + R*S*Po
+                        // 逆に: Pa = Pr - R*S*Po
+                        var antennaPositions: [Point3D] = []
+                        for (index, point) in calibrationPoints.enumerated() {
+                            // Po = 観測データの重心（アンテナから見たタグの位置、アンテナ座標系）
+                            let observedPosition = point.measuredPosition
 
-                    if let result = calibrationUsecase.lastCalibrationResult {
-                        results[antennaId] = result
-                        if !result.success {
-                            allSuccessful = false
+                            // 1. スケール適用
+                            let scaled = Point3D(
+                                x: observedPosition.x * transform.scale.x,
+                                y: observedPosition.y * transform.scale.y,
+                                z: observedPosition.z * transform.scale.z
+                            )
+
+                            // 2. 回転適用（Z軸周りの2D回転）
+                            let cos_r = cos(transform.rotation)
+                            let sin_r = sin(transform.rotation)
+                            let rotatedScaled = Point3D(
+                                x: scaled.x * cos_r - scaled.y * sin_r,
+                                y: scaled.x * sin_r + scaled.y * cos_r,
+                                z: scaled.z
+                            )
+
+                            // 3. アンテナ位置 = 基準点位置 - 変換された観測位置
+                            // Pa = Pr - R*S*Po
+                            let antennaPosition = Point3D(
+                                x: point.referencePosition.x - rotatedScaled.x,
+                                y: point.referencePosition.y - rotatedScaled.y,
+                                z: point.referencePosition.z - rotatedScaled.z
+                            )
+
+                            antennaPositions.append(antennaPosition)
+                            self.logger.info(
+                                "    基準点[\(index)]から計算: アンテナ位置=(\(String(format: "%.3f", antennaPosition.x)), \(String(format: "%.3f", antennaPosition.y)), \(String(format: "%.3f", antennaPosition.z)))"
+                            )
                         }
-                        self.logger.info("アンテナ \(antennaId) キャリブレーション完了: \(result.success ? "成功" : "失敗")")
+
+                        // 3つのアンテナ位置の重心を計算
+                        let finalAntennaPosition = Point3D(
+                            x: antennaPositions.map { $0.x }.reduce(0, +) / Double(antennaPositions.count),
+                            y: antennaPositions.map { $0.y }.reduce(0, +) / Double(antennaPositions.count),
+                            z: antennaPositions.map { $0.z }.reduce(0, +) / Double(antennaPositions.count)
+                        )
+
+                        self.logger.info(
+                            "  ✅ 最終アンテナ位置（重心）: (\(String(format: "%.3f", finalAntennaPosition.x)), \(String(format: "%.3f", finalAntennaPosition.y)), \(String(format: "%.3f", finalAntennaPosition.z)))"
+                        )
+
+                        // CalibrationResultを作成
+                        // transformは保存するが、実際のアンテナ位置はfinalAntennaPositionを使用
+                        let result = CalibrationResult(
+                            success: true,
+                            antennaPosition: finalAntennaPosition,
+                            transform: transform,
+                            processedPoints: calibrationPoints,
+                            timestamp: Date()
+                        )
+
+                        results[antennaId] = result
+                        self.logger.info("  ✅ キャリブレーション成功: \(antennaId)")
+
+                    } catch {
+                        allSuccessful = false
+                        self.logger.error("  ❌ キャリブレーション失敗: \(antennaId) - \(error)")
+
+                        let result = CalibrationResult(
+                            success: false,
+                            antennaPosition: nil,
+                            transform: nil,
+                            errorMessage: error.localizedDescription,
+                            timestamp: Date()
+                        )
+                        results[antennaId] = result
                     }
                 } else {
                     allSuccessful = false
-                    self.logger.warning("アンテナ \(antennaId): キャリブレーション点が不足 (\(calibrationPoints.count)/3)")
+                    self.logger.warning("⚠️ アンテナ \(antennaId): キャリブレーション点が不足 (\(calibrationPoints.count)/3)")
                 }
             }
 
             // 3. 結果をまとめる
+            self.logger.info("📊 ステップ3: 結果の集計")
             let workflowResult = CalibrationWorkflowResult(
                 success: allSuccessful,
-                processedAntennas: Array(observationSessions.keys),
+                processedAntennas: Array(uniqueAntennaIds),
                 calibrationResults: results,
                 qualityStatistics: self.calculateOverallQualityStatistics(),
                 timestamp: Date()
@@ -748,34 +842,49 @@ public class CalibrationDataFlow: ObservableObject {
 
             if !allSuccessful {
                 self.errorMessage = "一部のアンテナでキャリブレーションに失敗しました"
+                self.logger.warning("⚠️ 一部のアンテナでキャリブレーションに失敗")
+            } else {
+                self.logger.info("✅ 全アンテナのキャリブレーション成功")
             }
 
             // 4. 成功時にアンテナ位置を設定・保存
             if allSuccessful {
+                self.logger.info("📊 ステップ4: アンテナ位置の保存")
                 for (antennaId, result) in results where result.success {
-                    if let transform = result.transform {
-                        // translationをアンテナ位置として使用
-                        let antennaPosition = transform.translation
+                    if let antennaPosition = result.antennaPosition {
+                        // 重心計算されたアンテナ位置を使用
                         finalAntennaPositions[antennaId] = antennaPosition
-                        logger.info("アンテナ位置を設定しました: \(antennaId) -> (\(antennaPosition.x), \(antennaPosition.y), \(antennaPosition.z))")
+                        logger.info(
+                            "  💾 アンテナ位置を設定: \(antennaId) -> (\(String(format: "%.3f", antennaPosition.x)), \(String(format: "%.3f", antennaPosition.y)), \(String(format: "%.3f", antennaPosition.z)))"
+                        )
 
                         // データベースに保存（フロアマップIDが必要）
                         if let floorMapId = preferenceRepository.loadCurrentFloorMapInfo()?.id {
-                            await saveAntennaPositionToDatabase(antennaId: antennaId, position: antennaPosition, floorMapId: floorMapId)
+                            self.logger.info("  💾 データベースに保存中: \(antennaId)")
+                            await saveAntennaPositionToDatabase(
+                                antennaId: antennaId, position: antennaPosition, floorMapId: floorMapId)
+                            self.logger.info("  ✅ データベース保存完了: \(antennaId)")
                         } else {
-                            logger.warning("フロアマップIDが取得できないため、アンテナ位置をデータベースに保存できません")
+                            logger.warning("  ⚠️ フロアマップIDが取得できないため、アンテナ位置をデータベースに保存できません")
                         }
                     }
                 }
             }
 
+            self.logger.info("🎉 executeCalibration() 完了 - 成功: \(allSuccessful)")
             self.updateProgress()
             return workflowResult
 
         } catch {
+            self.logger.error("❌ executeCalibration() エラー発生: \(error)")
+            self.logger.error("  エラー詳細: \(error.localizedDescription)")
+
+            // エラー時も uniqueAntennaIds を使用
+            let uniqueAntennaIds = Set(self.observationSessions.values.map { $0.antennaId })
+
             let workflowResult = CalibrationWorkflowResult(
                 success: false,
-                processedAntennas: Array(observationSessions.keys),
+                processedAntennas: Array(uniqueAntennaIds),
                 calibrationResults: [:],
                 qualityStatistics: self.calculateOverallQualityStatistics(),
                 timestamp: Date(),
@@ -786,6 +895,7 @@ public class CalibrationDataFlow: ObservableObject {
             self.currentWorkflow = .failed
             self.errorMessage = error.localizedDescription
 
+            self.logger.info("❌ executeCalibration() 失敗で終了")
             return workflowResult
         }
     }
@@ -875,10 +985,17 @@ public class CalibrationDataFlow: ObservableObject {
     private func createCalibrationPoints(for antennaId: String, from mappings: [ReferenceObservationMapping])
         -> [CalibrationPoint]
     {
-        mappings.compactMap { mapping in
+        self.logger.info("🔧 createCalibrationPoints開始: antennaId=\(antennaId), mappings数=\(mappings.count)")
+
+        let points = mappings.compactMap { mapping -> CalibrationPoint? in
             // そのアンテナの観測データのみを抽出
             let antennaObservations = mapping.observations.filter { $0.antennaId == antennaId }
-            guard !antennaObservations.isEmpty else { return nil }
+            self.logger.debug("  マッピング: アンテナ観測数=\(antennaObservations.count)")
+
+            guard !antennaObservations.isEmpty else {
+                self.logger.debug("  ⚠️ このマッピングにはアンテナ[\(antennaId)]の観測データなし")
+                return nil
+            }
 
             // 複数の観測点がある場合は重心を計算
             let totalX = antennaObservations.map { $0.position.x }.reduce(0, +)
@@ -892,12 +1009,19 @@ public class CalibrationDataFlow: ObservableObject {
                 z: totalZ / count
             )
 
+            self.logger.debug(
+                "  ✅ キャリブレーション点作成: 基準=(\(mapping.referencePosition.x), \(mapping.referencePosition.y)), 測定=(\(averagePosition.x), \(averagePosition.y))"
+            )
+
             return CalibrationPoint(
                 referencePosition: mapping.referencePosition,
                 measuredPosition: averagePosition,
                 antennaId: antennaId
             )
         }
+
+        self.logger.info("🔧 createCalibrationPoints完了: 生成点数=\(points.count)")
+        return points
     }
 
     private func calculateOverallQualityStatistics() -> CalibrationWorkflowQualityStatistics {
@@ -922,7 +1046,8 @@ public class CalibrationDataFlow: ObservableObject {
         let averageQuality = validObservations > 0 ? totalQuality / Double(validObservations) : 0.0
         let losPercentage = totalObservations > 0 ? Double(losCount) / Double(totalObservations) * 100.0 : 0.0
         let mappingAccuracy =
-            self.mappings.isEmpty ? 0.0 : self.mappings.map { $0.mappingQuality }.reduce(0, +) / Double(self.mappings.count)
+            self.mappings.isEmpty
+                ? 0.0 : self.mappings.map { $0.mappingQuality }.reduce(0, +) / Double(self.mappings.count)
 
         return CalibrationWorkflowQualityStatistics(
             totalObservations: totalObservations,
@@ -983,8 +1108,8 @@ public class CalibrationDataFlow: ObservableObject {
                         "rssi": Double.random(in: -90.0...(-50.0)),
                         "pDoA1": Double.random(in: -90.0...90.0),
                         "pDoA2": Double.random(in: -90.0...90.0),
-                        "seqCount": i
-                    ]
+                        "seqCount": i,
+                    ],
                 ]
 
                 self.realtimeDataUsecase.processRealtimeDataMessage(json, fromEndpointId: "DUMMY")

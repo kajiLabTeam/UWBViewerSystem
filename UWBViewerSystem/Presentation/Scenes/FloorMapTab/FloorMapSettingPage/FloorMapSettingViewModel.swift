@@ -46,7 +46,8 @@ class FloorMapSettingViewModel: ObservableObject {
     // MARK: - Computed Properties
 
     var canProceedToNext: Bool {
-        let hasRequiredFields = !self.floorName.isEmpty && !self.buildingName.isEmpty && self.floorWidth > 0 && self.floorDepth > 0
+        let hasRequiredFields =
+            !self.floorName.isEmpty && !self.buildingName.isEmpty && self.floorWidth > 0 && self.floorDepth > 0
         return hasRequiredFields
     }
 

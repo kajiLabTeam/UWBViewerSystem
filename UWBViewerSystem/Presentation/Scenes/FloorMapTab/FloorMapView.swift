@@ -235,8 +235,10 @@ struct FloorMapDetailView: View {
                             .fontWeight(.bold)
 
                         HStack {
-                            Label("\(self.floorMap.antennaCount) アンテナ", systemImage: "antenna.radiowaves.left.and.right")
-                                .foregroundColor(.secondary)
+                            Label(
+                                "\(self.floorMap.antennaCount) アンテナ", systemImage: "antenna.radiowaves.left.and.right"
+                            )
+                            .foregroundColor(.secondary)
 
                             Text("•")
                                 .foregroundColor(.secondary)

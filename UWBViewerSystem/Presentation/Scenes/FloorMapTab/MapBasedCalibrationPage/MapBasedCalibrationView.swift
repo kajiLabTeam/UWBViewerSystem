@@ -68,7 +68,8 @@ struct MapBasedCalibrationView: View {
                         self.dismiss()
                     }
                 } message: {
-                    Text("アフィン変換による座標変換が設定されました。\n精度: \(String(format: "%.3f", self.viewModel.calibrationAccuracy ?? 0.0))m")
+                    Text(
+                        "アフィン変換による座標変換が設定されました。\n精度: \(String(format: "%.3f", self.viewModel.calibrationAccuracy ?? 0.0))m")
                 }
         }
         .onAppear {

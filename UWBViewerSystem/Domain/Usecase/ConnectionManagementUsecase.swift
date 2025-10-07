@@ -248,7 +248,8 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
                 print("  データ内容: \(text)")
 
                 // JSONが整形されている場合も考慮して、空白ありバージョンもチェック
-                let hasRealtimeData = text.contains("\"type\":\"REALTIME_DATA\"") || text.contains("\"type\": \"REALTIME_DATA\"")
+                let hasRealtimeData =
+                    text.contains("\"type\":\"REALTIME_DATA\"") || text.contains("\"type\": \"REALTIME_DATA\"")
                 print("  検索対象文字列が含まれるか: \(hasRealtimeData)")
 
                 // JSON形式のリアルタイムデータをパース
@@ -272,7 +273,8 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
             print("  データ内容: \(data)")
 
             // JSONが整形されている場合も考慮して、空白ありバージョンもチェック
-            let hasRealtimeData = data.contains("\"type\":\"REALTIME_DATA\"") || data.contains("\"type\": \"REALTIME_DATA\"")
+            let hasRealtimeData =
+                data.contains("\"type\":\"REALTIME_DATA\"") || data.contains("\"type\": \"REALTIME_DATA\"")
             print("  検索対象文字列が含まれるか: \(hasRealtimeData)")
 
             // JSON形式のリアルタイムデータをパース

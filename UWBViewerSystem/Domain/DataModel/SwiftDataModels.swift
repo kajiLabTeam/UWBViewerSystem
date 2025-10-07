@@ -574,7 +574,8 @@ public final class PersistentMapCalibrationData {
         // MapCalibrationPointsの復元
         var calibrationPoints: [MapCalibrationPoint] = []
         if !self.calibrationPointsData.isEmpty {
-            calibrationPoints = (try? decoder.decode([MapCalibrationPoint].self, from: self.calibrationPointsData)) ?? []
+            calibrationPoints =
+                (try? decoder.decode([MapCalibrationPoint].self, from: self.calibrationPointsData)) ?? []
         }
 
         // AffineTransformMatrixの復元

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import UWBViewerSystem
 
 /// 観測データUseCaseのテストスイート
@@ -15,7 +16,7 @@ struct ObservationDataUsecaseTests {
         let usecase = ObservationDataUsecase(dataRepository: mockRepository, uwbManager: mockUWBManager)
 
         // 初期化待機
-        try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
+        try? await Task.sleep(nanoseconds: 50_000_000)  // 0.05秒
 
         return (usecase, mockUWBManager)
     }
@@ -45,7 +46,7 @@ struct ObservationDataUsecaseTests {
                 distance: 8.0,
                 rssi: -40.0,
                 sessionId: "session1"
-            )
+            ),
         ]
     }
 
@@ -116,7 +117,7 @@ struct ObservationDataUsecaseTests {
         usecase.stopAllSessions()
 
         // 少し待って状態確認（非同期処理のため）
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
 
         // すべてのセッションが停止または停止処理中であることを確認
         let allStopped = usecase.currentSessions.values.allSatisfy {
@@ -341,7 +342,7 @@ struct ObservationDataUsecaseTests {
         mockUWBManager.simulateObservation(newObservation)
 
         // 少し待って更新を確認
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
 
         // リアルタイムデータが更新されていることを確認
         #expect(!usecase.realtimeObservations.isEmpty)
@@ -368,7 +369,7 @@ struct ObservationDataUsecaseTests {
             mockUWBManager.simulateObservation(observation)
 
             // 少し待つ
-            try await Task.sleep(nanoseconds: 1_000_000) // 0.001秒
+            try await Task.sleep(nanoseconds: 1_000_000)  // 0.001秒
         }
 
         // リアルタイムデータが100個に制限されていることを確認

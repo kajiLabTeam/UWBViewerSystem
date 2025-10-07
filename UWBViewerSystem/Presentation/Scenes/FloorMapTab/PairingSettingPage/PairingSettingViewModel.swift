@@ -649,7 +649,9 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
             }
 
             self.isConnected = true
-            print("  📋 接続後のデバイスリスト: \(self.availableDevices.map { "\($0.name)(\($0.id), 接続:\($0.isConnected))" }.joined(separator: ", "))")
+            print(
+                "  📋 接続後のデバイスリスト: \(self.availableDevices.map { "\($0.name)(\($0.id), 接続:\($0.isConnected))" }.joined(separator: ", "))"
+            )
         }
     }
 

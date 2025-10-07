@@ -130,7 +130,7 @@ public class ObservationDataUsecase: ObservableObject {
 
     // キャリブレーション用のタイマー管理
     private var calibrationTimers: [String: Timer] = [:]
-    private var calibrationDuration: TimeInterval = 15.0 // 15秒間のデータ収集
+    private var calibrationDuration: TimeInterval = 15.0  // 15秒間のデータ収集
 
     // MARK: - Initialization
 
@@ -304,7 +304,9 @@ public class ObservationDataUsecase: ObservableObject {
     }
 
     /// キャリブレーション用の15秒間データ収集
-    public func startCalibrationDataCollection(for antennaId: String, referencePoint: String) async throws -> ObservationSession {
+    public func startCalibrationDataCollection(for antennaId: String, referencePoint: String) async throws
+        -> ObservationSession
+    {
         print("🎯 キャリブレーション用データ収集開始: アンテナ\(antennaId), 基準点\(referencePoint)")
 
         let sessionName = "キャリブレーション_\(referencePoint)_\(Date().timeIntervalSince1970)"
@@ -336,7 +338,9 @@ public class ObservationDataUsecase: ObservableObject {
     }
 
     /// キャリブレーション用の進捗付きデータ収集（進捗表示機能付き）
-    public func startCalibrationDataCollectionWithProgress(for antennaId: String, referencePoint: String) async throws -> ObservationSession {
+    public func startCalibrationDataCollectionWithProgress(for antennaId: String, referencePoint: String) async throws
+        -> ObservationSession
+    {
         print("🎯 進捗付きキャリブレーション開始: アンテナ\(antennaId), 基準点\(referencePoint)")
 
         self.currentReferencePoint = referencePoint
@@ -356,7 +360,8 @@ public class ObservationDataUsecase: ObservableObject {
 
             DispatchQueue.main.async {
                 self.calibrationTimeRemaining = max(0, self.calibrationTimeRemaining - 0.1)
-                self.calibrationProgress = (self.calibrationDuration - self.calibrationTimeRemaining) / self.calibrationDuration
+                self.calibrationProgress =
+                    (self.calibrationDuration - self.calibrationTimeRemaining) / self.calibrationDuration
 
                 if self.calibrationTimeRemaining <= 0 {
                     timer.invalidate()

@@ -1,12 +1,15 @@
 import Foundation
 import Testing
+
 @testable import UWBViewerSystem
 
 /// キャリブレーション機能のテストケース
 struct CalibrationTests {
 
     @MainActor
-    private func createTestContext() -> (LeastSquaresCalibration.Type, MockCalibrationTestRepository, CalibrationUsecase) {
+    private func createTestContext() -> (
+        LeastSquaresCalibration.Type, MockCalibrationTestRepository, CalibrationUsecase
+    ) {
         let leastSquaresCalibration = LeastSquaresCalibration.self
         let mockRepository = MockCalibrationTestRepository()
         let calibrationUsecase = CalibrationUsecase(dataRepository: mockRepository)
@@ -40,7 +43,7 @@ struct CalibrationTests {
                 referencePosition: Point3D(x: 0, y: 5, z: 0),
                 measuredPosition: Point3D(x: 0, y: 5, z: 0),
                 antennaId: "antenna1"
-            )
+            ),
         ]
 
         // Act
@@ -78,7 +81,7 @@ struct CalibrationTests {
                 referencePosition: Point3D(x: 0, y: 5, z: 0),
                 measuredPosition: Point3D(x: 0, y: 5, z: 0) - offset,
                 antennaId: "antenna1"
-            )
+            ),
         ]
 
         // Act
@@ -116,7 +119,7 @@ struct CalibrationTests {
                 referencePosition: Point3D(x: 0, y: 3, z: 0),
                 measuredPosition: Point3D(x: 0, y: 6, z: 0),
                 antennaId: "antenna1"
-            )
+            ),
         ]
 
         // Act
@@ -144,7 +147,7 @@ struct CalibrationTests {
                 referencePosition: Point3D(x: 1, y: 0, z: 0),
                 measuredPosition: Point3D(x: 1, y: 0, z: 0),
                 antennaId: "antenna1"
-            )
+            ),
         ]
 
         // Act & Assert
@@ -185,7 +188,7 @@ struct CalibrationTests {
                 referencePosition: Point3D(x: 0, y: 1, z: 0),
                 measuredPosition: Point3D(x: 0, y: 0, z: 0),
                 antennaId: "antenna1"
-            )
+            ),
         ]
 
         // Act & Assert
@@ -193,7 +196,7 @@ struct CalibrationTests {
             _ = try leastSquaresCalibration.calculateTransform(from: points)
             #expect(Bool(false), "Expected calibration error")
         } catch _ as LeastSquaresCalibration.CalibrationError {
-            #expect(Bool(true)) // 期待される動作
+            #expect(Bool(true))  // 期待される動作
         } catch {
             #expect(Bool(false), "Expected LeastSquaresCalibration.CalibrationError but got: \(error)")
         }
@@ -219,7 +222,7 @@ struct CalibrationTests {
                 referencePosition: Point3D(x: 0, y: 5, z: 0),
                 measuredPosition: Point3D(x: -2.0, y: 3.5, z: 0),
                 antennaId: "antenna1"
-            )
+            ),
         ]
 
         // Act
@@ -285,7 +288,7 @@ struct CalibrationTests {
         let points = [
             (ref: Point3D(x: 0, y: 0, z: 0), meas: Point3D(x: 0.5, y: 0.5, z: 0)),
             (ref: Point3D(x: 5, y: 0, z: 0), meas: Point3D(x: 5.5, y: 0.5, z: 0)),
-            (ref: Point3D(x: 0, y: 5, z: 0), meas: Point3D(x: 0.5, y: 5.5, z: 0))
+            (ref: Point3D(x: 0, y: 5, z: 0), meas: Point3D(x: 0.5, y: 5.5, z: 0)),
         ]
 
         for point in points {
@@ -311,7 +314,7 @@ struct CalibrationTests {
             #expect(Bool(false), "キャリブレーション精度が取得できませんでした")
             return
         }
-        #expect(accuracy < 0.5) // 精度が0.5m以下であることを確認
+        #expect(accuracy < 0.5)  // 精度が0.5m以下であることを確認
     }
 
     @Test("統計情報の計算")
@@ -327,12 +330,12 @@ struct CalibrationTests {
         let referencePoints = [
             Point3D(x: 0, y: 0, z: 0),
             Point3D(x: 5, y: 0, z: 0),
-            Point3D(x: 0, y: 5, z: 0)
+            Point3D(x: 0, y: 5, z: 0),
         ]
         let measuredPoints = [
             Point3D(x: 0.5, y: 0.5, z: 0),
             Point3D(x: 5.5, y: 0.5, z: 0),
-            Point3D(x: 0.5, y: 5.5, z: 0)
+            Point3D(x: 0.5, y: 5.5, z: 0),
         ]
 
         for i in 0..<3 {
@@ -388,12 +391,12 @@ struct CalibrationTests {
 
         // 距離計算
         let distance = point1.distance(to: point2)
-        let expectedDistance = sqrt(9 + 9 + 9) // sqrt((4-1)^2 + (5-2)^2 + (6-3)^2)
+        let expectedDistance = sqrt(9 + 9 + 9)  // sqrt((4-1)^2 + (5-2)^2 + (6-3)^2)
         #expect(abs(distance - expectedDistance) < 0.001)
 
         // ベクトルの長さ
         let magnitude = point1.magnitude
-        let expectedMagnitude = sqrt(1 + 4 + 9) // sqrt(1^2 + 2^2 + 3^2)
+        let expectedMagnitude = sqrt(1 + 4 + 9)  // sqrt(1^2 + 2^2 + 3^2)
         #expect(abs(magnitude - expectedMagnitude) < 0.001)
     }
 
@@ -452,7 +455,9 @@ class MockCalibrationTestRepository: DataRepositoryProtocol {
     func saveCalibrationData(_ data: CalibrationData) async throws {
         // antennaIdが正常な文字列であることを確認
         guard !data.antennaId.isEmpty else {
-            throw NSError(domain: "MockCalibrationTestRepository", code: 1, userInfo: [NSLocalizedDescriptionKey: "antennaId is empty"])
+            throw NSError(
+                domain: "MockCalibrationTestRepository", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "antennaId is empty"])
         }
 
         // JSONエンコードして安全に保存

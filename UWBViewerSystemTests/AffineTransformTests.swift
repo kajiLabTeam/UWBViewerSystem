@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import UWBViewerSystem
 
 /// アフィン変換機能のテスト
@@ -24,7 +25,7 @@ struct AffineTransformTests {
                 realWorldCoordinate: Point3D(x: 1, y: 2, z: 0),
                 antennaId: "antenna1",
                 pointIndex: 3
-            )
+            ),
         ]
     }
 
@@ -68,7 +69,8 @@ struct AffineTransformTests {
         let realWorldPoint = Point3D(x: 1, y: 1, z: 0)
 
         // Act
-        let mapPoint = try UWBViewerSystem.AffineTransform.realWorldToMap(realWorldPoint: realWorldPoint, using: transform)
+        let mapPoint = try UWBViewerSystem.AffineTransform.realWorldToMap(
+            realWorldPoint: realWorldPoint, using: transform)
 
         // Assert
         #expect(mapPoint.x.isFinite)
@@ -83,8 +85,10 @@ struct AffineTransformTests {
         let originalMapPoint = Point3D(x: 250, y: 150, z: 0)
 
         // Act
-        let realWorldPoint = UWBViewerSystem.AffineTransform.mapToRealWorld(mapPoint: originalMapPoint, using: transform)
-        let reconstructedMapPoint = try UWBViewerSystem.AffineTransform.realWorldToMap(realWorldPoint: realWorldPoint, using: transform)
+        let realWorldPoint = UWBViewerSystem.AffineTransform.mapToRealWorld(
+            mapPoint: originalMapPoint, using: transform)
+        let reconstructedMapPoint = try UWBViewerSystem.AffineTransform.realWorldToMap(
+            realWorldPoint: realWorldPoint, using: transform)
 
         let errorX = abs(originalMapPoint.x - reconstructedMapPoint.x)
         let errorY = abs(originalMapPoint.y - reconstructedMapPoint.y)
@@ -100,7 +104,7 @@ struct AffineTransformTests {
     func insufficientCalibrationPoints() {
         // Arrange
         let sampleMapCalibrationPoints = self.setupSampleCalibrationPoints()
-        let insufficientPoints = Array(sampleMapCalibrationPoints.prefix(2)) // 2点のみ
+        let insufficientPoints = Array(sampleMapCalibrationPoints.prefix(2))  // 2点のみ
 
         // Act & Assert
         do {
@@ -140,7 +144,7 @@ struct AffineTransformTests {
                 realWorldCoordinate: Point3D(x: 2, y: 2, z: 0),
                 antennaId: "antenna1",
                 pointIndex: 3
-            )
+            ),
         ]
 
         // Act & Assert
@@ -148,7 +152,7 @@ struct AffineTransformTests {
             _ = try UWBViewerSystem.AffineTransform.calculateAffineTransform(from: collinearPoints)
             #expect(Bool(false), "適切なエラータイプが発生する必要があります")
         } catch _ as UWBViewerSystem.AffineTransform.AffineTransformError {
-            #expect(Bool(true)) // 期待される動作
+            #expect(Bool(true))  // 期待される動作
         } catch {
             #expect(Bool(false), "Unexpected error type: \(error)")
         }

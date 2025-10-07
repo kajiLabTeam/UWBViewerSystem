@@ -145,7 +145,9 @@ import Foundation
             advertiser.startAdvertising(using: context) { [weak self] error in
                 Task { @MainActor [weak self] in
                     if let error {
-                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "広告開始エラー: \(error.localizedDescription)") }
+                        self?.notifyCallbacks {
+                            $0.onConnectionStateChanged(state: "広告開始エラー: \(error.localizedDescription)")
+                        }
                     } else {
                         self?.notifyCallbacks { $0.onConnectionStateChanged(state: "広告開始成功") }
                     }
@@ -169,7 +171,9 @@ import Foundation
                 Task { @MainActor [weak self] in
                     if let error {
                         self?.isDiscovering = false
-                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "発見開始エラー: \(error.localizedDescription)") }
+                        self?.notifyCallbacks {
+                            $0.onConnectionStateChanged(state: "発見開始エラー: \(error.localizedDescription)")
+                        }
                     } else {
                         self?.isDiscovering = true
                         self?.notifyCallbacks { $0.onConnectionStateChanged(state: "発見開始成功") }
@@ -206,7 +210,9 @@ import Foundation
             discoverer.requestConnection(to: endpointId, using: connectionContext)
 
             print("✅ [NearbyRepository] 接続リクエスト送信完了")
-            self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続リクエスト送信: \(deviceName) (自分: \(self.nickName))") }
+            self.notifyCallbacks {
+                $0.onConnectionStateChanged(state: "接続リクエスト送信: \(deviceName) (自分: \(self.nickName))")
+            }
         }
 
         func sendData(text: String) {
@@ -223,7 +229,9 @@ import Foundation
                 print("エラー: 送信先なし")
                 print("remoteEndpointIds: \(self.remoteEndpointIds)")
                 print("connectedDevices: \(self.connectedDevices.keys)")
-                self.notifyCallbacks { $0.onConnectionStateChanged(state: "送信先なし（接続端末: \(self.connectedDevices.count)台）") }
+                self.notifyCallbacks {
+                    $0.onConnectionStateChanged(state: "送信先なし（接続端末: \(self.connectedDevices.count)台）")
+                }
                 return
             }
 
@@ -240,7 +248,9 @@ import Foundation
                 Task { @MainActor [weak self] in
                     if let error {
                         print("データ送信エラー: \(error.localizedDescription)")
-                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)") }
+                        self?.notifyCallbacks {
+                            $0.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
+                        }
                     } else {
                         print("データ送信成功: \(text)")
                         self?.notifyCallbacks { $0.onConnectionStateChanged(state: "データ送信完了: \(text)") }
@@ -278,7 +288,9 @@ import Foundation
             _ = connectionManager.send(data, to: [toEndpointId]) { [weak self] error in
                 Task { @MainActor [weak self] in
                     if let error {
-                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)") }
+                        self?.notifyCallbacks {
+                            $0.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
+                        }
                     } else {
                         let deviceName = self?.deviceNames[toEndpointId] ?? toEndpointId
                         self?.notifyCallbacks { $0.onConnectionStateChanged(state: "\(deviceName)にデータ送信完了: \(text)") }
@@ -375,8 +387,10 @@ import Foundation
             self.deviceNames[endpointID] = deviceName
 
             // 新しいコールバック形式を呼び出し
-            self.notifyCallbacks { $0.onConnectionRequest(
-                endpointId: endpointID, deviceName: deviceName, context: context, accept: connectionRequestHandler) }
+            self.notifyCallbacks {
+                $0.onConnectionRequest(
+                    endpointId: endpointID, deviceName: deviceName, context: context, accept: connectionRequestHandler)
+            }
             self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続要求受信: \(deviceName) (\(endpointID))") }
         }
     }
@@ -511,7 +525,9 @@ import Foundation
                 do {
                     try fileManager.createDirectory(at: uwbFilesDirectory, withIntermediateDirectories: true)
                 } catch {
-                    self.notifyCallbacks { $0.onConnectionStateChanged(state: "ファイル保存エラー: フォルダ作成に失敗 - \(error.localizedDescription)") }
+                    self.notifyCallbacks {
+                        $0.onConnectionStateChanged(state: "ファイル保存エラー: フォルダ作成に失敗 - \(error.localizedDescription)")
+                    }
                     return
                 }
             }

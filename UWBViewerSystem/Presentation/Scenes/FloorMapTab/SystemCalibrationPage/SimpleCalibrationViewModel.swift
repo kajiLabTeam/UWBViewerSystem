@@ -165,7 +165,8 @@ class SimpleCalibrationViewModel: ObservableObject {
 
     /// キャリブレーション実行可能かどうか
     var canStartCalibration: Bool {
-        self.currentStep == 2 && !self.selectedAntennaId.isEmpty && self.referencePoints.count >= 3 && !self.isCalibrating
+        self.currentStep == 2 && !self.selectedAntennaId.isEmpty && self.referencePoints.count >= 3
+            && !self.isCalibrating
     }
 
     /// 進行状況のパーセンテージ表示

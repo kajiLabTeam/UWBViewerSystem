@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import UWBViewerSystem
 
 /// キャリブレーションデータフローのテストスイート
@@ -13,7 +14,8 @@ struct CalibrationDataFlowTests {
         let mockRepository = MockCalibrationDataRepository()
         let mockCalibrationUsecase = CalibrationUsecase(dataRepository: mockRepository)
         let mockUWBManager = MockUWBDataManager()
-        let mockObservationUsecase = MockObservationDataUsecase(dataRepository: mockRepository, uwbManager: mockUWBManager)
+        let mockObservationUsecase = MockObservationDataUsecase(
+            dataRepository: mockRepository, uwbManager: mockUWBManager)
 
         return CalibrationDataFlow(
             dataRepository: mockRepository,
@@ -41,7 +43,7 @@ struct CalibrationDataFlowTests {
                 realWorldCoordinate: Point3D(x: 1.5, y: 2.0, z: 0.0),
                 antennaId: "antenna1",
                 pointIndex: 3
-            )
+            ),
         ]
     }
 
@@ -53,29 +55,30 @@ struct CalibrationDataFlowTests {
         let basePositions = [
             Point3D(x: 1.0, y: 1.0, z: 0.0),
             Point3D(x: 2.0, y: 1.0, z: 0.0),
-            Point3D(x: 1.5, y: 2.0, z: 0.0)
+            Point3D(x: 1.5, y: 2.0, z: 0.0),
         ]
 
         for (index, basePos) in basePositions.enumerated() {
             for i in 0..<4 {
                 let variance = 0.1 * Double(i)
-                points.append(ObservationPoint(
-                    antennaId: "antenna1",
-                    position: Point3D(
-                        x: basePos.x + variance,
-                        y: basePos.y + variance,
-                        z: basePos.z + variance * 0.5
-                    ),
-                    quality: SignalQuality(
-                        strength: 0.8 - Double(i) * 0.05, // 0.8, 0.75, 0.7, 0.65
-                        isLineOfSight: true,
-                        confidenceLevel: 0.9 - Double(i) * 0.05,
-                        errorEstimate: 0.1 + Double(i) * 0.05
-                    ),
-                    distance: 5.0 + Double(index * 2),
-                    rssi: -40.0 - Double(i * 2),
-                    sessionId: "session1"
-                ))
+                points.append(
+                    ObservationPoint(
+                        antennaId: "antenna1",
+                        position: Point3D(
+                            x: basePos.x + variance,
+                            y: basePos.y + variance,
+                            z: basePos.z + variance * 0.5
+                        ),
+                        quality: SignalQuality(
+                            strength: 0.8 - Double(i) * 0.05,  // 0.8, 0.75, 0.7, 0.65
+                            isLineOfSight: true,
+                            confidenceLevel: 0.9 - Double(i) * 0.05,
+                            errorEstimate: 0.1 + Double(i) * 0.05
+                        ),
+                        distance: 5.0 + Double(index * 2),
+                        rssi: -40.0 - Double(i * 2),
+                        sessionId: "session1"
+                    ))
             }
         }
 
@@ -146,16 +149,23 @@ struct CalibrationDataFlowTests {
         // 基準点を設定
         await dataFlow.collectReferencePoints(from: testReferencePoints)
 
-        // 観測セッションを模擬
+        // 観測セッションを模擬 - 各基準点に対応するセッションを作成
         await MainActor.run {
-            let mockSession = ObservationSession(
-                name: "テストセッション",
-                antennaId: "antenna1"
-            )
-            var sessionWithData = mockSession
-            sessionWithData.observations = testObservationPoints
-            sessionWithData.status = .completed
-            dataFlow.observationSessions["antenna1"] = sessionWithData
+            for index in 0..<3 {
+                let sessionId = "point_\(index)"
+                let mockSession = ObservationSession(
+                    id: sessionId,
+                    name: "テストセッション\(index)",
+                    antennaId: "antenna1"
+                )
+                var sessionWithData = mockSession
+                // 各セッションに対応する観測点を割り当て（4点ずつ）
+                let startIdx = index * 4
+                let endIdx = min(startIdx + 4, testObservationPoints.count)
+                sessionWithData.observations = Array(testObservationPoints[startIdx..<endIdx])
+                sessionWithData.status = .completed
+                dataFlow.observationSessions[sessionId] = sessionWithData
+            }
         }
 
         // マッピング実行
@@ -170,7 +180,7 @@ struct CalibrationDataFlowTests {
         await MainActor.run {
             for mapping in dataFlow.mappings {
                 #expect(mapping.positionError < 1.0)  // 1m以内の誤差
-                #expect(mapping.mappingQuality > 0.5) // 品質50%以上
+                #expect(mapping.mappingQuality > 0.5)  // 品質50%以上
             }
         }
     }
@@ -186,16 +196,23 @@ struct CalibrationDataFlowTests {
         // 1. 基準点設定
         await dataFlow.collectReferencePoints(from: testReferencePoints)
 
-        // 2. 観測データ設定
+        // 2. 観測データ設定 - 各基準点に対応するセッションを作成
         await MainActor.run {
-            let mockSession = ObservationSession(
-                name: "テストセッション",
-                antennaId: "antenna1"
-            )
-            var sessionWithData = mockSession
-            sessionWithData.observations = testObservationPoints
-            sessionWithData.status = .completed
-            dataFlow.observationSessions["antenna1"] = sessionWithData
+            for index in 0..<3 {
+                let sessionId = "point_\(index)"
+                let mockSession = ObservationSession(
+                    id: sessionId,
+                    name: "テストセッション\(index)",
+                    antennaId: "antenna1"
+                )
+                var sessionWithData = mockSession
+                // 各セッションに対応する観測点を割り当て（4点ずつ）
+                let startIdx = index * 4
+                let endIdx = min(startIdx + 4, testObservationPoints.count)
+                sessionWithData.observations = Array(testObservationPoints[startIdx..<endIdx])
+                sessionWithData.status = .completed
+                dataFlow.observationSessions[sessionId] = sessionWithData
+            }
         }
 
         // 3. マッピング

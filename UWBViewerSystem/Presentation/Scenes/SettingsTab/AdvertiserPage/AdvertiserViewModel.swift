@@ -81,7 +81,9 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
                 return
             }
         #else
-            guard self.locationPermissionStatus == .authorizedWhenInUse || self.locationPermissionStatus == .authorizedAlways
+            guard
+                self.locationPermissionStatus == .authorizedWhenInUse
+                || self.locationPermissionStatus == .authorizedAlways
             else {
                 self.statusMessage = "位置情報権限が必要です"
                 return

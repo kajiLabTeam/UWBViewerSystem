@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+
 @testable import UWBViewerSystem
 
 // MARK: - Mock Data Repository
@@ -66,7 +67,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadRecentSensingSessions() -> [SensingSession] {
-        [] // テスト用のダミー実装
+        []  // テスト用のダミー実装
     }
 
     // MARK: - Antenna Methods
@@ -78,7 +79,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadAntennaPositions() -> [AntennaPositionData]? {
-        [] // テスト用のダミー実装
+        []  // テスト用のダミー実装
     }
 
     nonisolated public func saveFieldAntennaConfiguration(_ antennas: [AntennaInfo]) {
@@ -100,7 +101,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadAntennaPairings() -> [AntennaPairing]? {
-        [] // テスト用のダミー実装
+        []  // テスト用のダミー実装
     }
 
     nonisolated public func saveHasDeviceConnected(_ connected: Bool) {
@@ -110,7 +111,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadHasDeviceConnected() -> Bool {
-        false // テスト用のダミー実装
+        false  // テスト用のダミー実装
     }
 
     // MARK: - Legacy Calibration Methods
@@ -120,7 +121,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadCalibrationResults() -> Data? {
-        nil // テスト用のダミー実装
+        nil  // テスト用のダミー実装
     }
 
     // MARK: - Settings Methods
@@ -132,7 +133,7 @@ public class MockDataRepository: DataRepositoryProtocol {
     }
 
     nonisolated public func loadBoolSetting(key: String) -> Bool {
-        false // テスト用のダミー実装
+        false  // テスト用のダミー実装
     }
 
     // MARK: - System Activity Methods
@@ -466,9 +467,9 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
 
         // 無効なデータチェック
         let invalidPositions = self.antennaPositionStorage.filter { position in
-            position.antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                position.antennaName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                position.floorMapId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            position.antennaId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || position.antennaName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || position.floorMapId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
 
         if !invalidPositions.isEmpty {

@@ -323,7 +323,8 @@ class FloorMapViewModel: ObservableObject {
 
         // PreferenceRepositoryからの削除
         if let currentFloorMapInfo = preferenceRepository.loadCurrentFloorMapInfo(),
-           currentFloorMapInfo.id == map.id {
+           currentFloorMapInfo.id == map.id
+        {
             self.preferenceRepository.removeCurrentFloorMapInfo()
             #if DEBUG
                 print("🗑️ PreferenceRepositoryの現在のフロアマップ情報をクリア")

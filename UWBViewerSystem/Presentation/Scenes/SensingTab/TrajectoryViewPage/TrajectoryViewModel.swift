@@ -228,7 +228,8 @@ class TrajectoryViewModel: ObservableObject {
 
     private func applyFilters() {
         self.trajectoryPoints = self.allTrajectoryPoints.filter { point in
-            point.accuracy >= self.minAccuracy && point.timestamp >= self.startTimeFilter && point.timestamp <= self.endTimeFilter
+            point.accuracy >= self.minAccuracy && point.timestamp >= self.startTimeFilter
+                && point.timestamp <= self.endTimeFilter
         }
     }
 
@@ -264,7 +265,8 @@ class TrajectoryViewModel: ObservableObject {
 
         self.isPlaying = true
 
-        self.playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1 / self.playbackSpeed, repeats: true) { [weak self] _ in
+        self.playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1 / self.playbackSpeed, repeats: true) {
+            [weak self] _ in
             Task { @MainActor in
                 self?.updatePlayback()
             }

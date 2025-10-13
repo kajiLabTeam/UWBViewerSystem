@@ -14,8 +14,14 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     // MARK: - Published Properties
 
-    /// 現在のステップ (0: タグ位置設定, 1: データ収集, 2: キャリブレーション実行)
+    /// 現在のステップ (0: アンテナ選択, 1: タグ位置設定, 2: データ収集, 3: キャリブレーション結果表示)
     @Published var currentStep: Int = 0
+
+    /// 現在処理中のアンテナID
+    @Published var currentAntennaId: String?
+
+    /// 完了したアンテナIDのセット
+    @Published var completedAntennaIds: Set<String> = []
 
     /// タグの真の位置（既知の座標）
     @Published var trueTagPositions: [TagPosition] = []
@@ -23,19 +29,22 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     /// 選択可能なアンテナリスト
     @Published var availableAntennas: [AntennaInfo] = []
 
-    /// キャリブレーション対象として選択されたアンテナID
-    @Published var selectedAntennaIds: Set<String> = []
-
     /// データ収集の進行状況
     @Published var collectionProgress: Double = 0.0
 
     /// データ収集中かどうか
     @Published var isCollecting: Bool = false
 
+    /// 現在測定中のタグ位置インデックス
+    @Published var currentTagPositionIndex: Int = 0
+
     /// キャリブレーション実行中かどうか
     @Published var isCalibrating: Bool = false
 
-    /// キャリブレーション結果
+    /// 現在のアンテナのキャリブレーション結果
+    @Published var currentAntennaResult: CalibrationResult?
+
+    /// 全アンテナのキャリブレーション結果（履歴）
     @Published var calibrationResults: [String: CalibrationResult] = [:]
 
     /// エラーメッセージ
@@ -68,6 +77,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     private var autoCalibrationUsecase: AutoAntennaCalibrationUsecase?
     private var observationUsecase: ObservationDataUsecase?
+    private var realtimeDataUsecase: RealtimeDataUsecase?
     private var swiftDataRepository: SwiftDataRepository?
     private var sensingControlUsecase: SensingControlUsecase?
     private var modelContext: ModelContext?
@@ -78,18 +88,20 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     var currentStepTitle: String {
         switch self.currentStep {
-        case 0: return "タグ位置設定"
-        case 1: return "データ収集"
-        case 2: return "キャリブレーション実行"
+        case 0: return "アンテナ選択"
+        case 1: return "タグ位置設定"
+        case 2: return "データ収集"
+        case 3: return "キャリブレーション結果"
         default: return ""
         }
     }
 
     var canProceedToNext: Bool {
         switch self.currentStep {
-        case 0: return self.trueTagPositions.count >= 3
-        case 1: return !self.isCollecting && self.collectionProgress >= 1.0
-        case 2: return false // 最終ステップ
+        case 0: return self.currentAntennaId != nil
+        case 1: return self.trueTagPositions.count >= 3
+        case 2: return !self.isCollecting && self.collectionProgress >= 1.0
+        case 3: return false // 結果表示ステップ（次のアンテナへ進むか完了）
         default: return false
         }
     }
@@ -99,11 +111,36 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     }
 
     var canStartCollection: Bool {
-        !self.selectedAntennaIds.isEmpty && self.trueTagPositions.count >= 3 && !self.isCollecting
+        self.currentAntennaId != nil &&
+            self.currentTagPositionIndex < self.trueTagPositions.count &&
+            !self.isCollecting
     }
 
     var canStartCalibration: Bool {
-        !self.isCollecting && self.collectionProgress >= 1.0 && !self.calibrationResults.isEmpty == false
+        !self.isCollecting && self.allTagPositionsCollected
+    }
+
+    var hasMoreAntennas: Bool {
+        let uncalibratedAntennas = self.availableAntennas.filter { !self.completedAntennaIds.contains($0.id) }
+        return !uncalibratedAntennas.isEmpty
+    }
+
+    var currentAntennaName: String {
+        guard let currentId = self.currentAntennaId else { return "" }
+        return self.availableAntennas.first { $0.id == currentId }?.name ?? currentId
+    }
+
+    var currentTagPosition: TagPosition? {
+        guard self.currentTagPositionIndex < self.trueTagPositions.count else { return nil }
+        return self.trueTagPositions[self.currentTagPositionIndex]
+    }
+
+    var hasMoreTagPositions: Bool {
+        self.currentTagPositionIndex < self.trueTagPositions.count - 1
+    }
+
+    var allTagPositionsCollected: Bool {
+        self.trueTagPositions.allSatisfy { $0.isCollected }
     }
 
     // MARK: - Types
@@ -159,6 +196,14 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             swiftDataRepository: swiftDataRepo
         )
 
+        // RealtimeDataUsecaseを初期化してConnectionUsecaseに設定
+        let realtimeUsecase = RealtimeDataUsecase(
+            swiftDataRepository: swiftDataRepo,
+            sensingControlUsecase: self.sensingControlUsecase
+        )
+        self.realtimeDataUsecase = realtimeUsecase
+        connectionUsecase.setRealtimeDataUsecase(realtimeUsecase)
+
         self.loadInitialData()
     }
 
@@ -190,30 +235,17 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         self.trueTagPositions.removeAll()
     }
 
-    func toggleAntennaSelection(_ antennaId: String) {
-        if self.selectedAntennaIds.contains(antennaId) {
-            self.selectedAntennaIds.remove(antennaId)
-        } else {
-            self.selectedAntennaIds.insert(antennaId)
-        }
-        self.updateAntennaList()
-    }
-
-    func selectAllAntennas() {
-        self.selectedAntennaIds = Set(self.availableAntennas.map { $0.id })
-        self.updateAntennaList()
-    }
-
-    func deselectAllAntennas() {
-        self.selectedAntennaIds.removeAll()
-        self.updateAntennaList()
+    func selectAntennaForCalibration(_ antennaId: String) {
+        guard self.currentStep == 0 else { return }
+        self.currentAntennaId = antennaId
+        print("📡 アンテナ選択: \(self.currentAntennaName) (ID: \(antennaId))")
     }
 
     func proceedToNext() {
         guard self.canProceedToNext else { return }
         self.currentStep += 1
 
-        if self.currentStep == 1 {
+        if self.currentStep == 2 {
             // データ収集ステップに進んだら、真のタグ位置をUsecaseに設定
             Task {
                 await self.setTruePositionsInUsecase()
@@ -224,17 +256,35 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     func goBack() {
         guard self.canGoBack else { return }
         self.currentStep -= 1
+
+        // ステップ0（アンテナ選択）に戻る場合、タグ位置とデータをクリア
+        if self.currentStep == 0 {
+            self.trueTagPositions.removeAll()
+            self.collectionProgress = 0.0
+            self.currentTagPositionIndex = 0
+            Task {
+                guard let usecase = autoCalibrationUsecase,
+                      let antennaId = self.currentAntennaId else { return }
+                await usecase.clearData(for: antennaId)
+            }
+        }
     }
 
-    func startDataCollection() {
+    func startCurrentTagPositionCollection() {
         guard self.canStartCollection else { return }
+        guard self.currentTagPositionIndex < self.trueTagPositions.count else { return }
 
         self.isCollecting = true
-        self.collectionProgress = 0.0
 
         Task {
-            await self.performDataCollection()
+            await self.performCurrentTagPositionCollection()
         }
+    }
+
+    func proceedToNextTagPosition() {
+        guard self.currentTagPositionIndex < self.trueTagPositions.count - 1 else { return }
+        self.currentTagPositionIndex += 1
+        print("➡️  次のタグ位置へ: \(self.trueTagPositions[self.currentTagPositionIndex].tagId)")
     }
 
     func startCalibration() {
@@ -247,12 +297,41 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         }
     }
 
+    func proceedToNextAntenna() {
+        guard let currentId = self.currentAntennaId else { return }
+
+        // 現在のアンテナを完了リストに追加
+        self.completedAntennaIds.insert(currentId)
+
+        // 次の未キャリブレーションアンテナを探す
+        let nextAntenna = self.availableAntennas.first { antenna in
+            !self.completedAntennaIds.contains(antenna.id)
+        }
+
+        // 初期化
+        self.currentAntennaId = nextAntenna?.id
+        self.currentAntennaResult = nil
+        self.trueTagPositions.removeAll()
+        self.collectionProgress = 0.0
+        self.currentTagPositionIndex = 0
+        self.currentStep = 0
+
+        if let nextId = nextAntenna?.id {
+            print("➡️  次のアンテナへ: \(self.currentAntennaName) (ID: \(nextId))")
+        } else {
+            print("✅ 全アンテナのキャリブレーション完了")
+        }
+    }
+
     func resetCalibration() {
         self.currentStep = 0
+        self.currentAntennaId = nil
+        self.completedAntennaIds.removeAll()
         self.trueTagPositions.removeAll()
-        self.selectedAntennaIds.removeAll()
+        self.currentAntennaResult = nil
         self.calibrationResults.removeAll()
         self.collectionProgress = 0.0
+        self.currentTagPositionIndex = 0
         self.errorMessage = ""
 
         Task {
@@ -271,8 +350,18 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             if let floorMap = floorMaps.first {
                 self.currentFloorMapInfo = floorMap
 
-                // Note: FloorMapInfoにはimageDataプロパティがないため、
-                // 必要に応じて別途画像読み込みロジックを実装
+                // フロアマップ画像を読み込み
+                #if canImport(UIKit)
+                    #if os(iOS)
+                        self.floorMapImage = floorMap.image
+                    #elseif os(macOS)
+                        self.floorMapImage = floorMap.image
+                    #endif
+                #elseif canImport(AppKit)
+                    self.floorMapImage = floorMap.image
+                #endif
+
+                print("🗺️ [DEBUG] フロアマップ読み込み完了: \(floorMap.name), 画像: \(self.floorMapImage != nil ? "あり" : "なし")")
             }
         } catch {
             self.showError("フロアマップの読み込みに失敗しました: \(error.localizedDescription)")
@@ -281,33 +370,32 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     private func loadAvailableAntennas() async {
         guard let repository = swiftDataRepository else { return }
+        guard let floorMapId = currentFloorMapInfo?.id else {
+            print("⚠️ [DEBUG] フロアマップIDが取得できません")
+            return
+        }
 
         do {
-            // まず接続済みデバイスを取得
-            let pairings = try await repository.loadAntennaPairings()
-            let connectedDevices = pairings.filter { $0.device.isConnected }
+            // フロアマップに紐づくアンテナ位置データから読み込み
+            let antennaPositions = try await repository.loadAntennaPositions(for: floorMapId)
+            print("🔍 [DEBUG] loadAntennaPositions()で取得したアンテナ数: \(antennaPositions.count)件")
 
-            self.availableAntennas = connectedDevices.map { pairing in
+            for (index, position) in antennaPositions.enumerated() {
+                print("🔍 [DEBUG] Antenna[\(index)]: id=\(position.antennaId), name=\(position.antennaName), pos=(\(position.position.x), \(position.position.y))")
+            }
+
+            // アンテナ位置データからアンテナリストを構築
+            self.availableAntennas = antennaPositions.map { position in
                 AntennaInfo(
-                    id: pairing.device.id,
-                    name: pairing.antenna.name,
-                    isSelected: self.selectedAntennaIds.contains(pairing.device.id)
+                    id: position.antennaId,
+                    name: position.antennaName,
+                    isSelected: false
                 )
             }
 
             print("📡 利用可能なアンテナ: \(self.availableAntennas.count)個")
         } catch {
             self.showError("アンテナリストの読み込みに失敗しました: \(error.localizedDescription)")
-        }
-    }
-
-    private func updateAntennaList() {
-        self.availableAntennas = self.availableAntennas.map { antenna in
-            AntennaInfo(
-                id: antenna.id,
-                name: antenna.name,
-                isSelected: self.selectedAntennaIds.contains(antenna.id)
-            )
         }
     }
 
@@ -321,96 +409,146 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         await usecase.setTrueTagPositions(positions)
     }
 
-    private func performDataCollection() async {
+    private func performCurrentTagPositionCollection() async {
         guard let usecase = autoCalibrationUsecase,
               let sensingControl = sensingControlUsecase,
-              let floorMapId = currentFloorMapInfo?.id
+              let antennaId = currentAntennaId,
+              currentTagPositionIndex < trueTagPositions.count
         else {
             self.showError("初期化が完了していません")
             self.isCollecting = false
             return
         }
 
-        let totalSteps = self.trueTagPositions.count
-        var completedSteps = 0
+        let tagPos = self.trueTagPositions[self.currentTagPositionIndex]
 
-        for i in 0..<self.trueTagPositions.count {
-            let tagPos = self.trueTagPositions[i]
+        print("📍 タグ位置: \(tagPos.tagId) のデータ収集開始")
 
-            print("📍 \(tagPos.tagId) のデータ収集開始")
-
-            // センシングセッションを開始
-            let sessionId = UUID().uuidString
-
-            do {
-                // センシング開始コマンドを送信
-                sensingControl.startRemoteSensing(fileName: "calibration_\(tagPos.tagId)")
-
-                // 10秒間データ収集
-                try await Task.sleep(nanoseconds: 10_000_000_000)
-
-                // センシング停止
-                sensingControl.stopRemoteSensing()
-
-                // データを収集
-                try await usecase.collectDataFromSession(
-                    sessionId: sessionId,
-                    tagId: tagPos.tagId
+        do {
+            // 接続状態を確認
+            let connectionUsecase = ConnectionManagementUsecase.shared
+            guard connectionUsecase.hasConnectedDevices() else {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "デバイスが接続されていません。デバイスをペアリングしてください。"]
                 )
-
-                // 進行状況を更新
-                completedSteps += 1
-                self.collectionProgress = Double(completedSteps) / Double(totalSteps)
-
-                // タグの収集状態を更新
-                self.trueTagPositions[i].isCollected = true
-
-                print("✅ \(tagPos.tagId) のデータ収集完了")
-
-            } catch {
-                self.showError("\(tagPos.tagId) のデータ収集に失敗しました: \(error.localizedDescription)")
             }
 
-            // 次のタグまで少し待機
-            if i < self.trueTagPositions.count - 1 {
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
+            print("✅ デバイス接続確認: \(connectionUsecase.getConnectedDeviceCount())台")
+
+            // センシングセッションIDを生成
+            let sessionId = UUID().uuidString
+            let sessionName = "calibration_\(antennaId)_\(tagPos.tagId)"
+
+            print("🎬 センシングセッション開始: \(sessionId)")
+
+            // センシング開始コマンドを送信
+            sensingControl.startRemoteSensing(fileName: sessionName)
+
+            // 10秒間データ収集
+            try await Task.sleep(nanoseconds: 10_000_000_000)
+
+            // センシング停止
+            sensingControl.stopRemoteSensing()
+
+            print("🛑 センシング停止")
+
+            // RealtimeDataUsecaseから測定データを収集
+            guard let realtimeUsecase = realtimeDataUsecase else {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "RealtimeDataUsecaseが初期化されていません"]
+                )
             }
+
+            // 各デバイスからデータを収集
+            for deviceData in realtimeUsecase.deviceRealtimeDataList {
+                guard deviceData.isActive else { continue }
+
+                print("📊 デバイス \(deviceData.deviceName) のデータ収集: \(deviceData.dataHistory.count)件")
+
+                // データ履歴から座標を取得
+                for data in deviceData.dataHistory {
+                    // UWBデータから3D座標を計算
+                    let position = self.calculatePosition(
+                        distance: data.distance,
+                        elevation: data.elevation,
+                        azimuth: data.azimuth
+                    )
+
+                    // AutoAntennaCalibrationUsecaseにデータを追加
+                    // 注: antennaIdとして現在選択中のアンテナIDを使用
+                    await usecase.addMeasuredData(
+                        antennaId: antennaId,
+                        tagId: tagPos.tagId,
+                        measuredPosition: position
+                    )
+
+                    print("  ➕ データ追加: antenna=\(antennaId), tag=\(tagPos.tagId), pos=(\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)))")
+                }
+            }
+
+            // リアルタイムデータをクリア
+            realtimeUsecase.clearRealtimeDataForSensing()
+
+            // タグの収集状態を更新
+            self.trueTagPositions[self.currentTagPositionIndex].isCollected = true
+
+            // 進行状況を更新
+            let completedCount = self.trueTagPositions.filter { $0.isCollected }.count
+            self.collectionProgress = Double(completedCount) / Double(self.trueTagPositions.count)
+
+            print("✅ タグ位置: \(tagPos.tagId) のデータ収集完了 (\(completedCount)/\(self.trueTagPositions.count))")
+
+        } catch {
+            self.showError("タグ位置: \(tagPos.tagId) のデータ収集に失敗しました: \(error.localizedDescription)")
         }
 
         self.isCollecting = false
 
         // データ統計を更新
         await self.updateDataStatistics()
-
-        print("🎉 全タグのデータ収集完了")
     }
 
     private func performCalibration() async {
         guard let usecase = autoCalibrationUsecase,
-              let floorMapId = currentFloorMapInfo?.id
+              let floorMapId = currentFloorMapInfo?.id,
+              let antennaId = currentAntennaId
         else {
             self.showError("初期化が完了していません")
             self.isCalibrating = false
             return
         }
 
+        print("🔧 \(self.currentAntennaName) のキャリブレーション開始")
+
         do {
-            // キャリブレーション実行
+            // 単一アンテナのキャリブレーション実行
             let results = try await usecase.executeAutoCalibration(
-                for: Array(self.selectedAntennaIds),
+                for: [antennaId],
                 minObservationsPerTag: 5
             )
 
-            // 結果をViewModelに保存
-            self.calibrationResults = results.mapValues { config in
-                CalibrationResult(
-                    antennaId: "",
-                    position: config.position,
-                    angleDegrees: config.angleDegrees,
-                    rmse: config.rmse,
-                    scaleFactors: config.scaleFactors
+            guard let config = results[antennaId] else {
+                throw NSError(
+                    domain: "AutoAntennaCalibrationViewModel",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "キャリブレーション結果が取得できませんでした"]
                 )
             }
+
+            // 現在のアンテナの結果を保存
+            let result = CalibrationResult(
+                antennaId: antennaId,
+                position: config.position,
+                angleDegrees: config.angleDegrees,
+                rmse: config.rmse,
+                scaleFactors: config.scaleFactors
+            )
+            self.currentAntennaResult = result
+            self.calibrationResults[antennaId] = result
 
             // SwiftDataに保存
             try await usecase.saveCalibrationResults(
@@ -419,13 +557,16 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             )
 
             self.isCalibrating = false
-            self.showSuccessAlert = true
 
-            print("🎉 キャリブレーション完了")
+            // 結果表示ステップに自動遷移
+            self.currentStep = 3
+
+            print("🎉 \(self.currentAntennaName) のキャリブレーション完了")
+            print("   位置: (\(config.x), \(config.y)), 角度: \(config.angleDegrees)°, RMSE: \(config.rmse)")
 
         } catch {
             self.isCalibrating = false
-            self.showError("キャリブレーションに失敗しました: \(error.localizedDescription)")
+            self.showError("\(self.currentAntennaName) のキャリブレーションに失敗しました: \(error.localizedDescription)")
         }
     }
 
@@ -438,5 +579,28 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         self.errorMessage = message
         self.showErrorAlert = true
         print("❌ エラー: \(message)")
+    }
+
+    /// UWBデータから3D座標を計算
+    ///
+    /// - Parameters:
+    ///   - distance: 距離（メートル）
+    ///   - elevation: 仰角（度）
+    ///   - azimuth: 方位角（度）
+    /// - Returns: 3D座標
+    private func calculatePosition(distance: Double, elevation: Double, azimuth: Double) -> Point3D {
+        // 角度をラジアンに変換
+        let elevationRad = elevation * .pi / 180.0
+        let azimuthRad = azimuth * .pi / 180.0
+
+        // 球面座標から直交座標への変換
+        // x = r * cos(elevation) * cos(azimuth)
+        // y = r * cos(elevation) * sin(azimuth)
+        // z = r * sin(elevation)
+        let x = distance * cos(elevationRad) * cos(azimuthRad)
+        let y = distance * cos(elevationRad) * sin(azimuthRad)
+        let z = distance * sin(elevationRad)
+
+        return Point3D(x: x, y: y, z: z)
     }
 }

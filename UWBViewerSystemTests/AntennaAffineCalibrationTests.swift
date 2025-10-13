@@ -344,7 +344,7 @@ struct AntennaAffineCalibrationTests {
     }
 
     @Test("複数回の測定値の平均化")
-    func multipleM easurementsAveraging() throws {
+    func multipleMeasurementsAveraging() throws {
         // Arrange
         let calibration = AntennaAffineCalibration()
         let measuredData: [String: [Point3D]] = [

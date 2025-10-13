@@ -76,6 +76,12 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     /// 現在のセンシング中のデータポイント（マップ表示用）
     @Published var currentSensingDataPoints: [Point3D] = []
 
+    /// すべてのアンテナ位置（マップ常時表示用）
+    @Published var allAntennaPositions: [AntennaPositionData] = []
+
+    /// キャリブレーション前の現在のアンテナ位置
+    @Published var originalAntennaPosition: AntennaPositionData?
+
     // MARK: - Dependencies
 
     private var autoCalibrationUsecase: AutoAntennaCalibrationUsecase?
@@ -241,7 +247,14 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     func selectAntennaForCalibration(_ antennaId: String) {
         guard self.currentStep == 0 else { return }
         self.currentAntennaId = antennaId
+
+        // キャリブレーション前のアンテナ位置を保存
+        self.originalAntennaPosition = self.allAntennaPositions.first { $0.antennaId == antennaId }
+
         print("📡 アンテナ選択: \(self.currentAntennaName) (ID: \(antennaId))")
+        if let original = originalAntennaPosition {
+            print("   現在位置: (\(original.position.x), \(original.position.y)), 角度: \(original.rotation)°")
+        }
     }
 
     func proceedToNext() {
@@ -386,6 +399,9 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             for (index, position) in antennaPositions.enumerated() {
                 print("🔍 [DEBUG] Antenna[\(index)]: id=\(position.antennaId), name=\(position.antennaName), pos=(\(position.position.x), \(position.position.y))")
             }
+
+            // すべてのアンテナ位置を保存（マップ常時表示用）
+            self.allAntennaPositions = antennaPositions
 
             // アンテナ位置データからアンテナリストを構築
             self.availableAntennas = antennaPositions.map { position in
@@ -581,6 +597,9 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                 floorMapId: floorMapId,
                 results: results
             )
+
+            // アンテナ位置リストを再読み込みして最新の位置を取得
+            await self.loadAvailableAntennas()
 
             self.isCalibrating = false
 

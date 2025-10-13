@@ -411,6 +411,51 @@ struct AutoAntennaCalibrationView: View {
                             Text("センシング中... (約10秒)")
                                 .font(.subheadline)
                                 .foregroundColor(.green)
+
+                            // センシング中のマップ表示
+                            if let floorMapImage = viewModel.floorMapImage,
+                               let floorMapInfo = viewModel.currentFloorMapInfo
+                            {
+                                FloorMapCanvas(
+                                    floorMapImage: floorMapImage,
+                                    floorMapInfo: floorMapInfo,
+                                    calibrationPoints: nil,
+                                    onMapTap: nil
+                                ) { geometry in
+                                    // タグ位置マーカー
+                                    ForEach(Array(self.viewModel.trueTagPositions.enumerated()), id: \.offset) { index, tagPos in
+                                        let normalizedPoint = geometry.realWorldToNormalized(
+                                            CGPoint(x: tagPos.position.x, y: tagPos.position.y)
+                                        )
+                                        let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                                        Circle()
+                                            .fill(tagPos.isCollected ? Color.green : (index == self.viewModel.currentTagPositionIndex ? Color.orange : Color.blue))
+                                            .frame(width: 24, height: 24)
+                                            .overlay(
+                                                Text("\(index + 1)")
+                                                    .font(.caption2)
+                                                    .fontWeight(.bold)
+                                                    .foregroundColor(.white)
+                                            )
+                                            .position(displayPosition)
+                                    }
+
+                                    // 測定データポイント
+                                    ForEach(Array(self.viewModel.currentSensingDataPoints.enumerated()), id: \.offset) { _, dataPoint in
+                                        let normalizedPoint = geometry.realWorldToNormalized(
+                                            CGPoint(x: dataPoint.x, y: dataPoint.y)
+                                        )
+                                        let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                                        Circle()
+                                            .fill(Color.red.opacity(0.6))
+                                            .frame(width: 8, height: 8)
+                                            .position(displayPosition)
+                                    }
+                                }
+                                .frame(height: 300)
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -591,6 +636,106 @@ struct AutoAntennaCalibrationView: View {
                     .padding()
                     .background(Color.green.opacity(0.1))
                     .cornerRadius(8)
+
+                    // キャリブレーション結果のマップ表示
+                    if let floorMapImage = viewModel.floorMapImage,
+                       let floorMapInfo = viewModel.currentFloorMapInfo
+                    {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("マップ表示")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+
+                            FloorMapCanvas(
+                                floorMapImage: floorMapImage,
+                                floorMapInfo: floorMapInfo,
+                                calibrationPoints: nil,
+                                onMapTap: nil
+                            ) { geometry in
+                                // タグ位置マーカー（キャリブレーションに使用）
+                                ForEach(Array(self.viewModel.trueTagPositions.enumerated()), id: \.offset) { index, tagPos in
+                                    let normalizedPoint = geometry.realWorldToNormalized(
+                                        CGPoint(x: tagPos.position.x, y: tagPos.position.y)
+                                    )
+                                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                                    Circle()
+                                        .fill(Color.green)
+                                        .frame(width: 24, height: 24)
+                                        .overlay(
+                                            Text("\(index + 1)")
+                                                .font(.caption2)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.white)
+                                        )
+                                        .position(displayPosition)
+                                }
+
+                                // 推定されたアンテナ位置
+                                let antennaNormalizedPoint = geometry.realWorldToNormalized(
+                                    CGPoint(x: result.position.x, y: result.position.y)
+                                )
+                                let antennaDisplayPosition = geometry.normalizedToImageCoordinate(antennaNormalizedPoint)
+
+                                // アンテナマーカー（本体）
+                                ZStack {
+                                    // 外側の円（影）
+                                    Circle()
+                                        .fill(Color.blue.opacity(0.3))
+                                        .frame(width: 48, height: 48)
+
+                                    // 内側の円（本体）
+                                    Circle()
+                                        .fill(Color.blue)
+                                        .frame(width: 36, height: 36)
+
+                                    // アンテナアイコン
+                                    Image(systemName: "antenna.radiowaves.left.and.right")
+                                        .foregroundColor(.white)
+                                        .font(.system(size: 14))
+                                }
+                                .position(antennaDisplayPosition)
+
+                                // アンテナの向き（矢印）
+                                let arrowLength: CGFloat = 40
+                                let angleRad = result.angleDegrees * .pi / 180.0
+                                let arrowEndX = antennaDisplayPosition.x + arrowLength * cos(angleRad)
+                                let arrowEndY = antennaDisplayPosition.y + arrowLength * sin(angleRad)
+
+                                Path { path in
+                                    path.move(to: antennaDisplayPosition)
+                                    path.addLine(to: CGPoint(x: arrowEndX, y: arrowEndY))
+                                }
+                                .stroke(Color.orange, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+
+                                // 矢印の先端
+                                Path { path in
+                                    let arrowHeadLength: CGFloat = 10
+                                    let arrowHeadAngle: CGFloat = .pi / 6
+
+                                    let leftAngle = angleRad + .pi - arrowHeadAngle
+                                    let rightAngle = angleRad + .pi + arrowHeadAngle
+
+                                    path.move(to: CGPoint(x: arrowEndX, y: arrowEndY))
+                                    path.addLine(to: CGPoint(
+                                        x: arrowEndX + arrowHeadLength * cos(leftAngle),
+                                        y: arrowEndY + arrowHeadLength * sin(leftAngle)
+                                    ))
+
+                                    path.move(to: CGPoint(x: arrowEndX, y: arrowEndY))
+                                    path.addLine(to: CGPoint(
+                                        x: arrowEndX + arrowHeadLength * cos(rightAngle),
+                                        y: arrowEndY + arrowHeadLength * sin(rightAngle)
+                                    ))
+                                }
+                                .stroke(Color.orange, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            }
+                            .frame(height: 350)
+                        }
+                        .padding()
+                        .background(Color.secondary.opacity(0.05))
+                        .cornerRadius(8)
+                    }
 
                     // 次のアンテナへ進むボタン
                     if self.viewModel.hasMoreAntennas {

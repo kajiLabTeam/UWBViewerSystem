@@ -161,6 +161,7 @@ struct MapCanvasSection: View {
             FloorMapCanvas(
                 floorMapImage: self.viewModel.mapImage,
                 floorMapInfo: self.viewModel.currentFloorMapInfo,
+                calibrationPoints: self.viewModel.calibrationData.first?.calibrationPoints,
                 onMapTap: nil
             ) { geometry in
                 // アンテナ位置

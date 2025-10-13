@@ -13,6 +13,7 @@ class AntennaPositioningViewModel: ObservableObject {
     @Published var selectedDevices: [AndroidDevice] = []
     @Published var antennaPositions: [AntennaPosition] = []
     @Published var canProceedValue: Bool = false
+    @Published var calibrationData: [MapCalibrationData] = []
 
     #if os(macOS)
         var mapImage: NSImage?
@@ -102,6 +103,7 @@ class AntennaPositioningViewModel: ObservableObject {
     func loadMapAndDevices() {
         self.loadSelectedDevices()
         self.loadMapData()
+        self.loadCalibrationData()
         self.createAntennaPositions()
     }
 
@@ -269,6 +271,33 @@ class AntennaPositioningViewModel: ObservableObject {
             #if DEBUG
                 print("❌ AntennaPositioningViewModel: No FloorMapInfo found in UserDefaults")
             #endif
+        }
+    }
+
+    // キャリブレーションデータを読み込む
+    private func loadCalibrationData() {
+        guard let repository = swiftDataRepository else {
+            self.calibrationData = []
+            return
+        }
+
+        Task {
+            do {
+                let allCalibrationData = try await repository.loadMapCalibrationData()
+                await MainActor.run {
+                    self.calibrationData = allCalibrationData
+                }
+                #if DEBUG
+                    print("✅ キャリブレーションデータを読み込みました: \(allCalibrationData.count)件")
+                #endif
+            } catch {
+                await MainActor.run {
+                    self.calibrationData = []
+                }
+                #if DEBUG
+                    print("📝 キャリブレーションデータが見つかりません: \(error)")
+                #endif
+            }
         }
     }
 

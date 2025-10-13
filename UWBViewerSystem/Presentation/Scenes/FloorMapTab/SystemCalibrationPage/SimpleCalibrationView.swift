@@ -300,6 +300,7 @@ struct SimpleCalibrationView: View {
         FloorMapCanvas(
             floorMapImage: self.viewModel.floorMapImage,
             floorMapInfo: self.viewModel.currentFloorMapInfo,
+            calibrationPoints: nil,
             onMapTap: self.handleMapTap
         ) { geometry in
             // アンテナ表示

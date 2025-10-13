@@ -52,6 +52,10 @@ class MapBasedCalibrationViewModel: ObservableObject {
         self.calibrationPoints.count >= 3 && self.currentCalibrationData?.affineTransform != nil
     }
 
+    var isCalibrationCompleted: Bool {
+        self.currentCalibrationData?.affineTransform != nil
+    }
+
     // MARK: - 初期化
 
     init(antennaId: String, floorMapId: String, dataRepository: SwiftDataRepositoryProtocol? = nil) {

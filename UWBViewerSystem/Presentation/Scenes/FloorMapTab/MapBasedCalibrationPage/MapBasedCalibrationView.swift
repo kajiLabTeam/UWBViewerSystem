@@ -160,7 +160,8 @@ struct MapBasedCalibrationView: View {
                                 point: point,
                                 containerSize: geometry.size,
                                 imageSize: imageSize,
-                                imageOffset: imageOffset
+                                imageOffset: imageOffset,
+                                isCompleted: self.viewModel.isCalibrationCompleted
                             ) {
                                 self.viewModel.removeCalibrationPoint(point)
                             }
@@ -311,16 +312,43 @@ struct CalibrationPointMarker: View {
     let containerSize: CGSize
     let imageSize: CGSize
     let imageOffset: CGSize
+    let isCompleted: Bool
     let onRemove: () -> Void
+
+    private var markerColor: Color {
+        if self.isCompleted {
+            switch self.point.pointIndex {
+            case 1:
+                return .red
+            case 2:
+                return .green
+            case 3:
+                return .blue
+            default:
+                return .purple
+            }
+        } else {
+            return .red.opacity(0.7)
+        }
+    }
 
     var body: some View {
         let markerPosition = self.calculateMarkerPosition()
 
         Button(action: self.onRemove) {
             ZStack {
+                // 外側のリング（完了時のみ）
+                if self.isCompleted {
+                    Circle()
+                        .stroke(self.markerColor, lineWidth: 3)
+                        .frame(width: 32, height: 32)
+                        .opacity(0.6)
+                }
+
                 Circle()
-                    .fill(Color.red)
+                    .fill(self.markerColor)
                     .frame(width: 24, height: 24)
+                    .shadow(radius: self.isCompleted ? 4 : 2)
 
                 Text("\(self.point.pointIndex)")
                     .font(.caption)

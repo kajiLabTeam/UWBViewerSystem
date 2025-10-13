@@ -6,6 +6,7 @@ import SwiftUI
 struct FloorMapCanvas<Content: View>: View {
     let floorMapImage: FloorMapImage?
     let floorMapInfo: FloorMapInfo?
+    let calibrationPoints: [MapCalibrationPoint]?
     let onMapTap: ((CGPoint) -> Void)?
     @ViewBuilder let content: (FloorMapCanvasGeometry) -> Content
 
@@ -68,6 +69,23 @@ struct FloorMapCanvas<Content: View>: View {
                         self.handleMapTap(location: location, geometry: canvasGeometry)
                     }
 
+                // キャリブレーション結果の表示
+                if let calibrationPoints = self.calibrationPoints {
+                    ForEach(calibrationPoints) { point in
+                        let screenPosition = self.realWorldToScreen(
+                            realWorldPoint: point.realWorldCoordinate,
+                            geometry: canvasGeometry
+                        )
+                        CalibrationResultMarker(
+                            point: point,
+                            position: screenPosition,
+                            size: 16,
+                            isSelected: false,
+                            isDraggable: false
+                        )
+                    }
+                }
+
                 // コンテンツ（アンテナ、基準点など）- 最前面
                 self.content(canvasGeometry)
             }
@@ -108,6 +126,23 @@ struct FloorMapCanvas<Content: View>: View {
             }
             onMapTap(realWorldLocation)
         }
+    }
+
+    // 実世界座標をスクリーン座標に変換するヘルパーメソッド
+    private func realWorldToScreen(realWorldPoint: Point3D, geometry: FloorMapCanvasGeometry) -> CGPoint {
+        guard let floorMapInfo = geometry.floorMapInfo else {
+            return CGPoint(x: 0, y: 0)
+        }
+
+        // 実世界座標を正規化座標（0.0-1.0）に変換
+        let normalizedX = realWorldPoint.x / floorMapInfo.width
+        let normalizedY = 1.0 - (realWorldPoint.y / floorMapInfo.depth)  // Y座標を反転
+
+        // 正規化座標をスクリーン座標に変換
+        let screenX = geometry.imageFrame.origin.x + normalizedX * geometry.imageFrame.width
+        let screenY = geometry.imageFrame.origin.y + normalizedY * geometry.imageFrame.height
+
+        return CGPoint(x: screenX, y: screenY)
     }
 }
 

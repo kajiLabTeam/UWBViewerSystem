@@ -496,6 +496,11 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
             print("🛑 センシング停止")
 
+            // センシング停止後、リモートデバイスからのデータ送信を待つ
+            // CSVファイルの受信とRealtimeDataの更新を待機
+            print("⏳ データ送信待機中...")
+            try await Task.sleep(nanoseconds: 3_000_000_000) // 3秒待機
+
             // RealtimeDataUsecaseから測定データを収集
             guard let realtimeUsecase = realtimeDataUsecase else {
                 throw NSError(
@@ -629,14 +634,11 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     /// UWBデータから3D座標を計算
     ///
     /// - Parameters:
-    ///   - distance: 距離（センチメートル）
+    ///   - distance: 距離（メートル）
     ///   - elevation: 仰角（度）
     ///   - azimuth: 方位角（度）
     /// - Returns: 3D座標（メートル単位）
     private func calculatePosition(distance: Double, elevation: Double, azimuth: Double) -> Point3D {
-        // 距離をcmからmに変換
-        let distanceInMeters = distance / 100.0
-
         // 角度をラジアンに変換
         let elevationRad = elevation * .pi / 180.0
         let azimuthRad = azimuth * .pi / 180.0
@@ -645,9 +647,9 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         // x = r * cos(elevation) * cos(azimuth)
         // y = r * cos(elevation) * sin(azimuth)
         // z = r * sin(elevation)
-        let x = distanceInMeters * cos(elevationRad) * cos(azimuthRad)
-        let y = distanceInMeters * cos(elevationRad) * sin(azimuthRad)
-        let z = distanceInMeters * sin(elevationRad)
+        let x = distance * cos(elevationRad) * cos(azimuthRad)
+        let y = distance * cos(elevationRad) * sin(azimuthRad)
+        let z = distance * sin(elevationRad)
 
         return Point3D(x: x, y: y, z: z)
     }

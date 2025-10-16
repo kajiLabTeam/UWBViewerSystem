@@ -434,41 +434,54 @@ struct AutoAntennaCalibrationView: View {
                                 calibrationPoints: nil,
                                 onMapTap: nil
                             ) { geometry in
-                                // すべてのアンテナ位置マーカー
-                                ForEach(self.viewModel.allAntennaPositions) { antennaPos in
+                                // 他のアンテナ位置マーカー（現在のアンテナ以外）
+                                ForEach(self.viewModel.allAntennaPositions.filter { $0.antennaId != self.viewModel.currentAntennaId }) { antennaPos in
                                     let normalizedPoint = geometry.realWorldToNormalized(
                                         CGPoint(x: antennaPos.position.x, y: antennaPos.position.y)
                                     )
                                     let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
-                                    let isCurrentAntenna = antennaPos.antennaId == self.viewModel.currentAntennaId
 
-                                    // アンテナマーカー
-                                    ZStack {
-                                        Circle()
-                                            .fill(isCurrentAntenna ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2))
-                                            .frame(width: 40, height: 40)
+                                    let antennaDisplayData = AntennaDisplayData(
+                                        id: antennaPos.antennaId,
+                                        name: antennaPos.antennaName,
+                                        rotation: antennaPos.rotation,
+                                        color: Color.gray.opacity(0.6)
+                                    )
 
-                                        Circle()
-                                            .fill(isCurrentAntenna ? Color.blue : Color.gray)
-                                            .frame(width: 28, height: 28)
+                                    AntennaMarker(
+                                        antenna: antennaDisplayData,
+                                        position: displayPosition,
+                                        size: geometry.antennaSizeInPixels(),
+                                        sensorRange: nil,
+                                        isSelected: false,
+                                        isDraggable: false,
+                                        showRotationControls: false
+                                    )
+                                }
 
-                                        Image(systemName: "antenna.radiowaves.left.and.right")
-                                            .foregroundColor(.white)
-                                            .font(.system(size: 12))
-                                    }
-                                    .position(displayPosition)
+                                // 現在キャリブレーション中のアンテナ位置（目立つように表示）
+                                if let currentAntenna = self.viewModel.originalAntennaPosition {
+                                    let normalizedPoint = geometry.realWorldToNormalized(
+                                        CGPoint(x: currentAntenna.position.x, y: currentAntenna.position.y)
+                                    )
+                                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
 
-                                    // アンテナの向き
-                                    let arrowLength: CGFloat = 30
-                                    let angleRad = antennaPos.rotation * .pi / 180.0
-                                    let arrowEndX = displayPosition.x + arrowLength * cos(angleRad)
-                                    let arrowEndY = displayPosition.y + arrowLength * sin(angleRad)
+                                    let currentAntennaDisplayData = AntennaDisplayData(
+                                        id: currentAntenna.antennaId,
+                                        name: currentAntenna.antennaName,
+                                        rotation: currentAntenna.rotation,
+                                        color: Color.blue
+                                    )
 
-                                    Path { path in
-                                        path.move(to: displayPosition)
-                                        path.addLine(to: CGPoint(x: arrowEndX, y: arrowEndY))
-                                    }
-                                    .stroke(isCurrentAntenna ? Color.blue : Color.gray, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                                    AntennaMarker(
+                                        antenna: currentAntennaDisplayData,
+                                        position: displayPosition,
+                                        size: geometry.antennaSizeInPixels() * 1.5,
+                                        sensorRange: geometry.sensorRangeInPixels(),
+                                        isSelected: true,
+                                        isDraggable: false,
+                                        showRotationControls: false
+                                    )
                                 }
 
                                 // タグ位置マーカー
@@ -709,20 +722,22 @@ struct AutoAntennaCalibrationView: View {
                                     )
                                     let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
 
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.gray.opacity(0.2))
-                                            .frame(width: 32, height: 32)
+                                    let antennaDisplayData = AntennaDisplayData(
+                                        id: antennaPos.antennaId,
+                                        name: antennaPos.antennaName,
+                                        rotation: antennaPos.rotation,
+                                        color: Color.gray.opacity(0.6)
+                                    )
 
-                                        Circle()
-                                            .fill(Color.gray)
-                                            .frame(width: 22, height: 22)
-
-                                        Image(systemName: "antenna.radiowaves.left.and.right")
-                                            .foregroundColor(.white)
-                                            .font(.system(size: 10))
-                                    }
-                                    .position(displayPosition)
+                                    AntennaMarker(
+                                        antenna: antennaDisplayData,
+                                        position: displayPosition,
+                                        size: geometry.antennaSizeInPixels(),
+                                        sensorRange: nil,
+                                        isSelected: false,
+                                        isDraggable: false,
+                                        showRotationControls: false
+                                    )
                                 }
 
                                 // タグ位置マーカー（キャリブレーションに使用）
@@ -744,41 +759,29 @@ struct AutoAntennaCalibrationView: View {
                                         .position(displayPosition)
                                 }
 
-                                // 変更前のアンテナ位置（グレー）
+                                // 変更前のアンテナ位置（赤、半透明）
                                 if let original = self.viewModel.originalAntennaPosition {
                                     let originalNormalizedPoint = geometry.realWorldToNormalized(
                                         CGPoint(x: original.position.x, y: original.position.y)
                                     )
                                     let originalDisplayPosition = geometry.normalizedToImageCoordinate(originalNormalizedPoint)
 
-                                    // 変更前のアンテナマーカー（薄いグレー）
-                                    ZStack {
-                                        Circle()
-                                            .stroke(Color.red.opacity(0.5), lineWidth: 2)
-                                            .fill(Color.red.opacity(0.1))
-                                            .frame(width: 44, height: 44)
+                                    let originalAntennaDisplayData = AntennaDisplayData(
+                                        id: original.antennaId,
+                                        name: "変更前",
+                                        rotation: original.rotation,
+                                        color: Color.red.opacity(0.5)
+                                    )
 
-                                        Circle()
-                                            .fill(Color.red.opacity(0.3))
-                                            .frame(width: 32, height: 32)
-
-                                        Image(systemName: "antenna.radiowaves.left.and.right")
-                                            .foregroundColor(.white)
-                                            .font(.system(size: 12))
-                                    }
-                                    .position(originalDisplayPosition)
-
-                                    // 変更前のアンテナの向き
-                                    let originalArrowLength: CGFloat = 35
-                                    let originalAngleRad = original.rotation * .pi / 180.0
-                                    let originalArrowEndX = originalDisplayPosition.x + originalArrowLength * cos(originalAngleRad)
-                                    let originalArrowEndY = originalDisplayPosition.y + originalArrowLength * sin(originalAngleRad)
-
-                                    Path { path in
-                                        path.move(to: originalDisplayPosition)
-                                        path.addLine(to: CGPoint(x: originalArrowEndX, y: originalArrowEndY))
-                                    }
-                                    .stroke(Color.red.opacity(0.5), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 3]))
+                                    AntennaMarker(
+                                        antenna: originalAntennaDisplayData,
+                                        position: originalDisplayPosition,
+                                        size: geometry.antennaSizeInPixels() * 1.1,
+                                        sensorRange: nil,
+                                        isSelected: false,
+                                        isDraggable: false,
+                                        showRotationControls: false
+                                    )
 
                                     // 変更前から変更後への移動線
                                     let newNormalizedPoint = geometry.realWorldToNormalized(
@@ -799,58 +802,22 @@ struct AutoAntennaCalibrationView: View {
                                 )
                                 let antennaDisplayPosition = geometry.normalizedToImageCoordinate(antennaNormalizedPoint)
 
-                                // アンテナマーカー（本体）
-                                ZStack {
-                                    // 外側の円（影）
-                                    Circle()
-                                        .fill(Color.blue.opacity(0.3))
-                                        .frame(width: 52, height: 52)
+                                let newAntennaDisplayData = AntennaDisplayData(
+                                    id: self.viewModel.currentAntennaId ?? "",
+                                    name: self.viewModel.currentAntennaName,
+                                    rotation: result.angleDegrees,
+                                    color: Color.blue
+                                )
 
-                                    // 内側の円（本体）
-                                    Circle()
-                                        .fill(Color.blue)
-                                        .frame(width: 40, height: 40)
-
-                                    // アンテナアイコン
-                                    Image(systemName: "antenna.radiowaves.left.and.right")
-                                        .foregroundColor(.white)
-                                        .font(.system(size: 16))
-                                }
-                                .position(antennaDisplayPosition)
-
-                                // アンテナの向き（矢印）
-                                let arrowLength: CGFloat = 45
-                                let angleRad = result.angleDegrees * .pi / 180.0
-                                let arrowEndX = antennaDisplayPosition.x + arrowLength * cos(angleRad)
-                                let arrowEndY = antennaDisplayPosition.y + arrowLength * sin(angleRad)
-
-                                Path { path in
-                                    path.move(to: antennaDisplayPosition)
-                                    path.addLine(to: CGPoint(x: arrowEndX, y: arrowEndY))
-                                }
-                                .stroke(Color.orange, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-
-                                // 矢印の先端
-                                Path { path in
-                                    let arrowHeadLength: CGFloat = 12
-                                    let arrowHeadAngle: CGFloat = .pi / 6
-
-                                    let leftAngle = angleRad + .pi - arrowHeadAngle
-                                    let rightAngle = angleRad + .pi + arrowHeadAngle
-
-                                    path.move(to: CGPoint(x: arrowEndX, y: arrowEndY))
-                                    path.addLine(to: CGPoint(
-                                        x: arrowEndX + arrowHeadLength * cos(leftAngle),
-                                        y: arrowEndY + arrowHeadLength * sin(leftAngle)
-                                    ))
-
-                                    path.move(to: CGPoint(x: arrowEndX, y: arrowEndY))
-                                    path.addLine(to: CGPoint(
-                                        x: arrowEndX + arrowHeadLength * cos(rightAngle),
-                                        y: arrowEndY + arrowHeadLength * sin(rightAngle)
-                                    ))
-                                }
-                                .stroke(Color.orange, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                                AntennaMarker(
+                                    antenna: newAntennaDisplayData,
+                                    position: antennaDisplayPosition,
+                                    size: geometry.antennaSizeInPixels() * 1.3,
+                                    sensorRange: nil,
+                                    isSelected: true,
+                                    isDraggable: false,
+                                    showRotationControls: false
+                                )
                             }
                             .frame(height: 350)
 

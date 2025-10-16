@@ -129,7 +129,7 @@ struct AntennaAffineCalibration {
             throw CalibrationError.insufficientPoints(required: 3, provided: n)
         }
 
-        // デザイン行列を構築
+        // デザイン行列を構築（列優先形式でLAPACKに渡す）
         // [ x y 0 0 1 0 ]   [ a11 ]   [ qx ]
         // [ 0 0 x y 0 1 ] * [ a12 ] = [ qy ]
         //                   [ a21 ]
@@ -137,34 +137,38 @@ struct AntennaAffineCalibration {
         //                   [ tx  ]
         //                   [ ty  ]
 
-        var X = [Double](repeating: 0.0, count: 2 * n * 6)
-        var Y = [Double](repeating: 0.0, count: 2 * n)
+        // LAPACKは列優先形式を期待するので、列ごとに構築
+        let nrows = 2 * n
+        let ncols = 6
+        var X = [Double](repeating: 0.0, count: nrows * ncols)
+        var Y = [Double](repeating: 0.0, count: nrows)
 
         for i in 0..<n {
             let p = sourcePoints[i]
             let q = targetPoints[i]
 
-            // 行 2*i (qx の方程式)
-            X[2 * i * 6 + 0] = p.x // a11
-            X[2 * i * 6 + 1] = p.y // a12
-            X[2 * i * 6 + 2] = 0 // a21
-            X[2 * i * 6 + 3] = 0 // a22
-            X[2 * i * 6 + 4] = 1 // tx
-            X[2 * i * 6 + 5] = 0 // ty
+            // 行 2*i (qx の方程式): qx = a11*px + a12*py + tx
+            // 列優先: X[col * nrows + row]
+            X[0 * nrows + 2 * i] = p.x // a11の列、2*i行
+            X[1 * nrows + 2 * i] = p.y // a12の列、2*i行
+            X[2 * nrows + 2 * i] = 0.0 // a21の列、2*i行
+            X[3 * nrows + 2 * i] = 0.0 // a22の列、2*i行
+            X[4 * nrows + 2 * i] = 1.0 // txの列、2*i行
+            X[5 * nrows + 2 * i] = 0.0 // tyの列、2*i行
             Y[2 * i] = q.x
 
-            // 行 2*i+1 (qy の方程式)
-            X[(2 * i + 1) * 6 + 0] = 0 // a11
-            X[(2 * i + 1) * 6 + 1] = 0 // a12
-            X[(2 * i + 1) * 6 + 2] = p.x // a21
-            X[(2 * i + 1) * 6 + 3] = p.y // a22
-            X[(2 * i + 1) * 6 + 4] = 0 // tx
-            X[(2 * i + 1) * 6 + 5] = 1 // ty
+            // 行 2*i+1 (qy の方程式): qy = a21*px + a22*py + ty
+            X[0 * nrows + 2 * i + 1] = 0.0 // a11の列、2*i+1行
+            X[1 * nrows + 2 * i + 1] = 0.0 // a12の列、2*i+1行
+            X[2 * nrows + 2 * i + 1] = p.x // a21の列、2*i+1行
+            X[3 * nrows + 2 * i + 1] = p.y // a22の列、2*i+1行
+            X[4 * nrows + 2 * i + 1] = 0.0 // txの列、2*i+1行
+            X[5 * nrows + 2 * i + 1] = 1.0 // tyの列、2*i+1行
             Y[2 * i + 1] = q.y
         }
 
         // 最小二乗法で解く: X * params = Y
-        let params = try solveLeastSquares(X: X, Y: Y, m: 2 * n, n: 6)
+        let params = try solveLeastSquares(X: X, Y: Y, m: nrows, n: ncols)
 
         let A = Matrix2x2(
             a11: params[0],
@@ -318,6 +322,39 @@ struct AntennaAffineCalibration {
 
         guard sourcePoints.count >= 3 else {
             throw CalibrationError.insufficientPoints(required: 3, provided: sourcePoints.count)
+        }
+
+        // デバッグ: 平均化された代表点を出力
+        print("📊 平均化された測定点（ソース）:")
+        for (index, point) in sourcePoints.enumerated() {
+            print("   Point\(index + 1): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)))")
+        }
+        print("📍 真の位置（ターゲット）:")
+        for (index, point) in targetPoints.enumerated() {
+            print("   Point\(index + 1): (\(String(format: "%.3f", point.x)), \(String(format: "%.3f", point.y)))")
+        }
+
+        // 共線性チェック: 3点が一直線上にないか確認
+        if sourcePoints.count == 3 {
+            let p1 = sourcePoints[0]
+            let p2 = sourcePoints[1]
+            let p3 = sourcePoints[2]
+
+            // 外積を計算して面積をチェック（面積が0に近いと共線）
+            let v1x = p2.x - p1.x
+            let v1y = p2.y - p1.y
+            let v2x = p3.x - p1.x
+            let v2y = p3.y - p1.y
+            let crossProduct = abs(v1x * v2y - v1y * v2x)
+
+            print("🔍 共線性チェック: 外積の絶対値 = \(String(format: "%.6f", crossProduct))")
+
+            if crossProduct < 0.01 {
+                throw CalibrationError.invalidData(
+                    "測定点が一直線上に並んでいます（外積=\(String(format: "%.6f", crossProduct))）。" +
+                        "タグを異なる位置に配置してください。"
+                )
+            }
         }
 
         // アフィン変換を推定

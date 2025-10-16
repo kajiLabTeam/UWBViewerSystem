@@ -49,13 +49,16 @@ public class RealtimeDataUsecase: ObservableObject {
                 print("🚧 NLOS: \(realtimeMessage.data.nlos)")
             #endif
 
+            // 距離をcmからmに変換
+            let distanceInMeters = Double(realtimeMessage.data.distance) / 100.0
+
             let realtimeData = RealtimeData(
                 id: UUID(),
                 deviceName: realtimeMessage.deviceName,
                 timestamp: realtimeMessage.timestamp,
                 elevation: realtimeMessage.data.elevation,
                 azimuth: realtimeMessage.data.azimuth,
-                distance: Double(realtimeMessage.data.distance),
+                distance: distanceInMeters,
                 nlos: realtimeMessage.data.nlos,
                 rssi: realtimeMessage.data.rssi,
                 seqCount: realtimeMessage.data.seqCount

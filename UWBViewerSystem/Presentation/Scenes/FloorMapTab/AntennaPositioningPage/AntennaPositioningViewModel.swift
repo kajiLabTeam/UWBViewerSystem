@@ -105,12 +105,23 @@ class AntennaPositioningViewModel: ObservableObject {
         guard let antenna = self.antennaPositions.first(where: { $0.id == deviceId }) else {
             return nil
         }
-        // デフォルト位置(50, 50)の場合は未配置とみなす
-        let position = antenna.position
-        if position == CGPoint(x: 50, y: 50) {
+        // デフォルト位置(0.125, 0.125)の場合は未配置とみなす
+        if antenna.normalizedPosition == CGPoint(x: 0.125, y: 0.125) {
             return nil
         }
-        return position
+
+        // 正規化座標から実世界座標に変換
+        guard let floorMapInfo else {
+            // フォールバック: デフォルトサイズ28x37メートル
+            let realX = antenna.normalizedPosition.x * 28.0
+            let realY = (1.0 - antenna.normalizedPosition.y) * 37.0
+            return CGPoint(x: realX, y: realY)
+        }
+
+        // 実世界座標に変換（Y座標を反転）
+        let realX = antenna.normalizedPosition.x * floorMapInfo.width
+        let realY = (1.0 - antenna.normalizedPosition.y) * floorMapInfo.depth
+        return CGPoint(x: realX, y: realY)
     }
 
     func getDeviceRotation(_ deviceId: String) -> Double? {

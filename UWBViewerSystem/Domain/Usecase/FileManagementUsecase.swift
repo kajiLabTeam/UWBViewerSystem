@@ -127,6 +127,10 @@ public class FileManagementUsecase: ObservableObject {
     }
 
     public func clearReceivedFiles() {
+        // UI更新前の状態を保存（ロールバック用）
+        let prevFiles = self.receivedFiles
+        let prevProgress = self.fileTransferProgress
+
         self.receivedFiles.removeAll()
         self.fileTransferProgress.removeAll()
 
@@ -136,11 +140,19 @@ public class FileManagementUsecase: ObservableObject {
                 print("全受信ファイルを削除しました")
             } catch {
                 print("受信ファイル全削除エラー: \(error)")
+                // 削除失敗時は元の状態に戻す
+                await MainActor.run {
+                    self.receivedFiles = prevFiles
+                    self.fileTransferProgress = prevProgress
+                }
             }
         }
     }
 
     public func removeReceivedFile(_ file: ReceivedFile) {
+        // UI更新前の状態を保存（ロールバック用）
+        let prevList = self.receivedFiles
+
         self.receivedFiles.removeAll { $0.id == file.id }
 
         Task {
@@ -149,6 +161,10 @@ public class FileManagementUsecase: ObservableObject {
                 print("受信ファイルを削除しました: \(file.fileName)")
             } catch {
                 print("受信ファイル削除エラー: \(error)")
+                // 削除失敗時は元の状態に戻す
+                await MainActor.run {
+                    self.receivedFiles = prevList
+                }
             }
         }
 

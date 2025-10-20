@@ -398,7 +398,7 @@ class MockObservationDataRepository: DataRepositoryProtocol {
     }
 
     func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        guard let data = calibrationDataStorage[antennaId] else { return nil }
+        guard let data = self.calibrationDataStorage[antennaId] else { return nil }
         let decoder = JSONDecoder()
         return try? decoder.decode(CalibrationData.self, from: data)
     }

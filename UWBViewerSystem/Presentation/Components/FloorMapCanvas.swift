@@ -379,10 +379,16 @@ struct FloorMapCanvasGeometry {
         30.0
     }
 
-    // センサー範囲をピクセルに変換（固定サイズ）
+    // センサー範囲（50m）をピクセルに変換（実寸計算+ズーム補正）
     func sensorRangeInPixels() -> CGFloat {
-        // 固定サイズ: 100px
-        100.0
+        let baseCanvasSize: Double = 400.0
+        let actualCanvasSize = min(canvasSize.width, self.canvasSize.height)
+        let scale = Double(actualCanvasSize) / baseCanvasSize
+
+        let rangeInPixels = CGFloat(50.0 * self.mapScale * scale)
+
+        // currentScaleの逆数で補正して、ズームしても一定サイズを保つ
+        return rangeInPixels / self.currentScale
     }
 }
 

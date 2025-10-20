@@ -126,7 +126,9 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     }
 
     var canStartCalibration: Bool {
-        !self.isCollecting && self.allTagPositionsCollected
+        !self.isCollecting &&
+            !self.trueTagPositions.isEmpty &&
+            self.allTagPositionsCollected
     }
 
     var hasMoreAntennas: Bool {

@@ -236,6 +236,17 @@ struct AntennaAffineCalibration {
             &info
         )
 
+        // SVD実行のエラーチェック
+        guard info == 0 else {
+            print("❌ SVD実行エラー: info = \(info)")
+            // エラー時はアイデンティティ変換を返す
+            return (
+                angleDegrees: 0.0,
+                scaleFactors: (sx: 1.0, sy: 1.0),
+                R: Matrix2x2(a11: 1.0, a12: 0.0, a21: 0.0, a22: 1.0)
+            )
+        }
+
         // 回転行列 R = U * V^T
         // U は列優先: [u11, u21, u12, u22]
         // Vt は列優先: [vt11, vt21, vt12, vt22]
@@ -443,7 +454,12 @@ struct AntennaAffineCalibration {
         )
 
         guard info == 0 else {
-            throw CalibrationError.singularMatrix
+            print("❌ DGELS実行エラー: info = \(info)")
+            if info < 0 {
+                throw CalibrationError.invalidData("DGELS: 引数\(-info)が不正です")
+            } else {
+                throw CalibrationError.singularMatrix
+            }
         }
 
         return Array(work[0..<n])

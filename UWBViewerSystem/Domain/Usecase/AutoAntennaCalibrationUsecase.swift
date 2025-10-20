@@ -95,7 +95,11 @@ actor AutoAntennaCalibrationUsecase {
     func collectDataFromSession(sessionId: String, tagId: String) async throws {
         // ObservationUsecaseからセッションデータを取得
         guard let session = await observationUsecase.currentSessions[sessionId] else {
-            throw CalibrationError.noMeasuredData(antennaId: sessionId)
+            throw NSError(
+                domain: "AutoAntennaCalibrationUsecase",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "セッション \(sessionId) が見つかりません"]
+            )
         }
 
         let observations = session.observations

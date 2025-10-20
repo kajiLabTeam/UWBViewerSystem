@@ -500,13 +500,16 @@ public class ObservationDataUsecase: ObservableObject {
 
     private func handleNewObservation(_ observation: ObservationPoint) {
         // 該当するセッションを見つけて追加
-        for (sessionId, var session) in currentSessions {
+        // Dictionary反復中の自身更新を避けるため、一時変数を使用
+        var updatedSessions = self.currentSessions
+        for (sessionId, var session) in self.currentSessions {
             if session.antennaId == observation.antennaId && session.status == .recording {
                 session.observations.append(observation)
-                self.currentSessions[sessionId] = session
+                updatedSessions[sessionId] = session
                 break
             }
         }
+        self.currentSessions = updatedSessions
 
         self.realtimeObservations.append(observation)
         if self.realtimeObservations.count > 100 {

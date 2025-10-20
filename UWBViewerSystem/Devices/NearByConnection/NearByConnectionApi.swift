@@ -646,10 +646,7 @@ import Foundation
                 self.connectedDevices.removeValue(forKey: endpointID)
                 self.deviceNames.removeValue(forKey: endpointID)
 
-                // 新しいコールバック形式を呼び出し
-                self.notifyCallbacks { $0.onDeviceDisconnected(endpointId: endpointID) }
-
-                // 古いコールバック形式も維持（互換性のため）
+                // コールバックを呼び出し（重複除去）
                 self.notifyCallbacks { $0.onConnectionStateChanged(state: "切断: \(endpointID)") }
                 self.notifyCallbacks { $0.onDeviceDisconnected(endpointId: endpointID) }
             case .rejected:

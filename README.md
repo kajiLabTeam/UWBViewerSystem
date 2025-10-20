@@ -213,3 +213,15 @@ swift package resolve
 ---
 
 > **注意**: 本アプリケーションを使用する前に、使用環境でのUWB技術の規制や制限を確認してください。
+
+# SQLiteについて
+ここにファイルがあります
+  SwiftDataのパス：
+```sh
+open ~/Library/Containers/net.harutiro.UWBViewerSystem/Data/Library/Application\ Support/net.harutiro.UWBViewerSystem/
+```
+
+  ファイル構成：
+  - SwiftData.sqlite - メインのデータベースファイル (172KB)
+  - SwiftData.sqlite-shm - 共有メモリファイル (32KB)
+  - SwiftData.sqlite-wal - Write-Ahead Logファイル (3.4MB)

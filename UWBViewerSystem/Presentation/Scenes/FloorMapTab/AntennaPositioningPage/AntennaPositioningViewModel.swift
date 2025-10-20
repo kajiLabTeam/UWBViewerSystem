@@ -27,13 +27,22 @@ class AntennaPositioningViewModel: ObservableObject {
     private var modelContext: ModelContext?
     private var swiftDataRepository: SwiftDataRepository?
 
+    // フロアマップ情報を保持（SwiftDataから読み込み）
+    @Published private var loadedFloorMapInfo: FloorMapInfo?
+
     // 共通コンポーネント用のcurrentFloorMapInfoプロパティ
     var currentFloorMapInfo: FloorMapInfo? {
         self.floorMapInfo
     }
 
-    // フロアマップの情報を取得
+    // フロアマップの情報を取得（SwiftDataから優先的に取得）
     var floorMapInfo: FloorMapInfo? {
+        // SwiftDataから読み込んだ情報を優先
+        if let loaded = loadedFloorMapInfo {
+            return loaded
+        }
+
+        // フォールバック: UserDefaultsから取得
         guard let data = UserDefaults.standard.data(forKey: "currentFloorMapInfo"),
               let info = try? JSONDecoder().decode(FloorMapInfo.self, from: data)
         else {
@@ -119,8 +128,65 @@ class AntennaPositioningViewModel: ObservableObject {
     func loadMapAndDevices() {
         self.loadSelectedDevices()
         self.loadMapData()
-        self.loadCalibrationData()
-        self.createAntennaPositions()
+        // SwiftDataからフロアマップ情報とキャリブレーションデータを非同期でロード
+        Task { @MainActor in
+            await self.loadFloorMapInfoFromSwiftData()
+            await self.loadCalibrationDataAsync()
+            // ロード完了後にアンテナ位置を作成
+            self.createAntennaPositions()
+        }
+    }
+
+    /// SwiftDataからフロアマップ情報を読み込み
+    private func loadFloorMapInfoFromSwiftData() async {
+        guard let repository = swiftDataRepository else {
+            #if DEBUG
+                print("❌ SwiftDataRepository が利用できません")
+            #endif
+            return
+        }
+
+        do {
+            let floorMaps = try await repository.loadAllFloorMaps()
+            if let floorMap = floorMaps.first {
+                await MainActor.run {
+                    self.loadedFloorMapInfo = floorMap
+                }
+                #if DEBUG
+                    print("✅ フロアマップ情報を読み込みました: \(floorMap.name), サイズ: \(floorMap.width)x\(floorMap.depth)m")
+                #endif
+            } else {
+                #if DEBUG
+                    print("⚠️ フロアマップが見つかりません")
+                #endif
+            }
+        } catch {
+            print("❌ フロアマップ情報の読み込みに失敗: \(error)")
+        }
+    }
+
+    private func loadCalibrationDataAsync() async {
+        guard let repository = swiftDataRepository else {
+            await MainActor.run {
+                self.calibrationData = []
+            }
+            return
+        }
+
+        do {
+            let allCalibrationData = try await repository.loadMapCalibrationData()
+            await MainActor.run {
+                self.calibrationData = allCalibrationData
+            }
+            #if DEBUG
+                print("✅ キャリブレーションデータを読み込みました: \(allCalibrationData.count)件")
+            #endif
+        } catch {
+            print("❌ キャリブレーションデータの読み込みに失敗: \(error)")
+            await MainActor.run {
+                self.calibrationData = []
+            }
+        }
     }
 
     private func loadSelectedDevices() {
@@ -287,33 +353,6 @@ class AntennaPositioningViewModel: ObservableObject {
             #if DEBUG
                 print("❌ AntennaPositioningViewModel: No FloorMapInfo found in UserDefaults")
             #endif
-        }
-    }
-
-    // キャリブレーションデータを読み込む
-    private func loadCalibrationData() {
-        guard let repository = swiftDataRepository else {
-            self.calibrationData = []
-            return
-        }
-
-        Task {
-            do {
-                let allCalibrationData = try await repository.loadMapCalibrationData()
-                await MainActor.run {
-                    self.calibrationData = allCalibrationData
-                }
-                #if DEBUG
-                    print("✅ キャリブレーションデータを読み込みました: \(allCalibrationData.count)件")
-                #endif
-            } catch {
-                await MainActor.run {
-                    self.calibrationData = []
-                }
-                #if DEBUG
-                    print("📝 キャリブレーションデータが見つかりません: \(error)")
-                #endif
-            }
         }
     }
 

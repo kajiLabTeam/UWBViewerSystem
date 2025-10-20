@@ -8,9 +8,33 @@ struct FloorMapCanvas<Content: View>: View {
     let floorMapInfo: FloorMapInfo?
     let calibrationPoints: [MapCalibrationPoint]?
     let onMapTap: ((CGPoint) -> Void)?
+    let enableZoom: Bool
+    let fixedHeight: CGFloat?
     @ViewBuilder let content: (FloorMapCanvasGeometry) -> Content
 
     @State private var canvasSize: CGSize = CGSize(width: 400, height: 300)
+    @State private var currentScale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    init(
+        floorMapImage: FloorMapImage?,
+        floorMapInfo: FloorMapInfo?,
+        calibrationPoints: [MapCalibrationPoint]? = nil,
+        onMapTap: ((CGPoint) -> Void)? = nil,
+        enableZoom: Bool = false,
+        fixedHeight: CGFloat? = 300,
+        @ViewBuilder content: @escaping (FloorMapCanvasGeometry) -> Content
+    ) {
+        self.floorMapImage = floorMapImage
+        self.floorMapInfo = floorMapInfo
+        self.calibrationPoints = calibrationPoints
+        self.onMapTap = onMapTap
+        self.enableZoom = enableZoom
+        self.fixedHeight = fixedHeight
+        self.content = content
+    }
 
     // フロアマップのスケールを計算（ピクセル/メートル）
     private var mapScale: Double {
@@ -53,8 +77,8 @@ struct FloorMapCanvas<Content: View>: View {
             let canvasGeometry = FloorMapCanvasGeometry(
                 canvasSize: currentCanvasSize,
                 imageFrame: actualImageFrame,
-                mapScale: mapScale,
-                floorMapInfo: floorMapInfo
+                mapScale: mapScale * Double(self.currentScale),
+                floorMapInfo: self.floorMapInfo
             )
 
             ZStack {
@@ -89,6 +113,32 @@ struct FloorMapCanvas<Content: View>: View {
                 // コンテンツ（アンテナ、基準点など）- 最前面
                 self.content(canvasGeometry)
             }
+            .scaleEffect(self.enableZoom ? self.currentScale : 1.0)
+            .offset(self.enableZoom ? self.offset : .zero)
+            .gesture(
+                self.enableZoom ?
+                    SimultaneousGesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                self.currentScale = self.lastScale * value
+                                // スケールの制限（0.5倍から5倍まで）
+                                self.currentScale = min(max(self.currentScale, 0.5), 5.0)
+                            }
+                            .onEnded { _ in
+                                self.lastScale = self.currentScale
+                            },
+                        DragGesture()
+                            .onChanged { value in
+                                self.offset = CGSize(
+                                    width: self.lastOffset.width + value.translation.width,
+                                    height: self.lastOffset.height + value.translation.height
+                                )
+                            }
+                            .onEnded { _ in
+                                self.lastOffset = self.offset
+                            }
+                    ) : nil
+            )
             .onAppear {
                 self.canvasSize = currentCanvasSize
             }
@@ -96,7 +146,9 @@ struct FloorMapCanvas<Content: View>: View {
                 self.canvasSize = newSize
             }
         }
-        .frame(height: 300)
+        .if(self.fixedHeight != nil) { view in
+            view.frame(height: self.fixedHeight)
+        }
         .cornerRadius(12)
     }
 
@@ -292,3 +344,16 @@ struct FloorMapBackground: View {
 #elseif os(iOS)
     typealias FloorMapImage = UIImage
 #endif
+
+// MARK: - View Extension for Conditional Modifiers
+
+extension View {
+    @ViewBuilder
+    func `if`(_ condition: Bool, transform: (Self) -> some View) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
+    }
+}

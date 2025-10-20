@@ -373,14 +373,14 @@ struct FloorMapCanvasGeometry {
         )
     }
 
-    // アンテナサイズを計算（30cmの実寸サイズ）
+    // アンテナサイズを計算（20cmの実寸サイズ）
     // ズーム時はスケールの逆数で補正して一定サイズを保つ
     func antennaSizeInPixels() -> CGFloat {
         let baseCanvasSize: Double = 400.0
         let actualCanvasSize = min(canvasSize.width, self.canvasSize.height)
         let scale = Double(actualCanvasSize) / baseCanvasSize
 
-        let sizeInPixels = CGFloat(0.30 * self.mapScale * scale)  // 0.30m = 30cm
+        let sizeInPixels = CGFloat(0.20 * self.mapScale * scale)  // 0.20m = 20cm
         let clampedSize = max(min(sizeInPixels, 80), 20)  // 最小20px、最大80px
 
         // currentScaleの逆数で補正して、ズームしても一定サイズを保つ

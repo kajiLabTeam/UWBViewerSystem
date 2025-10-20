@@ -18,6 +18,9 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     private let locationManager = CLLocationManager()
     private let nearbyRepository: NearbyRepository
 
+    // endpointIdとdeviceNameの紐付けを保持
+    private var endpointToDeviceName: [String: String] = [:]
+
     // RealtimeDataUsecaseへの参照を追加
     public weak var realtimeDataUsecase: RealtimeDataUsecase?
 
@@ -91,7 +94,12 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     public func disconnectFromDevice(endpointId: String) {
         self.nearbyRepository.disconnect(endpointId)
         self.connectedEndpoints.remove(endpointId)
-        self.connectedDeviceNames = self.connectedDeviceNames.filter { $0 != endpointId }
+
+        // endpointIdから正しいdeviceNameを取得して削除
+        if let deviceName = endpointToDeviceName[endpointId] {
+            self.connectedDeviceNames.remove(deviceName)
+            self.endpointToDeviceName.removeValue(forKey: endpointId)
+        }
     }
 
     public func disconnectAll() {
@@ -101,6 +109,7 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
         }
         self.connectedDeviceNames.removeAll()
         self.connectedEndpoints.removeAll()
+        self.endpointToDeviceName.removeAll()
     }
 
     public func resetAll() {
@@ -127,6 +136,7 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
         // 状態をクリア
         self.connectedDeviceNames.removeAll()
         self.connectedEndpoints.removeAll()
+        self.endpointToDeviceName.removeAll()
         self.isAdvertising = false
         self.connectState = "初期化完了"
 
@@ -217,6 +227,9 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
             self.connectedEndpoints.insert(endpointId)
             self.connectState = "端末接続: \(deviceName)"
 
+            // endpointIdとdeviceNameの紐付けを保存
+            self.endpointToDeviceName[endpointId] = deviceName
+
             // RealtimeDataUsecaseにデバイス接続を通知
             self.realtimeDataUsecase?.addConnectedDevice(deviceName)
             print("📱 RealtimeDataUsecaseに端末接続を通知: \(deviceName)")
@@ -227,14 +240,19 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
         Task { @MainActor in
             print("Device disconnected: \(endpointId)")
             self.connectedEndpoints.remove(endpointId)
-            self.connectState = "端末切断: \(endpointId)"
 
-            // RealtimeDataUsecaseに端末切断を通知
-            // endpointIdではなくdeviceNameが必要だが、ここではendpointIdしかないので
-            // 接続中のdeviceNamesから削除する
-            if let deviceName = self.connectedDeviceNames.first(where: { _ in true }) {
+            // endpointIdから正しいdeviceNameを取得
+            if let deviceName = self.endpointToDeviceName[endpointId] {
+                self.connectedDeviceNames.remove(deviceName)
+                self.endpointToDeviceName.removeValue(forKey: endpointId)
+                self.connectState = "端末切断: \(deviceName)"
+
+                // RealtimeDataUsecaseに端末切断を通知
                 self.realtimeDataUsecase?.removeDisconnectedDevice(deviceName)
                 print("📱 RealtimeDataUsecaseに端末切断を通知: \(deviceName)")
+            } else {
+                self.connectState = "端末切断: \(endpointId)"
+                print("⚠️ endpointId \(endpointId) に対応するdeviceNameが見つかりません")
             }
         }
     }

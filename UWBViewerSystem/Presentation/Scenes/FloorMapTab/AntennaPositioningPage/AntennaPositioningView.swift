@@ -62,7 +62,6 @@ struct AntennaPositioningView: View {
         #endif
         .onAppear {
             self.viewModel.setModelContext(self.modelContext)
-            self.viewModel.loadMapAndDevices()
             self.flowNavigator.currentStep = .antennaConfiguration
             self.flowNavigator.setRouter(self.router)
         }

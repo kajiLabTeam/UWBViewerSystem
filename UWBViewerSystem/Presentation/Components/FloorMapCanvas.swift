@@ -339,13 +339,11 @@ struct FloorMapCanvasGeometry {
     // 実世界座標から正規化座標に変換
     func realWorldToNormalized(_ realWorldPoint: CGPoint) -> CGPoint {
         guard let floorMapInfo else {
-            // フォールバック: 実世界座標をスケール変換してピクセル座標に変換後、正規化
-            let pixelX = realWorldPoint.x * 100.0  // デフォルトスケール 100px/m
-            let pixelY = realWorldPoint.y * 100.0
-            return CGPoint(
-                x: pixelX / self.canvasSize.width,
-                y: pixelY / self.canvasSize.height
-            )
+            // フォールバック: デフォルトは28x37メートル
+            let normalizedX = realWorldPoint.x / 28.0
+            let normalizedY = realWorldPoint.y / 37.0
+            let flippedY = 1.0 - normalizedY
+            return CGPoint(x: normalizedX, y: flippedY)
         }
 
         // 実世界座標をフロアマップサイズに対する比率で正規化
@@ -361,10 +359,10 @@ struct FloorMapCanvasGeometry {
     // 正規化座標から実世界座標に変換
     func normalizedToRealWorld(_ normalizedPoint: CGPoint) -> CGPoint {
         guard let floorMapInfo else {
-            // フォールバック
+            // フォールバック: デフォルトは28x37メートル
             return CGPoint(
-                x: normalizedPoint.x * 10,
-                y: (1.0 - normalizedPoint.y) * 10  // Y座標を反転
+                x: normalizedPoint.x * 28.0,
+                y: (1.0 - normalizedPoint.y) * 37.0  // Y座標を反転
             )
         }
 

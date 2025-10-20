@@ -269,7 +269,9 @@ public class ObservationDataUsecase: ObservableObject {
     /// 全ての観測セッションを停止
     public func stopAllSessions() {
         Task {
-            for sessionId in self.currentSessions.keys {
+            // Dictionary反復中の変更を避けるため、キーのコピーを作成
+            let sessionIds = Array(self.currentSessions.keys)
+            for sessionId in sessionIds {
                 _ = try? await self.stopObservationSession(sessionId)
             }
         }

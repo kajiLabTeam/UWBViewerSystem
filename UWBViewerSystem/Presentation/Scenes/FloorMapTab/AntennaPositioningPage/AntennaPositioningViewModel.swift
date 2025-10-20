@@ -121,12 +121,10 @@ class AntennaPositioningViewModel: ObservableObject {
         self.loadSelectedDevices()
         self.loadMapData()
         // キャリブレーションデータを非同期でロード
-        Task {
+        Task { @MainActor in
             await self.loadCalibrationDataAsync()
             // ロード完了後にアンテナ位置を作成
-            await MainActor.run {
-                self.createAntennaPositions()
-            }
+            self.createAntennaPositions()
         }
     }
 

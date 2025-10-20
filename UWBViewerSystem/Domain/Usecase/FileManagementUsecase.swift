@@ -143,21 +143,19 @@ public class FileManagementUsecase: ObservableObject {
     }
 
     public func removeReceivedFile(_ file: ReceivedFile) {
-        // UI更新前の状態を保存（ロールバック用）
-        let prevList = self.receivedFiles
-
-        self.receivedFiles.removeAll { $0.id == file.id }
-
         Task {
             do {
+                // まずデータベースから削除
                 try await self.swiftDataRepository.deleteReceivedFile(by: file.id)
                 print("受信ファイルを削除しました: \(file.fileName)")
+
+                // 削除成功後にUIを更新
+                await MainActor.run {
+                    self.receivedFiles.removeAll { $0.id == file.id }
+                }
             } catch {
                 print("受信ファイル削除エラー: \(error)")
-                // 削除失敗時は元の状態に戻す
-                await MainActor.run {
-                    self.receivedFiles = prevList
-                }
+                // エラー時はUIを更新しない（既存の状態を維持）
             }
         }
 

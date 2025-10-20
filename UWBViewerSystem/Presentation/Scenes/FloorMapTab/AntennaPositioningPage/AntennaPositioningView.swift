@@ -201,6 +201,7 @@ struct AntennaDeviceListSection: View {
 
 struct AntennaDeviceRow: View {
     let device: DeviceInfo
+    let position: CGPoint?
     let isPositioned: Bool
     let rotation: Double?
     let onRemove: () -> Void
@@ -217,6 +218,12 @@ struct AntennaDeviceRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
+                if let position {
+                    Text("位置: (X: \(String(format: "%.2f", position.x))m, Y: \(String(format: "%.2f", position.y))m)")
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                }
+
                 if let rotation {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.up")
@@ -224,7 +231,7 @@ struct AntennaDeviceRow: View {
                             .foregroundColor(.orange)
                             .rotationEffect(.degrees(rotation))
 
-                        Text("向き: \(Int(rotation))°")
+                        Text("向き: \(String(format: "%.1f", rotation))°")
                             .font(.caption2)
                             .foregroundColor(.orange)
                     }
@@ -310,10 +317,15 @@ struct AntennaDeviceRowWithActions: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
+                // デバッグ: positionの状態を表示
                 if let position {
-                    Text("位置: (\(Int(position.x)), \(Int(position.y)))")
+                    Text("位置: (X: \(String(format: "%.2f", position.x))m, Y: \(String(format: "%.2f", position.y))m)")
                         .font(.caption2)
                         .foregroundColor(.blue)
+                } else if self.isPositioned {
+                    Text("位置: 取得中...")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
                 }
 
                 if let rotation {
@@ -323,7 +335,7 @@ struct AntennaDeviceRowWithActions: View {
                             .foregroundColor(.orange)
                             .rotationEffect(.degrees(rotation))
 
-                        Text("向き: \(Int(rotation))°")
+                        Text("向き: \(String(format: "%.1f", rotation))°")
                             .font(.caption2)
                             .foregroundColor(.orange)
                     }
@@ -450,6 +462,7 @@ struct FloatingDeviceListPanel: View {
                             id: antenna.id,
                             name: antenna.deviceName
                         ),
+                        position: self.viewModel.getDevicePosition(antenna.id),
                         isPositioned: antenna.normalizedPosition != .zero,
                         rotation: antenna.rotation,
                         onRemove: {

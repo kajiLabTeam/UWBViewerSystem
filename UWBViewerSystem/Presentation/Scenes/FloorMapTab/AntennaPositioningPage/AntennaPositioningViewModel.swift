@@ -92,12 +92,28 @@ class AntennaPositioningViewModel: ObservableObject {
         self.canProceedValue = positionedAntennas.count >= 3
     }
 
-    func getDevicePosition(_ deviceId: String) -> CGPoint {
-        self.antennaPositions.first { $0.id == deviceId }?.position ?? CGPoint(x: 50, y: 50)
+    func getDevicePosition(_ deviceId: String) -> CGPoint? {
+        guard let antenna = self.antennaPositions.first(where: { $0.id == deviceId }) else {
+            return nil
+        }
+        // デフォルト位置(50, 50)の場合は未配置とみなす
+        let position = antenna.position
+        if position == CGPoint(x: 50, y: 50) {
+            return nil
+        }
+        return position
     }
 
-    func getDeviceRotation(_ deviceId: String) -> Double {
-        self.antennaPositions.first { $0.id == deviceId }?.rotation ?? 0.0
+    func getDeviceRotation(_ deviceId: String) -> Double? {
+        guard let antenna = self.antennaPositions.first(where: { $0.id == deviceId }) else {
+            return nil
+        }
+        // デフォルト位置の場合は角度も返さない
+        let position = antenna.position
+        if position == CGPoint(x: 50, y: 50) {
+            return nil
+        }
+        return antenna.rotation
     }
 
     func loadMapAndDevices() {

@@ -96,7 +96,8 @@ struct MapCanvasSection: View {
             calibrationPoints: self.viewModel.calibrationData.first?.calibrationPoints,
             onMapTap: nil,
             enableZoom: true,
-            fixedHeight: nil
+            fixedHeight: nil,
+            showGrid: true
         ) { geometry in
             // アンテナ位置
             ForEach(self.viewModel.antennaPositions) { antenna in

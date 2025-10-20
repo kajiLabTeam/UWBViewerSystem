@@ -219,7 +219,10 @@ struct AutoAntennaCalibrationView: View {
                     floorMapImage: floorMapImage,
                     floorMapInfo: floorMapInfo,
                     calibrationPoints: nil,
-                    onMapTap: self.handleMapTap
+                    onMapTap: self.handleMapTap,
+                    enableZoom: false,
+                    fixedHeight: 300,
+                    showGrid: true
                 ) { geometry in
                     // タグマーカーを表示
                     ForEach(Array(self.viewModel.trueTagPositions.enumerated()), id: \.offset) {
@@ -432,7 +435,10 @@ struct AutoAntennaCalibrationView: View {
                                 floorMapImage: floorMapImage,
                                 floorMapInfo: floorMapInfo,
                                 calibrationPoints: nil,
-                                onMapTap: nil
+                                onMapTap: nil,
+                                enableZoom: false,
+                                fixedHeight: 300,
+                                showGrid: true
                             ) { geometry in
                                 // 他のアンテナ位置マーカー（現在のアンテナ以外）
                                 ForEach(self.viewModel.allAntennaPositions.filter { $0.antennaId != self.viewModel.currentAntennaId }) { antennaPos in
@@ -713,7 +719,10 @@ struct AutoAntennaCalibrationView: View {
                                 floorMapImage: floorMapImage,
                                 floorMapInfo: floorMapInfo,
                                 calibrationPoints: nil,
-                                onMapTap: nil
+                                onMapTap: nil,
+                                enableZoom: false,
+                                fixedHeight: 300,
+                                showGrid: true
                             ) { geometry in
                                 // すべてのアンテナ位置マーカー（他のアンテナ）
                                 ForEach(self.viewModel.allAntennaPositions.filter { $0.antennaId != self.viewModel.currentAntennaId }) { antennaPos in

@@ -5,7 +5,7 @@ import SwiftUI
 /// リアルタイムデータ表示とファイル管理に特化し、参考デザイン「Stitch Design-5.png」に対応
 struct DataDisplayView: View {
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var viewModel = DataDisplayViewModel()
+    @StateObject private var viewModel: DataDisplayViewModel
     @StateObject private var flowNavigator = SensingFlowNavigator()
     @EnvironmentObject var router: NavigationRouterModel
     @State private var selectedDisplayMode: DisplayMode = .history
@@ -13,6 +13,13 @@ struct DataDisplayView: View {
     enum DisplayMode: String, CaseIterable {
         case history = "履歴データ"
         case files = "ファイル管理"
+    }
+
+    init() {
+        // 初期化時は一時的にDummyを使用（onAppearで実際のRepositoryに置き換え）
+        _viewModel = StateObject(wrappedValue: DataDisplayViewModel(
+            swiftDataRepository: DummySwiftDataRepository()
+        ))
     }
 
     var body: some View {

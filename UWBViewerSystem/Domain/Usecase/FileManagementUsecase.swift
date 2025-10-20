@@ -15,7 +15,7 @@ public class FileManagementUsecase: ObservableObject {
 
     private let swiftDataRepository: SwiftDataRepositoryProtocol
 
-    public init(swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()) {
+    public init(swiftDataRepository: SwiftDataRepositoryProtocol) {
         self.swiftDataRepository = swiftDataRepository
         self.setupFileStoragePath()
 
@@ -23,6 +23,13 @@ public class FileManagementUsecase: ObservableObject {
             await self.loadReceivedFiles()
         }
     }
+
+    #if DEBUG
+        /// DEBUG時のみ利用可能な引数なし初期化（テスト用）
+        public convenience init() {
+            self.init(swiftDataRepository: DummySwiftDataRepository())
+        }
+    #endif
 
     // MARK: - File Storage Management
 

@@ -56,7 +56,9 @@ class DataDisplayViewModel: ObservableObject {
     ) {
         self.swiftDataRepository = swiftDataRepository
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
-        self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase()
+        self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase(
+            swiftDataRepository: swiftDataRepository
+        )
         self.connectionUsecase =
             connectionUsecase ?? ConnectionManagementUsecase.shared
 
@@ -234,9 +236,12 @@ class DataDisplayViewModel: ObservableObject {
 
 // MARK: - Dummy Repository for Initialization
 
-// PairingSettingViewModelと同じDummySwiftDataRepositoryを使用
+// Note: この初期化は一時的なもので、実際のアプリではonAppearで
+// 正しいSwiftDataRepositoryに置き換えられます
 extension DataDisplayViewModel {
-    /// テスト用またはプレースホルダー用の初期化
+    /// テスト用または一時的な初期化
+    /// NOTE: 本番環境では必ずonAppearでsetSwiftDataRepository()を呼び出して
+    /// 実際のRepositoryに置き換えてください
     convenience init() {
         self.init(
             swiftDataRepository: DummySwiftDataRepository(),

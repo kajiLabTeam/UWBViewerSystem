@@ -113,21 +113,21 @@ struct FloorMapCanvas<Content: View>: View {
                 // コンテンツ（アンテナ、基準点など）- 最前面
                 self.content(canvasGeometry)
             }
-            .scaleEffect(self.enableZoom ? self.currentScale : 1.0)
+            .drawingGroup()  // オフスクリーンレンダリングで最適化
+            .scaleEffect(self.enableZoom ? self.currentScale : 1.0, anchor: .center)
             .offset(self.enableZoom ? self.offset : .zero)
             .gesture(
                 self.enableZoom ?
                     SimultaneousGesture(
-                        MagnificationGesture()
+                        MagnificationGesture(minimumScaleDelta: 0.0)
                             .onChanged { value in
-                                self.currentScale = self.lastScale * value
-                                // スケールの制限（0.5倍から5倍まで）
-                                self.currentScale = min(max(self.currentScale, 0.5), 5.0)
+                                let newScale = self.lastScale * value
+                                self.currentScale = min(max(newScale, 0.5), 5.0)
                             }
                             .onEnded { _ in
                                 self.lastScale = self.currentScale
                             },
-                        DragGesture()
+                        DragGesture(minimumDistance: 0)
                             .onChanged { value in
                                 self.offset = CGSize(
                                     width: self.lastOffset.width + value.translation.width,
@@ -139,6 +139,8 @@ struct FloorMapCanvas<Content: View>: View {
                             }
                     ) : nil
             )
+            .animation(.none, value: self.currentScale)  // アニメーションを無効化
+            .animation(.none, value: self.offset)
             .onAppear {
                 self.canvasSize = currentCanvasSize
             }

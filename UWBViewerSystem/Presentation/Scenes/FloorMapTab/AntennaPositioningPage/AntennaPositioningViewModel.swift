@@ -608,18 +608,21 @@ class AntennaPositioningViewModel: ObservableObject {
                     // SwiftDataから読み込んだ位置情報を現在のantennaPositionsに適用
                     for position in positions {
                         if let index = antennaPositions.firstIndex(where: { $0.id == position.antennaId }) {
-                            // スケール変換: 実世界座標からピクセル座標へ
-                            let pixelX = CGFloat(position.position.x / self.mapScale)
-                            // Y座標を反転（実世界座標は下から上、SwiftUIは上から下）
-                            let realWorldPixelY = CGFloat(position.position.y / self.mapScale)
-                            let pixelY = 400.0 - realWorldPixelY
+                            // 実世界座標から正規化座標に変換
+                            // 実世界座標: 左下原点(0,0)、メートル単位、Y軸上向き
+                            // normalizedPosition: 左上原点(0,0)、範囲0-1、Y軸下向き
+                            let normalizedX = CGFloat(position.position.x / floorMapInfo.width)
+                            let normalizedY = CGFloat(1.0 - (position.position.y / floorMapInfo.depth))
 
-                            // 基準キャンバスサイズでの位置を設定
-                            self.antennaPositions[index].position = CGPoint(x: pixelX, y: pixelY)
-                            // 正規化座標も更新
+                            // 正規化座標を設定
                             self.antennaPositions[index].normalizedPosition = CGPoint(
-                                x: pixelX / 400.0,
-                                y: pixelY / 400.0
+                                x: normalizedX,
+                                y: normalizedY
+                            )
+                            // ピクセル座標も更新（400x400基準）
+                            self.antennaPositions[index].position = CGPoint(
+                                x: normalizedX * 400.0,
+                                y: normalizedY * 400.0
                             )
                             self.antennaPositions[index].rotation = position.rotation
 
@@ -693,11 +696,11 @@ class AntennaPositioningViewModel: ObservableObject {
 
         Task {
             do {
-                // ピクセル座標を実世界座標に変換
-                let realWorldX = Double(antennaPosition.position.x) * self.mapScale
-                // Y座標を反転（SwiftUIは上から下、実世界座標は下から上）
-                let flippedPixelY = 400.0 - antennaPosition.position.y
-                let realWorldY = Double(flippedPixelY) * self.mapScale
+                // 正規化座標から実世界座標に変換
+                // normalizedPosition: 左上原点(0,0)、範囲0-1、Y軸下向き
+                // 実世界座標: 左下原点(0,0)、メートル単位、Y軸上向き
+                let realWorldX = Double(antennaPosition.normalizedPosition.x) * floorMapInfo.width
+                let realWorldY = (1.0 - Double(antennaPosition.normalizedPosition.y)) * floorMapInfo.depth
 
                 let positionData = AntennaPositionData(
                     id: antennaPosition.id,
@@ -728,10 +731,16 @@ class AntennaPositioningViewModel: ObservableObject {
         guard let floorMapInfo else { return }
 
         let positionData = self.antennaPositions.map { antenna in
-            AntennaPositionData(
+            // 正規化座標から実世界座標に変換
+            // normalizedPosition: 左上原点(0,0)、範囲0-1、Y軸下向き
+            // 実世界座標: 左下原点(0,0)、メートル単位、Y軸上向き
+            let realWorldX = Double(antenna.normalizedPosition.x) * floorMapInfo.width
+            let realWorldY = (1.0 - Double(antenna.normalizedPosition.y)) * floorMapInfo.depth
+
+            return AntennaPositionData(
                 antennaId: antenna.id,
                 antennaName: antenna.deviceName,
-                position: Point3D(x: antenna.position.x, y: antenna.position.y, z: 0.0),
+                position: Point3D(x: realWorldX, y: realWorldY, z: 0.0),
                 rotation: antenna.rotation,
                 floorMapId: floorMapInfo.id
             )

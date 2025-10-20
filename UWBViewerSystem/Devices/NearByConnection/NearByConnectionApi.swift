@@ -369,6 +369,27 @@ import Foundation
         func hasConnectedDevices() -> Bool {
             !self.connectedDevices.isEmpty
         }
+
+        // MARK: - Private Helper Methods
+
+        /// ファイル名コンポーネントをサニタイズし、パストラバーサル攻撃を防ぐ
+        /// - Parameter string: サニタイズする文字列
+        /// - Returns: 安全なファイル名コンポーネント
+        private func sanitizeFileComponent(_ string: String) -> String {
+            // 英数字・ハイフン・アンダースコアのみを許可
+            let allowed = CharacterSet(
+                charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+            let cleaned = string.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" }
+                .reduce("") { $0 + String($1) }
+
+            // 連続アンダースコアを1つに圧縮し、先頭末尾の"_"をトリム
+            let reduced = cleaned.replacingOccurrences(
+                of: "_+", with: "_", options: .regularExpression)
+            let trimmed = reduced.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+
+            // 空文字列の場合はデフォルト値を返す
+            return trimmed.isEmpty ? "file" : trimmed
+        }
     }
 
     // MARK: - AdvertiserDelegate
@@ -539,18 +560,14 @@ import Foundation
 
             // 元のファイル名から拡張子を分離
             let originalNameWithoutExtension = (originalName as NSString).deletingPathExtension
-            let originalExtension = (originalName as NSString).pathExtension
+
+            // ファイル名とデバイス名をサニタイズ（パストラバーサル対策）
+            let safeDevice = self.sanitizeFileComponent(fromDevice)
+            let safeBase = self.sanitizeFileComponent(
+                originalNameWithoutExtension.isEmpty ? "file" : originalNameWithoutExtension)
 
             // 最終的なファイル名を構成: タイムスタンプ_デバイス名_Mac側ファイル名.csv
-            // originalNameWithoutExtensionには既にMac側で入力したファイル名が含まれている
-            let finalFileName: String
-            if originalExtension.lowercased() == "csv" || originalExtension.isEmpty {
-                // CSVファイルまたは拡張子なしの場合、CSV拡張子を確実に追加
-                finalFileName = "\(timeString)_\(fromDevice)_\(originalNameWithoutExtension).csv"
-            } else {
-                // 他の拡張子の場合も、CSVとして保存
-                finalFileName = "\(timeString)_\(fromDevice)_\(originalName).csv"
-            }
+            let finalFileName = "\(timeString)_\(safeDevice)_\(safeBase).csv"
 
             let destinationURL = uwbFilesDirectory.appendingPathComponent(finalFileName)
 
@@ -605,7 +622,11 @@ import Foundation
             case .connecting:
                 self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続中: \(endpointID)") }
             case .connected:
-                // 接続完了時に接続情報を確実に登録
+                // 接続完了時に接続情報を登録（重複防止）
+                if self.connectedDevices[endpointID] != nil {
+                    return
+                }
+
                 self.remoteEndpointIds.insert(endpointID)
 
                 let deviceName = self.deviceNames[endpointID] ?? endpointID

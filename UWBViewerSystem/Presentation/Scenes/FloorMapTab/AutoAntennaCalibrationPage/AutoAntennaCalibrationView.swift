@@ -15,17 +15,22 @@ struct AutoAntennaCalibrationView: View {
             // ヘッダー
             self.headerSection
 
-            ScrollView {
-                VStack(spacing: 24) {
-                    // ステップコンテンツ
-                    self.currentStepContent
+            // フルスクリーンマップ with フローティングコントロール
+            ZStack {
+                // 背景: フルスクリーンマップ
+                CalibrationMapCanvasSection(viewModel: self.viewModel)
 
-                    // ナビゲーションボタン
-                    self.navigationButtons
+                // 左側: コントロールパネル
+                VStack {
+                    HStack {
+                        FloatingCalibrationControlPanel(viewModel: self.viewModel)
+                            .frame(maxWidth: 450)
 
-                    Spacer(minLength: 80)
+                        Spacer()
+                    }
+                    Spacer()
                 }
-                .padding()
+                .padding(16)
             }
         }
         .onAppear {
@@ -86,44 +91,296 @@ struct AutoAntennaCalibrationView: View {
         .padding()
         .background(Color.secondary.opacity(0.1))
     }
+}
 
-    // MARK: - Step Content
+// MARK: - Calibration Map Canvas Section
+
+struct CalibrationMapCanvasSection: View {
+    @ObservedObject var viewModel: AutoAntennaCalibrationViewModel
+
+    var body: some View {
+        if let floorMapImage = viewModel.floorMapImage,
+           let floorMapInfo = viewModel.currentFloorMapInfo
+        {
+            FloorMapCanvas(
+                floorMapImage: floorMapImage,
+                floorMapInfo: floorMapInfo,
+                calibrationPoints: nil,
+                onMapTap: self.handleMapTap,
+                enableZoom: true,
+                fixedHeight: nil,
+                showGrid: true
+            ) { geometry in
+                // 他のアンテナ位置マーカー（現在のアンテナ以外）
+                ForEach(self.viewModel.allAntennaPositions.filter { $0.antennaId != self.viewModel.currentAntennaId }) { antennaPos in
+                    let normalizedPoint = geometry.realWorldToNormalized(
+                        CGPoint(x: antennaPos.position.x, y: antennaPos.position.y)
+                    )
+                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                    let antennaDisplayData = AntennaDisplayData(
+                        id: antennaPos.antennaId,
+                        name: antennaPos.antennaName,
+                        rotation: antennaPos.rotation,
+                        color: Color.gray.opacity(0.6)
+                    )
+
+                    AntennaMarker(
+                        antenna: antennaDisplayData,
+                        position: displayPosition,
+                        size: geometry.antennaSizeInPixels(),
+                        sensorRange: nil,
+                        isSelected: false,
+                        isDraggable: false,
+                        showRotationControls: false
+                    )
+                }
+
+                // 現在キャリブレーション中のアンテナ位置
+                if let currentAntenna = self.viewModel.originalAntennaPosition {
+                    let normalizedPoint = geometry.realWorldToNormalized(
+                        CGPoint(x: currentAntenna.position.x, y: currentAntenna.position.y)
+                    )
+                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                    let currentAntennaDisplayData = AntennaDisplayData(
+                        id: currentAntenna.antennaId,
+                        name: currentAntenna.antennaName,
+                        rotation: currentAntenna.rotation,
+                        color: Color.blue
+                    )
+
+                    AntennaMarker(
+                        antenna: currentAntennaDisplayData,
+                        position: displayPosition,
+                        size: geometry.antennaSizeInPixels() * 1.5,
+                        sensorRange: geometry.sensorRangeInPixels(),
+                        isSelected: true,
+                        isDraggable: false,
+                        showRotationControls: false
+                    )
+                }
+
+                // キャリブレーション結果表示（ステップ3）
+                if self.viewModel.currentStep == 3, let result = self.viewModel.currentAntennaResult {
+                    // 変更前のアンテナ位置（赤、半透明）
+                    if let original = self.viewModel.originalAntennaPosition {
+                        let originalNormalizedPoint = geometry.realWorldToNormalized(
+                            CGPoint(x: original.position.x, y: original.position.y)
+                        )
+                        let originalDisplayPosition = geometry.normalizedToImageCoordinate(originalNormalizedPoint)
+
+                        let originalAntennaDisplayData = AntennaDisplayData(
+                            id: original.antennaId,
+                            name: "変更前",
+                            rotation: original.rotation,
+                            color: Color.red.opacity(0.5)
+                        )
+
+                        AntennaMarker(
+                            antenna: originalAntennaDisplayData,
+                            position: originalDisplayPosition,
+                            size: geometry.antennaSizeInPixels() * 1.1,
+                            sensorRange: nil,
+                            isSelected: false,
+                            isDraggable: false,
+                            showRotationControls: false
+                        )
+
+                        // 変更前から変更後への移動線
+                        let newNormalizedPoint = geometry.realWorldToNormalized(
+                            CGPoint(x: result.position.x, y: result.position.y)
+                        )
+                        let newDisplayPosition = geometry.normalizedToImageCoordinate(newNormalizedPoint)
+
+                        Path { path in
+                            path.move(to: originalDisplayPosition)
+                            path.addLine(to: newDisplayPosition)
+                        }
+                        .stroke(Color.purple.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [8, 4]))
+                    }
+
+                    // 推定されたアンテナ位置（新しい位置）
+                    let antennaNormalizedPoint = geometry.realWorldToNormalized(
+                        CGPoint(x: result.position.x, y: result.position.y)
+                    )
+                    let antennaDisplayPosition = geometry.normalizedToImageCoordinate(antennaNormalizedPoint)
+
+                    let newAntennaDisplayData = AntennaDisplayData(
+                        id: self.viewModel.currentAntennaId ?? "",
+                        name: self.viewModel.currentAntennaName,
+                        rotation: result.angleDegrees,
+                        color: Color.blue
+                    )
+
+                    AntennaMarker(
+                        antenna: newAntennaDisplayData,
+                        position: antennaDisplayPosition,
+                        size: geometry.antennaSizeInPixels() * 1.3,
+                        sensorRange: nil,
+                        isSelected: true,
+                        isDraggable: false,
+                        showRotationControls: false
+                    )
+                }
+
+                // タグ位置マーカー
+                ForEach(Array(self.viewModel.trueTagPositions.enumerated()), id: \.offset) { index, tagPos in
+                    let normalizedPoint = geometry.realWorldToNormalized(
+                        CGPoint(x: tagPos.position.x, y: tagPos.position.y)
+                    )
+                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                    let isCurrentTag = index == self.viewModel.currentTagPositionIndex
+                    let color: Color = tagPos.isCollected ? .green : (isCurrentTag ? .orange : .blue)
+
+                    ZStack {
+                        Circle()
+                            .fill(color)
+                            .frame(width: 32, height: 32)
+
+                        Text("\(index + 1)")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+
+                        if tagPos.isCollected {
+                            Image(systemName: "checkmark")
+                                .font(.caption2)
+                                .foregroundColor(.white)
+                                .offset(x: 12, y: -12)
+                        }
+                    }
+                    .position(displayPosition)
+                }
+
+                // 測定データポイント（センシング中のみ）
+                if self.viewModel.isCollecting {
+                    ForEach(Array(self.viewModel.currentSensingDataPoints.enumerated()), id: \.offset) { _, dataPoint in
+                        let normalizedPoint = geometry.realWorldToNormalized(
+                            CGPoint(x: dataPoint.x, y: dataPoint.y)
+                        )
+                        let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                        Circle()
+                            .fill(Color.red.opacity(0.6))
+                            .frame(width: 8, height: 8)
+                            .position(displayPosition)
+                    }
+                }
+            }
+        } else {
+            ZStack {
+                Color.secondary.opacity(0.1)
+
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("フロアマップを読み込んでいます...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    private func handleMapTap(at location: CGPoint) {
+        guard self.viewModel.currentStep == 1 else { return }
+
+        let point = Point3D(
+            x: Double(location.x),
+            y: Double(location.y),
+            z: 0.0
+        )
+        self.viewModel.addTagPosition(at: point)
+    }
+}
+
+// MARK: - Floating Calibration Control Panel
+
+struct FloatingCalibrationControlPanel: View {
+    @ObservedObject var viewModel: AutoAntennaCalibrationViewModel
+    @State private var isExpanded = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // ヘッダー
+            HStack {
+                Image(systemName: "waveform.path.ecg")
+                    .foregroundColor(.blue)
+
+                Text("ステップ \(self.viewModel.currentStep + 1) / 4")
+                    .font(.headline)
+                    .fontWeight(.bold)
+
+                Spacer()
+
+                Button(action: {
+                    withAnimation {
+                        self.isExpanded.toggle()
+                    }
+                }) {
+                    Image(systemName: self.isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding()
+            .background(Color.blue.opacity(0.1))
+
+            if self.isExpanded {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // ステップコンテンツ
+                        self.currentStepContent
+
+                        // ナビゲーションボタン
+                        self.navigationButtons
+                    }
+                    .padding()
+                }
+                .frame(maxHeight: 600)
+            }
+        }
+        #if os(macOS)
+        .background(Color(NSColor.controlBackgroundColor))
+        #elseif os(iOS)
+        .background(Color(UIColor.systemBackground))
+        #endif
+        .cornerRadius(12)
+        .shadow(radius: 8)
+    }
 
     @ViewBuilder
     private var currentStepContent: some View {
         switch self.viewModel.currentStep {
         case 0:
-            self.antennaSelectionStep
+            self.antennaSelectionStepCompact
         case 1:
-            self.tagPositionSetupStep
+            self.tagPositionSetupStepCompact
         case 2:
-            self.dataCollectionStep
+            self.dataCollectionStepCompact
         case 3:
-            self.calibrationResultStep
+            self.calibrationResultStepCompact
         default:
             EmptyView()
         }
     }
 
-    // MARK: - Step 0: アンテナ選択
+    // MARK: - Step 0: アンテナ選択（コンパクト版）
 
-    private var antennaSelectionStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("ステップ1: アンテナ選択")
-                .font(.headline)
-
-            Text("キャリブレーションを行うアンテナを1つ選択してください")
+    private var antennaSelectionStepCompact: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("アンテナ選択")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .fontWeight(.medium)
 
             if self.viewModel.availableAntennas.isEmpty {
                 Text("利用可能なアンテナがありません")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding()
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: 8) {
                     ForEach(self.viewModel.availableAntennas) { antenna in
                         let isSelected = self.viewModel.currentAntennaId == antenna.id
                         let isCompleted = self.viewModel.completedAntennaIds.contains(antenna.id)
@@ -134,46 +391,25 @@ struct AutoAntennaCalibrationView: View {
                             HStack {
                                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                     .foregroundColor(isCompleted ? .green : (isSelected ? .blue : .gray))
-                                    .font(.title3)
 
-                                Image(systemName: "antenna.radiowaves.left.and.right")
-                                    .foregroundColor(isCompleted ? .green : (isSelected ? .blue : .gray))
+                                Text(antenna.name)
+                                    .font(.caption)
+                                    .foregroundColor(.primary)
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    HStack {
-                                        Text(antenna.name)
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                            .foregroundColor(.primary)
-
-                                        if isCompleted {
-                                            Image(systemName: "checkmark.seal.fill")
-                                                .foregroundColor(.green)
-                                                .font(.caption)
-                                        }
-                                    }
-
-                                    Text(antenna.id)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                if isCompleted {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .foregroundColor(.green)
+                                        .font(.caption2)
                                 }
 
                                 Spacer()
                             }
-                            .padding()
+                            .padding(8)
                             .background(
                                 isCompleted ? Color.green.opacity(0.1) :
                                     isSelected ? Color.blue.opacity(0.1) : Color.secondary.opacity(0.05)
                             )
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(
-                                        isCompleted ? Color.green :
-                                            isSelected ? Color.blue : Color.clear,
-                                        lineWidth: 2
-                                    )
-                            )
+                            .cornerRadius(6)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -181,97 +417,28 @@ struct AutoAntennaCalibrationView: View {
             }
 
             if !self.viewModel.completedAntennaIds.isEmpty {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    Text("完了: \(self.viewModel.completedAntennaIds.count) / \(self.viewModel.availableAntennas.count) アンテナ")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.green)
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color.green.opacity(0.1))
-                .cornerRadius(8)
+                Text("完了: \(self.viewModel.completedAntennaIds.count) / \(self.viewModel.availableAntennas.count)")
+                    .font(.caption)
+                    .foregroundColor(.green)
             }
         }
-        .padding()
-        .background(Color.secondary.opacity(0.05))
-        .cornerRadius(12)
     }
 
-    // MARK: - Step 1: タグ位置設定
+    // MARK: - Step 1: タグ位置設定（コンパクト版）
 
-    private var tagPositionSetupStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("ステップ2: タグ位置設定")
-                .font(.headline)
-
-            Text("フロアマップ上で既知のタグ位置を3つ以上設定してください")
+    private var tagPositionSetupStepCompact: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("タグ位置設定")
                 .font(.subheadline)
+                .fontWeight(.medium)
+
+            Text("マップをタップして既知のタグ位置を3つ以上設定してください")
+                .font(.caption)
                 .foregroundColor(.secondary)
 
-            // フロアマップ
-            if let floorMapImage = viewModel.floorMapImage,
-               let floorMapInfo = viewModel.currentFloorMapInfo
-            {
-                FloorMapCanvas(
-                    floorMapImage: floorMapImage,
-                    floorMapInfo: floorMapInfo,
-                    calibrationPoints: nil,
-                    onMapTap: self.handleMapTap,
-                    enableZoom: false,
-                    fixedHeight: 300,
-                    showGrid: true
-                ) { geometry in
-                    // タグマーカーを表示
-                    ForEach(Array(self.viewModel.trueTagPositions.enumerated()), id: \.offset) {
-                        index, tagPos in
-                        let normalizedPoint = geometry.realWorldToNormalized(
-                            CGPoint(x: tagPos.position.x, y: tagPos.position.y)
-                        )
-                        let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
-
-                        ZStack {
-                            Circle()
-                                .fill(tagPos.isCollected ? Color.green : Color.blue)
-                                .frame(width: 32, height: 32)
-
-                            Text("\(index + 1)")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-
-                            if tagPos.isCollected {
-                                Image(systemName: "checkmark")
-                                    .font(.caption2)
-                                    .foregroundColor(.white)
-                                    .offset(x: 12, y: -12)
-                            }
-                        }
-                        .position(displayPosition)
-                    }
-                }
-            } else {
-                Text("フロアマップを読み込んでいます...")
-                    .frame(maxWidth: .infinity, minHeight: 300)
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(12)
-            }
-
-            // タグリスト
-            self.tagPositionList
-        }
-        .padding()
-        .background(Color.secondary.opacity(0.05))
-        .cornerRadius(12)
-    }
-
-    private var tagPositionList: some View {
-        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("設定済みタグ位置 (\(self.viewModel.trueTagPositions.count)個)")
-                    .font(.subheadline)
+                Text("設定済み: \(self.viewModel.trueTagPositions.count)個")
+                    .font(.caption)
                     .fontWeight(.medium)
 
                 Spacer()
@@ -280,25 +447,19 @@ struct AutoAntennaCalibrationView: View {
                     Button("全てクリア") {
                         self.viewModel.clearTagPositions()
                     }
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(.red)
                 }
             }
 
-            if self.viewModel.trueTagPositions.isEmpty {
-                Text("マップをタップしてタグ位置を設定してください")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-            } else {
-                VStack(spacing: 8) {
+            if !self.viewModel.trueTagPositions.isEmpty {
+                VStack(spacing: 6) {
                     ForEach(Array(self.viewModel.trueTagPositions.enumerated()), id: \.offset) {
                         index, tagPos in
                         HStack {
                             Circle()
                                 .fill(tagPos.isCollected ? Color.green : Color.blue)
-                                .frame(width: 24, height: 24)
+                                .frame(width: 16, height: 16)
                                 .overlay(
                                     Text("\(index + 1)")
                                         .font(.caption2)
@@ -306,90 +467,61 @@ struct AutoAntennaCalibrationView: View {
                                         .foregroundColor(.white)
                                 )
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(tagPos.tagId)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-
-                                Text(
-                                    "X: \(String(format: "%.2f", tagPos.position.x))m, Y: \(String(format: "%.2f", tagPos.position.y))m"
-                                )
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            }
+                            Text("X: \(String(format: "%.2f", tagPos.position.x))m, Y: \(String(format: "%.2f", tagPos.position.y))m")
+                                .font(.caption2)
 
                             Spacer()
-
-                            if tagPos.isCollected {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(.green)
-                            }
 
                             Button(action: {
                                 self.viewModel.removeTagPosition(at: index)
                             }) {
                                 Image(systemName: "trash")
                                     .foregroundColor(.red)
+                                    .font(.caption2)
                             }
                         }
-                        .padding()
+                        .padding(6)
                         .background(Color.secondary.opacity(0.05))
-                        .cornerRadius(8)
+                        .cornerRadius(4)
                     }
                 }
             }
         }
     }
 
-    // MARK: - Step 2: データ収集
+    // MARK: - Step 2: データ収集（コンパクト版）
 
-    private var dataCollectionStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("ステップ3: データ収集")
-                .font(.headline)
-
-            Text("タグを指定位置に配置してセンシングを実行してください")
+    private var dataCollectionStepCompact: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("データ収集")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                .fontWeight(.medium)
 
-            // 全体進行状況
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("進行状況")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-
-                    Spacer()
-
-                    let completedCount = self.viewModel.trueTagPositions.filter { $0.isCollected }.count
-                    Text("\(completedCount) / \(self.viewModel.trueTagPositions.count) 完了")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(completedCount == self.viewModel.trueTagPositions.count ? .green : .blue)
-                }
+            // 進行状況
+            let completedCount = self.viewModel.trueTagPositions.filter { $0.isCollected }.count
+            VStack(alignment: .leading, spacing: 6) {
+                Text("進行状況: \(completedCount) / \(self.viewModel.trueTagPositions.count)")
+                    .font(.caption)
+                    .fontWeight(.medium)
 
                 ProgressView(value: self.viewModel.collectionProgress)
                     .progressViewStyle(LinearProgressViewStyle(tint: .blue))
             }
-            .padding()
-            .background(Color.secondary.opacity(0.05))
-            .cornerRadius(8)
 
             // 現在のタグ位置
             if let currentTag = self.viewModel.currentTagPosition {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Image(systemName: "location.fill")
                             .foregroundColor(.blue)
-                            .font(.title2)
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("現在の測定位置: \(currentTag.tagId)")
-                                .font(.subheadline)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("測定位置: \(currentTag.tagId)")
+                                .font(.caption)
                                 .fontWeight(.bold)
 
                             Text("X: \(String(format: "%.2f", currentTag.position.x))m, Y: \(String(format: "%.2f", currentTag.position.y))m")
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
 
@@ -398,137 +530,24 @@ struct AutoAntennaCalibrationView: View {
                         if currentTag.isCollected {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
-                                .font(.title)
                         }
                     }
-                    .padding()
+                    .padding(8)
                     .background(currentTag.isCollected ? Color.green.opacity(0.1) : Color.blue.opacity(0.1))
-                    .cornerRadius(8)
+                    .cornerRadius(6)
 
                     // センシング中のインジケーター
                     if self.viewModel.isCollecting {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 8) {
                             ProgressView()
-                                .scaleEffect(1.2)
-
-                            Text("センシング中... (約10秒)")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
+                            Text("センシング中...")
+                                .font(.caption)
                                 .foregroundColor(.green)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding()
+                        .padding(8)
                         .background(Color.green.opacity(0.1))
-                        .cornerRadius(8)
-                    }
-
-                    // マップ表示（常時表示）
-                    if let floorMapImage = viewModel.floorMapImage,
-                       let floorMapInfo = viewModel.currentFloorMapInfo
-                    {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("フロアマップ")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-
-                            FloorMapCanvas(
-                                floorMapImage: floorMapImage,
-                                floorMapInfo: floorMapInfo,
-                                calibrationPoints: nil,
-                                onMapTap: nil,
-                                enableZoom: false,
-                                fixedHeight: 300,
-                                showGrid: true
-                            ) { geometry in
-                                // 他のアンテナ位置マーカー（現在のアンテナ以外）
-                                ForEach(self.viewModel.allAntennaPositions.filter { $0.antennaId != self.viewModel.currentAntennaId }) { antennaPos in
-                                    let normalizedPoint = geometry.realWorldToNormalized(
-                                        CGPoint(x: antennaPos.position.x, y: antennaPos.position.y)
-                                    )
-                                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
-
-                                    let antennaDisplayData = AntennaDisplayData(
-                                        id: antennaPos.antennaId,
-                                        name: antennaPos.antennaName,
-                                        rotation: antennaPos.rotation,
-                                        color: Color.gray.opacity(0.6)
-                                    )
-
-                                    AntennaMarker(
-                                        antenna: antennaDisplayData,
-                                        position: displayPosition,
-                                        size: geometry.antennaSizeInPixels(),
-                                        sensorRange: nil,
-                                        isSelected: false,
-                                        isDraggable: false,
-                                        showRotationControls: false
-                                    )
-                                }
-
-                                // 現在キャリブレーション中のアンテナ位置（目立つように表示）
-                                if let currentAntenna = self.viewModel.originalAntennaPosition {
-                                    let normalizedPoint = geometry.realWorldToNormalized(
-                                        CGPoint(x: currentAntenna.position.x, y: currentAntenna.position.y)
-                                    )
-                                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
-
-                                    let currentAntennaDisplayData = AntennaDisplayData(
-                                        id: currentAntenna.antennaId,
-                                        name: currentAntenna.antennaName,
-                                        rotation: currentAntenna.rotation,
-                                        color: Color.blue
-                                    )
-
-                                    AntennaMarker(
-                                        antenna: currentAntennaDisplayData,
-                                        position: displayPosition,
-                                        size: geometry.antennaSizeInPixels() * 1.5,
-                                        sensorRange: geometry.sensorRangeInPixels(),
-                                        isSelected: true,
-                                        isDraggable: false,
-                                        showRotationControls: false
-                                    )
-                                }
-
-                                // タグ位置マーカー
-                                ForEach(Array(self.viewModel.trueTagPositions.enumerated()), id: \.offset) { index, tagPos in
-                                    let normalizedPoint = geometry.realWorldToNormalized(
-                                        CGPoint(x: tagPos.position.x, y: tagPos.position.y)
-                                    )
-                                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
-
-                                    Circle()
-                                        .fill(tagPos.isCollected ? Color.green : (index == self.viewModel.currentTagPositionIndex ? Color.orange : Color.blue))
-                                        .frame(width: 24, height: 24)
-                                        .overlay(
-                                            Text("\(index + 1)")
-                                                .font(.caption2)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.white)
-                                        )
-                                        .position(displayPosition)
-                                }
-
-                                // 測定データポイント（センシング中のみ）
-                                if self.viewModel.isCollecting {
-                                    ForEach(Array(self.viewModel.currentSensingDataPoints.enumerated()), id: \.offset) { _, dataPoint in
-                                        let normalizedPoint = geometry.realWorldToNormalized(
-                                            CGPoint(x: dataPoint.x, y: dataPoint.y)
-                                        )
-                                        let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
-
-                                        Circle()
-                                            .fill(Color.red.opacity(0.6))
-                                            .frame(width: 8, height: 8)
-                                            .position(displayPosition)
-                                    }
-                                }
-                            }
-                            .frame(height: 350)
-                        }
-                        .padding()
-                        .background(Color.secondary.opacity(0.05))
-                        .cornerRadius(8)
+                        .cornerRadius(6)
                     }
 
                     // センシング開始ボタン
@@ -538,13 +557,14 @@ struct AutoAntennaCalibrationView: View {
                         }) {
                             HStack {
                                 Image(systemName: "play.fill")
-                                Text("タグを配置してセンシング開始")
+                                Text("センシング開始")
                             }
+                            .font(.caption)
                             .frame(maxWidth: .infinity)
-                            .padding()
+                            .padding(8)
                             .foregroundColor(.white)
                             .background(Color.green)
-                            .cornerRadius(12)
+                            .cornerRadius(8)
                         }
                     }
                     // 次の位置へ
@@ -556,331 +576,94 @@ struct AutoAntennaCalibrationView: View {
                                 Image(systemName: "arrow.right.circle.fill")
                                 Text("次のタグ位置へ")
                             }
+                            .font(.caption)
                             .frame(maxWidth: .infinity)
-                            .padding()
+                            .padding(8)
                             .foregroundColor(.white)
                             .background(Color.blue)
-                            .cornerRadius(12)
+                            .cornerRadius(8)
                         }
                     }
                 }
             }
 
-            // データ統計
+            // データ統計（コンパクト版）
             if !self.viewModel.dataStatistics.isEmpty {
-                self.dataStatisticsView
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("収集データ")
+                        .font(.caption)
+                        .fontWeight(.medium)
+
+                    ForEach(Array(self.viewModel.dataStatistics.keys.sorted()), id: \.self) { antennaId in
+                        if let tagData = viewModel.dataStatistics[antennaId] {
+                            let totalCount = tagData.values.reduce(0, +)
+                            Text("\(antennaId): \(totalCount)件")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(8)
+                .background(Color.secondary.opacity(0.05))
+                .cornerRadius(6)
             }
         }
-        .padding()
-        .background(Color.secondary.opacity(0.05))
-        .cornerRadius(12)
     }
 
-    private var dataStatisticsView: some View {
+    // MARK: - Step 3: キャリブレーション結果（コンパクト版）
+
+    private var calibrationResultStepCompact: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("収集データ統計")
+            Text("キャリブレーション結果")
                 .font(.subheadline)
                 .fontWeight(.medium)
 
-            ForEach(Array(self.viewModel.dataStatistics.keys.sorted()), id: \.self) { antennaId in
-                if let tagData = viewModel.dataStatistics[antennaId] {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "antenna.radiowaves.left.and.right")
-                                .foregroundColor(.blue)
-
-                            Text(antennaId)
-                                .font(.caption)
-                                .fontWeight(.medium)
-
-                            Spacer()
-
-                            Text("計\(tagData.values.reduce(0, +))件")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.blue)
-                        }
-
-                        ForEach(Array(tagData.keys.sorted()), id: \.self) { tagId in
-                            HStack {
-                                Text(tagId)
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-
-                                Spacer()
-
-                                Text("\(tagData[tagId] ?? 0)件")
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                            }
-                            .padding(.leading)
-                        }
-                    }
-                    .padding()
-                    .background(Color.secondary.opacity(0.05))
-                    .cornerRadius(8)
-                }
-            }
-        }
-    }
-
-    // MARK: - Step 3: キャリブレーション結果
-
-    private var calibrationResultStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("ステップ4: キャリブレーション結果")
-                .font(.headline)
-
             if let result = self.viewModel.currentAntennaResult {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
-                            .font(.title2)
 
-                        Text("\(self.viewModel.currentAntennaName) のキャリブレーション完了")
-                            .font(.headline)
+                        Text("\(self.viewModel.currentAntennaName) 完了")
+                            .font(.caption)
+                            .fontWeight(.bold)
                             .foregroundColor(.green)
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Image(systemName: "antenna.radiowaves.left.and.right")
-                                .foregroundColor(.blue)
+                            Text("位置:")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
 
-                            Text(self.viewModel.currentAntennaName)
-                                .font(.subheadline)
-                                .fontWeight(.bold)
+                            Text("X: \(String(format: "%.3f", result.position.x))m, Y: \(String(format: "%.3f", result.position.y))m")
+                                .font(.caption2)
                         }
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("位置:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                        HStack {
+                            Text("角度:")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
 
-                                Text(
-                                    "X: \(String(format: "%.3f", result.position.x))m, Y: \(String(format: "%.3f", result.position.y))m"
+                            Text("\(String(format: "%.2f", result.angleDegrees))°")
+                                .font(.caption2)
+                        }
+
+                        HStack {
+                            Text("RMSE:")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+
+                            Text("\(String(format: "%.4f", result.rmse))m")
+                                .font(.caption2)
+                                .foregroundColor(
+                                    result.rmse < 0.1 ? .green : (result.rmse < 0.3 ? .orange : .red)
                                 )
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            }
-
-                            HStack {
-                                Text("角度:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                Text("\(String(format: "%.2f", result.angleDegrees))°")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                            }
-
-                            HStack {
-                                Text("RMSE:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                Text("\(String(format: "%.4f", result.rmse))m")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(
-                                        result.rmse < 0.1 ? .green : (result.rmse < 0.3 ? .orange : .red)
-                                    )
-                            }
-
-                            HStack {
-                                Text("スケール:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                Text(
-                                    "sx: \(String(format: "%.3f", result.scaleFactors.sx)), sy: \(String(format: "%.3f", result.scaleFactors.sy))"
-                                )
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            }
                         }
                     }
-                    .padding()
+                    .padding(8)
                     .background(Color.green.opacity(0.1))
-                    .cornerRadius(8)
-
-                    // キャリブレーション結果のマップ表示
-                    if let floorMapImage = viewModel.floorMapImage,
-                       let floorMapInfo = viewModel.currentFloorMapInfo
-                    {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("マップ表示")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-
-                            FloorMapCanvas(
-                                floorMapImage: floorMapImage,
-                                floorMapInfo: floorMapInfo,
-                                calibrationPoints: nil,
-                                onMapTap: nil,
-                                enableZoom: false,
-                                fixedHeight: 300,
-                                showGrid: true
-                            ) { geometry in
-                                // すべてのアンテナ位置マーカー（他のアンテナ）
-                                ForEach(self.viewModel.allAntennaPositions.filter { $0.antennaId != self.viewModel.currentAntennaId }) { antennaPos in
-                                    let normalizedPoint = geometry.realWorldToNormalized(
-                                        CGPoint(x: antennaPos.position.x, y: antennaPos.position.y)
-                                    )
-                                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
-
-                                    let antennaDisplayData = AntennaDisplayData(
-                                        id: antennaPos.antennaId,
-                                        name: antennaPos.antennaName,
-                                        rotation: antennaPos.rotation,
-                                        color: Color.gray.opacity(0.6)
-                                    )
-
-                                    AntennaMarker(
-                                        antenna: antennaDisplayData,
-                                        position: displayPosition,
-                                        size: geometry.antennaSizeInPixels(),
-                                        sensorRange: nil,
-                                        isSelected: false,
-                                        isDraggable: false,
-                                        showRotationControls: false
-                                    )
-                                }
-
-                                // タグ位置マーカー（キャリブレーションに使用）
-                                ForEach(Array(self.viewModel.trueTagPositions.enumerated()), id: \.offset) { index, tagPos in
-                                    let normalizedPoint = geometry.realWorldToNormalized(
-                                        CGPoint(x: tagPos.position.x, y: tagPos.position.y)
-                                    )
-                                    let displayPosition = geometry.normalizedToImageCoordinate(normalizedPoint)
-
-                                    Circle()
-                                        .fill(Color.green)
-                                        .frame(width: 24, height: 24)
-                                        .overlay(
-                                            Text("\(index + 1)")
-                                                .font(.caption2)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.white)
-                                        )
-                                        .position(displayPosition)
-                                }
-
-                                // 変更前のアンテナ位置（赤、半透明）
-                                if let original = self.viewModel.originalAntennaPosition {
-                                    let originalNormalizedPoint = geometry.realWorldToNormalized(
-                                        CGPoint(x: original.position.x, y: original.position.y)
-                                    )
-                                    let originalDisplayPosition = geometry.normalizedToImageCoordinate(originalNormalizedPoint)
-
-                                    let originalAntennaDisplayData = AntennaDisplayData(
-                                        id: original.antennaId,
-                                        name: "変更前",
-                                        rotation: original.rotation,
-                                        color: Color.red.opacity(0.5)
-                                    )
-
-                                    AntennaMarker(
-                                        antenna: originalAntennaDisplayData,
-                                        position: originalDisplayPosition,
-                                        size: geometry.antennaSizeInPixels() * 1.1,
-                                        sensorRange: nil,
-                                        isSelected: false,
-                                        isDraggable: false,
-                                        showRotationControls: false
-                                    )
-
-                                    // 変更前から変更後への移動線
-                                    let newNormalizedPoint = geometry.realWorldToNormalized(
-                                        CGPoint(x: result.position.x, y: result.position.y)
-                                    )
-                                    let newDisplayPosition = geometry.normalizedToImageCoordinate(newNormalizedPoint)
-
-                                    Path { path in
-                                        path.move(to: originalDisplayPosition)
-                                        path.addLine(to: newDisplayPosition)
-                                    }
-                                    .stroke(Color.purple.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [8, 4]))
-                                }
-
-                                // 推定されたアンテナ位置（新しい位置）
-                                let antennaNormalizedPoint = geometry.realWorldToNormalized(
-                                    CGPoint(x: result.position.x, y: result.position.y)
-                                )
-                                let antennaDisplayPosition = geometry.normalizedToImageCoordinate(antennaNormalizedPoint)
-
-                                let newAntennaDisplayData = AntennaDisplayData(
-                                    id: self.viewModel.currentAntennaId ?? "",
-                                    name: self.viewModel.currentAntennaName,
-                                    rotation: result.angleDegrees,
-                                    color: Color.blue
-                                )
-
-                                AntennaMarker(
-                                    antenna: newAntennaDisplayData,
-                                    position: antennaDisplayPosition,
-                                    size: geometry.antennaSizeInPixels() * 1.3,
-                                    sensorRange: nil,
-                                    isSelected: true,
-                                    isDraggable: false,
-                                    showRotationControls: false
-                                )
-                            }
-                            .frame(height: 350)
-
-                            // 凡例
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("凡例")
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.secondary)
-
-                                HStack(spacing: 16) {
-                                    HStack(spacing: 4) {
-                                        Circle()
-                                            .fill(Color.red.opacity(0.3))
-                                            .frame(width: 12, height: 12)
-                                        Text("変更前")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-
-                                    HStack(spacing: 4) {
-                                        Circle()
-                                            .fill(Color.blue)
-                                            .frame(width: 12, height: 12)
-                                        Text("変更後")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-
-                                    HStack(spacing: 4) {
-                                        Circle()
-                                            .fill(Color.green)
-                                            .frame(width: 12, height: 12)
-                                        Text("タグ位置")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-
-                                    HStack(spacing: 4) {
-                                        Circle()
-                                            .fill(Color.gray)
-                                            .frame(width: 12, height: 12)
-                                        Text("他のアンテナ")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                            .padding(.top, 8)
-                        }
-                        .padding()
-                        .background(Color.secondary.opacity(0.05))
-                        .cornerRadius(8)
-                    }
+                    .cornerRadius(6)
 
                     // 次のアンテナへ進むボタン
                     if self.viewModel.hasMoreAntennas {
@@ -891,28 +674,23 @@ struct AutoAntennaCalibrationView: View {
                                 Image(systemName: "arrow.right.circle.fill")
                                 Text("次のアンテナへ")
                             }
+                            .font(.caption)
                             .frame(maxWidth: .infinity)
-                            .padding()
+                            .padding(8)
                             .foregroundColor(.white)
                             .background(Color.blue)
-                            .cornerRadius(12)
+                            .cornerRadius(8)
                         }
                     } else {
-                        VStack(spacing: 12) {
-                            HStack {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .foregroundColor(.green)
-                                    .font(.title)
-
-                                Text("全てのアンテナのキャリブレーションが完了しました")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.green)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.green.opacity(0.1))
-                            .cornerRadius(8)
+                        VStack(spacing: 8) {
+                            Text("全てのアンテナ完了")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.green)
+                                .frame(maxWidth: .infinity)
+                                .padding(8)
+                                .background(Color.green.opacity(0.1))
+                                .cornerRadius(6)
 
                             Button(action: {
                                 self.viewModel.resetCalibration()
@@ -921,30 +699,28 @@ struct AutoAntennaCalibrationView: View {
                                     Image(systemName: "arrow.clockwise")
                                     Text("新しいキャリブレーション")
                                 }
+                                .font(.caption)
                                 .frame(maxWidth: .infinity)
-                                .padding()
+                                .padding(8)
                                 .foregroundColor(.blue)
                                 .background(Color.blue.opacity(0.1))
-                                .cornerRadius(12)
+                                .cornerRadius(8)
                             }
                         }
                     }
                 }
             } else if self.viewModel.isCalibrating {
-                VStack(spacing: 12) {
+                HStack(spacing: 8) {
                     ProgressView()
-                        .scaleEffect(1.5)
-
                     Text("キャリブレーション実行中...")
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundColor(.blue)
                 }
                 .frame(maxWidth: .infinity)
-                .padding()
+                .padding(8)
                 .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
+                .cornerRadius(6)
             } else {
-                // キャリブレーション実行ボタン（データ収集完了後に表示）
                 Button(action: {
                     self.viewModel.startCalibration()
                 }) {
@@ -952,59 +728,46 @@ struct AutoAntennaCalibrationView: View {
                         Image(systemName: "waveform.path.ecg")
                         Text("キャリブレーション実行")
                     }
+                    .font(.caption)
                     .frame(maxWidth: .infinity)
-                    .padding()
+                    .padding(8)
                     .foregroundColor(.white)
                     .background(self.viewModel.canStartCalibration ? Color.blue : Color.gray)
-                    .cornerRadius(12)
+                    .cornerRadius(8)
                 }
                 .disabled(!self.viewModel.canStartCalibration)
             }
         }
-        .padding()
-        .background(Color.secondary.opacity(0.05))
-        .cornerRadius(12)
     }
 
     // MARK: - Navigation
 
     private var navigationButtons: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             if self.viewModel.canGoBack {
                 Button("戻る") {
                     self.viewModel.goBack()
                 }
+                .font(.caption)
                 .frame(maxWidth: .infinity)
-                .padding()
+                .padding(8)
                 .foregroundColor(.blue)
                 .background(Color.blue.opacity(0.1))
-                .cornerRadius(12)
+                .cornerRadius(8)
             }
 
             if self.viewModel.canProceedToNext {
                 Button("次へ") {
                     self.viewModel.proceedToNext()
                 }
+                .font(.caption)
                 .frame(maxWidth: .infinity)
-                .padding()
+                .padding(8)
                 .foregroundColor(.white)
                 .background(Color.blue)
-                .cornerRadius(12)
+                .cornerRadius(8)
             }
         }
-    }
-
-    // MARK: - Handlers
-
-    private func handleMapTap(at location: CGPoint) {
-        guard self.viewModel.currentStep == 1 else { return }
-
-        let point = Point3D(
-            x: Double(location.x),
-            y: Double(location.y),
-            z: 0.0
-        )
-        self.viewModel.addTagPosition(at: point)
     }
 }
 

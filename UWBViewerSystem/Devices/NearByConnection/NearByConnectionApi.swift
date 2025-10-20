@@ -560,6 +560,7 @@ import Foundation
 
             // 元のファイル名から拡張子を分離
             let originalNameWithoutExtension = (originalName as NSString).deletingPathExtension
+            let originalExtension = (originalName as NSString).pathExtension
 
             // ファイル名とデバイス名をサニタイズ（パストラバーサル対策）
             let safeDevice = self.sanitizeFileComponent(fromDevice)

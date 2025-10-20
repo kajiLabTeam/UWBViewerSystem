@@ -115,8 +115,6 @@ struct AntennaMarker: View {
             x: self.position.x + self.dragOffset.width,
             y: self.position.y + self.dragOffset.height
         )
-        .scaleEffect(self.isSelected ? 1.1 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: self.isSelected)
         .zIndex(self.isSelected ? 100 : 10)
         .gesture(
             self.isDraggable

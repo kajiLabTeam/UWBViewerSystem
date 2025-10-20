@@ -109,11 +109,11 @@ struct FloorMapCanvas<Content: View>: View {
                             realWorldPoint: point.realWorldCoordinate,
                             geometry: canvasGeometry
                         )
-                        // ズーム時もマーカーサイズを一定に保つため、スケールの逆数で補正
+                        // 固定サイズで表示
                         CalibrationResultMarker(
                             point: point,
                             position: screenPosition,
-                            size: 16 / self.currentScale,
+                            size: 16,
                             isSelected: false,
                             isDraggable: false
                         )
@@ -228,7 +228,7 @@ private struct GridOverlay: View {
                 // グリッド線のスタイル
                 let gridLineColor = Color.gray.opacity(0.3)
                 let axisLineColor = Color.blue.opacity(0.5)
-                let lineWidth: CGFloat = 1.0 / self.geometry.currentScale
+                let lineWidth: CGFloat = 1.0
 
                 // 縦線(X軸方向)を描画
                 var x = 0.0
@@ -276,14 +276,14 @@ private struct GridOverlay: View {
                 let screenX = self.geometry.imageFrame.origin.x + normalizedX * self.geometry.imageFrame.width
 
                 Text(String(format: "%.0f", x))
-                    .font(.system(size: 10 / self.geometry.currentScale))
+                    .font(.system(size: 10))
                     .foregroundColor(.white)
-                    .padding(2 / self.geometry.currentScale)
+                    .padding(2)
                     .background(Color.black.opacity(0.5))
-                    .cornerRadius(2 / self.geometry.currentScale)
+                    .cornerRadius(2)
                     .position(
                         x: screenX,
-                        y: self.geometry.imageFrame.origin.y + 12 / self.geometry.currentScale
+                        y: self.geometry.imageFrame.origin.y + 12
                     )
                     .allowsHitTesting(false)  // ラベルはタッチイベントを受け取らない
             }
@@ -294,13 +294,13 @@ private struct GridOverlay: View {
                 let screenY = self.geometry.imageFrame.origin.y + normalizedY * self.geometry.imageFrame.height
 
                 Text(String(format: "%.0f", y))
-                    .font(.system(size: 10 / self.geometry.currentScale))
+                    .font(.system(size: 10))
                     .foregroundColor(.white)
-                    .padding(2 / self.geometry.currentScale)
+                    .padding(2)
                     .background(Color.black.opacity(0.5))
-                    .cornerRadius(2 / self.geometry.currentScale)
+                    .cornerRadius(2)
                     .position(
-                        x: self.geometry.imageFrame.origin.x + 16 / self.geometry.currentScale,
+                        x: self.geometry.imageFrame.origin.x + 16,
                         y: screenY
                     )
                     .allowsHitTesting(false)  // ラベルはタッチイベントを受け取らない
@@ -373,31 +373,16 @@ struct FloorMapCanvasGeometry {
         )
     }
 
-    // アンテナサイズを計算（20cmの実寸サイズ）
-    // ズーム時はスケールの逆数で補正して一定サイズを保つ
+    // アンテナサイズを計算（固定サイズで小さめに表示）
     func antennaSizeInPixels() -> CGFloat {
-        let baseCanvasSize: Double = 400.0
-        let actualCanvasSize = min(canvasSize.width, self.canvasSize.height)
-        let scale = Double(actualCanvasSize) / baseCanvasSize
-
-        let sizeInPixels = CGFloat(0.20 * self.mapScale * scale)  // 0.20m = 20cm
-        let clampedSize = max(min(sizeInPixels, 80), 20)  // 最小20px、最大80px
-
-        // currentScaleの逆数で補正して、ズームしても一定サイズを保つ
-        return clampedSize / self.currentScale
+        // 固定サイズ: 30px（小さめで表示）
+        30.0
     }
 
-    // センサー範囲（50m）をピクセルに変換
-    // ズーム時はスケールの逆数で補正して一定サイズを保つ
+    // センサー範囲をピクセルに変換（固定サイズ）
     func sensorRangeInPixels() -> CGFloat {
-        let baseCanvasSize: Double = 400.0
-        let actualCanvasSize = min(canvasSize.width, self.canvasSize.height)
-        let scale = Double(actualCanvasSize) / baseCanvasSize
-
-        let rangeInPixels = CGFloat(50.0 * self.mapScale * scale)
-
-        // currentScaleの逆数で補正して、ズームしても一定サイズを保つ
-        return rangeInPixels / self.currentScale
+        // 固定サイズ: 100px
+        100.0
     }
 }
 

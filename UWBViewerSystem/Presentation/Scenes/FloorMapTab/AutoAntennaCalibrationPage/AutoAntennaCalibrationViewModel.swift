@@ -90,6 +90,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     private var swiftDataRepository: SwiftDataRepository?
     private var sensingControlUsecase: SensingControlUsecase?
     private var modelContext: ModelContext?
+    private var isSetupCompleted: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -180,6 +181,11 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     // MARK: - Initialization
 
     func setup(modelContext: ModelContext) {
+        // 既にセットアップ済みの場合は早期リターン
+        guard !self.isSetupCompleted else {
+            return
+        }
+
         self.modelContext = modelContext
         let swiftDataRepo = SwiftDataRepository(modelContext: modelContext)
         self.swiftDataRepository = swiftDataRepo
@@ -216,6 +222,9 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         connectionUsecase.setRealtimeDataUsecase(realtimeUsecase)
 
         self.loadInitialData()
+
+        // セットアップ完了フラグを立てる
+        self.isSetupCompleted = true
     }
 
     // MARK: - Public Methods

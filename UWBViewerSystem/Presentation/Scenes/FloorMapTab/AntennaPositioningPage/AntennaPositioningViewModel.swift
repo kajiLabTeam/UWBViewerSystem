@@ -89,7 +89,8 @@ class AntennaPositioningViewModel: ObservableObject {
         let positionedAntennas = self.antennaPositions.filter {
             $0.normalizedPosition != CGPoint(x: 0.125, y: 0.125)
         }
-        self.canProceedValue = positionedAntennas.count >= 3
+        // saveAntennaPositionsForFlowと統一して2台以上で有効化
+        self.canProceedValue = positionedAntennas.count >= 2
     }
 
     func getDevicePosition(_ deviceId: String) -> CGPoint? {
@@ -119,8 +120,38 @@ class AntennaPositioningViewModel: ObservableObject {
     func loadMapAndDevices() {
         self.loadSelectedDevices()
         self.loadMapData()
-        self.loadCalibrationData()
-        self.createAntennaPositions()
+        // キャリブレーションデータを非同期でロード
+        Task {
+            await self.loadCalibrationDataAsync()
+            // ロード完了後にアンテナ位置を作成
+            await MainActor.run {
+                self.createAntennaPositions()
+            }
+        }
+    }
+
+    private func loadCalibrationDataAsync() async {
+        guard let repository = swiftDataRepository else {
+            await MainActor.run {
+                self.calibrationData = []
+            }
+            return
+        }
+
+        do {
+            let allCalibrationData = try await repository.loadMapCalibrationData()
+            await MainActor.run {
+                self.calibrationData = allCalibrationData
+            }
+            #if DEBUG
+                print("✅ キャリブレーションデータを読み込みました: \(allCalibrationData.count)件")
+            #endif
+        } catch {
+            print("❌ キャリブレーションデータの読み込みに失敗: \(error)")
+            await MainActor.run {
+                self.calibrationData = []
+            }
+        }
     }
 
     private func loadSelectedDevices() {
@@ -291,31 +322,6 @@ class AntennaPositioningViewModel: ObservableObject {
     }
 
     // キャリブレーションデータを読み込む
-    private func loadCalibrationData() {
-        guard let repository = swiftDataRepository else {
-            self.calibrationData = []
-            return
-        }
-
-        Task {
-            do {
-                let allCalibrationData = try await repository.loadMapCalibrationData()
-                await MainActor.run {
-                    self.calibrationData = allCalibrationData
-                }
-                #if DEBUG
-                    print("✅ キャリブレーションデータを読み込みました: \(allCalibrationData.count)件")
-                #endif
-            } catch {
-                await MainActor.run {
-                    self.calibrationData = []
-                }
-                #if DEBUG
-                    print("📝 キャリブレーションデータが見つかりません: \(error)")
-                #endif
-            }
-        }
-    }
 
     private func createAntennaPositions() {
         self.antennaPositions = self.selectedDevices.enumerated().map { index, device in

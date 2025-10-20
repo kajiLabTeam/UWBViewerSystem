@@ -154,7 +154,7 @@ struct AntennaDeviceRow: View {
                     .foregroundColor(.secondary)
 
                 if let position {
-                    Text("位置: (X: \(String(format: "%.2f", position.x))m, Y: \(String(format: "%.2f", position.y))m)")
+                    Text("位置: (X: \(String(format: "%.2f", position.x)), Y: \(String(format: "%.2f", position.y)))")
                         .font(.caption2)
                         .foregroundColor(.blue)
                 }
@@ -177,7 +177,7 @@ struct AntennaDeviceRow: View {
 
             // ステータス表示
             VStack(spacing: 4) {
-                if self.isPositioned && self.rotation != nil {
+                if self.isPositioned && (self.rotation ?? 0.0) != 0.0 {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
@@ -219,12 +219,12 @@ struct AntennaDeviceRow: View {
     }
 
     private var backgroundColorForStatus: Color {
-        if self.isPositioned && self.rotation != nil {
-            return Color(.systemGreen).opacity(0.15)
+        if self.isPositioned && (self.rotation ?? 0.0) != 0.0 {
+            return Color.green.opacity(0.15)
         } else if self.isPositioned {
-            return Color(.systemOrange).opacity(0.1)
+            return Color.orange.opacity(0.1)
         } else {
-            return Color(.systemRed).opacity(0.1)
+            return Color.red.opacity(0.1)
         }
     }
 }
@@ -254,7 +254,7 @@ struct AntennaDeviceRowWithActions: View {
 
                 // デバッグ: positionの状態を表示
                 if let position {
-                    Text("位置: (X: \(String(format: "%.2f", position.x))m, Y: \(String(format: "%.2f", position.y))m)")
+                    Text("位置: (X: \(String(format: "%.2f", position.x)), Y: \(String(format: "%.2f", position.y)))")
                         .font(.caption2)
                         .foregroundColor(.blue)
                 } else if self.isPositioned {
@@ -334,12 +334,12 @@ struct AntennaDeviceRowWithActions: View {
     }
 
     private var backgroundColorForStatus: Color {
-        if self.isPositioned && self.rotation != nil {
-            return Color(.systemGreen).opacity(0.15)
+        if self.isPositioned && (self.rotation ?? 0.0) != 0.0 {
+            return Color.green.opacity(0.15)
         } else if self.isPositioned {
-            return Color(.systemOrange).opacity(0.1)
+            return Color.orange.opacity(0.1)
         } else {
-            return Color(.systemRed).opacity(0.1)
+            return Color.red.opacity(0.1)
         }
     }
 }

@@ -117,19 +117,22 @@ struct AntennaMarker: View {
         )
         .zIndex(self.isSelected ? 100 : 10)
         .gesture(
-            self.isDraggable
-                ? DragGesture()
+            DragGesture()
                 .onChanged { value in
-                    self.dragOffset = value.translation
+                    if self.isDraggable {
+                        self.dragOffset = value.translation
+                    }
                 }
                 .onEnded { value in
-                    let newPosition = CGPoint(
-                        x: position.x + value.translation.width,
-                        y: self.position.y + value.translation.height
-                    )
-                    self.onPositionChanged?(newPosition)
-                    self.dragOffset = .zero
-                } : nil
+                    if self.isDraggable {
+                        let newPosition = CGPoint(
+                            x: self.position.x + value.translation.width,
+                            y: self.position.y + value.translation.height
+                        )
+                        self.onPositionChanged?(newPosition)
+                        self.dragOffset = .zero
+                    }
+                }
         )
     }
 

@@ -398,7 +398,7 @@ struct FloatingDeviceListPanel: View {
                             name: antenna.deviceName
                         ),
                         position: self.viewModel.getDevicePosition(antenna.id),
-                        isPositioned: antenna.normalizedPosition != .zero,
+                        isPositioned: self.viewModel.isDevicePositioned(antenna.id),
                         rotation: antenna.rotation,
                         onRemove: {
                             self.viewModel.removeDevice(antenna.id)

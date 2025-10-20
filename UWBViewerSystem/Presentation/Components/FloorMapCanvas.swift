@@ -375,8 +375,8 @@ struct FloorMapCanvasGeometry {
 
     // アンテナサイズを計算（固定サイズで小さめに表示）
     func antennaSizeInPixels() -> CGFloat {
-        // 固定サイズ: 30px（小さめで表示）
-        30.0
+        // 固定サイズ: 15px（小さめで表示）
+        15.0
     }
 
     // センサー範囲（50m）をピクセルに変換（実寸計算+ズーム補正）

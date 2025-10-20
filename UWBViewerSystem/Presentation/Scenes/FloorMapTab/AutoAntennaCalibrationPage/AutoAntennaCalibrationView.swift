@@ -153,7 +153,7 @@ struct CalibrationMapCanvasSection: View {
                     AntennaMarker(
                         antenna: currentAntennaDisplayData,
                         position: displayPosition,
-                        size: geometry.antennaSizeInPixels() * 1.5,
+                        size: geometry.antennaSizeInPixels(),
                         sensorRange: geometry.sensorRangeInPixels(),
                         isSelected: true,
                         isDraggable: false,
@@ -180,7 +180,7 @@ struct CalibrationMapCanvasSection: View {
                         AntennaMarker(
                             antenna: originalAntennaDisplayData,
                             position: originalDisplayPosition,
-                            size: geometry.antennaSizeInPixels() * 1.1,
+                            size: geometry.antennaSizeInPixels(),
                             sensorRange: nil,
                             isSelected: false,
                             isDraggable: false,
@@ -216,7 +216,7 @@ struct CalibrationMapCanvasSection: View {
                     AntennaMarker(
                         antenna: newAntennaDisplayData,
                         position: antennaDisplayPosition,
-                        size: geometry.antennaSizeInPixels() * 1.3,
+                        size: geometry.antennaSizeInPixels(),
                         sensorRange: nil,
                         isSelected: true,
                         isDraggable: false,
@@ -237,18 +237,18 @@ struct CalibrationMapCanvasSection: View {
                     ZStack {
                         Circle()
                             .fill(color)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 16, height: 16)
 
                         Text("\(index + 1)")
-                            .font(.caption)
+                            .font(.system(size: 8))
                             .fontWeight(.bold)
                             .foregroundColor(.white)
 
                         if tagPos.isCollected {
                             Image(systemName: "checkmark")
-                                .font(.caption2)
+                                .font(.system(size: 6))
                                 .foregroundColor(.white)
-                                .offset(x: 12, y: -12)
+                                .offset(x: 6, y: -6)
                         }
                     }
                     .position(displayPosition)

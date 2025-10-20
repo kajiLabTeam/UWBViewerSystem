@@ -119,19 +119,17 @@ struct AntennaMarker: View {
         .gesture(
             DragGesture()
                 .onChanged { value in
-                    if self.isDraggable {
-                        self.dragOffset = value.translation
-                    }
+                    guard self.isDraggable else { return }
+                    self.dragOffset = value.translation
                 }
                 .onEnded { value in
-                    if self.isDraggable {
-                        let newPosition = CGPoint(
-                            x: self.position.x + value.translation.width,
-                            y: self.position.y + value.translation.height
-                        )
-                        self.onPositionChanged?(newPosition)
-                        self.dragOffset = .zero
-                    }
+                    guard self.isDraggable else { return }
+                    let newPosition = CGPoint(
+                        x: self.position.x + value.translation.width,
+                        y: self.position.y + value.translation.height
+                    )
+                    self.onPositionChanged?(newPosition)
+                    self.dragOffset = .zero
                 }
         )
     }

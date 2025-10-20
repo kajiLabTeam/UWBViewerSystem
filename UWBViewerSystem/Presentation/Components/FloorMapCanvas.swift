@@ -221,7 +221,7 @@ private struct GridOverlay: View {
     var body: some View {
         ZStack {
             // グリッド線の描画
-            Canvas { context, size in
+            Canvas { context, _ in
                 guard let floorMapInfo = geometry.floorMapInfo else { return }
 
                 let imageFrame = self.geometry.imageFrame

@@ -78,7 +78,8 @@ struct FloorMapCanvas<Content: View>: View {
                 canvasSize: currentCanvasSize,
                 imageFrame: actualImageFrame,
                 mapScale: mapScale * Double(self.currentScale),
-                floorMapInfo: self.floorMapInfo
+                floorMapInfo: self.floorMapInfo,
+                currentScale: self.currentScale
             )
 
             ZStack {
@@ -100,10 +101,11 @@ struct FloorMapCanvas<Content: View>: View {
                             realWorldPoint: point.realWorldCoordinate,
                             geometry: canvasGeometry
                         )
+                        // ズーム時もマーカーサイズを一定に保つため、スケールの逆数で補正
                         CalibrationResultMarker(
                             point: point,
                             position: screenPosition,
-                            size: 16,
+                            size: 16 / self.currentScale,
                             isSelected: false,
                             isDraggable: false
                         )
@@ -207,6 +209,7 @@ struct FloorMapCanvasGeometry {
     let imageFrame: CGRect
     let mapScale: Double
     let floorMapInfo: FloorMapInfo?
+    let currentScale: CGFloat
 
     // 正規化座標を実際の画像表示座標に変換
     func normalizedToImageCoordinate(_ normalizedPoint: CGPoint) -> CGPoint {
@@ -263,22 +266,30 @@ struct FloorMapCanvasGeometry {
     }
 
     // アンテナサイズを計算（30cmの実寸サイズ）
+    // ズーム時はスケールの逆数で補正して一定サイズを保つ
     func antennaSizeInPixels() -> CGFloat {
         let baseCanvasSize: Double = 400.0
         let actualCanvasSize = min(canvasSize.width, self.canvasSize.height)
         let scale = Double(actualCanvasSize) / baseCanvasSize
 
         let sizeInPixels = CGFloat(0.30 * self.mapScale * scale)  // 0.30m = 30cm
-        return max(min(sizeInPixels, 80), 20)  // 最小20px、最大80px
+        let clampedSize = max(min(sizeInPixels, 80), 20)  // 最小20px、最大80px
+
+        // currentScaleの逆数で補正して、ズームしても一定サイズを保つ
+        return clampedSize / self.currentScale
     }
 
     // センサー範囲（50m）をピクセルに変換
+    // ズーム時はスケールの逆数で補正して一定サイズを保つ
     func sensorRangeInPixels() -> CGFloat {
         let baseCanvasSize: Double = 400.0
         let actualCanvasSize = min(canvasSize.width, self.canvasSize.height)
         let scale = Double(actualCanvasSize) / baseCanvasSize
 
-        return CGFloat(50.0 * self.mapScale * scale)
+        let rangeInPixels = CGFloat(50.0 * self.mapScale * scale)
+
+        // currentScaleの逆数で補正して、ズームしても一定サイズを保つ
+        return rangeInPixels / self.currentScale
     }
 }
 

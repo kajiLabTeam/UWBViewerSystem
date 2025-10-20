@@ -42,7 +42,8 @@ struct AntennaMarker: View {
     }
 
     private var displaySize: CGFloat {
-        max(min(self.size, 80), 20)  // 最小20px、最大80px
+        // サイズは既にFloorMapCanvasGeometryで計算済み（スケール補正含む）
+        self.size
     }
 
     var body: some View {

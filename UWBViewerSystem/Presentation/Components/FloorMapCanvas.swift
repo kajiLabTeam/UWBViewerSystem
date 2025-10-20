@@ -123,7 +123,6 @@ struct FloorMapCanvas<Content: View>: View {
                 // コンテンツ(アンテナ、基準点など)- 最前面
                 self.content(canvasGeometry)
             }
-            .drawingGroup()  // オフスクリーンレンダリングで最適化
             .scaleEffect(self.enableZoom ? self.currentScale : 1.0, anchor: .center)
             .offset(self.enableZoom ? self.offset : .zero)
             .gesture(
@@ -219,55 +218,58 @@ private struct GridOverlay: View {
     private let gridInterval: Double = 1.0
 
     var body: some View {
-        Canvas { context, size in
-            guard let floorMapInfo = geometry.floorMapInfo else { return }
-
-            let imageFrame = self.geometry.imageFrame
-
-            // グリッド線のスタイル
-            let gridLineColor = Color.gray.opacity(0.3)
-            let axisLineColor = Color.blue.opacity(0.5)
-            let lineWidth: CGFloat = 1.0 / self.geometry.currentScale
-
-            // 縦線(X軸方向)を描画
-            var x = 0.0
-            while x <= floorMapInfo.width {
-                let normalizedX = x / floorMapInfo.width
-                let screenX = imageFrame.origin.x + normalizedX * imageFrame.width
-
-                let path = Path { p in
-                    p.move(to: CGPoint(x: screenX, y: imageFrame.origin.y))
-                    p.addLine(to: CGPoint(x: screenX, y: imageFrame.origin.y + imageFrame.height))
-                }
-
-                // X=0の線は軸線として強調
-                let color = x == 0 ? axisLineColor : gridLineColor
-                context.stroke(path, with: .color(color), lineWidth: lineWidth)
-
-                x += self.gridInterval
-            }
-
-            // 横線(Y軸方向)を描画
-            var y = 0.0
-            while y <= floorMapInfo.depth {
-                let normalizedY = 1.0 - (y / floorMapInfo.depth)  // Y座標を反転
-                let screenY = imageFrame.origin.y + normalizedY * imageFrame.height
-
-                let path = Path { p in
-                    p.move(to: CGPoint(x: imageFrame.origin.x, y: screenY))
-                    p.addLine(to: CGPoint(x: imageFrame.origin.x + imageFrame.width, y: screenY))
-                }
-
-                // Y=0の線は軸線として強調
-                let color = y == 0 ? axisLineColor : gridLineColor
-                context.stroke(path, with: .color(color), lineWidth: lineWidth)
-
-                y += self.gridInterval
-            }
-        }
-
-        // 座標ラベルの表示
         ZStack {
+            // グリッド線の描画
+            Canvas { context, size in
+                guard let floorMapInfo = geometry.floorMapInfo else { return }
+
+                let imageFrame = self.geometry.imageFrame
+
+                // グリッド線のスタイル
+                let gridLineColor = Color.gray.opacity(0.3)
+                let axisLineColor = Color.blue.opacity(0.5)
+                let lineWidth: CGFloat = 1.0 / self.geometry.currentScale
+
+                // 縦線(X軸方向)を描画
+                var x = 0.0
+                while x <= floorMapInfo.width {
+                    let normalizedX = x / floorMapInfo.width
+                    let screenX = imageFrame.origin.x + normalizedX * imageFrame.width
+
+                    let path = Path { p in
+                        p.move(to: CGPoint(x: screenX, y: imageFrame.origin.y))
+                        p.addLine(to: CGPoint(x: screenX, y: imageFrame.origin.y + imageFrame.height))
+                    }
+
+                    // X=0の線は軸線として強調
+                    let color = x == 0 ? axisLineColor : gridLineColor
+                    context.stroke(path, with: .color(color), lineWidth: lineWidth)
+
+                    x += self.gridInterval
+                }
+
+                // 横線(Y軸方向)を描画
+                var y = 0.0
+                while y <= floorMapInfo.depth {
+                    let normalizedY = 1.0 - (y / floorMapInfo.depth)  // Y座標を反転
+                    let screenY = imageFrame.origin.y + normalizedY * imageFrame.height
+
+                    let path = Path { p in
+                        p.move(to: CGPoint(x: imageFrame.origin.x, y: screenY))
+                        p.addLine(to: CGPoint(x: imageFrame.origin.x + imageFrame.width, y: screenY))
+                    }
+
+                    // Y=0の線は軸線として強調
+                    let color = y == 0 ? axisLineColor : gridLineColor
+                    context.stroke(path, with: .color(color), lineWidth: lineWidth)
+
+                    y += self.gridInterval
+                }
+            }
+            .drawingGroup()  // グリッド線のみオフスクリーンレンダリングで最適化
+            .allowsHitTesting(false)  // グリッド線はタッチイベントを受け取らない
+
+            // 座標ラベルの表示
             // X軸のラベル(上部、画像フレーム内)
             ForEach(Array(stride(from: 0.0, through: self.geometry.floorMapInfo?.width ?? 0, by: self.gridInterval)), id: \.self) { x in
                 let normalizedX = x / (geometry.floorMapInfo?.width ?? 1.0)
@@ -283,6 +285,7 @@ private struct GridOverlay: View {
                         x: screenX,
                         y: self.geometry.imageFrame.origin.y + 12 / self.geometry.currentScale
                     )
+                    .allowsHitTesting(false)  // ラベルはタッチイベントを受け取らない
             }
 
             // Y軸のラベル(左側、画像フレーム内)
@@ -300,8 +303,10 @@ private struct GridOverlay: View {
                         x: self.geometry.imageFrame.origin.x + 16 / self.geometry.currentScale,
                         y: screenY
                     )
+                    .allowsHitTesting(false)  // ラベルはタッチイベントを受け取らない
             }
         }
+        .allowsHitTesting(false)  // GridOverlay全体がタッチイベントを受け取らない
     }
 }
 

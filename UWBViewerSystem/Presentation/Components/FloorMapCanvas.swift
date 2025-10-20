@@ -125,8 +125,8 @@ struct FloorMapCanvas<Content: View>: View {
             }
             .scaleEffect(self.enableZoom ? self.currentScale : 1.0, anchor: .center)
             .offset(self.enableZoom ? self.offset : .zero)
-            .gesture(
-                self.enableZoom ?
+            .if(self.enableZoom) { view in
+                view.gesture(
                     SimultaneousGesture(
                         MagnificationGesture(minimumScaleDelta: 0.0)
                             .onChanged { value in
@@ -146,8 +146,9 @@ struct FloorMapCanvas<Content: View>: View {
                             .onEnded { _ in
                                 self.lastOffset = self.offset
                             }
-                    ) : nil
-            )
+                    )
+                )
+            }
             .animation(.none, value: self.currentScale)  // アニメーションを無効化
             .animation(.none, value: self.offset)
             .onAppear {

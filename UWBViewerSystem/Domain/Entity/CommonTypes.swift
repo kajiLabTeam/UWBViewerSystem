@@ -17,14 +17,14 @@ public struct Point3D: Codable, Equatable, Hashable {
 
     /// CGPointから2D情報を使って3Dポイントを作成
     public init(cgPoint: CGPoint, z: Double = 0.0) {
-        x = Double(cgPoint.x)
-        y = Double(cgPoint.y)
+        self.x = Double(cgPoint.x)
+        self.y = Double(cgPoint.y)
         self.z = z
     }
 
     /// CGPointに変換
     public var cgPoint: CGPoint {
-        CGPoint(x: x, y: y)
+        CGPoint(x: self.x, y: self.y)
     }
 
     public static let zero = Point3D(x: 0, y: 0, z: 0)
@@ -118,7 +118,7 @@ public struct FloorMapInfo: Codable {
 
     // アスペクト比を計算
     public var aspectRatio: Double {
-        depth > 0 ? width / depth : 1.0
+        self.depth > 0 ? self.width / self.depth : 1.0
     }
 }
 
@@ -188,12 +188,12 @@ public struct ProjectProgress: Codable {
 
     public var completionPercentage: Double {
         let totalSteps = SetupStep.allCases.count - 1  // completedを除く
-        let completed = completedSteps.filter { $0 != .completed }.count
+        let completed = self.completedSteps.filter { $0 != .completed }.count
         return Double(completed) / Double(totalSteps)
     }
 
     public var isCompleted: Bool {
-        currentStep == .completed
+        self.currentStep == .completed
     }
 }
 
@@ -203,7 +203,7 @@ public struct ProjectProgress: Codable {
         public var image: NSImage? {
             get {
                 let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
+                let imageURL = documentsDirectory.appendingPathComponent("\(self.id).jpg")
                 if FileManager.default.fileExists(atPath: imageURL.path) {
                     return NSImage(contentsOf: imageURL)
                 }
@@ -219,7 +219,7 @@ public struct ProjectProgress: Codable {
         public var image: UIImage? {
             get {
                 let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                let imageURL = documentsDirectory.appendingPathComponent("\(id).jpg")
+                let imageURL = documentsDirectory.appendingPathComponent("\(self.id).jpg")
                 if FileManager.default.fileExists(atPath: imageURL.path),
                    let data = try? Data(contentsOf: imageURL)
                 {
@@ -476,18 +476,19 @@ public struct CalibrationData: Codable, Identifiable, Equatable {
 
     /// キャリブレーション完了しているか
     public var isCalibrated: Bool {
-        transform != nil && calibrationPoints.count >= 3
+        self.transform != nil && self.calibrationPoints.count >= 3
     }
 
     /// キャリブレーション精度を取得
     public var accuracy: Double? {
-        transform?.accuracy
+        self.transform?.accuracy
     }
 }
 
 /// キャリブレーション処理の結果
 public struct CalibrationResult: Codable {
     public let success: Bool
+    public let antennaPosition: Point3D?
     public let transform: CalibrationTransform?
     public let errorMessage: String?
     public let processedPoints: [CalibrationPoint]
@@ -495,12 +496,14 @@ public struct CalibrationResult: Codable {
 
     public init(
         success: Bool,
+        antennaPosition: Point3D? = nil,
         transform: CalibrationTransform? = nil,
         errorMessage: String? = nil,
         processedPoints: [CalibrationPoint] = [],
         timestamp: Date = Date()
     ) {
         self.success = success
+        self.antennaPosition = antennaPosition
         self.transform = transform
         self.errorMessage = errorMessage
         self.processedPoints = processedPoints
@@ -606,12 +609,15 @@ public struct AffineTransformMatrix: Codable, Equatable {
 
     /// 行列の行列式（スケール成分の確認用）
     public var determinant: Double {
-        a * d - b * c
+        self.a * self.d - self.b * self.c
     }
 
     /// 変換が有効かチェック
     public var isValid: Bool {
-        abs(determinant) > 1e-10 && [a, b, c, d, tx, ty, scaleZ, translateZ].allSatisfy { $0.isFinite }
+        abs(self.determinant) > 1e-10
+            && [self.a, self.b, self.c, self.d, self.tx, self.ty, self.scaleZ, self.translateZ].allSatisfy {
+                $0.isFinite
+            }
     }
 }
 
@@ -648,12 +654,12 @@ public struct MapCalibrationData: Codable, Identifiable, Equatable {
 
     /// キャリブレーション完了しているか（3点設定済み）
     public var isCalibrated: Bool {
-        affineTransform != nil && calibrationPoints.count == 3
+        self.affineTransform != nil && self.calibrationPoints.count == 3
     }
 
     /// キャリブレーション精度を取得
     public var accuracy: Double? {
-        affineTransform?.accuracy
+        self.affineTransform?.accuracy
     }
 }
 
@@ -662,22 +668,22 @@ public struct MapCalibrationData: Codable, Identifiable, Equatable {
 extension Point3D {
     /// 2点間の距離を計算
     public func distance(to other: Point3D) -> Double {
-        let dx = x - other.x
-        let dy = y - other.y
-        let dz = z - other.z
+        let dx = self.x - other.x
+        let dy = self.y - other.y
+        let dz = self.z - other.z
         return sqrt(dx * dx + dy * dy + dz * dz)
     }
 
     /// ベクトルの長さを計算
     public var magnitude: Double {
-        sqrt(x * x + y * y + z * z)
+        sqrt(self.x * self.x + self.y * self.y + self.z * self.z)
     }
 
     /// 正規化されたベクトルを取得
     public var normalized: Point3D {
-        let mag = magnitude
+        let mag = self.magnitude
         guard mag > 0 else { return .zero }
-        return Point3D(x: x / mag, y: y / mag, z: z / mag)
+        return Point3D(x: self.x / mag, y: self.y / mag, z: self.z / mag)
     }
 
     /// ベクトルの加算

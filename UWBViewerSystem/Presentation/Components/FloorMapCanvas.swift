@@ -6,12 +6,40 @@ import SwiftUI
 struct FloorMapCanvas<Content: View>: View {
     let floorMapImage: FloorMapImage?
     let floorMapInfo: FloorMapInfo?
+    let calibrationPoints: [MapCalibrationPoint]?
     let onMapTap: ((CGPoint) -> Void)?
+    let enableZoom: Bool
+    let fixedHeight: CGFloat?
+    let showGrid: Bool
     @ViewBuilder let content: (FloorMapCanvasGeometry) -> Content
 
     @State private var canvasSize: CGSize = CGSize(width: 400, height: 300)
+    @State private var currentScale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
 
-    // フロアマップのスケールを計算（ピクセル/メートル）
+    init(
+        floorMapImage: FloorMapImage?,
+        floorMapInfo: FloorMapInfo?,
+        calibrationPoints: [MapCalibrationPoint]? = nil,
+        onMapTap: ((CGPoint) -> Void)? = nil,
+        enableZoom: Bool = false,
+        fixedHeight: CGFloat? = 300,
+        showGrid: Bool = true,
+        @ViewBuilder content: @escaping (FloorMapCanvasGeometry) -> Content
+    ) {
+        self.floorMapImage = floorMapImage
+        self.floorMapInfo = floorMapInfo
+        self.calibrationPoints = calibrationPoints
+        self.onMapTap = onMapTap
+        self.enableZoom = enableZoom
+        self.fixedHeight = fixedHeight
+        self.showGrid = showGrid
+        self.content = content
+    }
+
+    // フロアマップのスケールを計算(ピクセル/メートル)
     private var mapScale: Double {
         guard let floorMapInfo else { return 100.0 }
         let canvasWidth = Double(canvasSize.width)
@@ -31,7 +59,7 @@ struct FloorMapCanvas<Content: View>: View {
             imageWidth = canvasSize.width
             imageHeight = imageWidth / CGFloat(imageAspectRatio)
         } else {
-            // 画像の方が縦長（または同じ） → 縦幅がフィット
+            // 画像の方が縦長(または同じ) → 縦幅がフィット
             imageHeight = canvasSize.height
             imageWidth = imageHeight * CGFloat(imageAspectRatio)
         }
@@ -45,40 +73,93 @@ struct FloorMapCanvas<Content: View>: View {
     var body: some View {
         GeometryReader { geometry in
             let currentCanvasSize = geometry.size
-            let imageAspectRatio = floorMapInfo?.aspectRatio ?? 1.0
-            let actualImageFrame = calculateActualImageFrame(
+            let imageAspectRatio = self.floorMapInfo?.aspectRatio ?? 1.0
+            let actualImageFrame = self.calculateActualImageFrame(
                 canvasSize: currentCanvasSize, imageAspectRatio: imageAspectRatio)
 
             let canvasGeometry = FloorMapCanvasGeometry(
                 canvasSize: currentCanvasSize,
                 imageFrame: actualImageFrame,
-                mapScale: mapScale,
-                floorMapInfo: floorMapInfo
+                mapScale: mapScale * Double(self.currentScale),
+                floorMapInfo: self.floorMapInfo,
+                currentScale: self.currentScale
             )
 
             ZStack {
                 // マップ背景
-                FloorMapBackground(image: floorMapImage, floorMapInfo: floorMapInfo)
+                FloorMapBackground(image: self.floorMapImage, floorMapInfo: self.floorMapInfo)
                     .allowsHitTesting(false)
 
-                // タップ領域（背景層）
+                // グリッド線の描画
+                if self.showGrid {
+                    GridOverlay(geometry: canvasGeometry)
+                }
+
+                // タップ領域(背景層)
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture(coordinateSpace: .local) { location in
-                        handleMapTap(location: location, geometry: canvasGeometry)
+                        self.handleMapTap(location: location, geometry: canvasGeometry)
                     }
 
-                // コンテンツ（アンテナ、基準点など）- 最前面
-                content(canvasGeometry)
+                // キャリブレーション結果の表示
+                if let calibrationPoints = self.calibrationPoints {
+                    ForEach(calibrationPoints) { point in
+                        let screenPosition = self.realWorldToScreen(
+                            realWorldPoint: point.realWorldCoordinate,
+                            geometry: canvasGeometry
+                        )
+                        // 固定サイズで表示
+                        CalibrationResultMarker(
+                            point: point,
+                            position: screenPosition,
+                            size: 16,
+                            isSelected: false,
+                            isDraggable: false
+                        )
+                    }
+                }
+
+                // コンテンツ(アンテナ、基準点など)- 最前面
+                self.content(canvasGeometry)
             }
+            .scaleEffect(self.enableZoom ? self.currentScale : 1.0, anchor: .center)
+            .offset(self.enableZoom ? self.offset : .zero)
+            .gesture(
+                self.enableZoom ?
+                    SimultaneousGesture(
+                        MagnificationGesture(minimumScaleDelta: 0.0)
+                            .onChanged { value in
+                                let newScale = self.lastScale * value
+                                self.currentScale = min(max(newScale, 0.5), 5.0)
+                            }
+                            .onEnded { _ in
+                                self.lastScale = self.currentScale
+                            },
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                self.offset = CGSize(
+                                    width: self.lastOffset.width + value.translation.width,
+                                    height: self.lastOffset.height + value.translation.height
+                                )
+                            }
+                            .onEnded { _ in
+                                self.lastOffset = self.offset
+                            }
+                    ) : nil
+            )
+            .animation(.none, value: self.currentScale)  // アニメーションを無効化
+            .animation(.none, value: self.offset)
             .onAppear {
-                canvasSize = currentCanvasSize
+                self.canvasSize = currentCanvasSize
             }
             .onChange(of: geometry.size) { _, newSize in
-                canvasSize = newSize
+                self.canvasSize = newSize
             }
         }
-        .frame(height: 300)
+        .if(self.fixedHeight != nil) { view in
+            view.frame(height: self.fixedHeight)
+        }
         .cornerRadius(12)
     }
 
@@ -87,7 +168,7 @@ struct FloorMapCanvas<Content: View>: View {
 
         // タップ位置が画像エリア内かチェック
         if geometry.imageFrame.contains(location) {
-            // 正規化座標を計算（0.0-1.0）
+            // 正規化座標を計算(0.0-1.0)
             let normalizedX = (location.x - geometry.imageFrame.origin.x) / geometry.imageFrame.width
             let normalizedY = (location.y - geometry.imageFrame.origin.y) / geometry.imageFrame.height
 
@@ -109,6 +190,124 @@ struct FloorMapCanvas<Content: View>: View {
             onMapTap(realWorldLocation)
         }
     }
+
+    // 実世界座標をスクリーン座標に変換するヘルパーメソッド
+    private func realWorldToScreen(realWorldPoint: Point3D, geometry: FloorMapCanvasGeometry) -> CGPoint {
+        guard let floorMapInfo = geometry.floorMapInfo else {
+            return CGPoint(x: 0, y: 0)
+        }
+
+        // 実世界座標を正規化座標(0.0-1.0)に変換
+        let normalizedX = realWorldPoint.x / floorMapInfo.width
+        let normalizedY = 1.0 - (realWorldPoint.y / floorMapInfo.depth)  // Y座標を反転
+
+        // 正規化座標をスクリーン座標に変換
+        let screenX = geometry.imageFrame.origin.x + normalizedX * geometry.imageFrame.width
+        let screenY = geometry.imageFrame.origin.y + normalizedY * geometry.imageFrame.height
+
+        return CGPoint(x: screenX, y: screenY)
+    }
+}
+
+// MARK: - Grid Overlay
+
+private struct GridOverlay: View {
+    let geometry: FloorMapCanvasGeometry
+
+    // グリッド線の間隔(メートル単位)
+    private let gridInterval: Double = 1.0
+
+    var body: some View {
+        ZStack {
+            // グリッド線の描画
+            Canvas { context, size in
+                guard let floorMapInfo = geometry.floorMapInfo else { return }
+
+                let imageFrame = self.geometry.imageFrame
+
+                // グリッド線のスタイル
+                let gridLineColor = Color.gray.opacity(0.3)
+                let axisLineColor = Color.blue.opacity(0.5)
+                let lineWidth: CGFloat = 1.0
+
+                // 縦線(X軸方向)を描画
+                var x = 0.0
+                while x <= floorMapInfo.width {
+                    let normalizedX = x / floorMapInfo.width
+                    let screenX = imageFrame.origin.x + normalizedX * imageFrame.width
+
+                    let path = Path { p in
+                        p.move(to: CGPoint(x: screenX, y: imageFrame.origin.y))
+                        p.addLine(to: CGPoint(x: screenX, y: imageFrame.origin.y + imageFrame.height))
+                    }
+
+                    // X=0の線は軸線として強調
+                    let color = x == 0 ? axisLineColor : gridLineColor
+                    context.stroke(path, with: .color(color), lineWidth: lineWidth)
+
+                    x += self.gridInterval
+                }
+
+                // 横線(Y軸方向)を描画
+                var y = 0.0
+                while y <= floorMapInfo.depth {
+                    let normalizedY = 1.0 - (y / floorMapInfo.depth)  // Y座標を反転
+                    let screenY = imageFrame.origin.y + normalizedY * imageFrame.height
+
+                    let path = Path { p in
+                        p.move(to: CGPoint(x: imageFrame.origin.x, y: screenY))
+                        p.addLine(to: CGPoint(x: imageFrame.origin.x + imageFrame.width, y: screenY))
+                    }
+
+                    // Y=0の線は軸線として強調
+                    let color = y == 0 ? axisLineColor : gridLineColor
+                    context.stroke(path, with: .color(color), lineWidth: lineWidth)
+
+                    y += self.gridInterval
+                }
+            }
+            .drawingGroup()  // グリッド線のみオフスクリーンレンダリングで最適化
+            .allowsHitTesting(false)  // グリッド線はタッチイベントを受け取らない
+
+            // 座標ラベルの表示
+            // X軸のラベル(上部、画像フレーム内)
+            ForEach(Array(stride(from: 0.0, through: self.geometry.floorMapInfo?.width ?? 0, by: self.gridInterval)), id: \.self) { x in
+                let normalizedX = x / (geometry.floorMapInfo?.width ?? 1.0)
+                let screenX = self.geometry.imageFrame.origin.x + normalizedX * self.geometry.imageFrame.width
+
+                Text(String(format: "%.0f", x))
+                    .font(.system(size: 10))
+                    .foregroundColor(.white)
+                    .padding(2)
+                    .background(Color.black.opacity(0.5))
+                    .cornerRadius(2)
+                    .position(
+                        x: screenX,
+                        y: self.geometry.imageFrame.origin.y + 12
+                    )
+                    .allowsHitTesting(false)  // ラベルはタッチイベントを受け取らない
+            }
+
+            // Y軸のラベル(左側、画像フレーム内)
+            ForEach(Array(stride(from: 0.0, through: self.geometry.floorMapInfo?.depth ?? 0, by: self.gridInterval)), id: \.self) { y in
+                let normalizedY = 1.0 - (y / (geometry.floorMapInfo?.depth ?? 1.0))
+                let screenY = self.geometry.imageFrame.origin.y + normalizedY * self.geometry.imageFrame.height
+
+                Text(String(format: "%.0f", y))
+                    .font(.system(size: 10))
+                    .foregroundColor(.white)
+                    .padding(2)
+                    .background(Color.black.opacity(0.5))
+                    .cornerRadius(2)
+                    .position(
+                        x: self.geometry.imageFrame.origin.x + 16,
+                        y: screenY
+                    )
+                    .allowsHitTesting(false)  // ラベルはタッチイベントを受け取らない
+            }
+        }
+        .allowsHitTesting(false)  // GridOverlay全体がタッチイベントを受け取らない
+    }
 }
 
 // MARK: - FloorMapCanvasGeometry - キャンバスの幾何学情報
@@ -118,20 +317,21 @@ struct FloorMapCanvasGeometry {
     let imageFrame: CGRect
     let mapScale: Double
     let floorMapInfo: FloorMapInfo?
+    let currentScale: CGFloat
 
     // 正規化座標を実際の画像表示座標に変換
     func normalizedToImageCoordinate(_ normalizedPoint: CGPoint) -> CGPoint {
         CGPoint(
-            x: imageFrame.origin.x + normalizedPoint.x * imageFrame.width,
-            y: imageFrame.origin.y + normalizedPoint.y * imageFrame.height
+            x: self.imageFrame.origin.x + normalizedPoint.x * self.imageFrame.width,
+            y: self.imageFrame.origin.y + normalizedPoint.y * self.imageFrame.height
         )
     }
 
     // 実際の画像表示座標を正規化座標に変換
     func imageCoordinateToNormalized(_ imagePoint: CGPoint) -> CGPoint {
         CGPoint(
-            x: (imagePoint.x - imageFrame.origin.x) / imageFrame.width,
-            y: (imagePoint.y - imageFrame.origin.y) / imageFrame.height
+            x: (imagePoint.x - self.imageFrame.origin.x) / self.imageFrame.width,
+            y: (imagePoint.y - self.imageFrame.origin.y) / self.imageFrame.height
         )
     }
 
@@ -142,8 +342,8 @@ struct FloorMapCanvasGeometry {
             let pixelX = realWorldPoint.x * 100.0  // デフォルトスケール 100px/m
             let pixelY = realWorldPoint.y * 100.0
             return CGPoint(
-                x: pixelX / canvasSize.width,
-                y: pixelY / canvasSize.height
+                x: pixelX / self.canvasSize.width,
+                y: pixelY / self.canvasSize.height
             )
         }
 
@@ -173,23 +373,22 @@ struct FloorMapCanvasGeometry {
         )
     }
 
-    // アンテナサイズを計算（30cmの実寸サイズ）
+    // アンテナサイズを計算（固定サイズで小さめに表示）
     func antennaSizeInPixels() -> CGFloat {
-        let baseCanvasSize: Double = 400.0
-        let actualCanvasSize = min(canvasSize.width, canvasSize.height)
-        let scale = Double(actualCanvasSize) / baseCanvasSize
-
-        let sizeInPixels = CGFloat(0.30 * mapScale * scale)  // 0.30m = 30cm
-        return max(min(sizeInPixels, 80), 20)  // 最小20px、最大80px
+        // 固定サイズ: 15px（小さめで表示）
+        15.0
     }
 
-    // センサー範囲（50m）をピクセルに変換
+    // センサー範囲（50m）をピクセルに変換（実寸計算+ズーム補正）
     func sensorRangeInPixels() -> CGFloat {
         let baseCanvasSize: Double = 400.0
-        let actualCanvasSize = min(canvasSize.width, canvasSize.height)
+        let actualCanvasSize = min(canvasSize.width, self.canvasSize.height)
         let scale = Double(actualCanvasSize) / baseCanvasSize
 
-        return CGFloat(50.0 * mapScale * scale)
+        let rangeInPixels = CGFloat(50.0 * self.mapScale * scale)
+
+        // currentScaleの逆数で補正して、ズームしても一定サイズを保つ
+        return rangeInPixels / self.currentScale
     }
 }
 
@@ -257,3 +456,16 @@ struct FloorMapBackground: View {
 #elseif os(iOS)
     typealias FloorMapImage = UIImage
 #endif
+
+// MARK: - View Extension for Conditional Modifiers
+
+extension View {
+    @ViewBuilder
+    func `if`(_ condition: Bool, transform: (Self) -> some View) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
+    }
+}

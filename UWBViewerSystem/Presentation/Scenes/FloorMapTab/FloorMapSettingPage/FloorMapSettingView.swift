@@ -12,21 +12,21 @@ struct FloorMapSettingView: View {
     var body: some View {
         VStack(spacing: 0) {
             // フロープログレス表示
-            SensingFlowProgressView(navigator: flowNavigator)
+            SensingFlowProgressView(navigator: self.flowNavigator)
 
             ScrollView {
                 VStack(spacing: 24) {
                     // ヘッダー
-                    headerSection
+                    self.headerSection
 
                     // フロアマップ設定セクション
-                    floorMapSection
+                    self.floorMapSection
 
                     // 基本情報設定セクション
-                    basicInfoSection
+                    self.basicInfoSection
 
                     // プリセット選択セクション
-                    presetSection
+                    self.presetSection
 
                     Spacer(minLength: 80)
                 }
@@ -34,34 +34,34 @@ struct FloorMapSettingView: View {
             }
 
             // ナビゲーションボタン
-            navigationButtons
+            self.navigationButtons
         }
         .onAppear {
             print("🏁 FloorMapSettingView: onAppear called")
-            viewModel.setModelContext(modelContext)
-            viewModel.setupInitialData()
-            flowNavigator.currentStep = .floorMapSetting
+            self.viewModel.setModelContext(self.modelContext)
+            self.viewModel.setupInitialData()
+            self.flowNavigator.currentStep = .floorMapSetting
             // 共有のRouterをSensingFlowNavigatorに設定
-            flowNavigator.setRouter(router)
+            self.flowNavigator.setRouter(self.router)
             print("🏁 FloorMapSettingView: setup completed")
         }
-        .alert("エラー", isPresented: $viewModel.showErrorAlert) {
+        .alert("エラー", isPresented: self.$viewModel.showErrorAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(viewModel.errorMessage)
+            Text(self.viewModel.errorMessage)
         }
         #if os(iOS)
         .imagePickerSheet(
-            isPresented: $viewModel.isImagePickerPresented,
-            selectedImage: $viewModel.selectedFloorMapImage,
-            sourceType: viewModel.imagePickerSourceType,
-            onImagePicked: viewModel.onImageSelected
+            isPresented: self.$viewModel.isImagePickerPresented,
+            selectedImage: self.$viewModel.selectedFloorMapImage,
+            sourceType: self.viewModel.imagePickerSourceType,
+            onImagePicked: self.viewModel.onImageSelected
         )
         #elseif os(macOS)
         .imagePickerSheet(
-            isPresented: $viewModel.isImagePickerPresented,
-            selectedImage: $viewModel.selectedFloorMapImage,
-            onImagePicked: viewModel.onImageSelected
+            isPresented: self.$viewModel.isImagePickerPresented,
+            selectedImage: self.$viewModel.selectedFloorMapImage,
+            onImagePicked: self.viewModel.onImageSelected
         )
         #endif
     }
@@ -144,7 +144,7 @@ struct FloorMapSettingView: View {
                 HStack(spacing: 12) {
                     Button(action: {
                         print("🔘 FloorMapSettingView: 写真から選択ボタンがクリックされました")
-                        viewModel.selectImageFromLibrary()
+                        self.viewModel.selectImageFromLibrary()
                     }) {
                         HStack {
                             Image(systemName: "photo.on.rectangle")
@@ -159,7 +159,7 @@ struct FloorMapSettingView: View {
 
                     Button(action: {
                         print("🔘 FloorMapSettingView: カメラで撮影ボタンがクリックされました")
-                        viewModel.captureImageFromCamera()
+                        self.viewModel.captureImageFromCamera()
                     }) {
                         HStack {
                             Image(systemName: "camera")
@@ -171,7 +171,7 @@ struct FloorMapSettingView: View {
                         .foregroundColor(.green)
                         .cornerRadius(8)
                     }
-                    .disabled(!viewModel.isCameraAvailable)
+                    .disabled(!self.viewModel.isCameraAvailable)
                 }
             }
         }
@@ -196,7 +196,7 @@ struct FloorMapSettingView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
 
-                    TextField("例: 1階オフィス", text: $viewModel.floorName)
+                    TextField("例: 1階オフィス", text: self.$viewModel.floorName)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
 
@@ -206,7 +206,7 @@ struct FloorMapSettingView: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
 
-                    TextField("例: Aビル", text: $viewModel.buildingName)
+                    TextField("例: Aビル", text: self.$viewModel.buildingName)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
 
@@ -221,7 +221,7 @@ struct FloorMapSettingView: View {
                             Text("幅")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            TextField("10.0", value: $viewModel.floorWidth, format: .number)
+                            TextField("10.0", value: self.$viewModel.floorWidth, format: .number)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                             #if os(iOS)
                                 .keyboardType(.decimalPad)
@@ -237,7 +237,7 @@ struct FloorMapSettingView: View {
                             Text("奥行き")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            TextField("15.0", value: $viewModel.floorDepth, format: .number)
+                            TextField("15.0", value: self.$viewModel.floorDepth, format: .number)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                             #if os(iOS)
                                 .keyboardType(.decimalPad)
@@ -262,12 +262,12 @@ struct FloorMapSettingView: View {
                 .foregroundColor(.primary)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                ForEach(viewModel.floorPresets, id: \.id) { preset in
+                ForEach(self.viewModel.floorPresets, id: \.id) { preset in
                     FloorPresetCard(
                         preset: preset,
-                        isSelected: viewModel.selectedPreset?.id == preset.id,
+                        isSelected: self.viewModel.selectedPreset?.id == preset.id,
                         onTap: {
-                            viewModel.selectPreset(preset)
+                            self.viewModel.selectPreset(preset)
                         }
                     )
                 }
@@ -287,7 +287,7 @@ struct FloorMapSettingView: View {
 
             HStack(spacing: 16) {
                 Button("キャンセル") {
-                    viewModel.cancelSetup()
+                    self.viewModel.cancelSetup()
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -297,17 +297,17 @@ struct FloorMapSettingView: View {
 
                 Button("次へ") {
                     Task {
-                        if await viewModel.saveFloorMapSettings() {
-                            flowNavigator.proceedToNextStep()
+                        if await self.viewModel.saveFloorMapSettings() {
+                            self.flowNavigator.proceedToNextStep()
                         }
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
                 .foregroundColor(.white)
-                .background(viewModel.canProceedToNext ? Color.blue : Color.gray)
+                .background(self.viewModel.canProceedToNext ? Color.blue : Color.gray)
                 .cornerRadius(8)
-                .disabled(!viewModel.canProceedToNext)
+                .disabled(!self.viewModel.canProceedToNext)
             }
             .padding(.horizontal)
             .padding(.bottom, 8)
@@ -323,46 +323,46 @@ struct FloorPresetCard: View {
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: self.onTap) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: preset.iconName)
-                        .foregroundColor(isSelected ? .blue : .secondary)
+                    Image(systemName: self.preset.iconName)
+                        .foregroundColor(self.isSelected ? .blue : .secondary)
                         .font(.title2)
 
                     Spacer()
 
-                    if isSelected {
+                    if self.isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.blue)
                     }
                 }
 
-                Text(preset.name)
+                Text(self.preset.name)
                     .font(.headline)
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.leading)
 
-                Text(preset.description)
+                Text(self.preset.description)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.leading)
 
                 HStack {
-                    Text("\(preset.width, specifier: "%.1f")m")
+                    Text("\(self.preset.width, specifier: "%.1f")m")
                     Text("×")
-                    Text("\(preset.depth, specifier: "%.1f")m")
+                    Text("\(self.preset.depth, specifier: "%.1f")m")
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
+            .background(self.isSelected ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                    .stroke(self.isSelected ? Color.blue : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(PlainButtonStyle())

@@ -46,7 +46,8 @@ class FloorMapSettingViewModel: ObservableObject {
     // MARK: - Computed Properties
 
     var canProceedToNext: Bool {
-        let hasRequiredFields = !floorName.isEmpty && !buildingName.isEmpty && floorWidth > 0 && floorDepth > 0
+        let hasRequiredFields =
+            !self.floorName.isEmpty && !self.buildingName.isEmpty && self.floorWidth > 0 && self.floorDepth > 0
         return hasRequiredFields
     }
 
@@ -69,11 +70,11 @@ class FloorMapSettingViewModel: ObservableObject {
         #if DEBUG
             print("🚀 FloorMapSettingViewModel: init called")
         #endif
-        setupFloorPresets()
+        self.setupFloorPresets()
     }
 
     func setModelContext(_ context: ModelContext) {
-        modelContext = context
+        self.modelContext = context
         if #available(macOS 14, iOS 17, *) {
             swiftDataRepository = SwiftDataRepository(modelContext: context)
         }
@@ -82,58 +83,58 @@ class FloorMapSettingViewModel: ObservableObject {
     // MARK: - Public Methods
 
     func setupInitialData() {
-        loadSavedSettings()
+        self.loadSavedSettings()
     }
 
     func selectImageFromLibrary() {
         #if canImport(UIKit)
-            imagePickerSourceType = .photoLibrary
+            self.imagePickerSourceType = .photoLibrary
         #endif
-        isImagePickerPresented = true
+        self.isImagePickerPresented = true
     }
 
     func captureImageFromCamera() {
-        guard isCameraAvailable else {
-            showError("カメラが利用できません")
+        guard self.isCameraAvailable else {
+            self.showError("カメラが利用できません")
             return
         }
 
         #if canImport(UIKit)
-            imagePickerSourceType = .camera
+            self.imagePickerSourceType = .camera
         #endif
-        isImagePickerPresented = true
+        self.isImagePickerPresented = true
     }
 
     func selectPreset(_ preset: FloorMapPreset) {
-        selectedPreset = preset
-        floorWidth = preset.width
-        floorDepth = preset.depth
+        self.selectedPreset = preset
+        self.floorWidth = preset.width
+        self.floorDepth = preset.depth
 
-        if floorName.isEmpty {
-            floorName = preset.name
+        if self.floorName.isEmpty {
+            self.floorName = preset.name
         }
     }
 
     func saveFloorMapSettings() async -> Bool {
-        guard canProceedToNext else {
-            showError("必要な情報がすべて入力されていません")
+        guard self.canProceedToNext else {
+            self.showError("必要な情報がすべて入力されていません")
             return false
         }
 
-        isLoading = true
+        self.isLoading = true
 
         // フロアマップ情報を保存
         let floorMapInfo = FloorMapInfo(
             id: UUID().uuidString,
-            name: floorName,
-            buildingName: buildingName,
-            width: floorWidth,
-            depth: floorDepth,
+            name: self.floorName,
+            buildingName: self.buildingName,
+            width: self.floorWidth,
+            depth: self.floorDepth,
             createdAt: Date()
         )
 
         do {
-            try saveFloorMapInfo(floorMapInfo)
+            try self.saveFloorMapInfo(floorMapInfo)
 
             // SwiftDataにも保存（非同期処理を同期的に待機）
             if let repository = swiftDataRepository {
@@ -156,35 +157,35 @@ class FloorMapSettingViewModel: ObservableObject {
                     #endif
 
                     // 保存直後に確認
-                    await verifyDataSaved(
+                    await self.verifyDataSaved(
                         repository: repository, floorMapInfo: floorMapInfo, projectProgress: projectProgress)
                 } catch {
                     #if DEBUG
                         print("❌ SwiftDataへの保存エラー: \(error)")
                     #endif
-                    showError("データベースへの保存に失敗しました: \(error.localizedDescription)")
-                    isLoading = false
+                    self.showError("データベースへの保存に失敗しました: \(error.localizedDescription)")
+                    self.isLoading = false
                     return false
                 }
             }
 
-            isLoading = false
+            self.isLoading = false
             return true
         } catch {
-            showError("フロアマップ情報の保存に失敗しました: \(error.localizedDescription)")
-            isLoading = false
+            self.showError("フロアマップ情報の保存に失敗しました: \(error.localizedDescription)")
+            self.isLoading = false
             return false
         }
     }
 
     func cancelSetup() {
         // 設定をリセット
-        selectedFloorMapImage = nil
-        floorName = ""
-        buildingName = ""
-        floorWidth = 10.0
-        floorDepth = 15.0
-        selectedPreset = nil
+        self.selectedFloorMapImage = nil
+        self.floorName = ""
+        self.buildingName = ""
+        self.floorWidth = 10.0
+        self.floorDepth = 15.0
+        self.selectedPreset = nil
 
         // ナビゲーションを戻る
         NavigationRouterModel.shared.pop()
@@ -192,20 +193,20 @@ class FloorMapSettingViewModel: ObservableObject {
 
     #if os(iOS)
         func onImageSelected(_ image: UIImage) {
-            selectedFloorMapImage = image
-            isImagePickerPresented = false
+            self.selectedFloorMapImage = image
+            self.isImagePickerPresented = false
         }
     #elseif os(macOS)
         func onImageSelected(_ image: NSImage) {
-            selectedFloorMapImage = image
-            isImagePickerPresented = false
+            self.selectedFloorMapImage = image
+            self.isImagePickerPresented = false
         }
     #endif
 
     // MARK: - Private Methods
 
     private func setupFloorPresets() {
-        floorPresets = [
+        self.floorPresets = [
             FloorMapPreset(
                 name: "小規模オフィス",
                 description: "10-20人程度のオフィス",
@@ -253,28 +254,28 @@ class FloorMapSettingViewModel: ObservableObject {
 
     private func loadSavedSettings() {
         // PreferenceRepositoryから保存された設定を読み込む
-        let settings = preferenceRepository.loadLastFloorSettings()
+        let settings = self.preferenceRepository.loadLastFloorSettings()
 
         if let savedFloorName = settings.name, !savedFloorName.isEmpty {
-            floorName = savedFloorName
+            self.floorName = savedFloorName
         }
 
         if let savedBuildingName = settings.buildingName, !savedBuildingName.isEmpty {
-            buildingName = savedBuildingName
+            self.buildingName = savedBuildingName
         }
 
         if let savedWidth = settings.width {
-            floorWidth = savedWidth
+            self.floorWidth = savedWidth
         }
 
         if let savedDepth = settings.depth {
-            floorDepth = savedDepth
+            self.floorDepth = savedDepth
         }
     }
 
     private func saveFloorMapInfo(_ info: FloorMapInfo) throws {
         // PreferenceRepositoryに基本情報を保存
-        preferenceRepository.saveLastFloorSettings(
+        self.preferenceRepository.saveLastFloorSettings(
             name: info.name,
             buildingName: info.buildingName,
             width: info.width,
@@ -283,11 +284,11 @@ class FloorMapSettingViewModel: ObservableObject {
 
         // 画像をDocumentsディレクトリに保存
         if let image = selectedFloorMapImage {
-            try saveImageToDocuments(image, with: info.id)
+            try self.saveImageToDocuments(image, with: info.id)
         }
 
         // フロアマップ情報を保存
-        preferenceRepository.saveCurrentFloorMapInfo(info)
+        self.preferenceRepository.saveCurrentFloorMapInfo(info)
     }
 
     #if os(iOS)
@@ -322,8 +323,8 @@ class FloorMapSettingViewModel: ObservableObject {
     #endif
 
     private func showError(_ message: String) {
-        errorMessage = message
-        showErrorAlert = true
+        self.errorMessage = message
+        self.showErrorAlert = true
     }
 
     /// 保存直後にデータが正常に保存されているかを確認

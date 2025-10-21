@@ -15,12 +15,12 @@ struct SensingFlowProgressView: View {
 
                     Spacer()
 
-                    Text("\(Int(navigator.flowProgress * 100))%")
+                    Text("\(Int(self.navigator.flowProgress * 100))%")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
 
-                ProgressView(value: navigator.flowProgress)
+                ProgressView(value: self.navigator.flowProgress)
                     .progressViewStyle(LinearProgressViewStyle())
                     .tint(.blue)
             }
@@ -31,12 +31,12 @@ struct SensingFlowProgressView: View {
                     ForEach(SensingFlowStep.allCases, id: \.self) { step in
                         StepIndicatorView(
                             step: step,
-                            isCurrent: step == navigator.currentStep,
-                            isCompleted: isStepCompleted(step)
+                            isCurrent: step == self.navigator.currentStep,
+                            isCompleted: self.isStepCompleted(step)
                         )
                         .onTapGesture {
-                            if canNavigateToStep(step) {
-                                navigator.jumpToStep(step)
+                            if self.canNavigateToStep(step) {
+                                self.navigator.jumpToStep(step)
                             }
                         }
 
@@ -53,16 +53,16 @@ struct SensingFlowProgressView: View {
             // 現在のステップ情報
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: navigator.currentStep.iconName)
+                    Image(systemName: self.navigator.currentStep.iconName)
                         .foregroundColor(.blue)
                         .font(.title2)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(navigator.currentStep.rawValue)
+                        Text(self.navigator.currentStep.rawValue)
                             .font(.headline)
                             .foregroundColor(.primary)
 
-                        Text(navigator.currentStep.description)
+                        Text(self.navigator.currentStep.description)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -74,7 +74,7 @@ struct SensingFlowProgressView: View {
                             .foregroundColor(.orange)
                             .font(.caption)
 
-                        Text("約\(navigator.currentStep.estimatedDuration)分")
+                        Text("約\(self.navigator.currentStep.estimatedDuration)分")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -122,23 +122,23 @@ struct StepIndicatorView: View {
         VStack(spacing: 4) {
             ZStack {
                 Circle()
-                    .fill(backgroundColor)
+                    .fill(self.backgroundColor)
                     .frame(width: 32, height: 32)
 
-                if isCompleted {
+                if self.isCompleted {
                     Image(systemName: "checkmark")
                         .foregroundColor(.white)
                         .font(.system(size: 14, weight: .bold))
                 } else {
-                    Image(systemName: step.iconName)
-                        .foregroundColor(iconColor)
+                    Image(systemName: self.step.iconName)
+                        .foregroundColor(self.iconColor)
                         .font(.system(size: 14))
                 }
             }
 
-            Text(step.rawValue)
+            Text(self.step.rawValue)
                 .font(.caption2)
-                .foregroundColor(textColor)
+                .foregroundColor(self.textColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
@@ -146,9 +146,9 @@ struct StepIndicatorView: View {
     }
 
     private var backgroundColor: Color {
-        if isCompleted {
+        if self.isCompleted {
             return .green
-        } else if isCurrent {
+        } else if self.isCurrent {
             return .blue
         } else {
             return Color.gray.opacity(0.3)
@@ -156,7 +156,7 @@ struct StepIndicatorView: View {
     }
 
     private var iconColor: Color {
-        if isCurrent {
+        if self.isCurrent {
             return .white
         } else {
             return .secondary
@@ -164,9 +164,9 @@ struct StepIndicatorView: View {
     }
 
     private var textColor: Color {
-        if isCurrent {
+        if self.isCurrent {
             return .blue
-        } else if isCompleted {
+        } else if self.isCompleted {
             return .green
         } else {
             return .secondary

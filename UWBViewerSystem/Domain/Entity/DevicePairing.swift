@@ -13,7 +13,7 @@ public struct AndroidDevice: Identifiable, Codable {
         self.id = id
         self.name = name
         self.isConnected = isConnected
-        lastSeen = Date()
+        self.lastSeen = Date()
         self.isNearbyDevice = isNearbyDevice
     }
 }
@@ -27,10 +27,10 @@ public struct AntennaPairing: Identifiable, Codable {
     public let pairedAt: Date
 
     init(antenna: AntennaInfo, device: AndroidDevice) {
-        id = UUID().uuidString
+        self.id = UUID().uuidString
         self.antenna = antenna
         self.device = device
-        pairedAt = Date()
+        self.pairedAt = Date()
     }
 
     init(id: String, antenna: AntennaInfo, device: AndroidDevice, pairedAt: Date) {

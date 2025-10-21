@@ -8,6 +8,7 @@
 import Foundation
 import SwiftData
 import Testing
+
 @testable import UWBViewerSystem
 
 struct UWBViewerSystemTests {
@@ -30,7 +31,7 @@ struct SwiftDataRepositoryTests {
             PersistentRealtimeData.self,
             PersistentSystemActivity.self,
             PersistentFloorMap.self,
-            PersistentProjectProgress.self
+            PersistentProjectProgress.self,
         ])
 
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
@@ -278,7 +279,7 @@ struct PairingSettingViewModelTests {
         viewModel.pairAntennaWithDevice(antenna: antenna, device: device)
 
         // 非同期処理の完了を待機（savePairingData完了まで）
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
 
         // ペアリングが成功したかチェック
         #expect(viewModel.antennaPairings.count == 1)
@@ -311,7 +312,7 @@ struct DataDisplayViewModelTests {
         viewModel.refreshHistoryData()
 
         // 少し待機（非同期処理のため）
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
 
         // 履歴データが読み込まれたかチェック
         #expect(viewModel.historyData.count == 1)

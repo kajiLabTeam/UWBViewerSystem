@@ -49,19 +49,22 @@ public class RealtimeDataUsecase: ObservableObject {
                 print("🚧 NLOS: \(realtimeMessage.data.nlos)")
             #endif
 
+            // 距離をcmからmに変換
+            let distanceInMeters = Double(realtimeMessage.data.distance) / 100.0
+
             let realtimeData = RealtimeData(
                 id: UUID(),
                 deviceName: realtimeMessage.deviceName,
                 timestamp: realtimeMessage.timestamp,
                 elevation: realtimeMessage.data.elevation,
                 azimuth: realtimeMessage.data.azimuth,
-                distance: Double(realtimeMessage.data.distance),
+                distance: distanceInMeters,
                 nlos: realtimeMessage.data.nlos,
                 rssi: realtimeMessage.data.rssi,
                 seqCount: realtimeMessage.data.seqCount
             )
 
-            addDataToDevice(realtimeData)
+            self.addDataToDevice(realtimeData)
 
         } catch {
             #if DEBUG
@@ -79,7 +82,7 @@ public class RealtimeDataUsecase: ObservableObject {
     }
 
     public func addConnectedDevice(_ deviceName: String) {
-        if !deviceRealtimeDataList.contains(where: { $0.deviceName == deviceName }) {
+        if !self.deviceRealtimeDataList.contains(where: { $0.deviceName == deviceName }) {
             let newDeviceData = DeviceRealtimeData(
                 deviceName: deviceName,
                 latestData: nil,
@@ -87,19 +90,19 @@ public class RealtimeDataUsecase: ObservableObject {
                 lastUpdateTime: Date(),
                 isActive: true
             )
-            deviceRealtimeDataList.append(newDeviceData)
+            self.deviceRealtimeDataList.append(newDeviceData)
             #if DEBUG
                 print("接続端末をリアルタイムデータリストに追加: \(deviceName)")
             #endif
         }
 
-        isReceivingRealtimeData = !deviceRealtimeDataList.isEmpty
+        self.isReceivingRealtimeData = !self.deviceRealtimeDataList.isEmpty
     }
 
     public func removeDisconnectedDevice(_ deviceName: String) {
         if let index = deviceRealtimeDataList.firstIndex(where: { $0.deviceName == deviceName }) {
-            deviceRealtimeDataList[index].isActive = false
-            deviceRealtimeDataList[index].lastUpdateTime = Date.distantPast
+            self.deviceRealtimeDataList[index].isActive = false
+            self.deviceRealtimeDataList[index].lastUpdateTime = Date.distantPast
         }
     }
 
@@ -107,13 +110,13 @@ public class RealtimeDataUsecase: ObservableObject {
         #if DEBUG
             print("🗑️ リアルタイムデータクリア")
         #endif
-        deviceRealtimeDataList.removeAll()
-        isReceivingRealtimeData = false
+        self.deviceRealtimeDataList.removeAll()
+        self.isReceivingRealtimeData = false
         objectWillChange.send()
     }
 
     public func clearRealtimeDataForSensing() {
-        for deviceData in deviceRealtimeDataList {
+        for deviceData in self.deviceRealtimeDataList {
             deviceData.clearData()
         }
         objectWillChange.send()
@@ -121,7 +124,7 @@ public class RealtimeDataUsecase: ObservableObject {
 
     public func loadRealtimeDataHistory(for sessionId: String) async -> [RealtimeData] {
         do {
-            return try await swiftDataRepository.loadRealtimeData(for: sessionId)
+            return try await self.swiftDataRepository.loadRealtimeData(for: sessionId)
         } catch {
             #if DEBUG
                 print("リアルタイムデータ履歴読み込みエラー: \(error)")
@@ -131,7 +134,7 @@ public class RealtimeDataUsecase: ObservableObject {
     }
 
     public func setSensingControlUsecase(_ usecase: SensingControlUsecase) {
-        sensingControlUsecase = usecase
+        self.sensingControlUsecase = usecase
     }
 
     // MARK: - Private Methods
@@ -150,7 +153,7 @@ public class RealtimeDataUsecase: ObservableObject {
                 print("🟡 既存デバイス更新: \(data.deviceName) (インデックス: \(index))")
             #endif
 
-            let updatedDevice = deviceRealtimeDataList[index]
+            let updatedDevice = self.deviceRealtimeDataList[index]
             updatedDevice.latestData = data
             updatedDevice.dataHistory.append(data)
             updatedDevice.lastUpdateTime = Date()
@@ -161,7 +164,7 @@ public class RealtimeDataUsecase: ObservableObject {
                 updatedDevice.dataHistory.removeFirst()
             }
 
-            deviceRealtimeDataList[index] = updatedDevice
+            self.deviceRealtimeDataList[index] = updatedDevice
 
             #if DEBUG
                 print("🟢 デバイスデータ更新完了: 履歴数=\(updatedDevice.dataHistory.count)")
@@ -180,23 +183,23 @@ public class RealtimeDataUsecase: ObservableObject {
                 lastUpdateTime: Date(),
                 isActive: true
             )
-            deviceRealtimeDataList.append(newDeviceData)
+            self.deviceRealtimeDataList.append(newDeviceData)
             #if DEBUG
-                print("🟢 デバイス追加完了: 総デバイス数=\(deviceRealtimeDataList.count)")
+                print("🟢 デバイス追加完了: 総デバイス数=\(self.deviceRealtimeDataList.count)")
             #endif
         }
 
-        isReceivingRealtimeData = true
+        self.isReceivingRealtimeData = true
         objectWillChange.send()
 
         // デバイス状況をログ出力
-        logDeviceStatus()
+        self.logDeviceStatus()
     }
 
     private func logDeviceStatus() {
         #if DEBUG
             print("=== 全デバイス状況 ===")
-            for (index, device) in deviceRealtimeDataList.enumerated() {
+            for (index, device) in self.deviceRealtimeDataList.enumerated() {
                 print("[\(index)] \(device.deviceName):")
                 print("  - latestData: \(device.latestData != nil ? "あり" : "なし")")
                 print("  - elevation: \(device.latestData?.elevation ?? 0.0)")

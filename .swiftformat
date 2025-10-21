@@ -55,7 +55,7 @@
 --disable redundantPattern
 --disable redundantRawValues
 # --disable redundantReturn
-# --disable redundantSelf
+--self insert # Swift 6 strict concurrency対応: closureやasync関数内で必要なselfを維持
 --disable redundantType
 --disable redundantVoidReturnType
 --disable semicolons

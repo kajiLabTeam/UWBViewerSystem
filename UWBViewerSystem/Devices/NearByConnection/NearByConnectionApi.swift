@@ -61,13 +61,18 @@ import Foundation
         func onDataReceived(data: String, fromEndpointId: String) {
             // 新しい形式を使用している場合は、古いメソッドから新しいメソッドへ変換
             if let data = data.data(using: .utf8) {
-                onDataReceived(endpointId: fromEndpointId, data: data)
+                self.onDataReceived(endpointId: fromEndpointId, data: data)
             }
         }
     }
 
     class NearbyRepository: NSObject {
-        weak var callback: NearbyRepositoryCallback?
+        // シングルトンインスタンス
+        static let shared = NearbyRepository()
+
+        // 複数のコールバックリスナーをサポート（weak参照）
+        private let callbacks = NSHashTable<AnyObject>.weakObjects()
+
         private let nickName: String
         private let serviceId: String
         private var remoteEndpointIds: Set<String> = []
@@ -90,32 +95,49 @@ import Foundation
             self.serviceId = serviceId
             super.init()
 
-            connectionManager = ConnectionManager(
+            self.connectionManager = ConnectionManager(
                 serviceID: serviceId,
                 strategy: .star
             )
 
-            setupDelegates()
+            self.setupDelegates()
         }
 
         private func setupDelegates() {
             guard let connectionManager else { return }
 
             // Advertiser初期化
-            advertiser = Advertiser(connectionManager: connectionManager)
-            advertiser?.delegate = self
+            self.advertiser = Advertiser(connectionManager: connectionManager)
+            self.advertiser?.delegate = self
 
             // Discoverer初期化
-            discoverer = Discoverer(connectionManager: connectionManager)
-            discoverer?.delegate = self
+            self.discoverer = Discoverer(connectionManager: connectionManager)
+            self.discoverer?.delegate = self
 
             // ConnectionManager デリゲート設定
             connectionManager.delegate = self
         }
 
+        // MARK: - Callback Management
+
+        /// コールバックリスナーを追加
+        func addCallback(_ callback: NearbyRepositoryCallback) {
+            self.callbacks.add(callback as AnyObject)
+        }
+
+        /// コールバックリスナーを削除
+        func removeCallback(_ callback: NearbyRepositoryCallback) {
+            self.callbacks.remove(callback as AnyObject)
+        }
+
+        /// 全てのコールバックリスナーに通知
+        private func notifyCallbacks(_ action: (NearbyRepositoryCallback) -> Void) {
+            self.callbacks.allObjects.compactMap { $0 as? NearbyRepositoryCallback }.forEach(action)
+        }
+
         func startAdvertise() {
             guard let advertiser else {
-                callback?.onConnectionStateChanged(state: "Advertiser未初期化")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "Advertiser未初期化") }
                 return
             }
 
@@ -123,9 +145,11 @@ import Foundation
             advertiser.startAdvertising(using: context) { [weak self] error in
                 Task { @MainActor [weak self] in
                     if let error {
-                        self?.callback?.onConnectionStateChanged(state: "広告開始エラー: \(error.localizedDescription)")
+                        self?.notifyCallbacks {
+                            $0.onConnectionStateChanged(state: "広告開始エラー: \(error.localizedDescription)")
+                        }
                     } else {
-                        self?.callback?.onConnectionStateChanged(state: "広告開始成功")
+                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "広告開始成功") }
                     }
                 }
             }
@@ -133,13 +157,13 @@ import Foundation
 
         func startDiscovery() {
             guard let discoverer else {
-                callback?.onConnectionStateChanged(state: "Discoverer未初期化")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "Discoverer未初期化") }
                 return
             }
 
             // 既にDiscovery中の場合は何もしない
-            if isDiscovering {
-                callback?.onConnectionStateChanged(state: "既に検索中です")
+            if self.isDiscovering {
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "既に検索中です") }
                 return
             }
 
@@ -147,21 +171,48 @@ import Foundation
                 Task { @MainActor [weak self] in
                     if let error {
                         self?.isDiscovering = false
-                        self?.callback?.onConnectionStateChanged(state: "発見開始エラー: \(error.localizedDescription)")
+                        self?.notifyCallbacks {
+                            $0.onConnectionStateChanged(state: "発見開始エラー: \(error.localizedDescription)")
+                        }
                     } else {
                         self?.isDiscovering = true
-                        self?.callback?.onConnectionStateChanged(state: "発見開始成功")
-                        self?.callback?.onDiscoveryStateChanged(isDiscovering: true)
+                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "発見開始成功") }
+                        self?.notifyCallbacks { $0.onDiscoveryStateChanged(isDiscovering: true) }
                     }
                 }
             }
         }
 
         func stopDiscoveryOnly() {
-            discoverer?.stopDiscovery()
-            isDiscovering = false
-            callback?.onConnectionStateChanged(state: "検索停止（接続は維持）")
-            callback?.onDiscoveryStateChanged(isDiscovering: false)
+            self.discoverer?.stopDiscovery()
+            self.isDiscovering = false
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "検索停止（接続は維持）") }
+            self.notifyCallbacks { $0.onDiscoveryStateChanged(isDiscovering: false) }
+        }
+
+        // 手動で特定のデバイスに接続リクエストを送信
+        func requestConnection(to endpointId: String, deviceName: String) {
+            print("🔗 [NearbyRepository] requestConnection開始")
+            print("  - endpointId: \(endpointId)")
+            print("  - deviceName: \(deviceName)")
+            print("  - nickName: \(self.nickName)")
+
+            guard let discoverer else {
+                print("❌ [NearbyRepository] Discoverer未初期化")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "Discoverer未初期化") }
+                return
+            }
+
+            let connectionContext = Data(nickName.utf8)
+            print("  - connectionContext: \(String(data: connectionContext, encoding: .utf8) ?? "nil")")
+            print("  📞 discoverer.requestConnectionを呼び出し")
+
+            discoverer.requestConnection(to: endpointId, using: connectionContext)
+
+            print("✅ [NearbyRepository] 接続リクエスト送信完了")
+            self.notifyCallbacks {
+                $0.onConnectionStateChanged(state: "接続リクエスト送信: \(deviceName) (自分: \(self.nickName))")
+            }
         }
 
         func sendData(text: String) {
@@ -170,15 +221,17 @@ import Foundation
 
             guard let connectionManager else {
                 print("エラー: ConnectionManager未初期化")
-                callback?.onConnectionStateChanged(state: "ConnectionManager未初期化")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "ConnectionManager未初期化") }
                 return
             }
 
-            guard !remoteEndpointIds.isEmpty else {
+            guard !self.remoteEndpointIds.isEmpty else {
                 print("エラー: 送信先なし")
-                print("remoteEndpointIds: \(remoteEndpointIds)")
-                print("connectedDevices: \(connectedDevices.keys)")
-                callback?.onConnectionStateChanged(state: "送信先なし（接続端末: \(connectedDevices.count)台）")
+                print("remoteEndpointIds: \(self.remoteEndpointIds)")
+                print("connectedDevices: \(self.connectedDevices.keys)")
+                self.notifyCallbacks {
+                    $0.onConnectionStateChanged(state: "送信先なし（接続端末: \(self.connectedDevices.count)台）")
+                }
                 return
             }
 
@@ -187,7 +240,7 @@ import Foundation
 
             print("送信先エンドポイント:")
             for endpointId in endpointIds {
-                let deviceName = deviceNames[endpointId] ?? "Unknown"
+                let deviceName = self.deviceNames[endpointId] ?? "Unknown"
                 print("- \(endpointId): \(deviceName)")
             }
 
@@ -195,10 +248,12 @@ import Foundation
                 Task { @MainActor [weak self] in
                     if let error {
                         print("データ送信エラー: \(error.localizedDescription)")
-                        self?.callback?.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
+                        self?.notifyCallbacks {
+                            $0.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
+                        }
                     } else {
                         print("データ送信成功: \(text)")
-                        self?.callback?.onConnectionStateChanged(state: "データ送信完了: \(text)")
+                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "データ送信完了: \(text)") }
 
                         // メッセージ履歴に追加
                         let message = Message(
@@ -219,12 +274,12 @@ import Foundation
         // 新しいメソッド
         func sendDataToDevice(text: String, toEndpointId: String) {
             guard let connectionManager else {
-                callback?.onConnectionStateChanged(state: "ConnectionManager未初期化")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "ConnectionManager未初期化") }
                 return
             }
 
-            guard remoteEndpointIds.contains(toEndpointId) else {
-                callback?.onConnectionStateChanged(state: "指定された端末は接続されていません")
+            guard self.remoteEndpointIds.contains(toEndpointId) else {
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "指定された端末は接続されていません") }
                 return
             }
 
@@ -233,10 +288,12 @@ import Foundation
             _ = connectionManager.send(data, to: [toEndpointId]) { [weak self] error in
                 Task { @MainActor [weak self] in
                     if let error {
-                        self?.callback?.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
+                        self?.notifyCallbacks {
+                            $0.onConnectionStateChanged(state: "データ送信エラー: \(error.localizedDescription)")
+                        }
                     } else {
                         let deviceName = self?.deviceNames[toEndpointId] ?? toEndpointId
-                        self?.callback?.onConnectionStateChanged(state: "\(deviceName)にデータ送信完了: \(text)")
+                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "\(deviceName)にデータ送信完了: \(text)") }
 
                         // メッセージ履歴に追加
                         let message = Message(
@@ -253,64 +310,64 @@ import Foundation
         }
 
         func disconnectFromDevice(endpointId: String) {
-            connectionManager?.disconnect(from: endpointId)
-            remoteEndpointIds.remove(endpointId)
-            connectedDevices.removeValue(forKey: endpointId)
-            deviceNames.removeValue(forKey: endpointId)
-            callback?.onDeviceDisconnected(endpointId: endpointId)
+            self.connectionManager?.disconnect(from: endpointId)
+            self.remoteEndpointIds.remove(endpointId)
+            self.connectedDevices.removeValue(forKey: endpointId)
+            self.deviceNames.removeValue(forKey: endpointId)
+            self.notifyCallbacks { $0.onDeviceDisconnected(endpointId: endpointId) }
         }
 
         func disconnectAll() {
-            for endpointId in remoteEndpointIds {
-                connectionManager?.disconnect(from: endpointId)
+            for endpointId in self.remoteEndpointIds {
+                self.connectionManager?.disconnect(from: endpointId)
             }
-            remoteEndpointIds.removeAll()
-            connectedDevices.removeAll()
-            deviceNames.removeAll()
-            callback?.onConnectionStateChanged(state: "全接続切断完了")
+            self.remoteEndpointIds.removeAll()
+            self.connectedDevices.removeAll()
+            self.deviceNames.removeAll()
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "全接続切断完了") }
         }
 
         func resetAll() {
-            disconnectAll()
+            self.disconnectAll()
 
-            advertiser?.stopAdvertising()
-            discoverer?.stopDiscovery()
-            isDiscovering = false  // Discovery状態もリセット
+            self.advertiser?.stopAdvertising()
+            self.discoverer?.stopDiscovery()
+            self.isDiscovering = false  // Discovery状態もリセット
 
-            messages.removeAll()
+            self.messages.removeAll()
 
-            callback?.onConnectionStateChanged(state: "リセット完了")
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "リセット完了") }
         }
 
         // 新しいメソッド（AdvertiserViewModel用）
         func stopAdvertise() {
-            advertiser?.stopAdvertising()
-            callback?.onConnectionStateChanged(state: "広告停止")
+            self.advertiser?.stopAdvertising()
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "広告停止") }
         }
 
         func disconnect(_ endpointId: String) {
-            disconnectFromDevice(endpointId: endpointId)
+            self.disconnectFromDevice(endpointId: endpointId)
         }
 
         func sendMessage(_ content: String, to endpointId: String) {
-            sendDataToDevice(text: content, toEndpointId: endpointId)
+            self.sendDataToDevice(text: content, toEndpointId: endpointId)
         }
 
         // 新しいメソッド
         func getConnectedDevices() -> [ConnectedDevice] {
-            Array(connectedDevices.values)
+            Array(self.connectedDevices.values)
         }
 
         func getMessages() -> [Message] {
-            messages
+            self.messages
         }
 
         func getCurrentDeviceName() -> String {
-            nickName
+            self.nickName
         }
 
         func hasConnectedDevices() -> Bool {
-            !connectedDevices.isEmpty
+            !self.connectedDevices.isEmpty
         }
     }
 
@@ -327,12 +384,14 @@ import Foundation
             let deviceName = String(data: context, encoding: .utf8) ?? endpointID
 
             // デバイス名を保存
-            deviceNames[endpointID] = deviceName
+            self.deviceNames[endpointID] = deviceName
 
             // 新しいコールバック形式を呼び出し
-            callback?.onConnectionRequest(
-                endpointId: endpointID, deviceName: deviceName, context: context, accept: connectionRequestHandler)
-            callback?.onConnectionStateChanged(state: "接続要求受信: \(deviceName) (\(endpointID))")
+            self.notifyCallbacks {
+                $0.onConnectionRequest(
+                    endpointId: endpointID, deviceName: deviceName, context: context, accept: connectionRequestHandler)
+            }
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続要求受信: \(deviceName) (\(endpointID))") }
         }
     }
 
@@ -348,18 +407,16 @@ import Foundation
             let deviceName = String(data: context, encoding: .utf8) ?? endpointID
 
             // デバイス名を保存
-            deviceNames[endpointID] = deviceName
+            self.deviceNames[endpointID] = deviceName
 
-            // 発見したエンドポイントに自動で接続要求を送信
-            let connectionContext = Data(nickName.utf8)
-            discoverer.requestConnection(to: endpointID, using: connectionContext)
-            callback?.onConnectionStateChanged(state: "エンドポイント発見: \(deviceName) (\(endpointID))")
-            callback?.onDeviceFound(endpointId: endpointID, name: deviceName, isConnectable: true)
+            // Android側に合わせて自動接続を削除 - 手動で接続できるようにする
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "エンドポイント発見: \(deviceName) (\(endpointID))") }
+            self.notifyCallbacks { $0.onDeviceFound(endpointId: endpointID, name: deviceName, isConnectable: true) }
         }
 
         func discoverer(_ discoverer: Discoverer, didLose endpointID: String) {
-            callback?.onConnectionStateChanged(state: "エンドポイント消失: \(endpointID)")
-            callback?.onDeviceLost(endpointId: endpointID)
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "エンドポイント消失: \(endpointID)") }
+            self.notifyCallbacks { $0.onDeviceLost(endpointId: endpointID) }
         }
     }
 
@@ -374,20 +431,20 @@ import Foundation
         ) {
             // 自動で認証を承認
             verificationHandler(true)
-            remoteEndpointIds.insert(endpointID)
+            self.remoteEndpointIds.insert(endpointID)
 
             // 接続済み端末として追加
-            let deviceName = deviceNames[endpointID] ?? endpointID
+            let deviceName = self.deviceNames[endpointID] ?? endpointID
             let device = ConnectedDevice(
                 endpointId: endpointID,
                 deviceName: deviceName,
                 connectTime: Date()
             )
-            connectedDevices[endpointID] = device
+            self.connectedDevices[endpointID] = device
 
-            callback?.onConnectionStateChanged(state: "接続成功: \(deviceName)")
-            callback?.onConnectionResult(endpointID, true)
-            callback?.onDeviceConnected(endpointId: endpointID, deviceName: deviceName)
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続成功: \(deviceName)") }
+            self.notifyCallbacks { $0.onConnectionResult(endpointID, true) }
+            self.notifyCallbacks { $0.onDeviceConnected(endpointId: endpointID, deviceName: deviceName) }
         }
 
         func connectionManager(
@@ -397,12 +454,12 @@ import Foundation
             from endpointID: String
         ) {
             let receivedText = String(data: data, encoding: .utf8) ?? ""
-            let deviceName = deviceNames[endpointID] ?? endpointID
+            let deviceName = self.deviceNames[endpointID] ?? endpointID
 
             // 最終受信時刻を更新
             if var device = connectedDevices[endpointID] {
                 device.lastMessageTime = Date()
-                connectedDevices[endpointID] = device
+                self.connectedDevices[endpointID] = device
             }
 
             // メッセージ履歴に追加
@@ -413,13 +470,13 @@ import Foundation
                 senderName: deviceName,
                 isOutgoing: false
             )
-            messages.append(message)
+            self.messages.append(message)
 
             // コールバック呼び出し
-            callback?.onDataReceived(endpointId: endpointID, data: data)
+            self.notifyCallbacks { $0.onDataReceived(endpointId: endpointID, data: data) }
 
             // 古いコールバック形式も維持（互換性のため）
-            callback?.onDataReceived(data: receivedText, fromEndpointId: endpointID)
+            self.notifyCallbacks { $0.onDataReceived(data: receivedText, fromEndpointId: endpointID) }
         }
 
         func connectionManager(
@@ -441,14 +498,14 @@ import Foundation
             cancellationToken token: CancellationToken
         ) {
             // ファイル受信開始の処理
-            callback?.onConnectionStateChanged(state: "ファイル受信開始: \(name) from \(endpointID)")
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "ファイル受信開始: \(name) from \(endpointID)") }
 
             // ファイル受信完了時の処理は別途実装
             // localURLにファイルが保存される
-            let deviceName = deviceNames[endpointID] ?? endpointID
+            let deviceName = self.deviceNames[endpointID] ?? endpointID
 
             // ファイルを適切な場所に移動・保存
-            saveReceivedFile(from: localURL, originalName: name, fromDevice: deviceName, endpointID: endpointID)
+            self.saveReceivedFile(from: localURL, originalName: name, fromDevice: deviceName, endpointID: endpointID)
         }
 
         // 受信したファイルを保存する処理
@@ -457,7 +514,7 @@ import Foundation
 
             // Documentsディレクトリ内にUWBFilesフォルダを作成
             guard let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-                callback?.onConnectionStateChanged(state: "ファイル保存エラー: Documentsフォルダにアクセスできません")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "ファイル保存エラー: Documentsフォルダにアクセスできません") }
                 return
             }
 
@@ -468,7 +525,9 @@ import Foundation
                 do {
                     try fileManager.createDirectory(at: uwbFilesDirectory, withIntermediateDirectories: true)
                 } catch {
-                    callback?.onConnectionStateChanged(state: "ファイル保存エラー: フォルダ作成に失敗 - \(error.localizedDescription)")
+                    self.notifyCallbacks {
+                        $0.onConnectionStateChanged(state: "ファイル保存エラー: フォルダ作成に失敗 - \(error.localizedDescription)")
+                    }
                     return
                 }
             }
@@ -512,11 +571,11 @@ import Foundation
                 // ファイルを移動
                 try fileManager.moveItem(at: tempURL, to: destinationURL)
 
-                callback?.onConnectionStateChanged(state: "ファイル保存完了: \(finalFileName)")
-                callback?.onConnectionStateChanged(state: "ファイル受信完了: \(finalFileName)")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "ファイル保存完了: \(finalFileName)") }
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "ファイル受信完了: \(finalFileName)") }
 
             } catch {
-                callback?.onConnectionStateChanged(state: "ファイル保存エラー: \(error.localizedDescription)")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "ファイル保存エラー: \(error.localizedDescription)") }
             }
         }
 
@@ -529,12 +588,12 @@ import Foundation
             // 転送状況の更新処理
             // 実際のTransferUpdateの構造に合わせて修正が必要
             // 現在は基本的な通知のみ実装
-            callback?.onConnectionStateChanged(state: "ファイル転送更新: \(endpointID)")
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "ファイル転送更新: \(endpointID)") }
 
             // 進捗については後で実装
             // 一旦50%として固定値で通知
             // ファイル転送プログレス情報をconnectionStateChangedで通知
-            callback?.onConnectionStateChanged(state: "ファイル転送中: 50%")
+            self.notifyCallbacks { $0.onConnectionStateChanged(state: "ファイル転送中: 50%") }
         }
 
         func connectionManager(
@@ -544,24 +603,37 @@ import Foundation
         ) {
             switch state {
             case .connecting:
-                callback?.onConnectionStateChanged(state: "接続中: \(endpointID)")
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続中: \(endpointID)") }
             case .connected:
-                let deviceName = deviceNames[endpointID] ?? endpointID
-                callback?.onConnectionStateChanged(state: "接続完了: \(deviceName)")
+                // 接続完了時に接続情報を確実に登録
+                self.remoteEndpointIds.insert(endpointID)
+
+                let deviceName = self.deviceNames[endpointID] ?? endpointID
+                let device = ConnectedDevice(
+                    endpointId: endpointID,
+                    deviceName: deviceName,
+                    connectTime: Date()
+                )
+                self.connectedDevices[endpointID] = device
+
+                // コールバックを呼び出し
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続完了: \(deviceName)") }
+                self.notifyCallbacks { $0.onConnectionResult(endpointID, true) }
+                self.notifyCallbacks { $0.onDeviceConnected(endpointId: endpointID, deviceName: deviceName) }
             case .disconnected:
-                remoteEndpointIds.remove(endpointID)
-                connectedDevices.removeValue(forKey: endpointID)
-                deviceNames.removeValue(forKey: endpointID)
+                self.remoteEndpointIds.remove(endpointID)
+                self.connectedDevices.removeValue(forKey: endpointID)
+                self.deviceNames.removeValue(forKey: endpointID)
 
                 // 新しいコールバック形式を呼び出し
-                callback?.onDeviceDisconnected(endpointId: endpointID)
+                self.notifyCallbacks { $0.onDeviceDisconnected(endpointId: endpointID) }
 
                 // 古いコールバック形式も維持（互換性のため）
-                callback?.onConnectionStateChanged(state: "切断: \(endpointID)")
-                callback?.onDeviceDisconnected(endpointId: endpointID)
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "切断: \(endpointID)") }
+                self.notifyCallbacks { $0.onDeviceDisconnected(endpointId: endpointID) }
             case .rejected:
-                callback?.onConnectionStateChanged(state: "接続拒否: \(endpointID)")
-                callback?.onConnectionResult(endpointID, false)
+                self.notifyCallbacks { $0.onConnectionStateChanged(state: "接続拒否: \(endpointID)") }
+                self.notifyCallbacks { $0.onConnectionResult(endpointID, false) }
             @unknown default:
                 break
             }
@@ -580,12 +652,12 @@ import Foundation
         }
 
         public func startAdvertise() {
-            startAdvertising()
+            self.startAdvertising()
         }
 
         public func stopAdvertising() {}
         public func stopAdvertise() {
-            stopAdvertising()
+            self.stopAdvertising()
         }
 
         public func startDiscovery() {}

@@ -41,14 +41,14 @@ struct StatusBadge: View {
                 Image(systemName: systemImage)
                     .font(.caption)
             }
-            Text(text)
+            Text(self.text)
                 .font(.caption)
                 .fontWeight(.medium)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .foregroundColor(.white)
-        .background(status.color)
+        .background(self.status.color)
         .cornerRadius(4)
     }
 }
@@ -66,7 +66,7 @@ struct ConnectionStatusIndicator: View {
     var body: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(isConnected ? Color.green : Color.gray)
+                .fill(self.isConnected ? Color.green : Color.gray)
                 .frame(width: 8, height: 8)
 
             if let label {

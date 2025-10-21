@@ -11,6 +11,9 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_D33B052930BB._tcp</string>
+		<string>_nearby._tcp</string>
 	</array>
+	<key>UIRequiresPersistentWiFi</key>
+	<true/>
 </dict>
 </plist>

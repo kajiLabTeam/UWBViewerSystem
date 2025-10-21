@@ -47,11 +47,11 @@ public class DeviceRealtimeData: Identifiable, ObservableObject {
     @Published public var isActive: Bool = true
 
     public var isRecentlyUpdated: Bool {
-        Date().timeIntervalSince(lastUpdateTime) < 5.0  // 5秒以内の更新
+        Date().timeIntervalSince(self.lastUpdateTime) < 5.0  // 5秒以内の更新
     }
 
     public var hasData: Bool {
-        latestData != nil
+        self.latestData != nil
     }
 
     public var isDataStale: Bool {
@@ -61,7 +61,7 @@ public class DeviceRealtimeData: Identifiable, ObservableObject {
     }
 
     public var hasIssue: Bool {
-        !hasData || isDataStale || !isRecentlyUpdated
+        !self.hasData || self.isDataStale || !self.isRecentlyUpdated
     }
 
     public init(
@@ -76,21 +76,21 @@ public class DeviceRealtimeData: Identifiable, ObservableObject {
     }
 
     public func addData(_ data: RealtimeData) {
-        latestData = data
-        dataHistory.append(data)
-        lastUpdateTime = Date()
-        isActive = true
+        self.latestData = data
+        self.dataHistory.append(data)
+        self.lastUpdateTime = Date()
+        self.isActive = true
 
         // 最新20件のデータのみ保持
-        if dataHistory.count > 20 {
-            dataHistory.removeFirst()
+        if self.dataHistory.count > 20 {
+            self.dataHistory.removeFirst()
         }
     }
 
     public func clearData() {
-        latestData = nil
-        dataHistory.removeAll()
-        lastUpdateTime = Date.distantPast
+        self.latestData = nil
+        self.dataHistory.removeAll()
+        self.lastUpdateTime = Date.distantPast
     }
 }
 

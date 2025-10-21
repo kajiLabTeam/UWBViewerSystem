@@ -29,7 +29,7 @@ class FloorMapSettingViewModel: ObservableObject {
     @Published var floorName: String = "テストフロア"
     @Published var buildingName: String = "テストビル"
     @Published var floorWidth: Double = 10.0
-    @Published var floorDepth: Double = 15.0
+    @Published var floorDepth: Double = 10.0
     @Published var selectedPreset: FloorMapPreset?
     @Published var floorPresets: [FloorMapPreset] = []
 
@@ -246,7 +246,7 @@ class FloorMapSettingViewModel: ObservableObject {
                 name: "カスタム",
                 description: "手動で寸法を設定",
                 width: 10.0,
-                depth: 15.0,
+                depth: 10.0,
                 iconName: "slider.horizontal.3"
             ),
         ]

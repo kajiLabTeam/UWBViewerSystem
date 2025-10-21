@@ -32,43 +32,43 @@ struct ReferencePointMarker: View {
     }
 
     private var displaySize: CGFloat {
-        self.isSelected ? self.size * 1.2 : self.size
+        isSelected ? size * 1.2 : size
     }
 
     var body: some View {
         Circle()
-            .fill(self.point.color)
-            .frame(width: self.displaySize, height: self.displaySize)
+            .fill(point.color)
+            .frame(width: displaySize, height: displaySize)
             .overlay(
-                Text(self.point.label)
+                Text(point.label)
                     .font(.caption2)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
             )
-            .shadow(radius: self.isSelected ? 3 : 1)
+            .shadow(radius: isSelected ? 3 : 1)
             .position(
-                x: self.position.x + self.dragOffset.width,
-                y: self.position.y + self.dragOffset.height
+                x: position.x + dragOffset.width,
+                y: position.y + dragOffset.height
             )
-            .scaleEffect(self.isSelected ? 1.1 : 1.0)
-            .animation(.easeInOut(duration: 0.2), value: self.isSelected)
-            .zIndex(self.isSelected ? 50 : 5)
+            .scaleEffect(isSelected ? 1.1 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
+            .zIndex(isSelected ? 50 : 5)
             .onTapGesture {
-                self.onTap?()
+                onTap?()
             }
             .gesture(
-                self.isDraggable
+                isDraggable
                     ? DragGesture()
                     .onChanged { value in
-                        self.dragOffset = value.translation
+                        dragOffset = value.translation
                     }
                     .onEnded { value in
                         let newPosition = CGPoint(
                             x: position.x + value.translation.width,
-                            y: self.position.y + value.translation.height
+                            y: position.y + value.translation.height
                         )
-                        self.onPositionChanged?(newPosition)
-                        self.dragOffset = .zero
+                        onPositionChanged?(newPosition)
+                        dragOffset = .zero
                     } : nil
             )
     }
@@ -98,7 +98,7 @@ struct ReferencePointList: View {
     let onPointTap: ((String) -> Void)?
 
     var body: some View {
-        if !self.points.isEmpty {
+        if !points.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("設定済み基準点")
@@ -114,11 +114,11 @@ struct ReferencePointList: View {
                     }
                 }
 
-                ForEach(Array(self.points.enumerated()), id: \.offset) { index, point in
+                ForEach(Array(points.enumerated()), id: \.offset) { index, point in
                     ReferencePointRow(
                         point: point,
                         index: index,
-                        onTap: { self.onPointTap?(point.id) }
+                        onTap: { onPointTap?(point.id) }
                     )
                 }
             }
@@ -139,10 +139,10 @@ struct ReferencePointRow: View {
     var body: some View {
         HStack {
             Circle()
-                .fill(self.point.color)
+                .fill(point.color)
                 .frame(width: 12, height: 12)
                 .overlay(
-                    Text(self.point.label)
+                    Text(point.label)
                         .font(.caption2)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
@@ -153,7 +153,7 @@ struct ReferencePointRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else {
-                Text("基準点 \(self.index + 1)")
+                Text("基準点 \(index + 1)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -163,7 +163,7 @@ struct ReferencePointRow: View {
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .onTapGesture {
-            self.onTap?()
+            onTap?()
         }
     }
 }

@@ -7,17 +7,17 @@ let package = Package(
     name: "UWBViewerSystem",
     platforms: [
         .iOS(.v17),
-        .macOS(.v14),
+        .macOS(.v14)
     ],
     products: [
         .library(
             name: "UWBViewerSystem",
             targets: ["UWBViewerSystem"]
-        )
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-format.git", from: "509.0.0"),
-        .package(url: "https://github.com/google/nearby.git", branch: "main"),
+        .package(url: "https://github.com/google/nearby.git", branch: "main")
     ],
     targets: [
         .target(
@@ -29,7 +29,7 @@ let package = Package(
             exclude: ["UWBViewerSystemApp.swift"],
             resources: [
                 .process("Assets.xcassets"),
-                .copy("UWBViewerSystem.entitlements"),
+                .copy("UWBViewerSystem.entitlements")
             ]
         ),
         .testTarget(

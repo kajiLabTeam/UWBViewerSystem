@@ -15,31 +15,24 @@ public class FileManagementUsecase: ObservableObject {
 
     private let swiftDataRepository: SwiftDataRepositoryProtocol
 
-    public init(swiftDataRepository: SwiftDataRepositoryProtocol) {
+    public init(swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()) {
         self.swiftDataRepository = swiftDataRepository
-        self.setupFileStoragePath()
+        setupFileStoragePath()
 
         Task {
-            await self.loadReceivedFiles()
+            await loadReceivedFiles()
         }
     }
-
-    #if DEBUG
-        /// DEBUG時のみ利用可能な引数なし初期化（テスト用）
-        public convenience init() {
-            self.init(swiftDataRepository: DummySwiftDataRepository())
-        }
-    #endif
 
     // MARK: - File Storage Management
 
     private func setupFileStoragePath() {
         if let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             let uwbFilesDirectory = documentsDirectory.appendingPathComponent("UWBFiles")
-            self.fileStoragePath = uwbFilesDirectory.path
+            fileStoragePath = uwbFilesDirectory.path
 
             // フォルダーが存在しない場合は作成
-            self.createDirectoryIfNeeded(at: uwbFilesDirectory)
+            createDirectoryIfNeeded(at: uwbFilesDirectory)
         }
     }
 
@@ -55,12 +48,12 @@ public class FileManagementUsecase: ObservableObject {
     }
 
     public func openFileStorageFolder() {
-        guard !self.fileStoragePath.isEmpty else { return }
+        guard !fileStoragePath.isEmpty else { return }
 
         let url = URL(fileURLWithPath: fileStoragePath)
 
         // フォルダーが存在しない場合は作成
-        self.createDirectoryIfNeeded(at: url)
+        createDirectoryIfNeeded(at: url)
 
         #if os(macOS)
             NSWorkspace.shared.open(url)
@@ -84,22 +77,22 @@ public class FileManagementUsecase: ObservableObject {
             fileSize: fileSize
         )
 
-        self.receivedFiles.append(receivedFile)
+        receivedFiles.append(receivedFile)
 
         // 進捗を削除
-        self.fileTransferProgress.removeValue(forKey: endpointId)
+        fileTransferProgress.removeValue(forKey: endpointId)
 
         // SwiftDataに保存
         Task {
             do {
-                try await self.swiftDataRepository.saveReceivedFile(receivedFile)
+                try await swiftDataRepository.saveReceivedFile(receivedFile)
 
                 // システム活動ログも記録
                 let activity = SystemActivity(
                     activityType: "file_transfer",
                     activityDescription: "ファイル受信完了: \(fileName) (\(receivedFile.formattedSize)) from \(deviceName)"
                 )
-                try await self.swiftDataRepository.saveSystemActivity(activity)
+                try await swiftDataRepository.saveSystemActivity(activity)
 
                 print("ファイル受信完了・保存済み: \(fileName) (\(receivedFile.formattedSize)) from \(deviceName)")
             } catch {
@@ -109,7 +102,7 @@ public class FileManagementUsecase: ObservableObject {
     }
 
     public func onFileTransferProgress(endpointId: String, progress: Int) {
-        self.fileTransferProgress[endpointId] = progress
+        fileTransferProgress[endpointId] = progress
         print("ファイル転送進捗: \(endpointId) - \(progress)%")
     }
 
@@ -120,49 +113,42 @@ public class FileManagementUsecase: ObservableObject {
         print("File transfer starting: \(fileName), size: \(fileSize)")
 
         // 進捗を初期化
-        self.fileTransferProgress[fromEndpointId] = 0
+        fileTransferProgress[fromEndpointId] = 0
     }
 
     // MARK: - File Management
 
     private func loadReceivedFiles() async {
         do {
-            self.receivedFiles = try await self.swiftDataRepository.loadReceivedFiles()
+            receivedFiles = try await swiftDataRepository.loadReceivedFiles()
         } catch {
             print("受信ファイル読み込みエラー: \(error)")
         }
     }
 
     public func clearReceivedFiles() {
+        receivedFiles.removeAll()
+        fileTransferProgress.removeAll()
+
         Task {
             do {
-                try await self.swiftDataRepository.deleteAllReceivedFiles()
-                await MainActor.run {
-                    self.receivedFiles.removeAll()
-                    self.fileTransferProgress.removeAll()
-                }
+                try await swiftDataRepository.deleteAllReceivedFiles()
                 print("全受信ファイルを削除しました")
             } catch {
                 print("受信ファイル全削除エラー: \(error)")
-                // エラー時はUIを更新しない（既存の状態を維持）
             }
         }
     }
 
     public func removeReceivedFile(_ file: ReceivedFile) {
+        receivedFiles.removeAll { $0.id == file.id }
+
         Task {
             do {
-                // まずデータベースから削除
-                try await self.swiftDataRepository.deleteReceivedFile(by: file.id)
+                try await swiftDataRepository.deleteReceivedFile(by: file.id)
                 print("受信ファイルを削除しました: \(file.fileName)")
-
-                // 削除成功後にUIを更新
-                await MainActor.run {
-                    self.receivedFiles.removeAll { $0.id == file.id }
-                }
             } catch {
                 print("受信ファイル削除エラー: \(error)")
-                // エラー時はUIを更新しない（既存の状態を維持）
             }
         }
 
@@ -171,14 +157,14 @@ public class FileManagementUsecase: ObservableObject {
     }
 
     public func getFileTransferProgress(for endpointId: String) -> Int? {
-        self.fileTransferProgress[endpointId]
+        fileTransferProgress[endpointId]
     }
 
     public var hasReceivedFiles: Bool {
-        !self.receivedFiles.isEmpty
+        !receivedFiles.isEmpty
     }
 
     public var isTransferringFiles: Bool {
-        !self.fileTransferProgress.isEmpty
+        !fileTransferProgress.isEmpty
     }
 }

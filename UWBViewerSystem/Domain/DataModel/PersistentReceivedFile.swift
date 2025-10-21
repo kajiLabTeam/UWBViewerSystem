@@ -33,12 +33,12 @@ public final class PersistentReceivedFile {
 
     public func toEntity() -> ReceivedFile {
         ReceivedFile(
-            id: self.id,
-            fileName: self.fileName,
-            fileURL: URL(fileURLWithPath: self.fileURLString),
-            deviceName: self.deviceName,
-            receivedAt: self.receivedAt,
-            fileSize: self.fileSize
+            id: id,
+            fileName: fileName,
+            fileURL: URL(fileURLWithPath: fileURLString),
+            deviceName: deviceName,
+            receivedAt: receivedAt,
+            fileSize: fileSize
         )
     }
 }

@@ -17,11 +17,11 @@ struct PairingSettingView: View {
     var body: some View {
         VStack(spacing: 0) {
             // フロープログレス表示
-            SensingFlowProgressView(navigator: self.flowNavigator)
+            SensingFlowProgressView(navigator: flowNavigator)
 
             ScrollView {
                 VStack(spacing: 20) {
-                    self.headerSection
+                    headerSection
 
                     // 左右分割のメインコンテンツ
                     HStack(spacing: 20) {
@@ -31,7 +31,7 @@ struct PairingSettingView: View {
                                 .font(.headline)
                                 .foregroundColor(.primary)
 
-                            self.antennaListSection
+                            antennaListSection
 
                             Spacer()
                         }
@@ -46,7 +46,7 @@ struct PairingSettingView: View {
                                 .font(.headline)
                                 .foregroundColor(.primary)
 
-                            self.deviceSection
+                            deviceSection
 
                             Spacer()
                         }
@@ -58,8 +58,8 @@ struct PairingSettingView: View {
                     .frame(maxHeight: .infinity)
 
                     // ペアリング状況表示
-                    if !self.viewModel.antennaPairings.isEmpty {
-                        self.pairingStatusSection
+                    if !viewModel.antennaPairings.isEmpty {
+                        pairingStatusSection
                     }
 
                     Spacer(minLength: 80)
@@ -67,25 +67,25 @@ struct PairingSettingView: View {
                 .padding()
             }
 
-            self.navigationSection
+            navigationSection
         }
         .navigationTitle("Android端末ペアリング")
         #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
         #endif
-            .alert(isPresented: self.$viewModel.showingConnectionAlert) {
+            .alert(isPresented: $viewModel.showingConnectionAlert) {
                 Alert(
                     title: Text("ペアリング情報"),
-                    message: Text(self.viewModel.alertMessage),
+                    message: Text(viewModel.alertMessage),
                     dismissButton: .default(Text("OK"))
                 )
             }
             .onAppear {
                 // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
                 let repository = SwiftDataRepository(modelContext: modelContext)
-                self.viewModel.setSwiftDataRepository(repository)
-                self.flowNavigator.currentStep = .devicePairing
-                self.flowNavigator.setRouter(self.router)
+                viewModel.setSwiftDataRepository(repository)
+                flowNavigator.currentStep = .devicePairing
+                flowNavigator.setRouter(router)
             }
     }
 
@@ -106,10 +106,10 @@ struct PairingSettingView: View {
     private var antennaListSection: some View {
         ScrollView {
             VStack(spacing: 8) {
-                ForEach(self.viewModel.selectedAntennas, id: \.id) { antenna in
+                ForEach(viewModel.selectedAntennas, id: \.id) { antenna in
                     PairingAntennaListItem(
                         antenna: antenna,
-                        isPaired: self.viewModel.antennaPairings.contains { $0.antenna.id == antenna.id }
+                        isPaired: viewModel.antennaPairings.contains { $0.antenna.id == antenna.id }
                     )
                 }
             }
@@ -120,14 +120,14 @@ struct PairingSettingView: View {
         VStack(spacing: 16) {
             // デバイス検索ボタン
             Button(action: {
-                if self.viewModel.isScanning {
-                    self.viewModel.stopDeviceDiscovery()
+                if viewModel.isScanning {
+                    viewModel.stopDeviceDiscovery()
                 } else {
-                    self.viewModel.startDeviceDiscovery()
+                    viewModel.startDeviceDiscovery()
                 }
             }) {
                 HStack {
-                    if self.viewModel.isScanning {
+                    if viewModel.isScanning {
                         ProgressView()
                             .scaleEffect(0.8)
                         Text("検索中...")
@@ -138,24 +138,24 @@ struct PairingSettingView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-                .background(self.viewModel.isScanning ? Color.orange : Color.blue)
+                .background(viewModel.isScanning ? Color.orange : Color.blue)
                 .foregroundColor(.white)
                 .cornerRadius(8)
             }
-            .disabled(self.viewModel.isScanning)
+            .disabled(viewModel.isScanning)
 
             // 見つかった端末一覧
             ScrollView {
                 VStack(spacing: 8) {
-                    ForEach(self.viewModel.availableDevices) { device in
+                    ForEach(viewModel.availableDevices) { device in
                         DeviceListItem(
                             device: device,
-                            antennas: self.viewModel.selectedAntennas.filter { antenna in
-                                !self.viewModel.antennaPairings.contains { $0.antenna.id == antenna.id }
+                            antennas: viewModel.selectedAntennas.filter { antenna in
+                                !viewModel.antennaPairings.contains { $0.antenna.id == antenna.id }
                             },
-                            antennaPairings: self.viewModel.antennaPairings,
+                            antennaPairings: viewModel.antennaPairings,
                             onPair: { antenna in
-                                self.viewModel.pairAntennaWithDevice(antenna: antenna, device: device)
+                                viewModel.pairAntennaWithDevice(antenna: antenna, device: device)
                             }
                         )
                     }
@@ -174,7 +174,7 @@ struct PairingSettingView: View {
                 Spacer()
 
                 Button("すべて解除") {
-                    self.viewModel.removeAllPairings()
+                    viewModel.removeAllPairings()
                 }
                 .foregroundColor(.red)
                 .font(.caption)
@@ -182,14 +182,14 @@ struct PairingSettingView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(self.viewModel.antennaPairings) { pairing in
+                    ForEach(viewModel.antennaPairings) { pairing in
                         PairingStatusCard(
                             pairing: pairing,
                             onRemove: {
-                                self.viewModel.removePairing(pairing)
+                                viewModel.removePairing(pairing)
                             },
                             onTest: {
-                                self.viewModel.testConnection(for: pairing)
+                                viewModel.testConnection(for: pairing)
                             }
                         )
                     }
@@ -208,7 +208,7 @@ struct PairingSettingView: View {
 
             HStack(spacing: 16) {
                 Button("戻る") {
-                    self.flowNavigator.goToPreviousStep()
+                    flowNavigator.goToPreviousStep()
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -217,26 +217,26 @@ struct PairingSettingView: View {
                 .cornerRadius(8)
 
                 Button("次へ") {
-                    if self.viewModel.savePairingForFlow() {
-                        self.flowNavigator.proceedToNextStep()
+                    if viewModel.savePairingForFlow() {
+                        flowNavigator.proceedToNextStep()
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
                 .foregroundColor(.white)
-                .background(self.viewModel.canProceedToNext ? Color.blue : Color.gray)
+                .background(viewModel.canProceedToNext ? Color.blue : Color.gray)
                 .cornerRadius(8)
-                .disabled(!self.viewModel.canProceedToNext)
+                .disabled(!viewModel.canProceedToNext)
             }
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
-        .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
+        .alert("エラー", isPresented: Binding.constant(flowNavigator.lastError != nil)) {
             Button("OK") {
-                self.flowNavigator.lastError = nil
+                flowNavigator.lastError = nil
             }
         } message: {
-            Text(self.flowNavigator.lastError ?? "")
+            Text(flowNavigator.lastError ?? "")
         }
     }
 }
@@ -254,11 +254,11 @@ struct PairingAntennaListItem: View {
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(self.antenna.name)
+                Text(antenna.name)
                     .font(.body)
                     .fontWeight(.medium)
 
-                Text("位置: (\(Int(self.antenna.coordinates.x)), \(Int(self.antenna.coordinates.y)))")
+                Text("位置: (\(Int(antenna.coordinates.x)), \(Int(antenna.coordinates.y)))")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -266,7 +266,7 @@ struct PairingAntennaListItem: View {
             Spacer()
 
             Circle()
-                .fill(self.isPaired ? Color.green : Color.gray)
+                .fill(isPaired ? Color.green : Color.gray)
                 .frame(width: 12, height: 12)
         }
         .padding()
@@ -286,23 +286,23 @@ struct DeviceListItem: View {
 
     var availableAntennas: [AntennaInfo] {
         // まだペアリングされていないアンテナのみ表示
-        self.antennas
+        antennas
     }
 
     var body: some View {
         HStack {
             // NearBy Connectionデバイスには専用アイコンを表示
-            Image(systemName: self.device.isNearbyDevice ? "antenna.radiowaves.left.and.right" : "iphone.gen3")
-                .foregroundColor(self.device.isNearbyDevice ? .green : .blue)
+            Image(systemName: device.isNearbyDevice ? "antenna.radiowaves.left.and.right" : "iphone.gen3")
+                .foregroundColor(device.isNearbyDevice ? .green : .blue)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(self.device.name)
+                    Text(device.name)
                         .font(.body)
                         .fontWeight(.medium)
 
-                    if self.device.isNearbyDevice {
+                    if device.isNearbyDevice {
                         Text("NearBy")
                             .font(.caption2)
                             .foregroundColor(.white)
@@ -313,11 +313,11 @@ struct DeviceListItem: View {
                     }
                 }
 
-                Text("ID: \(self.device.id.prefix(8))...")
+                Text("ID: \(device.id.prefix(8))...")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                Text("発見時刻: \(self.formatDate(self.device.lastSeen))")
+                Text("発見時刻: \(formatDate(device.lastSeen))")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -325,73 +325,50 @@ struct DeviceListItem: View {
             Spacer()
 
             // アンテナと紐付け済みかチェック
-            let isAntennaLinked = self.antennaPairings.contains(where: { $0.device.id == self.device.id })
+            let isAntennaLinked = antennaPairings.contains(where: { $0.device.id == device.id })
 
-            VStack(spacing: 4) {
-                // 接続状態表示
-                if self.device.isConnected {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 6, height: 6)
-                        Text("接続中")
-                            .font(.caption2)
-                            .foregroundColor(.green)
-                    }
-                } else {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 6, height: 6)
-                        Text("未接続")
-                            .font(.caption2)
-                            .foregroundColor(.red)
-                    }
-                }
-
-                if isAntennaLinked {
-                    // アンテナと紐付け済みの場合は「ペア済み」を表示
-                    Text("ペア済み")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(4)
-                } else if !self.availableAntennas.isEmpty {
-                    // 未接続で利用可能なアンテナがある場合のみアンテナ紐付けボタンを表示
-                    Button("アンテナ紐付け") {
-                        if self.availableAntennas.count == 1 {
-                            self.onPair(self.availableAntennas.first!)
-                        } else {
-                            self.showingPairAlert = true
-                        }
-                    }
+            if isAntennaLinked {
+                // アンテナと紐付け済みの場合は「ペア済み」を表示
+                Text("ペア済み")
                     .font(.caption)
-                    .foregroundColor(.white)
+                    .foregroundColor(.green)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.orange)
-                    .cornerRadius(8)
-                } else {
-                    // 利用可能なアンテナがない場合（すべてのアンテナが他の端末と紐付け済み）
-                    Text("アンテナなし")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(4)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(4)
+            } else if !availableAntennas.isEmpty {
+                // 未接続で利用可能なアンテナがある場合のみアンテナ紐付けボタンを表示
+                Button("アンテナ紐付け") {
+                    if availableAntennas.count == 1 {
+                        onPair(availableAntennas.first!)
+                    } else {
+                        showingPairAlert = true
+                    }
                 }
+                .font(.caption)
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.orange)
+                .cornerRadius(8)
+            } else {
+                // 利用可能なアンテナがない場合（すべてのアンテナが他の端末と紐付け済み）
+                Text("アンテナなし")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(4)
             }
         }
         .padding()
         .background(Color.primary.opacity(0.05))
         .cornerRadius(8)
-        .alert("アンテナを選択", isPresented: self.$showingPairAlert) {
-            ForEach(self.availableAntennas, id: \.id) { antenna in
+        .alert("アンテナを選択", isPresented: $showingPairAlert) {
+            ForEach(availableAntennas, id: \.id) { antenna in
                 Button(antenna.name) {
-                    self.onPair(antenna)
+                    onPair(antenna)
                 }
             }
             Button("キャンセル", role: .cancel) {}
@@ -420,14 +397,14 @@ struct PairingStatusCard: View {
 
                 Spacer()
 
-                Button(action: self.onRemove) {
+                Button(action: onRemove) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.red)
                 }
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.pairing.antenna.name)
+                Text(pairing.antenna.name)
                     .font(.caption)
                     .fontWeight(.bold)
                     .foregroundColor(.blue)
@@ -436,7 +413,7 @@ struct PairingStatusCard: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
-                Text(self.pairing.device.name)
+                Text(pairing.device.name)
                     .font(.caption)
                     .fontWeight(.bold)
                     .foregroundColor(.green)
@@ -444,16 +421,16 @@ struct PairingStatusCard: View {
                 // 接続状況を表示
                 HStack {
                     Circle()
-                        .fill(self.pairing.device.isConnected ? Color.green : Color.red)
+                        .fill(pairing.device.isConnected ? Color.green : Color.red)
                         .frame(width: 6, height: 6)
-                    Text(self.pairing.device.isConnected ? "接続中" : "未接続")
+                    Text(pairing.device.isConnected ? "接続中" : "未接続")
                         .font(.caption2)
-                        .foregroundColor(self.pairing.device.isConnected ? .green : .red)
+                        .foregroundColor(pairing.device.isConnected ? .green : .red)
                 }
             }
 
             Button("接続テスト") {
-                self.onTest()
+                onTest()
             }
             .font(.caption2)
             .foregroundColor(.white)

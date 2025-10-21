@@ -55,7 +55,7 @@ public struct SignalQuality: Codable, Equatable {
 
     /// 品質レベルを文字列で表現
     public var qualityLevel: String {
-        switch self.strength {
+        switch strength {
         case 0.8...1.0:
             return "優秀"
         case 0.6..<0.8:
@@ -91,30 +91,30 @@ public struct ObservationSession: Codable, Identifiable, Equatable {
         self.id = id
         self.name = name
         self.startTime = startTime
-        self.endTime = nil
+        endTime = nil
         self.antennaId = antennaId
         self.floorMapId = floorMapId
-        self.observations = []
-        self.status = .recording
+        observations = []
+        status = .recording
     }
 
     /// セッションの継続時間
     public var duration: TimeInterval {
-        let end = self.endTime ?? Date()
-        return end.timeIntervalSince(self.startTime)
+        let end = endTime ?? Date()
+        return end.timeIntervalSince(startTime)
     }
 
     /// セッションの品質統計
     public var qualityStatistics: ObservationQualityStatistics {
-        let validObservations = self.observations.filter { $0.quality.strength > 0.3 }
+        let validObservations = observations.filter { $0.quality.strength > 0.3 }
         let avgQuality =
             validObservations.isEmpty
                 ? 0.0 : validObservations.map { $0.quality.strength }.reduce(0, +) / Double(validObservations.count)
-        let losCount = self.observations.filter { $0.quality.isLineOfSight }.count
-        let losPercentage = self.observations.isEmpty ? 0.0 : Double(losCount) / Double(self.observations.count) * 100.0
+        let losCount = observations.filter { $0.quality.isLineOfSight }.count
+        let losPercentage = observations.isEmpty ? 0.0 : Double(losCount) / Double(observations.count) * 100.0
 
         return ObservationQualityStatistics(
-            totalPoints: self.observations.count,
+            totalPoints: observations.count,
             validPoints: validObservations.count,
             averageQuality: avgQuality,
             lineOfSightPercentage: losPercentage,
@@ -170,7 +170,7 @@ public struct ObservationQualityStatistics: Codable, Equatable {
 
     /// データ品質の評価
     public var qualityAssessment: String {
-        switch self.averageQuality {
+        switch averageQuality {
         case 0.8...1.0:
             return "優秀 - キャリブレーションに最適"
         case 0.6..<0.8:
@@ -206,23 +206,23 @@ public struct ReferenceObservationMapping: Codable, Identifiable, Equatable {
 
         // マッピング品質を計算（観測データの品質と一貫性から）
         if observations.isEmpty {
-            self.mappingQuality = 0.0
+            mappingQuality = 0.0
         } else {
             let avgQuality = observations.map { $0.quality.strength }.reduce(0, +) / Double(observations.count)
             let positionVariance = calculatePositionVariance(observations.map { $0.position })
-            self.mappingQuality = avgQuality * (1.0 - min(positionVariance / 10.0, 1.0))  // 10m以上の分散で品質0
+            mappingQuality = avgQuality * (1.0 - min(positionVariance / 10.0, 1.0))  // 10m以上の分散で品質0
         }
     }
 
     /// 観測データの重心座標
     public var centroidPosition: Point3D {
-        guard !self.observations.isEmpty else {
+        guard !observations.isEmpty else {
             return Point3D(x: 0, y: 0, z: 0)
         }
 
-        let totalX = self.observations.map { $0.position.x }.reduce(0, +)
-        let totalY = self.observations.map { $0.position.y }.reduce(0, +)
-        let totalZ = self.observations.map { $0.position.z }.reduce(0, +)
+        let totalX = observations.map { $0.position.x }.reduce(0, +)
+        let totalY = observations.map { $0.position.y }.reduce(0, +)
+        let totalZ = observations.map { $0.position.z }.reduce(0, +)
         let count = Double(observations.count)
 
         return Point3D(
@@ -234,8 +234,8 @@ public struct ReferenceObservationMapping: Codable, Identifiable, Equatable {
 
     /// 基準座標との誤差
     public var positionError: Double {
-        let centroid = self.centroidPosition
-        return self.referencePosition.distance(to: centroid)
+        let centroid = centroidPosition
+        return referencePosition.distance(to: centroid)
     }
 }
 

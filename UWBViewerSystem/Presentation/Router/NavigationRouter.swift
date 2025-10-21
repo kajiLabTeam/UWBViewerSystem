@@ -16,13 +16,13 @@ struct NavigationRouter: View {
 
     var body: some View {
         Group {
-            NavigationStack(path: self.$router.path) {
-                self.rootView
+            NavigationStack(path: $router.path) {
+                rootView
                     .navigationDestination(for: Route.self) { route in
                         print("🎯 NavigationStack destinationView called for route: \(route)")
-                        return self.destinationView(for: route)
+                        return destinationView(for: route)
                     }
-                    .onChange(of: self.router.path) { _, newPath in
+                    .onChange(of: router.path) { _, newPath in
                         print("🎯 NavigationStack path changed, count: \(newPath.count)")
                     }
             }
@@ -31,14 +31,14 @@ struct NavigationRouter: View {
             print("🔍 NavigationRouter: NavigationStack appeared")
             // アプリ起動時の初期化
             Task {
-                await self.router.initializeApp()
+                await router.initializeApp()
             }
         }
     }
 
     @ViewBuilder
     private var rootView: some View {
-        switch self.router.appState {
+        switch router.appState {
         case .initializing:
             WelcomeView()
         case .authenticated:
@@ -59,8 +59,8 @@ struct NavigationRouter: View {
         case .devicePairing:
             PairingSettingView()
         case .systemCalibration:
-            // 自動アンテナキャリブレーション画面（2Dアフィン変換による自動キャリブレーション）
-            AutoAntennaCalibrationView()
+            // シンプルなキャリブレーション画面を使用
+            SimpleCalibrationView()
         case .sensingExecution:
             SensingManagementView()
         case .sensingDataViewer:

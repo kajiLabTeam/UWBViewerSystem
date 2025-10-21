@@ -13,7 +13,7 @@ class FileManagerApi {
     private let documentsPath: String
 
     private init() {
-        self.documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+        documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
     }
 
     func getExportFileUrl(to directory: URL, fileName: String) -> URL? {
@@ -89,7 +89,7 @@ class FileManagerApi {
 
     // 相対パスから絶対パスを取得する
     func getAbsolutePath(from relativePath: String) -> URL {
-        URL(fileURLWithPath: self.documentsPath).appendingPathComponent(relativePath)
+        URL(fileURLWithPath: documentsPath).appendingPathComponent(relativePath)
     }
 
     /// 指定されたファイルの内容を全て削除します

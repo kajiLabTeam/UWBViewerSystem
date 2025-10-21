@@ -18,7 +18,7 @@ class SettingsViewModel: ObservableObject {
     let appVersion = "1.0.0"
 
     func selectSettingDetail(_ detail: SettingsDetailType) {
-        self.selectedSettingDetail = detail
+        selectedSettingDetail = detail
     }
 
     func showHelp() {

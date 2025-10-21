@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import UWBViewerSystem
 
 /// 観測データUseCaseのテストスイート
@@ -16,7 +15,7 @@ struct ObservationDataUsecaseTests {
         let usecase = ObservationDataUsecase(dataRepository: mockRepository, uwbManager: mockUWBManager)
 
         // 初期化待機
-        try? await Task.sleep(nanoseconds: 50_000_000)  // 0.05秒
+        try? await Task.sleep(nanoseconds: 50_000_000) // 0.05秒
 
         return (usecase, mockUWBManager)
     }
@@ -46,7 +45,7 @@ struct ObservationDataUsecaseTests {
                 distance: 8.0,
                 rssi: -40.0,
                 sessionId: "session1"
-            ),
+            )
         ]
     }
 
@@ -117,7 +116,7 @@ struct ObservationDataUsecaseTests {
         usecase.stopAllSessions()
 
         // 少し待って状態確認（非同期処理のため）
-        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
 
         // すべてのセッションが停止または停止処理中であることを確認
         let allStopped = usecase.currentSessions.values.allSatisfy {
@@ -175,7 +174,7 @@ struct ObservationDataUsecaseTests {
     @MainActor
     func nLoSDetection() async throws {
         let (usecase, _) = await createTestUsecase()
-        let testObservations = self.createTestObservationPoints()
+        let testObservations = createTestObservationPoints()
 
         let nlosResult = usecase.detectNonLineOfSight(testObservations)
 
@@ -190,7 +189,7 @@ struct ObservationDataUsecaseTests {
     @MainActor
     func observationFiltering() async throws {
         let (usecase, _) = await createTestUsecase()
-        let testObservations = self.createTestObservationPoints()
+        let testObservations = createTestObservationPoints()
 
         // セッション作成とデータ追加（モック）
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
@@ -264,7 +263,7 @@ struct ObservationDataUsecaseTests {
     @MainActor
     func sessionQualityStatistics() async throws {
         let (usecase, _) = await createTestUsecase()
-        let testObservations = self.createTestObservationPoints()
+        let testObservations = createTestObservationPoints()
 
         // セッション作成とデータ追加
         let session = try await usecase.startObservationSession(for: "antenna1", name: "テストセッション")
@@ -342,7 +341,7 @@ struct ObservationDataUsecaseTests {
         mockUWBManager.simulateObservation(newObservation)
 
         // 少し待って更新を確認
-        try await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒
+        try await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
 
         // リアルタイムデータが更新されていることを確認
         #expect(!usecase.realtimeObservations.isEmpty)
@@ -369,7 +368,7 @@ struct ObservationDataUsecaseTests {
             mockUWBManager.simulateObservation(observation)
 
             // 少し待つ
-            try await Task.sleep(nanoseconds: 1_000_000)  // 0.001秒
+            try await Task.sleep(nanoseconds: 1_000_000) // 0.001秒
         }
 
         // リアルタイムデータが100個に制限されていることを確認
@@ -387,28 +386,28 @@ class MockObservationDataRepository: DataRepositoryProtocol {
         // JSONエンコードして安全に保存
         let encoder = JSONEncoder()
         let encodedData = try encoder.encode(data)
-        self.calibrationDataStorage[data.antennaId] = encodedData
+        calibrationDataStorage[data.antennaId] = encodedData
     }
 
     func loadCalibrationData() async throws -> [CalibrationData] {
         let decoder = JSONDecoder()
-        return self.calibrationDataStorage.values.compactMap { data in
+        return calibrationDataStorage.values.compactMap { data in
             try? decoder.decode(CalibrationData.self, from: data)
         }
     }
 
     func loadCalibrationData(for antennaId: String) async throws -> CalibrationData? {
-        guard let data = self.calibrationDataStorage[antennaId] else { return nil }
+        guard let data = calibrationDataStorage[antennaId] else { return nil }
         let decoder = JSONDecoder()
         return try? decoder.decode(CalibrationData.self, from: data)
     }
 
     func deleteCalibrationData(for antennaId: String) async throws {
-        self.calibrationDataStorage.removeValue(forKey: antennaId)
+        calibrationDataStorage.removeValue(forKey: antennaId)
     }
 
     func deleteAllCalibrationData() async throws {
-        self.calibrationDataStorage.removeAll()
+        calibrationDataStorage.removeAll()
     }
 
     func saveFieldAntennaConfiguration(_ antennas: [AntennaInfo]) {}
@@ -468,7 +467,7 @@ class MockUWBDataManager: UWBDataManager {
     }
 
     override func startDataCollection(for antennaId: String, sessionId: String) async throws {
-        self.mockConnectionStatus = .connected
+        mockConnectionStatus = .connected
         // 親クラスのプロパティも更新
         connectionStatus = .connected
         // シミュレーションデータの生成は省略
@@ -492,7 +491,7 @@ class MockUWBDataManager: UWBDataManager {
 
     // テスト用メソッド
     func simulateObservation(_ observation: ObservationPoint) {
-        self.mockLatestObservation = observation
+        mockLatestObservation = observation
         // 親クラスのプロパティも更新
         latestObservation = observation
     }

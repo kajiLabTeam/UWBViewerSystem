@@ -37,7 +37,7 @@ struct FieldAntennaInfo: Identifiable, Codable, Transferable {
     var position: CGPoint
 
     var color: Color {
-        self.antennaColor.color
+        antennaColor.color
     }
 
     init(id: String = UUID().uuidString, name: String, coordinates: Point3D, antennaColor: AntennaColor = .blue) {
@@ -47,7 +47,7 @@ struct FieldAntennaInfo: Identifiable, Codable, Transferable {
         self.antennaColor = antennaColor
 
         // Convert 3D coordinates to 2D position for display (normalized 0-1)
-        self.position = CGPoint(
+        position = CGPoint(
             x: coordinates.x / 10.0,  // Assuming 10m field width
             y: coordinates.y / 10.0  // Assuming 10m field height
         )
@@ -60,11 +60,11 @@ struct FieldAntennaInfo: Identifiable, Codable, Transferable {
 
     // Domain層のAntennaInfoから変換
     init(from domainEntity: AntennaInfo, antennaColor: AntennaColor = .blue) {
-        self.id = domainEntity.id
-        self.name = domainEntity.name
-        self.coordinates = domainEntity.coordinates
+        id = domainEntity.id
+        name = domainEntity.name
+        coordinates = domainEntity.coordinates
         self.antennaColor = antennaColor
-        self.position = CGPoint(
+        position = CGPoint(
             x: domainEntity.coordinates.x / 10.0,
             y: domainEntity.coordinates.y / 10.0
         )
@@ -73,9 +73,9 @@ struct FieldAntennaInfo: Identifiable, Codable, Transferable {
     // Domain層のAntennaInfoに変換
     func toDomainEntity() -> AntennaInfo {
         AntennaInfo(
-            id: self.id,
-            name: self.name,
-            coordinates: self.coordinates
+            id: id,
+            name: name,
+            coordinates: coordinates
         )
     }
 
@@ -105,62 +105,62 @@ class FieldSettingViewModel: ObservableObject {
 
     init(dataRepository: DataRepositoryProtocol = DataRepository()) {
         self.dataRepository = dataRepository
-        self.loadSavedConfiguration()
+        loadSavedConfiguration()
     }
 
     // MARK: - Antenna Management
 
     func addAntenna(_ antenna: FieldAntennaInfo) {
-        self.antennas.append(antenna)
-        self.saveConfiguration()
+        antennas.append(antenna)
+        saveConfiguration()
     }
 
     func updateAntenna(_ updatedAntenna: FieldAntennaInfo) {
         if let index = antennas.firstIndex(where: { $0.id == updatedAntenna.id }) {
-            self.antennas[index] = updatedAntenna
-            self.saveConfiguration()
+            antennas[index] = updatedAntenna
+            saveConfiguration()
         }
     }
 
     func removeAntenna(_ antenna: FieldAntennaInfo) {
-        self.antennas.removeAll { $0.id == antenna.id }
-        self.saveConfiguration()
+        antennas.removeAll { $0.id == antenna.id }
+        saveConfiguration()
     }
 
     func updateAntennaPosition(_ antenna: FieldAntennaInfo, position: CGPoint) {
         if let index = antennas.firstIndex(where: { $0.id == antenna.id }) {
-            self.antennas[index].position = position
+            antennas[index].position = position
             // Update 3D coordinates based on new position
-            self.antennas[index].coordinates = Point3D(
-                x: position.x * self.fieldWidth,
-                y: position.y * self.fieldHeight,
-                z: self.antennas[index].coordinates.z
+            antennas[index].coordinates = Point3D(
+                x: position.x * fieldWidth,
+                y: position.y * fieldHeight,
+                z: antennas[index].coordinates.z
             )
-            self.saveConfiguration()
+            saveConfiguration()
         }
     }
 
     // MARK: - Field Management
 
     func resetField() {
-        self.antennas.removeAll()
-        self.saveConfiguration()
+        antennas.removeAll()
+        saveConfiguration()
     }
 
     // MARK: - Configuration Persistence
 
     func saveConfiguration() {
-        let domainAntennas = self.antennas.map { $0.toDomainEntity() }
-        self.dataRepository.saveFieldAntennaConfiguration(domainAntennas)
+        let domainAntennas = antennas.map { $0.toDomainEntity() }
+        dataRepository.saveFieldAntennaConfiguration(domainAntennas)
     }
 
     func loadConfiguration() {
-        self.loadSavedConfiguration()
+        loadSavedConfiguration()
     }
 
     private func loadSavedConfiguration() {
         if let savedAntennas = dataRepository.loadFieldAntennaConfiguration() {
-            self.antennas = savedAntennas.map { FieldAntennaInfo(from: $0) }
+            antennas = savedAntennas.map { FieldAntennaInfo(from: $0) }
         }
     }
 
@@ -168,13 +168,13 @@ class FieldSettingViewModel: ObservableObject {
 
     func proceedToNextStep() {
         print("🚀 FieldSetting 次へボタンが押されました")
-        print("🚀 navigationModel instance: \(ObjectIdentifier(self.navigationModel))")
+        print("🚀 navigationModel instance: \(ObjectIdentifier(navigationModel))")
         // Save configuration before navigating
-        self.saveConfiguration()
+        saveConfiguration()
         print("🚀 設定保存完了")
         // Navigate to pairing setting page
         print("🚀 pairingSettingPageに移動開始")
-        self.navigationModel.push(.pairingSettingPage)
+        navigationModel.push(.pairingSettingPage)
         print("🚀 push(.pairingSettingPage)実行完了")
     }
 }

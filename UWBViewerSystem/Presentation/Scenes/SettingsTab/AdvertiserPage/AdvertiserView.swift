@@ -16,46 +16,46 @@ struct AdvertiserView: View {
     var body: some View {
         TabView {
             // 制御タブ
-            self.ControlView()
+            ControlView()
                 .tabItem {
                     Label("制御", systemImage: "antenna.radiowaves.left.and.right")
                 }
 
             // 端末管理タブ
-            self.DeviceManagementView()
+            DeviceManagementView()
                 .tabItem {
                     Label("端末管理", systemImage: "externaldrive.connected.to.line.below")
                 }
 
             // メッセージタブ
-            self.MessagesView()
+            MessagesView()
                 .tabItem {
                     Label("メッセージ", systemImage: "message")
                 }
         }
         .navigationTitle("広告専用画面")
-        .alert("接続要求", isPresented: self.$showingConnectionAlert) {
+        .alert("接続要求", isPresented: $showingConnectionAlert) {
             Button("承認") {
                 if let request = selectedRequest {
-                    self.viewModel.approveConnection(for: request)
+                    viewModel.approveConnection(for: request)
                 }
-                self.selectedRequest = nil
+                selectedRequest = nil
             }
             Button("拒否", role: .cancel) {
                 if let request = selectedRequest {
-                    self.viewModel.rejectConnection(for: request)
+                    viewModel.rejectConnection(for: request)
                 }
-                self.selectedRequest = nil
+                selectedRequest = nil
             }
         } message: {
             if let request = selectedRequest {
                 Text("端末: \(request.deviceName)\nID: \(request.endpointId)")
             }
         }
-        .onChange(of: self.viewModel.connectionRequests) { _, newRequests in
+        .onChange(of: viewModel.connectionRequests) { _, newRequests in
             if let latestRequest = newRequests.last {
-                self.selectedRequest = latestRequest
-                self.showingConnectionAlert = true
+                selectedRequest = latestRequest
+                showingConnectionAlert = true
             }
         }
     }
@@ -70,12 +70,12 @@ struct AdvertiserView: View {
                 .fontWeight(.bold)
 
             VStack(spacing: 12) {
-                Text("状態: \(self.viewModel.statusMessage)")
-                    .foregroundColor(self.viewModel.isAdvertising ? .green : .secondary)
+                Text("状態: \(viewModel.statusMessage)")
+                    .foregroundColor(viewModel.isAdvertising ? .green : .secondary)
 
                 HStack(spacing: 16) {
                     Button(action: {
-                        self.viewModel.startAdvertising()
+                        viewModel.startAdvertising()
                     }) {
                         HStack {
                             Image(systemName: "play.fill")
@@ -84,10 +84,10 @@ struct AdvertiserView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(self.viewModel.isAdvertising)
+                    .disabled(viewModel.isAdvertising)
 
                     Button(action: {
-                        self.viewModel.stopAdvertising()
+                        viewModel.stopAdvertising()
                     }) {
                         HStack {
                             Image(systemName: "stop.fill")
@@ -96,7 +96,7 @@ struct AdvertiserView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .disabled(!self.viewModel.isAdvertising)
+                    .disabled(!viewModel.isAdvertising)
                 }
             }
             .padding()
@@ -117,18 +117,18 @@ struct AdvertiserView: View {
                 .font(.title2)
                 .fontWeight(.bold)
 
-            if self.viewModel.connectedDevices.isEmpty {
+            if viewModel.connectedDevices.isEmpty {
                 ContentUnavailableView(
                     "接続済み端末がありません",
                     systemImage: "externaldrive.badge.xmark",
                     description: Text("広告を開始して端末からの接続を待ってください")
                 )
             } else {
-                List(self.viewModel.connectedDevices) { device in
+                List(viewModel.connectedDevices) { device in
                     ConnectedDeviceRow(
                         device: device,
                         onDisconnect: {
-                            self.viewModel.disconnectDevice(device)
+                            viewModel.disconnectDevice(device)
                         })
                 }
             }
@@ -144,7 +144,7 @@ struct AdvertiserView: View {
     private func MessagesView() -> some View {
         VStack(spacing: 0) {
             // メッセージ履歴
-            if self.viewModel.messages.isEmpty {
+            if viewModel.messages.isEmpty {
                 ContentUnavailableView(
                     "メッセージがありません",
                     systemImage: "message.badge",
@@ -153,7 +153,7 @@ struct AdvertiserView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
-                        ForEach(self.viewModel.messages) { message in
+                        ForEach(viewModel.messages) { message in
                             MessageBubble(message: message)
                         }
                     }
@@ -163,16 +163,16 @@ struct AdvertiserView: View {
 
             // メッセージ入力
             HStack {
-                TextField("メッセージを入力...", text: self.$viewModel.newMessageText)
+                TextField("メッセージを入力...", text: $viewModel.newMessageText)
                     .textFieldStyle(.roundedBorder)
 
                 Button("送信") {
-                    self.viewModel.sendMessage()
+                    viewModel.sendMessage()
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(
-                    self.viewModel.newMessageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        || self.viewModel.connectedDevices.isEmpty)
+                    viewModel.newMessageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || viewModel.connectedDevices.isEmpty)
             }
             .padding()
             .background(Color.gray.opacity(0.05))
@@ -189,10 +189,10 @@ struct ConnectedDeviceRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.device.deviceName)
+                Text(device.deviceName)
                     .font(.headline)
 
-                Text("接続時刻: \(self.device.connectTime, style: .time)")
+                Text("接続時刻: \(device.connectTime, style: .time)")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -207,11 +207,11 @@ struct ConnectedDeviceRow: View {
 
             VStack(alignment: .trailing, spacing: 4) {
                 Circle()
-                    .fill(self.device.isActive ? Color.green : Color.red)
+                    .fill(device.isActive ? Color.green : Color.red)
                     .frame(width: 8, height: 8)
 
                 Button("切断", role: .destructive) {
-                    self.onDisconnect()
+                    onDisconnect()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -228,30 +228,30 @@ struct MessageBubble: View {
 
     var body: some View {
         HStack {
-            if self.message.isOutgoing {
+            if message.isOutgoing {
                 Spacer()
             }
 
-            VStack(alignment: self.message.isOutgoing ? .trailing : .leading, spacing: 4) {
-                if !self.message.isOutgoing {
-                    Text(self.message.senderName)
+            VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 4) {
+                if !message.isOutgoing {
+                    Text(message.senderName)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
-                Text(self.message.content)
+                Text(message.content)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(self.message.isOutgoing ? Color.blue : Color.gray.opacity(0.2))
-                    .foregroundColor(self.message.isOutgoing ? .white : .primary)
+                    .background(message.isOutgoing ? Color.blue : Color.gray.opacity(0.2))
+                    .foregroundColor(message.isOutgoing ? .white : .primary)
                     .cornerRadius(16)
 
-                Text(self.message.timestamp, style: .time)
+                Text(message.timestamp, style: .time)
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
 
-            if !self.message.isOutgoing {
+            if !message.isOutgoing {
                 Spacer()
             }
         }

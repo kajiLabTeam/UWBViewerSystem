@@ -32,8 +32,9 @@ class DataCollectionViewModel: ObservableObject {
         realtimeDataUsecase: RealtimeDataUsecase? = nil,
         preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
     ) {
+        let nearbyRepository = NearbyRepository()
         let defaultConnectionUsecase =
-            connectionUsecase ?? ConnectionManagementUsecase.shared
+            connectionUsecase ?? ConnectionManagementUsecase(nearbyRepository: nearbyRepository)
 
         self.connectionUsecase = defaultConnectionUsecase
         self.sensingControlUsecase =
@@ -41,8 +42,8 @@ class DataCollectionViewModel: ObservableObject {
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
         self.preferenceRepository = preferenceRepository
 
-        self.loadRecentSessions()
-        self.setupObservers()
+        loadRecentSessions()
+        setupObservers()
     }
 
     /// 従来との互換性を保つための静的インスタンス
@@ -54,22 +55,22 @@ class DataCollectionViewModel: ObservableObject {
 
     private func setupObservers() {
         // 直接注入されたUsecaseからの状態を監視
-        self.sensingControlUsecase.$isSensingControlActive
-            .assign(to: &self.$isSensingActive)
+        sensingControlUsecase.$isSensingControlActive
+            .assign(to: &$isSensingActive)
 
-        self.sensingControlUsecase.$sensingStatus
-            .assign(to: &self.$sensingStatus)
+        sensingControlUsecase.$sensingStatus
+            .assign(to: &$sensingStatus)
 
-        self.connectionUsecase.$connectedEndpoints
+        connectionUsecase.$connectedEndpoints
             .map { $0.count }
-            .assign(to: &self.$connectedDeviceCount)
+            .assign(to: &$connectedDeviceCount)
 
-        self.realtimeDataUsecase.$deviceRealtimeDataList
-            .assign(to: &self.$deviceRealtimeDataList)
+        realtimeDataUsecase.$deviceRealtimeDataList
+            .assign(to: &$deviceRealtimeDataList)
 
-        self.realtimeDataUsecase.$deviceRealtimeDataList
+        realtimeDataUsecase.$deviceRealtimeDataList
             .map { $0.count }
-            .assign(to: &self.$dataPointCount)
+            .assign(to: &$dataPointCount)
     }
 
     // MARK: - Sensing Control
@@ -77,23 +78,23 @@ class DataCollectionViewModel: ObservableObject {
     func startSensing(fileName: String) {
         guard !fileName.isEmpty else { return }
 
-        self.currentFileName = fileName
-        self.currentSession = SensingSession(name: fileName, dataPoints: 0)
-        self.startTime = Date()
+        currentFileName = fileName
+        currentSession = SensingSession(name: fileName, dataPoints: 0)
+        startTime = Date()
 
         // 直接SensingControlUsecaseを使用してセンシング開始
-        self.sensingControlUsecase.startRemoteSensing(fileName: fileName)
+        sensingControlUsecase.startRemoteSensing(fileName: fileName)
 
         // タイマー開始
-        self.startTimer()
+        startTimer()
 
-        self.sensingStatus = "センシング実行中"
-        self.isSensingActive = true
+        sensingStatus = "センシング実行中"
+        isSensingActive = true
     }
 
     func stopSensing() {
         // 直接SensingControlUsecaseを使用してセンシング停止
-        self.sensingControlUsecase.stopRemoteSensing()
+        sensingControlUsecase.stopRemoteSensing()
 
         // セッションを完了
         if let session = currentSession, let _ = startTime {
@@ -104,35 +105,35 @@ class DataCollectionViewModel: ObservableObject {
                 startTime: session.startTime,
                 endTime: endTime,
                 isActive: false,
-                dataPoints: self.dataPointCount,
+                dataPoints: dataPointCount,
                 createdAt: session.createdAt
             )
 
             // 最近のセッションに追加
-            self.recentSessions.insert(completedSession, at: 0)
-            if self.recentSessions.count > 10 {
-                self.recentSessions.removeLast()
+            recentSessions.insert(completedSession, at: 0)
+            if recentSessions.count > 10 {
+                recentSessions.removeLast()
             }
 
-            self.saveRecentSessions()
+            saveRecentSessions()
         }
 
         // 状態をリセット
-        self.stopTimer()
-        self.currentSession = nil
-        self.currentFileName = ""
-        self.sensingStatus = "センシング停止中"
-        self.isSensingActive = false
+        stopTimer()
+        currentSession = nil
+        currentFileName = ""
+        sensingStatus = "センシング停止中"
+        isSensingActive = false
     }
 
     func clearRealtimeData() {
-        self.realtimeDataUsecase.clearAllRealtimeData()
+        realtimeDataUsecase.clearAllRealtimeData()
     }
 
     // MARK: - Timer Management
 
     private func startTimer() {
-        self.sensingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        sensingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateElapsedTime()
             }
@@ -140,9 +141,9 @@ class DataCollectionViewModel: ObservableObject {
     }
 
     private func stopTimer() {
-        self.sensingTimer?.invalidate()
-        self.sensingTimer = nil
-        self.elapsedTime = "00:00"
+        sensingTimer?.invalidate()
+        sensingTimer = nil
+        elapsedTime = "00:00"
     }
 
     private func updateElapsedTime() {
@@ -150,14 +151,14 @@ class DataCollectionViewModel: ObservableObject {
         let elapsed = Date().timeIntervalSince(startTime)
         let minutes = Int(elapsed) / 60
         let seconds = Int(elapsed) % 60
-        self.elapsedTime = String(format: "%02d:%02d", minutes, seconds)
+        elapsedTime = String(format: "%02d:%02d", minutes, seconds)
     }
 
     // MARK: - Data Persistence
 
     private func saveRecentSessions() {
         do {
-            try self.preferenceRepository.setData(self.recentSessions, forKey: "RecentSensingSessions")
+            try preferenceRepository.setData(recentSessions, forKey: "RecentSensingSessions")
         } catch {
             print("❌ セッションデータの保存に失敗: \(error)")
         }
@@ -165,7 +166,7 @@ class DataCollectionViewModel: ObservableObject {
 
     private func loadRecentSessions() {
         if let sessions = preferenceRepository.getData([SensingSession].self, forKey: "RecentSensingSessions") {
-            self.recentSessions = sessions
+            recentSessions = sessions
         }
     }
 }

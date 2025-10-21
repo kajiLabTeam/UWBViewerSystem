@@ -52,7 +52,7 @@ public class DataRepository: DataRepositoryProtocol {
 
     public func saveRecentSensingSessions(_ sessions: [SensingSession]) {
         if let encoded = try? JSONEncoder().encode(sessions) {
-            self.userDefaults.set(encoded, forKey: "RecentSensingSessions")
+            userDefaults.set(encoded, forKey: "RecentSensingSessions")
         }
     }
 
@@ -69,7 +69,7 @@ public class DataRepository: DataRepositoryProtocol {
 
     public func saveAntennaPositions(_ positions: [AntennaPositionData]) {
         if let encoded = try? JSONEncoder().encode(positions) {
-            self.userDefaults.set(encoded, forKey: "AntennaPositions")
+            userDefaults.set(encoded, forKey: "AntennaPositions")
         }
     }
 
@@ -80,7 +80,7 @@ public class DataRepository: DataRepositoryProtocol {
 
     public func saveFieldAntennaConfiguration(_ antennas: [AntennaInfo]) {
         if let encoded = try? JSONEncoder().encode(antennas) {
-            self.userDefaults.set(encoded, forKey: "FieldAntennaConfiguration")
+            userDefaults.set(encoded, forKey: "FieldAntennaConfiguration")
         }
     }
 
@@ -93,7 +93,7 @@ public class DataRepository: DataRepositoryProtocol {
 
     public func saveAntennaPairings(_ pairings: [AntennaPairing]) {
         if let encoded = try? JSONEncoder().encode(pairings) {
-            self.userDefaults.set(encoded, forKey: "AntennaPairings")
+            userDefaults.set(encoded, forKey: "AntennaPairings")
         }
     }
 
@@ -103,36 +103,36 @@ public class DataRepository: DataRepositoryProtocol {
     }
 
     public func saveHasDeviceConnected(_ connected: Bool) {
-        self.userDefaults.set(connected, forKey: "hasDeviceConnected")
+        userDefaults.set(connected, forKey: "hasDeviceConnected")
     }
 
     public func loadHasDeviceConnected() -> Bool {
-        self.userDefaults.bool(forKey: "hasDeviceConnected")
+        userDefaults.bool(forKey: "hasDeviceConnected")
     }
 
     // MARK: - キャリブレーション関連
 
     public func saveCalibrationResults(_ results: Data) {
-        self.userDefaults.set(results, forKey: "CalibrationResults")
+        userDefaults.set(results, forKey: "CalibrationResults")
     }
 
     public func loadCalibrationResults() -> Data? {
-        self.userDefaults.data(forKey: "CalibrationResults")
+        userDefaults.data(forKey: "CalibrationResults")
     }
 
     // MARK: - 新しいキャリブレーション機能
 
     public func saveCalibrationData(_ data: CalibrationData) async throws {
         let encoded = try JSONEncoder().encode(data)
-        self.userDefaults.set(encoded, forKey: "CalibrationData_\(data.antennaId)")
+        userDefaults.set(encoded, forKey: "CalibrationData_\(data.antennaId)")
 
         // 全体のキャリブレーションデータリストも更新
-        var allData = await (try? self.loadCalibrationData()) ?? []
+        var allData = await (try? loadCalibrationData()) ?? []
         allData.removeAll { $0.antennaId == data.antennaId }
         allData.append(data)
 
         let allEncoded = try JSONEncoder().encode(allData)
-        self.userDefaults.set(allEncoded, forKey: "AllCalibrationData")
+        userDefaults.set(allEncoded, forKey: "AllCalibrationData")
     }
 
     public func loadCalibrationData() async throws -> [CalibrationData] {
@@ -150,47 +150,47 @@ public class DataRepository: DataRepositoryProtocol {
     }
 
     public func deleteCalibrationData(for antennaId: String) async throws {
-        self.userDefaults.removeObject(forKey: "CalibrationData_\(antennaId)")
+        userDefaults.removeObject(forKey: "CalibrationData_\(antennaId)")
 
         // 全体のリストからも削除
-        var allData = await (try? self.loadCalibrationData()) ?? []
+        var allData = await (try? loadCalibrationData()) ?? []
         allData.removeAll { $0.antennaId == antennaId }
 
         if allData.isEmpty {
-            self.userDefaults.removeObject(forKey: "AllCalibrationData")
+            userDefaults.removeObject(forKey: "AllCalibrationData")
         } else {
             let allEncoded = try JSONEncoder().encode(allData)
-            self.userDefaults.set(allEncoded, forKey: "AllCalibrationData")
+            userDefaults.set(allEncoded, forKey: "AllCalibrationData")
         }
     }
 
     public func deleteAllCalibrationData() async throws {
-        let allData = await (try? self.loadCalibrationData()) ?? []
+        let allData = await (try? loadCalibrationData()) ?? []
 
         // 個別のキャリブレーションデータを全て削除
         for data in allData {
-            self.userDefaults.removeObject(forKey: "CalibrationData_\(data.antennaId)")
+            userDefaults.removeObject(forKey: "CalibrationData_\(data.antennaId)")
         }
 
         // 全体のリストも削除
-        self.userDefaults.removeObject(forKey: "AllCalibrationData")
+        userDefaults.removeObject(forKey: "AllCalibrationData")
     }
 
     // MARK: - 設定関連
 
     public func saveBoolSetting(key: String, value: Bool) {
-        self.userDefaults.set(value, forKey: key)
+        userDefaults.set(value, forKey: key)
     }
 
     public func loadBoolSetting(key: String) -> Bool {
-        self.userDefaults.bool(forKey: key)
+        userDefaults.bool(forKey: key)
     }
 
     // MARK: - システム活動履歴
 
     public func saveRecentSystemActivities(_ activities: [SystemActivity]) {
         if let encoded = try? JSONEncoder().encode(activities) {
-            self.userDefaults.set(encoded, forKey: "RecentSystemActivities")
+            userDefaults.set(encoded, forKey: "RecentSystemActivities")
         }
     }
 
@@ -203,7 +203,7 @@ public class DataRepository: DataRepositoryProtocol {
 
     public func saveData(_ data: some Codable, forKey key: String) throws {
         let encoded = try JSONEncoder().encode(data)
-        self.userDefaults.set(encoded, forKey: key)
+        userDefaults.set(encoded, forKey: key)
     }
 
     public func loadData<T: Codable>(_ type: T.Type, forKey key: String) -> T? {

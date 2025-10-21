@@ -25,7 +25,7 @@ class SensingFlowNavigator: ObservableObject {
     ) {
         self.router = router ?? NavigationRouterModel()
         self.preferenceRepository = preferenceRepository
-        self.loadFlowState()
+        loadFlowState()
     }
 
     /// 外部からRouterを設定するメソッド
@@ -36,44 +36,44 @@ class SensingFlowNavigator: ObservableObject {
     /// 現在のフロー進行状況を更新
     private func updateProgress() {
         let totalSteps = SensingFlowStep.allCases.count
-        let currentIndex = SensingFlowStep.allCases.firstIndex(of: self.currentStep) ?? 0
-        self.flowProgress = Double(currentIndex) / Double(totalSteps - 1)
+        let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep) ?? 0
+        flowProgress = Double(currentIndex) / Double(totalSteps - 1)
     }
 
     /// 次のステップに進む
     func proceedToNextStep() {
-        print("🚀 proceedToNextStep: Current step = \(self.currentStep.rawValue)")
+        print("🚀 proceedToNextStep: Current step = \(currentStep.rawValue)")
 
         // 現在のステップの完了条件をチェック
-        guard self.canProceedFromCurrentStep() else {
-            self.lastError = self.currentStep.incompletionError
-            print("❌ proceedToNextStep: Cannot proceed - \(self.currentStep.incompletionError)")
+        guard canProceedFromCurrentStep() else {
+            lastError = currentStep.incompletionError
+            print("❌ proceedToNextStep: Cannot proceed - \(currentStep.incompletionError)")
             return
         }
 
         print("✅ proceedToNextStep: Step completion check passed")
 
         // 現在のステップを完了済みとしてマーク
-        self.markStepAsCompleted(self.currentStep)
+        markStepAsCompleted(currentStep)
 
         guard let currentIndex = SensingFlowStep.allCases.firstIndex(of: currentStep),
               currentIndex < SensingFlowStep.allCases.count - 1
         else {
             print("🎯 proceedToNextStep: Flow completed!")
-            self.completeFlow()
+            completeFlow()
             return
         }
 
         let nextStep = SensingFlowStep.allCases[currentIndex + 1]
         print("➡️ proceedToNextStep: Moving to next step = \(nextStep.rawValue)")
 
-        self.currentStep = nextStep
-        self.updateProgress()
-        self.saveFlowState()
+        currentStep = nextStep
+        updateProgress()
+        saveFlowState()
 
         // ルーターを使用して実際の画面遷移を実行
         print("🔄 proceedToNextStep: Navigating to route = \(nextStep.route)")
-        self.router.navigateTo(nextStep.route)
+        router.navigateTo(nextStep.route)
         print("✅ proceedToNextStep: Navigation completed")
     }
 
@@ -86,34 +86,34 @@ class SensingFlowNavigator: ObservableObject {
         }
 
         let previousStep = SensingFlowStep.allCases[currentIndex - 1]
-        self.currentStep = previousStep
-        self.updateProgress()
+        currentStep = previousStep
+        updateProgress()
 
-        self.router.navigateTo(previousStep.route)
+        router.navigateTo(previousStep.route)
     }
 
     /// 指定したステップに直接ジャンプ
     func jumpToStep(_ step: SensingFlowStep) {
-        self.currentStep = step
-        self.updateProgress()
-        self.router.navigateTo(step.route)
+        currentStep = step
+        updateProgress()
+        router.navigateTo(step.route)
     }
 
     /// フローを最初から開始
     func startNewFlow() {
-        self.currentStep = .floorMapSetting
-        self.isFlowCompleted = false
-        self.updateProgress()
-        self.router.navigateTo(self.currentStep.route)
+        currentStep = .floorMapSetting
+        isFlowCompleted = false
+        updateProgress()
+        router.navigateTo(currentStep.route)
     }
 
     /// フローを完了
     func completeFlow() {
-        self.markStepAsCompleted(self.currentStep)
-        self.isFlowCompleted = true
-        self.currentStep = .dataViewer
-        self.updateProgress()
-        self.saveFlowState()
+        markStepAsCompleted(currentStep)
+        isFlowCompleted = true
+        currentStep = .dataViewer
+        updateProgress()
+        saveFlowState()
 
         // センシング完了の処理をここに追加
         // 例: 完了通知、データ保存確認など
@@ -121,25 +121,25 @@ class SensingFlowNavigator: ObservableObject {
 
     /// フローをリセット
     func resetFlow() {
-        self.currentStep = .floorMapSetting
-        self.isFlowCompleted = false
-        self.flowProgress = 0.0
-        self.completedSteps.removeAll()
-        self.lastError = nil
-        self.saveFlowState()
+        currentStep = .floorMapSetting
+        isFlowCompleted = false
+        flowProgress = 0.0
+        completedSteps.removeAll()
+        lastError = nil
+        saveFlowState()
     }
 
     // MARK: - Step Completion Management
 
     /// 指定されたステップを完了済みとしてマーク
     func markStepAsCompleted(_ step: SensingFlowStep) {
-        self.completedSteps.insert(step)
-        self.saveFlowState()
+        completedSteps.insert(step)
+        saveFlowState()
     }
 
     /// 指定されたステップが完了済みかどうかを判定
     func isStepCompleted(_ step: SensingFlowStep) -> Bool {
-        self.completedSteps.contains(step)
+        completedSteps.contains(step)
     }
 
     /// 指定されたステップにアクセス可能かどうかを判定
@@ -157,12 +157,12 @@ class SensingFlowNavigator: ObservableObject {
 
         // 次のステップには、前のステップがすべて完了している場合のみアクセス可能
         let previousSteps = Array(SensingFlowStep.allCases[0..<stepIndex])
-        return previousSteps.allSatisfy { self.completedSteps.contains($0) }
+        return previousSteps.allSatisfy { completedSteps.contains($0) }
     }
 
     /// 現在のステップから次のステップに進める条件を満たしているかをチェック
     private func canProceedFromCurrentStep() -> Bool {
-        self.currentStep.completionCondition()
+        currentStep.completionCondition()
     }
 
     // MARK: - Persistent State Management
@@ -180,7 +180,7 @@ class SensingFlowNavigator: ObservableObject {
             UserDefaults.standard.set(completedStepsData, forKey: "sensingFlowCompletedSteps")
         }
 
-        UserDefaults.standard.set(self.isFlowCompleted, forKey: "sensingFlowCompleted")
+        UserDefaults.standard.set(isFlowCompleted, forKey: "sensingFlowCompleted")
     }
 
     /// フローの状態を復元
@@ -192,30 +192,30 @@ class SensingFlowNavigator: ObservableObject {
            let currentStepRaw = try? decoder.decode(String.self, from: currentStepData),
            let savedStep = SensingFlowStep(rawValue: currentStepRaw)
         {
-            self.currentStep = savedStep
+            currentStep = savedStep
         }
 
         // 完了済みステップを復元
         if let completedStepsData = UserDefaults.standard.data(forKey: "sensingFlowCompletedSteps"),
            let completedStepsArray = try? decoder.decode([String].self, from: completedStepsData)
         {
-            self.completedSteps = Set(completedStepsArray.compactMap { SensingFlowStep(rawValue: $0) })
+            completedSteps = Set(completedStepsArray.compactMap { SensingFlowStep(rawValue: $0) })
         }
 
         // フロー完了状態を復元
-        self.isFlowCompleted = UserDefaults.standard.bool(forKey: "sensingFlowCompleted")
+        isFlowCompleted = UserDefaults.standard.bool(forKey: "sensingFlowCompleted")
 
-        self.updateProgress()
+        updateProgress()
     }
 
     /// 現在のステップが最初のステップかどうか
     var isFirstStep: Bool {
-        self.currentStep == SensingFlowStep.allCases.first
+        currentStep == SensingFlowStep.allCases.first
     }
 
     /// 現在のステップが最後のステップかどうか
     var isLastStep: Bool {
-        self.currentStep == SensingFlowStep.allCases.last
+        currentStep == SensingFlowStep.allCases.last
     }
 }
 
@@ -322,15 +322,15 @@ enum SensingFlowStep: String, CaseIterable {
     func completionCondition() -> Bool {
         switch self {
         case .floorMapSetting:
-            return self.checkFloorMapSettingCompletion()
+            return checkFloorMapSettingCompletion()
         case .antennaConfiguration:
-            return self.checkAntennaConfigurationCompletion()
+            return checkAntennaConfigurationCompletion()
         case .devicePairing:
-            return self.checkDevicePairingCompletion()
+            return checkDevicePairingCompletion()
         case .systemCalibration:
-            return self.checkSystemCalibrationCompletion()
+            return checkSystemCalibrationCompletion()
         case .sensingExecution:
-            return self.checkSensingExecutionCompletion()
+            return checkSensingExecutionCompletion()
         case .dataViewer:
             return true  // データ閲覧は常に完了とみなす
         }

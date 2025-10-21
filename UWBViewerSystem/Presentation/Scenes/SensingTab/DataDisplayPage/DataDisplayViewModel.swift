@@ -12,20 +12,20 @@ struct DataDisplayFile: Identifiable {
     let dateCreated: Date
 
     var isCSV: Bool {
-        self.name.lowercased().hasSuffix(".csv")
+        name.lowercased().hasSuffix(".csv")
     }
 
     var formattedSize: String {
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useKB, .useMB]
-        return formatter.string(fromByteCount: self.size)
+        return formatter.string(fromByteCount: size)
     }
 
     var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .short
-        return formatter.string(from: self.dateCreated)
+        return formatter.string(from: dateCreated)
     }
 }
 
@@ -56,24 +56,25 @@ class DataDisplayViewModel: ObservableObject {
     ) {
         self.swiftDataRepository = swiftDataRepository
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
-        self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase(
-            swiftDataRepository: swiftDataRepository
-        )
+        self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase()
         self.connectionUsecase =
-            connectionUsecase ?? ConnectionManagementUsecase.shared
+            connectionUsecase
+                ?? ConnectionManagementUsecase(
+                    nearbyRepository: NearbyRepository()
+                )
 
-        self.setupObservers()
+        setupObservers()
         Task {
-            await self.loadHistoryData()
+            await loadHistoryData()
         }
-        self.loadReceivedFiles()
+        loadReceivedFiles()
     }
 
     /// 実際のModelContextを使用してSwiftDataRepositoryを設定
     func setSwiftDataRepository(_ repository: SwiftDataRepositoryProtocol) {
-        self.swiftDataRepository = repository
+        swiftDataRepository = repository
         Task {
-            await self.loadHistoryData()
+            await loadHistoryData()
         }
     }
 
@@ -84,13 +85,13 @@ class DataDisplayViewModel: ObservableObject {
 
     private func setupObservers() {
         // 直接注入されたUsecaseからの状態を監視
-        self.realtimeDataUsecase.$deviceRealtimeDataList
-            .assign(to: &self.$realtimeData)
+        realtimeDataUsecase.$deviceRealtimeDataList
+            .assign(to: &$realtimeData)
 
-        self.fileManagementUsecase.$fileTransferProgress
-            .assign(to: &self.$fileTransferProgress)
+        fileManagementUsecase.$fileTransferProgress
+            .assign(to: &$fileTransferProgress)
 
-        self.fileManagementUsecase.$receivedFiles
+        fileManagementUsecase.$receivedFiles
             .map { files in
                 files.map { fileName in
                     DataDisplayFile(
@@ -101,18 +102,18 @@ class DataDisplayViewModel: ObservableObject {
                     )
                 }
             }
-            .assign(to: &self.$receivedFiles)
+            .assign(to: &$receivedFiles)
 
-        self.connectionUsecase.$connectedEndpoints
+        connectionUsecase.$connectedEndpoints
             .map { !$0.isEmpty }
-            .assign(to: &self.$isConnected)
+            .assign(to: &$isConnected)
     }
 
     // MARK: - Realtime Updates
 
     func startRealtimeUpdates() {
-        self.stopRealtimeUpdates()  // 既存のタイマーをクリア
-        self.updateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        stopRealtimeUpdates()  // 既存のタイマーをクリア
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             DispatchQueue.main.async {
                 self?.updateRealtimeData()
             }
@@ -120,8 +121,8 @@ class DataDisplayViewModel: ObservableObject {
     }
 
     func stopRealtimeUpdates() {
-        self.updateTimer?.invalidate()
-        self.updateTimer = nil
+        updateTimer?.invalidate()
+        updateTimer = nil
     }
 
     private func updateRealtimeData() {
@@ -133,7 +134,7 @@ class DataDisplayViewModel: ObservableObject {
 
     func refreshHistoryData() {
         Task {
-            await self.loadHistoryData()
+            await loadHistoryData()
         }
     }
 
@@ -146,17 +147,17 @@ class DataDisplayViewModel: ObservableObject {
         do {
             // SwiftDataからセンシングセッション履歴を読み込み
             let sessions = try await swiftDataRepository.loadAllSensingSessions()
-            self.historyData = sessions
+            historyData = sessions
         } catch {
             print("Error loading history data: \(error)")
-            self.historyData = []
+            historyData = []
         }
     }
 
     // MARK: - File Management
 
     func openStorageFolder() {
-        self.fileManagementUsecase.openFileStorageFolder()
+        fileManagementUsecase.openFileStorageFolder()
     }
 
     func openFile(_ file: DataDisplayFile) {
@@ -180,14 +181,14 @@ class DataDisplayViewModel: ObservableObject {
 
     func exportDataAsCSV() {
         // リアルタイムデータをCSVとしてエクスポート
-        let csvContent = self.generateCSVContent()
-        self.saveCSVFile(content: csvContent)
+        let csvContent = generateCSVContent()
+        saveCSVFile(content: csvContent)
     }
 
     private func generateCSVContent() -> String {
         var csv = "Device,Timestamp,Distance,Elevation,Azimuth,RSSI,NLOS,SeqCount\n"
 
-        for deviceData in self.realtimeData {
+        for deviceData in realtimeData {
             if let data = deviceData.latestData {
                 csv +=
                     "\(deviceData.deviceName),\(data.timestamp),\(data.distance),\(data.elevation),\(data.azimuth),\(data.rssi),\(data.nlos),\(data.seqCount)\n"
@@ -220,28 +221,25 @@ class DataDisplayViewModel: ObservableObject {
 
     var connectionStatistics: ConnectionStatistics {
         ConnectionStatistics(
-            totalDevices: self.realtimeData.count,
-            connectedDevices: self.realtimeData.compactMap { $0.latestData }.filter { $0.rssi > -100 }.count,
-            averageDistance: self.realtimeData.compactMap { $0.latestData }.isEmpty
+            totalDevices: realtimeData.count,
+            connectedDevices: realtimeData.compactMap { $0.latestData }.filter { $0.rssi > -100 }.count,
+            averageDistance: realtimeData.compactMap { $0.latestData }.isEmpty
                 ? 0
-                : self.realtimeData.compactMap { $0.latestData }.map { $0.distance }.reduce(0, +)
-                / Double(self.realtimeData.compactMap { $0.latestData }.count),
-            averageRSSI: self.realtimeData.compactMap { $0.latestData }.isEmpty
+                : realtimeData.compactMap { $0.latestData }.map { $0.distance }.reduce(0, +)
+                / Double(realtimeData.compactMap { $0.latestData }.count),
+            averageRSSI: realtimeData.compactMap { $0.latestData }.isEmpty
                 ? 0
-                : self.realtimeData.compactMap { $0.latestData }.map { $0.rssi }.reduce(0, +)
-                / Double(self.realtimeData.compactMap { $0.latestData }.count)
+                : realtimeData.compactMap { $0.latestData }.map { $0.rssi }.reduce(0, +)
+                / Double(realtimeData.compactMap { $0.latestData }.count)
         )
     }
 }
 
 // MARK: - Dummy Repository for Initialization
 
-// Note: この初期化は一時的なもので、実際のアプリではonAppearで
-// 正しいSwiftDataRepositoryに置き換えられます
+// PairingSettingViewModelと同じDummySwiftDataRepositoryを使用
 extension DataDisplayViewModel {
-    /// テスト用または一時的な初期化
-    /// NOTE: 本番環境では必ずonAppearでsetSwiftDataRepository()を呼び出して
-    /// 実際のRepositoryに置き換えてください
+    /// テスト用またはプレースホルダー用の初期化
     convenience init() {
         self.init(
             swiftDataRepository: DummySwiftDataRepository(),
@@ -261,7 +259,7 @@ struct ConnectionStatistics {
     let averageRSSI: Double
 
     var connectionRate: Double {
-        guard self.totalDevices > 0 else { return 0 }
-        return Double(self.connectedDevices) / Double(self.totalDevices)
+        guard totalDevices > 0 else { return 0 }
+        return Double(connectedDevices) / Double(totalDevices)
     }
 }

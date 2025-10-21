@@ -11,8 +11,8 @@ struct CardView<Content: View>: View {
     }
 
     var body: some View {
-        self.content
-            .padding(self.padding)
+        content
+            .padding(padding)
         #if os(macOS)
             .background(Color(NSColor.controlBackgroundColor))
         #else
@@ -48,13 +48,13 @@ struct SectionCard<Content: View>: View {
                         .font(.title3)
                         .foregroundColor(.blue)
                 }
-                Text(self.title)
+                Text(title)
                     .font(.headline)
                     .fontWeight(.semibold)
             }
 
             // コンテンツ
-            self.content
+            content
         }
         .padding()
         #if os(macOS)

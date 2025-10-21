@@ -51,24 +51,24 @@ class TrajectoryViewModel: ObservableObject {
 
     init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
         self.preferenceRepository = preferenceRepository
-        self.loadInitialData()
+        loadInitialData()
     }
 
     private func loadInitialData() {
-        self.loadAvailableSessions()
-        self.loadAntennaPositions()
+        loadAvailableSessions()
+        loadAntennaPositions()
     }
 
     var hasTrajectoryData: Bool {
-        !self.trajectoryPoints.isEmpty
+        !trajectoryPoints.isEmpty
     }
 
     var currentTimeString: String {
-        guard self.hasTrajectoryData, self.currentTimeIndex < Double(self.trajectoryPoints.count) else {
+        guard hasTrajectoryData, currentTimeIndex < Double(trajectoryPoints.count) else {
             return "00:00:00"
         }
 
-        let point = self.trajectoryPoints[Int(self.currentTimeIndex)]
+        let point = trajectoryPoints[Int(currentTimeIndex)]
         let formatter = DateFormatter()
         formatter.timeStyle = .medium
         return formatter.string(from: point.timestamp)
@@ -90,19 +90,19 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     func initialize() {
-        self.loadAvailableSessions()
-        self.loadMapData()
-        self.loadAntennaPositions()
+        loadAvailableSessions()
+        loadMapData()
+        loadAntennaPositions()
 
         // 最新のセッションを自動選択
         if let latestSession = availableSessions.first {
-            self.selectSession(latestSession)
+            selectSession(latestSession)
         }
     }
 
     private func loadAvailableSessions() {
         if let sessions = preferenceRepository.getData([SensingSession].self, forKey: "RecentSensingSessions") {
-            self.availableSessions = sessions
+            availableSessions = sessions
         }
     }
 
@@ -129,11 +129,11 @@ class TrajectoryViewModel: ObservableObject {
 
             let colors: [Color] = [.red, .blue, .green, .orange, .purple, .pink]
 
-            self.antennaPositions = positions.enumerated().map { index, position in
+            antennaPositions = positions.enumerated().map { index, position in
                 AntennaVisualization(
                     id: position.antennaId,
                     name: position.antennaName,
-                    screenPosition: self.convertToScreenPosition(
+                    screenPosition: convertToScreenPosition(
                         RealWorldPosition(x: position.position.x, y: position.position.y, z: position.position.z)),
                     color: colors[index % colors.count]
                 )
@@ -142,20 +142,20 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     func selectSession(_ session: SensingSession) {
-        self.selectedSession = session
-        self.loadTrajectoryData(for: session)
+        selectedSession = session
+        loadTrajectoryData(for: session)
     }
 
     private func loadTrajectoryData(for session: SensingSession) {
         // 実際の実装では保存されたセンシングデータを読み込み
         // ここではモックデータを生成
-        self.generateMockTrajectoryData()
-        self.applyFilters()
-        self.calculateAnalytics()
+        generateMockTrajectoryData()
+        applyFilters()
+        calculateAnalytics()
 
         // 再生位置をリセット
-        self.currentTimeIndex = 0
-        self.updateCurrentPosition()
+        currentTimeIndex = 0
+        updateCurrentPosition()
     }
 
     private func generateMockTrajectoryData() {
@@ -187,10 +187,10 @@ class TrajectoryViewModel: ObservableObject {
                 id: UUID().uuidString,
                 timestamp: timestamp,
                 position: position,
-                screenPosition: self.convertToScreenPosition(position),
+                screenPosition: convertToScreenPosition(position),
                 accuracy: accuracy,
                 speed: index > 0
-                    ? self.calculateSpeed(
+                    ? calculateSpeed(
                         from: pathPoints[index - 1],
                         to: position,
                         timeInterval: 5.0
@@ -200,7 +200,7 @@ class TrajectoryViewModel: ObservableObject {
             points.append(point)
         }
 
-        self.allTrajectoryPoints = points
+        allTrajectoryPoints = points
     }
 
     private func calculateSpeed(from: RealWorldPosition, to: RealWorldPosition, timeInterval: Double) -> Double {
@@ -227,46 +227,44 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     private func applyFilters() {
-        self.trajectoryPoints = self.allTrajectoryPoints.filter { point in
-            point.accuracy >= self.minAccuracy && point.timestamp >= self.startTimeFilter
-                && point.timestamp <= self.endTimeFilter
+        trajectoryPoints = allTrajectoryPoints.filter { point in
+            point.accuracy >= minAccuracy && point.timestamp >= startTimeFilter && point.timestamp <= endTimeFilter
         }
     }
 
     private func calculateAnalytics() {
-        guard !self.trajectoryPoints.isEmpty else {
-            self.totalDistance = 0
-            self.averageSpeed = 0
-            self.maxSpeed = 0
+        guard !trajectoryPoints.isEmpty else {
+            totalDistance = 0
+            averageSpeed = 0
+            maxSpeed = 0
             return
         }
 
         // 総移動距離を計算
-        self.totalDistance = 0
-        for i in 1..<self.trajectoryPoints.count {
-            let prev = self.trajectoryPoints[i - 1]
-            let curr = self.trajectoryPoints[i]
+        totalDistance = 0
+        for i in 1..<trajectoryPoints.count {
+            let prev = trajectoryPoints[i - 1]
+            let curr = trajectoryPoints[i]
 
             let dx = curr.position.x - prev.position.x
             let dy = curr.position.y - prev.position.y
             let distance = sqrt(dx * dx + dy * dy)
 
-            self.totalDistance += distance
+            totalDistance += distance
         }
 
         // 平均速度と最大速度を計算
-        let speeds = self.trajectoryPoints.map { $0.speed }
-        self.averageSpeed = speeds.reduce(0, +) / Double(speeds.count)
-        self.maxSpeed = speeds.max() ?? 0
+        let speeds = trajectoryPoints.map { $0.speed }
+        averageSpeed = speeds.reduce(0, +) / Double(speeds.count)
+        maxSpeed = speeds.max() ?? 0
     }
 
     func startPlayback() {
-        guard self.hasTrajectoryData else { return }
+        guard hasTrajectoryData else { return }
 
-        self.isPlaying = true
+        isPlaying = true
 
-        self.playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1 / self.playbackSpeed, repeats: true) {
-            [weak self] _ in
+        playbackTimer = Timer.scheduledTimer(withTimeInterval: 0.1 / playbackSpeed, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updatePlayback()
             }
@@ -274,52 +272,52 @@ class TrajectoryViewModel: ObservableObject {
     }
 
     func pausePlayback() {
-        self.isPlaying = false
-        self.playbackTimer?.invalidate()
-        self.playbackTimer = nil
+        isPlaying = false
+        playbackTimer?.invalidate()
+        playbackTimer = nil
     }
 
     func stopPlayback() {
-        self.isPlaying = false
-        self.currentTimeIndex = 0
-        self.playbackTimer?.invalidate()
-        self.playbackTimer = nil
-        self.updateCurrentPosition()
+        isPlaying = false
+        currentTimeIndex = 0
+        playbackTimer?.invalidate()
+        playbackTimer = nil
+        updateCurrentPosition()
     }
 
     private func updatePlayback() {
-        guard self.hasTrajectoryData else { return }
+        guard hasTrajectoryData else { return }
 
-        self.currentTimeIndex += 1
+        currentTimeIndex += 1
 
-        if self.currentTimeIndex >= Double(self.trajectoryPoints.count) {
-            self.stopPlayback()
+        if currentTimeIndex >= Double(trajectoryPoints.count) {
+            stopPlayback()
             return
         }
 
-        self.updateCurrentPosition()
+        updateCurrentPosition()
     }
 
     private func updateCurrentPosition() {
-        guard self.hasTrajectoryData,
-              self.currentTimeIndex < Double(self.trajectoryPoints.count)
+        guard hasTrajectoryData,
+              currentTimeIndex < Double(trajectoryPoints.count)
         else {
-            self.currentPosition = nil
+            currentPosition = nil
             return
         }
 
         let index = Int(currentTimeIndex)
-        self.currentPosition = self.trajectoryPoints[index].screenPosition
+        currentPosition = trajectoryPoints[index].screenPosition
     }
 
     func handleMapTap(at location: CGPoint) {
-        guard self.hasTrajectoryData else { return }
+        guard hasTrajectoryData else { return }
 
         // タップ位置に最も近いデータポイントを見つける
         var closestPoint: TrajectoryPoint?
         var closestDistance: Double = Double.infinity
 
-        for point in self.trajectoryPoints {
+        for point in trajectoryPoints {
             let dx = point.screenPosition.x - location.x
             let dy = point.screenPosition.y - location.y
             let distance = sqrt(dx * dx + dy * dy)
@@ -330,14 +328,14 @@ class TrajectoryViewModel: ObservableObject {
             }
         }
 
-        self.selectedDataPoint = closestPoint
+        selectedDataPoint = closestPoint
     }
 
     func resetView() {
-        self.selectedDataPoint = nil
-        self.stopPlayback()
-        self.currentTimeIndex = 0
-        self.updateCurrentPosition()
+        selectedDataPoint = nil
+        stopPlayback()
+        currentTimeIndex = 0
+        updateCurrentPosition()
     }
 
     func exportTrajectoryData() {
@@ -350,7 +348,7 @@ class TrajectoryViewModel: ObservableObject {
             panel.nameFieldStringValue = "\(selectedSession.name)_trajectory.csv"
 
             if panel.runModal() == .OK, let url = panel.url {
-                let csvContent = self.generateCSVContent()
+                let csvContent = generateCSVContent()
                 try? csvContent.write(to: url, atomically: true, encoding: .utf8)
             }
         #elseif os(iOS)
@@ -359,7 +357,7 @@ class TrajectoryViewModel: ObservableObject {
             let fileName = "\(selectedSession.name)_trajectory.csv"
             let url = documentsPath.appendingPathComponent(fileName)
 
-            let csvContent = self.generateCSVContent()
+            let csvContent = generateCSVContent()
             try? csvContent.write(to: url, atomically: true, encoding: .utf8)
 
             // 保存完了をユーザーに通知（実際にはViewで通知を表示）
@@ -370,7 +368,7 @@ class TrajectoryViewModel: ObservableObject {
     private func generateCSVContent() -> String {
         var csv = "Timestamp,X,Y,Z,Accuracy,Speed\n"
 
-        for point in self.trajectoryPoints {
+        for point in trajectoryPoints {
             let timestamp = ISO8601DateFormatter().string(from: point.timestamp)
             csv +=
                 "\(timestamp),\(point.position.x),\(point.position.y),\(point.position.z),\(point.accuracy),\(point.speed)\n"

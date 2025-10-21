@@ -232,15 +232,15 @@ struct UWBViewerSystemApp: App {
     var body: some Scene {
         WindowGroup {
             NavigationRouter()
-                .environmentObject(self.router)
+                .environmentObject(router)
                 .task {
-                    await self.performDataMigrationIfNeeded()
+                    await performDataMigrationIfNeeded()
                     #if DEBUG
-                        await self.debugDatabaseContents()
+                        await debugDatabaseContents()
                     #endif
                 }
         }
-        .modelContainer(self.sharedModelContainer)
+        .modelContainer(sharedModelContainer)
     }
 
     // MARK: - Data Migration

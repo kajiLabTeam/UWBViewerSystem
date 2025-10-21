@@ -29,7 +29,7 @@ import SwiftUI
         func makeUIViewController(context: UIViewControllerRepresentableContext<ImagePicker>) -> UIImagePickerController
         {
             let imagePicker = UIImagePickerController()
-            imagePicker.sourceType = self.sourceType
+            imagePicker.sourceType = sourceType
             imagePicker.delegate = context.coordinator
             return imagePicker
         }
@@ -56,10 +56,10 @@ import SwiftUI
                 didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
             ) {
                 if let uiImage = info[UIImagePickerController.InfoKey.originalImage] as? UIImage {
-                    self.parent.selectedImage = uiImage
-                    self.parent.onImagePicked(uiImage)
+                    parent.selectedImage = uiImage
+                    parent.onImagePicked(uiImage)
                 }
-                self.parent.presentationMode.wrappedValue.dismiss()
+                parent.presentationMode.wrappedValue.dismiss()
             }
         }
     }

@@ -5,7 +5,7 @@ import SwiftUI
 /// リアルタイムデータ表示とファイル管理に特化し、参考デザイン「Stitch Design-5.png」に対応
 struct DataDisplayView: View {
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var viewModel: DataDisplayViewModel
+    @StateObject private var viewModel = DataDisplayViewModel()
     @StateObject private var flowNavigator = SensingFlowNavigator()
     @EnvironmentObject var router: NavigationRouterModel
     @State private var selectedDisplayMode: DisplayMode = .history
@@ -15,25 +15,18 @@ struct DataDisplayView: View {
         case files = "ファイル管理"
     }
 
-    init() {
-        // 初期化時は一時的にDummyを使用（onAppearで実際のRepositoryに置き換え）
-        _viewModel = StateObject(wrappedValue: DataDisplayViewModel(
-            swiftDataRepository: DummySwiftDataRepository()
-        ))
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             // フロープログレス表示
-            SensingFlowProgressView(navigator: self.flowNavigator)
+            SensingFlowProgressView(navigator: flowNavigator)
 
             ScrollView {
                 VStack(spacing: 20) {
-                    self.headerSection
+                    headerSection
 
-                    self.displayModeSelector
+                    displayModeSelector
 
-                    self.contentArea
+                    contentArea
 
                     Spacer(minLength: 80)
                 }
@@ -47,9 +40,9 @@ struct DataDisplayView: View {
         .onAppear {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
             let repository = SwiftDataRepository(modelContext: modelContext)
-            self.viewModel.setSwiftDataRepository(repository)
-            self.flowNavigator.currentStep = .dataViewer
-            self.flowNavigator.setRouter(self.router)
+            viewModel.setSwiftDataRepository(repository)
+            flowNavigator.currentStep = .dataViewer
+            flowNavigator.setRouter(router)
         }
     }
 
@@ -76,7 +69,7 @@ struct DataDisplayView: View {
     // MARK: - Display Mode Selector
 
     private var displayModeSelector: some View {
-        Picker("表示モード", selection: self.$selectedDisplayMode) {
+        Picker("表示モード", selection: $selectedDisplayMode) {
             ForEach(DisplayMode.allCases, id: \.self) { mode in
                 Text(mode.rawValue).tag(mode)
             }
@@ -89,11 +82,11 @@ struct DataDisplayView: View {
 
     @ViewBuilder
     private var contentArea: some View {
-        switch self.selectedDisplayMode {
+        switch selectedDisplayMode {
         case .history:
-            self.historyDataView
+            historyDataView
         case .files:
-            self.fileManagementView
+            fileManagementView
         }
     }
 
@@ -108,13 +101,13 @@ struct DataDisplayView: View {
 
                 Spacer()
 
-                Button(action: self.viewModel.refreshHistoryData) {
+                Button(action: viewModel.refreshHistoryData) {
                     Image(systemName: "arrow.clockwise")
                         .foregroundColor(.blue)
                 }
             }
 
-            if self.viewModel.historyData.isEmpty {
+            if viewModel.historyData.isEmpty {
                 EmptyDataView(
                     icon: "clock",
                     title: "履歴なし",
@@ -123,9 +116,9 @@ struct DataDisplayView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        ForEach(self.viewModel.historyData, id: \.id) { session in
+                        ForEach(viewModel.historyData, id: \.id) { session in
                             HistorySessionCard(session: session) {
-                                self.viewModel.loadSessionData(session)
+                                viewModel.loadSessionData(session)
                             }
                         }
                     }
@@ -148,7 +141,7 @@ struct DataDisplayView: View {
 
                 Spacer()
 
-                Button(action: self.viewModel.openStorageFolder) {
+                Button(action: viewModel.openStorageFolder) {
                     HStack {
                         Image(systemName: "folder")
                         Text("フォルダを開く")
@@ -162,7 +155,7 @@ struct DataDisplayView: View {
                 }
             }
 
-            if self.viewModel.receivedFiles.isEmpty {
+            if viewModel.receivedFiles.isEmpty {
                 EmptyDataView(
                     icon: "doc",
                     title: "ファイルなし",
@@ -171,9 +164,9 @@ struct DataDisplayView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        ForEach(self.viewModel.receivedFiles, id: \.name) { file in
+                        ForEach(viewModel.receivedFiles, id: \.name) { file in
                             FileItemCard(file: file) {
-                                self.viewModel.openFile(file)
+                                viewModel.openFile(file)
                             }
                         }
                     }
@@ -181,13 +174,13 @@ struct DataDisplayView: View {
             }
 
             // ファイル転送進捗
-            if !self.viewModel.fileTransferProgress.isEmpty {
+            if !viewModel.fileTransferProgress.isEmpty {
                 VStack(spacing: 8) {
                     Text("ファイル転送中")
                         .font(.subheadline)
                         .fontWeight(.medium)
 
-                    ForEach(Array(self.viewModel.fileTransferProgress.keys), id: \.self) { endpointId in
+                    ForEach(Array(viewModel.fileTransferProgress.keys), id: \.self) { endpointId in
                         if let progress = viewModel.fileTransferProgress[endpointId] {
                             FileTransferProgressView(
                                 endpointId: endpointId,
@@ -215,11 +208,11 @@ struct DataRow: View {
 
     var body: some View {
         HStack {
-            Text(self.label)
+            Text(label)
                 .font(.caption)
                 .foregroundColor(.secondary)
             Spacer()
-            Text(self.value)
+            Text(value)
                 .font(.caption)
                 .fontWeight(.medium)
         }
@@ -238,11 +231,11 @@ struct HistorySessionCard: View {
                 .foregroundColor(.blue)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.session.name)
+                Text(session.name)
                     .font(.body)
                     .fontWeight(.medium)
 
-                Text(self.session.formattedDate)
+                Text(session.formattedDate)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -250,16 +243,16 @@ struct HistorySessionCard: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(self.session.dataPoints) points")
+                Text("\(session.dataPoints) points")
                     .font(.caption)
                     .fontWeight(.medium)
 
-                Text(self.session.duration)
+                Text(session.duration)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
 
-            Button(action: self.onTap) {
+            Button(action: onTap) {
                 Image(systemName: "chevron.right")
                     .foregroundColor(.blue)
             }
@@ -279,26 +272,26 @@ struct FileItemCard: View {
 
     var body: some View {
         HStack {
-            Image(systemName: self.file.isCSV ? "doc.text" : "doc")
-                .foregroundColor(self.file.isCSV ? .green : .blue)
+            Image(systemName: file.isCSV ? "doc.text" : "doc")
+                .foregroundColor(file.isCSV ? .green : .blue)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.file.name)
+                Text(file.name)
                     .font(.body)
                     .fontWeight(.medium)
 
-                Text(self.file.formattedDate)
+                Text(file.formattedDate)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
 
             Spacer()
 
-            Text(self.file.formattedSize)
+            Text(file.formattedSize)
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Button(action: self.onTap) {
+            Button(action: onTap) {
                 Image(systemName: "square.and.arrow.up")
                     .foregroundColor(.blue)
             }
@@ -319,15 +312,15 @@ struct FileTransferProgressView: View {
     var body: some View {
         VStack(spacing: 4) {
             HStack {
-                Text("端末: \(self.endpointId)")
+                Text("端末: \(endpointId)")
                     .font(.caption)
                 Spacer()
-                Text("\(self.progress)%")
+                Text("\(progress)%")
                     .font(.caption)
                     .fontWeight(.medium)
             }
 
-            ProgressView(value: Double(self.progress), total: 100)
+            ProgressView(value: Double(progress), total: 100)
                 .progressViewStyle(LinearProgressViewStyle())
         }
     }
@@ -342,7 +335,7 @@ extension DataDisplayView {
 
             HStack(spacing: 16) {
                 Button("戻る") {
-                    self.flowNavigator.goToPreviousStep()
+                    flowNavigator.goToPreviousStep()
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -351,8 +344,8 @@ extension DataDisplayView {
                 .cornerRadius(8)
 
                 Button("フローを完了") {
-                    self.flowNavigator.completeFlow()
-                    self.router.reset()
+                    flowNavigator.completeFlow()
+                    router.reset()
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
@@ -363,12 +356,12 @@ extension DataDisplayView {
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
-        .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
+        .alert("エラー", isPresented: Binding.constant(flowNavigator.lastError != nil)) {
             Button("OK") {
-                self.flowNavigator.lastError = nil
+                flowNavigator.lastError = nil
             }
         } message: {
-            Text(self.flowNavigator.lastError ?? "")
+            Text(flowNavigator.lastError ?? "")
         }
     }
 }
@@ -382,15 +375,15 @@ struct EmptyDataView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: self.icon)
+            Image(systemName: icon)
                 .font(.system(size: 48))
                 .foregroundColor(.gray.opacity(0.3))
 
-            Text(self.title)
+            Text(title)
                 .font(.headline)
                 .foregroundColor(.secondary)
 
-            Text(self.subtitle)
+            Text(subtitle)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

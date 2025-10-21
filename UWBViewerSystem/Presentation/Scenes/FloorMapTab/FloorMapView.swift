@@ -10,17 +10,17 @@ struct FloorMapView: View {
         #if os(macOS)
             NavigationSplitView {
                 VStack(spacing: 20) {
-                    self.headerSection
+                    headerSection
 
-                    if self.viewModel.floorMaps.isEmpty {
-                        self.emptyStateView
+                    if viewModel.floorMaps.isEmpty {
+                        emptyStateView
                     } else {
-                        self.floorMapList
+                        floorMapList
                     }
 
                     Spacer()
 
-                    self.addFloorMapButton
+                    addFloorMapButton
                 }
                 .padding()
                 .navigationSplitViewColumnWidth(min: 300, ideal: 350)
@@ -36,51 +36,51 @@ struct FloorMapView: View {
             }
             .onAppear {
                 print("📱 FloorMapView (macOS): onAppear called")
-                self.viewModel.setModelContext(self.modelContext)
+                viewModel.setModelContext(modelContext)
 
                 // データが空の場合は少し遅れて再読み込み
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    if self.viewModel.floorMaps.isEmpty {
+                    if viewModel.floorMaps.isEmpty {
                         print("🔄 フロアマップが空のため再読み込み")
-                        self.viewModel.loadFloorMaps()
+                        viewModel.loadFloorMaps()
                     }
                 }
             }
-            .onChange(of: self.modelContext) { _, newContext in
-                self.viewModel.setModelContext(newContext)
+            .onChange(of: modelContext) { _, newContext in
+                viewModel.setModelContext(newContext)
             }
         #else
             NavigationView {
                 VStack(spacing: 20) {
-                    self.headerSection
+                    headerSection
 
-                    if self.viewModel.floorMaps.isEmpty {
-                        self.emptyStateView
+                    if viewModel.floorMaps.isEmpty {
+                        emptyStateView
                     } else {
-                        self.floorMapList
+                        floorMapList
                     }
 
                     Spacer()
 
-                    self.addFloorMapButton
+                    addFloorMapButton
                 }
                 .padding()
                 .navigationTitle("フロアマップ")
                 .navigationBarTitleDisplayMode(.large)
                 .onAppear {
                     print("📱 FloorMapView (iOS): onAppear called")
-                    self.viewModel.setModelContext(self.modelContext)
+                    viewModel.setModelContext(modelContext)
 
                     // データが空の場合は少し遅れて再読み込み
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        if self.viewModel.floorMaps.isEmpty {
+                        if viewModel.floorMaps.isEmpty {
                             print("🔄 フロアマップが空のため再読み込み")
-                            self.viewModel.loadFloorMaps()
+                            viewModel.loadFloorMaps()
                         }
                     }
                 }
-                .onChange(of: self.modelContext) { _, newContext in
-                    self.viewModel.setModelContext(newContext)
+                .onChange(of: modelContext) { _, newContext in
+                    viewModel.setModelContext(newContext)
                 }
             }
         #endif
@@ -129,16 +129,16 @@ struct FloorMapView: View {
     private var floorMapList: some View {
         ScrollView {
             VStack(spacing: 12) {
-                ForEach(self.viewModel.floorMaps) { map in
+                ForEach(viewModel.floorMaps) { map in
                     FloorMapRow(map: map) {
-                        self.viewModel.selectFloorMap(map)
+                        viewModel.selectFloorMap(map)
                         #if os(iOS)
-                            self.router.push(.antennaConfiguration)
+                            router.push(.antennaConfiguration)
                         #endif
                     } onDelete: {
-                        self.viewModel.deleteFloorMap(map)
+                        viewModel.deleteFloorMap(map)
                     } onToggleActive: {
-                        self.viewModel.toggleActiveFloorMap(map)
+                        viewModel.toggleActiveFloorMap(map)
                     }
                 }
             }
@@ -147,7 +147,7 @@ struct FloorMapView: View {
 
     private var addFloorMapButton: some View {
         Button(action: {
-            self.router.push(.floorMapSetting)
+            router.push(.floorMapSetting)
         }) {
             HStack {
                 Image(systemName: "plus.circle.fill")
@@ -174,29 +174,29 @@ struct FloorMapRow: View {
     var body: some View {
         HStack {
             // チェックボックス（独立したボタン）
-            Button(action: self.onToggleActive) {
-                Image(systemName: self.map.isActive ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(self.map.isActive ? .green : .gray)
+            Button(action: onToggleActive) {
+                Image(systemName: map.isActive ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(map.isActive ? .green : .gray)
                     .font(.title2)
             }
             .buttonStyle(PlainButtonStyle())
 
             // メインコンテンツ（詳細表示用ボタン）
-            Button(action: self.onTap) {
+            Button(action: onTap) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(self.map.name)
+                    Text(map.name)
                         .font(.headline)
                         .foregroundColor(.primary)
 
                     HStack {
-                        Label("\(self.map.antennaCount) アンテナ", systemImage: "antenna.radiowaves.left.and.right")
+                        Label("\(map.antennaCount) アンテナ", systemImage: "antenna.radiowaves.left.and.right")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
                         Text("•")
                             .foregroundColor(.secondary)
 
-                        Text(self.map.formattedSize)
+                        Text(map.formattedSize)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -208,14 +208,14 @@ struct FloorMapRow: View {
             Spacer()
 
             // 削除ボタン（独立したボタン）
-            Button(action: self.onDelete) {
+            Button(action: onDelete) {
                 Image(systemName: "trash")
                     .foregroundColor(.red)
             }
             .buttonStyle(PlainButtonStyle())
         }
         .padding()
-        .background(self.map.isActive ? Color.green.opacity(0.05) : Color.gray.opacity(0.05))
+        .background(map.isActive ? Color.green.opacity(0.05) : Color.gray.opacity(0.05))
         .cornerRadius(8)
     }
 }
@@ -230,27 +230,25 @@ struct FloorMapDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(self.floorMap.name)
+                        Text(floorMap.name)
                             .font(.largeTitle)
                             .fontWeight(.bold)
 
                         HStack {
-                            Label(
-                                "\(self.floorMap.antennaCount) アンテナ", systemImage: "antenna.radiowaves.left.and.right"
-                            )
-                            .foregroundColor(.secondary)
+                            Label("\(floorMap.antennaCount) アンテナ", systemImage: "antenna.radiowaves.left.and.right")
+                                .foregroundColor(.secondary)
 
                             Text("•")
                                 .foregroundColor(.secondary)
 
-                            Text(self.floorMap.formattedSize)
+                            Text(floorMap.formattedSize)
                                 .foregroundColor(.secondary)
                         }
                     }
 
                     Spacer()
 
-                    if self.floorMap.isActive {
+                    if floorMap.isActive {
                         Label("アクティブ", systemImage: "checkmark.circle.fill")
                             .foregroundColor(.green)
                             .padding(.horizontal, 12)
@@ -267,7 +265,7 @@ struct FloorMapDetailView: View {
             // アクション
             VStack(spacing: 16) {
                 Button(action: {
-                    self.router.push(.antennaConfiguration)
+                    router.push(.antennaConfiguration)
                 }) {
                     HStack {
                         Image(systemName: "antenna.radiowaves.left.and.right")
@@ -281,7 +279,7 @@ struct FloorMapDetailView: View {
                 }
 
                 Button(action: {
-                    self.router.push(.pairingSettingPage)
+                    router.push(.pairingSettingPage)
                 }) {
                     HStack {
                         Image(systemName: "link.circle")
@@ -295,7 +293,7 @@ struct FloorMapDetailView: View {
                 }
 
                 Button(action: {
-                    self.router.push(.dataCollectionPage)
+                    router.push(.dataCollectionPage)
                 }) {
                     HStack {
                         Image(systemName: "play.circle")

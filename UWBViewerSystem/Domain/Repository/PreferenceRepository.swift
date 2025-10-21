@@ -244,177 +244,177 @@ public class PreferenceRepository: PreferenceRepositoryProtocol {
 
     public func saveCurrentFloorMapInfo(_ info: FloorMapInfo) {
         do {
-            try self.setData(info, forKey: "currentFloorMapInfo")
+            try setData(info, forKey: "currentFloorMapInfo")
         } catch {
             print("❌ フロアマップ情報の保存に失敗: \(error)")
         }
     }
 
     public func loadCurrentFloorMapInfo() -> FloorMapInfo? {
-        self.getData(FloorMapInfo.self, forKey: "currentFloorMapInfo")
+        getData(FloorMapInfo.self, forKey: "currentFloorMapInfo")
     }
 
     public func removeCurrentFloorMapInfo() {
-        self.removeObject(forKey: "currentFloorMapInfo")
+        removeObject(forKey: "currentFloorMapInfo")
     }
 
     public func saveLastFloorSettings(name: String, buildingName: String, width: Double, depth: Double) {
-        self.setString(name, forKey: "lastFloorName")
-        self.setString(buildingName, forKey: "lastBuildingName")
-        self.setDouble(width, forKey: "lastFloorWidth")
-        self.setDouble(depth, forKey: "lastFloorDepth")
+        setString(name, forKey: "lastFloorName")
+        setString(buildingName, forKey: "lastBuildingName")
+        setDouble(width, forKey: "lastFloorWidth")
+        setDouble(depth, forKey: "lastFloorDepth")
     }
 
     public func loadLastFloorSettings() -> (name: String?, buildingName: String?, width: Double?, depth: Double?) {
-        let name = self.getString(forKey: "lastFloorName")
-        let buildingName = self.getString(forKey: "lastBuildingName")
-        let width = self.userDefaults.object(forKey: "lastFloorWidth") as? Double
-        let depth = self.userDefaults.object(forKey: "lastFloorDepth") as? Double
+        let name = getString(forKey: "lastFloorName")
+        let buildingName = getString(forKey: "lastBuildingName")
+        let width = userDefaults.object(forKey: "lastFloorWidth") as? Double
+        let depth = userDefaults.object(forKey: "lastFloorDepth") as? Double
         return (name, buildingName, width, depth)
     }
 
     public func setHasFloorMapConfigured(_ configured: Bool) {
-        self.setBool(configured, forKey: "hasFloorMapConfigured")
+        setBool(configured, forKey: "hasFloorMapConfigured")
     }
 
     public func getHasFloorMapConfigured() -> Bool {
-        self.getBool(forKey: "hasFloorMapConfigured")
+        getBool(forKey: "hasFloorMapConfigured")
     }
 
     // MARK: - アンテナ設定関連
 
     public func saveConfiguredAntennaPositions(_ positions: [AntennaPositionData]) {
         do {
-            try self.setData(positions, forKey: "configuredAntennaPositions")
+            try setData(positions, forKey: "configuredAntennaPositions")
         } catch {
             print("❌ アンテナ位置情報の保存に失敗: \(error)")
         }
     }
 
     public func loadConfiguredAntennaPositions() -> [AntennaPositionData]? {
-        self.getData([AntennaPositionData].self, forKey: "configuredAntennaPositions")
+        getData([AntennaPositionData].self, forKey: "configuredAntennaPositions")
     }
 
     public func removeConfiguredAntennaPositions() {
-        self.removeObject(forKey: "configuredAntennaPositions")
+        removeObject(forKey: "configuredAntennaPositions")
     }
 
     // MARK: - キャリブレーション関連
 
     public func saveLastCalibrationResult(_ result: SystemCalibrationResult) {
         do {
-            try self.setData(result, forKey: "lastCalibrationResult")
+            try setData(result, forKey: "lastCalibrationResult")
         } catch {
             print("❌ キャリブレーション結果の保存に失敗: \(error)")
         }
     }
 
     public func loadLastCalibrationResult() -> SystemCalibrationResult? {
-        self.getData(SystemCalibrationResult.self, forKey: "lastCalibrationResult")
+        getData(SystemCalibrationResult.self, forKey: "lastCalibrationResult")
     }
 
     public func removeLastCalibrationResult() {
-        self.removeObject(forKey: "lastCalibrationResult")
+        removeObject(forKey: "lastCalibrationResult")
     }
 
     // MARK: - センシングフロー関連
 
     public func saveSensingFlowState(currentStep: String, completedSteps: [String], isCompleted: Bool) {
         do {
-            try self.setData(currentStep, forKey: "sensingFlowCurrentStep")
-            try self.setData(completedSteps, forKey: "sensingFlowCompletedSteps")
-            self.setBool(isCompleted, forKey: "sensingFlowCompleted")
+            try setData(currentStep, forKey: "sensingFlowCurrentStep")
+            try setData(completedSteps, forKey: "sensingFlowCompletedSteps")
+            setBool(isCompleted, forKey: "sensingFlowCompleted")
         } catch {
             print("❌ センシングフロー状態の保存に失敗: \(error)")
         }
     }
 
     public func loadSensingFlowState() -> (currentStep: String?, completedSteps: [String], isCompleted: Bool) {
-        let currentStep = self.getData(String.self, forKey: "sensingFlowCurrentStep")
-        let completedSteps = self.getData([String].self, forKey: "sensingFlowCompletedSteps") ?? []
-        let isCompleted = self.getBool(forKey: "sensingFlowCompleted")
+        let currentStep = getData(String.self, forKey: "sensingFlowCurrentStep")
+        let completedSteps = getData([String].self, forKey: "sensingFlowCompletedSteps") ?? []
+        let isCompleted = getBool(forKey: "sensingFlowCompleted")
         return (currentStep, completedSteps, isCompleted)
     }
 
     public func resetSensingFlowState() {
-        self.removeObject(forKey: "sensingFlowCurrentStep")
-        self.removeObject(forKey: "sensingFlowCompletedSteps")
-        self.removeObject(forKey: "sensingFlowCompleted")
+        removeObject(forKey: "sensingFlowCurrentStep")
+        removeObject(forKey: "sensingFlowCompletedSteps")
+        removeObject(forKey: "sensingFlowCompleted")
     }
 
     public func setHasExecutedSensingSession(_ executed: Bool) {
-        self.setBool(executed, forKey: "hasExecutedSensingSession")
+        setBool(executed, forKey: "hasExecutedSensingSession")
     }
 
     public func getHasExecutedSensingSession() -> Bool {
-        self.getBool(forKey: "hasExecutedSensingSession")
+        getBool(forKey: "hasExecutedSensingSession")
     }
 
     // MARK: - デバイス管理関連
 
     public func savePairedDevices(_ devices: [String]) {
         do {
-            try self.setData(devices, forKey: "pairedDevices")
+            try setData(devices, forKey: "pairedDevices")
         } catch {
             print("❌ ペアリングデバイス情報の保存に失敗: \(error)")
         }
     }
 
     public func loadPairedDevices() -> [String]? {
-        self.getData([String].self, forKey: "pairedDevices")
+        getData([String].self, forKey: "pairedDevices")
     }
 
     public func removePairedDevices() {
-        self.removeObject(forKey: "pairedDevices")
+        removeObject(forKey: "pairedDevices")
     }
 
     public func saveConnectionStatistics(_ statistics: [String: Any]) {
-        self.userDefaults.set(statistics, forKey: "ConnectionStatistics")
+        userDefaults.set(statistics, forKey: "ConnectionStatistics")
     }
 
     public func loadConnectionStatistics() -> [String: Any]? {
-        self.userDefaults.dictionary(forKey: "ConnectionStatistics")
+        userDefaults.dictionary(forKey: "ConnectionStatistics")
     }
 
     // MARK: - データ移行関連
 
     public func setMigrationCompleted(for key: String, completed: Bool) {
-        self.setBool(completed, forKey: key)
+        setBool(completed, forKey: key)
     }
 
     public func isMigrationCompleted(for key: String) -> Bool {
-        self.getBool(forKey: key)
+        getBool(forKey: key)
     }
 
     // MARK: - 汎用設定メソッド
 
     public func setBool(_ value: Bool, forKey key: String) {
-        self.userDefaults.set(value, forKey: key)
+        userDefaults.set(value, forKey: key)
     }
 
     public func getBool(forKey key: String) -> Bool {
-        self.userDefaults.bool(forKey: key)
+        userDefaults.bool(forKey: key)
     }
 
     public func setString(_ value: String?, forKey key: String) {
-        self.userDefaults.set(value, forKey: key)
+        userDefaults.set(value, forKey: key)
     }
 
     public func getString(forKey key: String) -> String? {
-        self.userDefaults.string(forKey: key)
+        userDefaults.string(forKey: key)
     }
 
     public func setDouble(_ value: Double, forKey key: String) {
-        self.userDefaults.set(value, forKey: key)
+        userDefaults.set(value, forKey: key)
     }
 
     public func getDouble(forKey key: String) -> Double {
-        self.userDefaults.double(forKey: key)
+        userDefaults.double(forKey: key)
     }
 
     public func setData(_ value: some Codable, forKey key: String) throws {
         let encoded = try JSONEncoder().encode(value)
-        self.userDefaults.set(encoded, forKey: key)
+        userDefaults.set(encoded, forKey: key)
     }
 
     public func getData<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
@@ -423,6 +423,6 @@ public class PreferenceRepository: PreferenceRepositoryProtocol {
     }
 
     public func removeObject(forKey key: String) {
-        self.userDefaults.removeObject(forKey: key)
+        userDefaults.removeObject(forKey: key)
     }
 }

@@ -16,18 +16,18 @@ struct ConnectionManagementView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            self.headerSection
+            headerSection
 
-            self.tabSelector
+            tabSelector
 
-            self.tabContent
+            tabContent
 
             Spacer()
         }
         .padding()
         .navigationTitle("接続管理")
         .onAppear {
-            self.viewModel.initializeConnection()
+            viewModel.initializeConnection()
         }
     }
 
@@ -54,7 +54,7 @@ struct ConnectionManagementView: View {
     // MARK: - Tab Selector
 
     private var tabSelector: some View {
-        Picker("タブ", selection: self.$selectedTab) {
+        Picker("タブ", selection: $selectedTab) {
             ForEach(ConnectionTab.allCases, id: \.self) { tab in
                 Text(tab.rawValue).tag(tab)
             }
@@ -67,13 +67,13 @@ struct ConnectionManagementView: View {
 
     @ViewBuilder
     private var tabContent: some View {
-        switch self.selectedTab {
+        switch selectedTab {
         case .control:
-            self.connectionControlView
+            connectionControlView
         case .devices:
-            self.deviceManagementView
+            deviceManagementView
         case .messages:
-            self.messageView
+            messageView
         }
     }
 
@@ -82,13 +82,13 @@ struct ConnectionManagementView: View {
     private var connectionControlView: some View {
         VStack(spacing: 20) {
             // 接続状態表示
-            self.connectionStatusCard
+            connectionStatusCard
 
             // 制御ボタン
-            self.connectionControlButtons
+            connectionControlButtons
 
             // 詳細統計情報
-            self.connectionStatistics
+            connectionStatistics
         }
         .padding()
         .background(Color.gray.opacity(0.05))
@@ -105,7 +105,7 @@ struct ConnectionManagementView: View {
                 Spacer()
 
                 StatusIndicator(
-                    isActive: self.viewModel.isAdvertising,
+                    isActive: viewModel.isAdvertising,
                     activeText: "広告中",
                     inactiveText: "停止中"
                 )
@@ -115,21 +115,21 @@ struct ConnectionManagementView: View {
                 ConnectionMetric(
                     icon: "antenna.radiowaves.left.and.right",
                     title: "広告状態",
-                    value: self.viewModel.isAdvertising ? "アクティブ" : "非アクティブ",
-                    color: self.viewModel.isAdvertising ? .green : .gray
+                    value: viewModel.isAdvertising ? "アクティブ" : "非アクティブ",
+                    color: viewModel.isAdvertising ? .green : .gray
                 )
 
                 ConnectionMetric(
                     icon: "iphone.and.arrow.forward",
                     title: "接続端末",
-                    value: "\(self.viewModel.connectedDevices.count)台",
+                    value: "\(viewModel.connectedDevices.count)台",
                     color: .blue
                 )
 
                 ConnectionMetric(
                     icon: "clock",
                     title: "稼働時間",
-                    value: self.viewModel.uptime,
+                    value: viewModel.uptime,
                     color: .orange
                 )
             }
@@ -142,10 +142,10 @@ struct ConnectionManagementView: View {
 
     private var connectionControlButtons: some View {
         HStack(spacing: 16) {
-            Button(action: self.viewModel.toggleAdvertising) {
+            Button(action: viewModel.toggleAdvertising) {
                 HStack {
-                    Image(systemName: self.viewModel.isAdvertising ? "stop.circle.fill" : "play.circle.fill")
-                    Text(self.viewModel.isAdvertising ? "広告停止" : "広告開始")
+                    Image(systemName: viewModel.isAdvertising ? "stop.circle.fill" : "play.circle.fill")
+                    Text(viewModel.isAdvertising ? "広告停止" : "広告開始")
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -153,7 +153,7 @@ struct ConnectionManagementView: View {
                 .padding()
                 .background(
                     LinearGradient(
-                        gradient: Gradient(colors: self.viewModel.isAdvertising ? [.red, .orange] : [.green, .blue]),
+                        gradient: Gradient(colors: viewModel.isAdvertising ? [.red, .orange] : [.green, .blue]),
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -161,7 +161,7 @@ struct ConnectionManagementView: View {
                 .cornerRadius(12)
             }
 
-            Button(action: self.viewModel.startDiscovery) {
+            Button(action: viewModel.startDiscovery) {
                 HStack {
                     Image(systemName: "magnifyingglass.circle.fill")
                     Text("デバイス発見")
@@ -179,7 +179,7 @@ struct ConnectionManagementView: View {
                 )
                 .cornerRadius(12)
             }
-            .disabled(self.viewModel.isDiscovering)
+            .disabled(viewModel.isDiscovering)
         }
     }
 
@@ -192,22 +192,22 @@ struct ConnectionManagementView: View {
             HStack(spacing: 16) {
                 StatisticItem(
                     label: "総接続数",
-                    value: "\(self.viewModel.totalConnections)"
+                    value: "\(viewModel.totalConnections)"
                 )
 
                 StatisticItem(
                     label: "アクティブ接続",
-                    value: "\(self.viewModel.activeConnections)"
+                    value: "\(viewModel.activeConnections)"
                 )
 
                 StatisticItem(
                     label: "メッセージ数",
-                    value: "\(self.viewModel.totalMessages)"
+                    value: "\(viewModel.totalMessages)"
                 )
 
                 StatisticItem(
                     label: "データ転送量",
-                    value: self.viewModel.formattedDataTransferred
+                    value: viewModel.formattedDataTransferred
                 )
             }
         }
@@ -227,20 +227,20 @@ struct ConnectionManagementView: View {
 
                 Spacer()
 
-                Button(action: self.viewModel.refreshDevices) {
+                Button(action: viewModel.refreshDevices) {
                     Image(systemName: "arrow.clockwise")
                         .foregroundColor(.blue)
                 }
             }
 
-            if self.viewModel.connectedDevices.isEmpty {
+            if viewModel.connectedDevices.isEmpty {
                 EmptyDevicesView()
             } else {
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        ForEach(self.viewModel.connectedDevices, id: \.id) { device in
+                        ForEach(viewModel.connectedDevices, id: \.id) { device in
                             ConnectionDeviceCard(device: device) {
-                                self.viewModel.disconnectDevice(device)
+                                viewModel.disconnectDevice(device)
                             }
                         }
                     }
@@ -259,7 +259,7 @@ struct ConnectionManagementView: View {
             // メッセージ履歴
             ScrollView {
                 LazyVStack(spacing: 8) {
-                    ForEach(self.viewModel.messageHistory, id: \.id) { message in
+                    ForEach(viewModel.messageHistory, id: \.id) { message in
                         ConnectionMessageBubble(message: message)
                     }
                 }
@@ -271,33 +271,33 @@ struct ConnectionManagementView: View {
 
             // メッセージ送信
             HStack(spacing: 12) {
-                TextField("メッセージを入力", text: self.$messageToSend)
+                TextField("メッセージを入力", text: $messageToSend)
                     .textFieldStyle(.roundedBorder)
 
-                Button(action: self.sendMessage) {
+                Button(action: sendMessage) {
                     Image(systemName: "paperplane.fill")
                         .foregroundColor(.white)
                         .padding(10)
                         .background(Color.blue)
                         .clipShape(Circle())
                 }
-                .disabled(self.messageToSend.isEmpty || self.viewModel.connectedDevices.isEmpty)
+                .disabled(messageToSend.isEmpty || viewModel.connectedDevices.isEmpty)
             }
 
             // 操作ボタン
             HStack(spacing: 16) {
-                Button(action: self.viewModel.clearMessages) {
+                Button(action: viewModel.clearMessages) {
                     Text("履歴クリア")
                         .foregroundColor(.red)
                 }
 
                 Spacer()
 
-                Button(action: self.viewModel.disconnectAll) {
+                Button(action: viewModel.disconnectAll) {
                     Text("全て切断")
                         .foregroundColor(.orange)
                 }
-                .disabled(self.viewModel.connectedDevices.isEmpty)
+                .disabled(viewModel.connectedDevices.isEmpty)
             }
             .font(.caption)
         }
@@ -307,8 +307,8 @@ struct ConnectionManagementView: View {
     }
 
     private func sendMessage() {
-        self.viewModel.sendMessage(self.messageToSend)
-        self.messageToSend = ""
+        viewModel.sendMessage(messageToSend)
+        messageToSend = ""
     }
 }
 
@@ -322,12 +322,12 @@ struct StatusIndicator: View {
     var body: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(self.isActive ? Color.green : Color.gray)
+                .fill(isActive ? Color.green : Color.gray)
                 .frame(width: 8, height: 8)
-            Text(self.isActive ? self.activeText : self.inactiveText)
+            Text(isActive ? activeText : inactiveText)
                 .font(.caption)
                 .fontWeight(.medium)
-                .foregroundColor(self.isActive ? .green : .gray)
+                .foregroundColor(isActive ? .green : .gray)
         }
     }
 }
@@ -340,15 +340,15 @@ struct ConnectionMetric: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: self.icon)
+            Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(self.color)
+                .foregroundColor(color)
 
-            Text(self.title)
+            Text(title)
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            Text(self.value)
+            Text(value)
                 .font(.caption)
                 .fontWeight(.semibold)
         }
@@ -362,12 +362,12 @@ struct StatisticItem: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            Text(self.value)
+            Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
                 .foregroundColor(.blue)
 
-            Text(self.label)
+            Text(label)
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -386,15 +386,15 @@ struct ConnectionDeviceCard: View {
                 .font(.title2)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.device.name)
+                Text(device.name)
                     .font(.body)
                     .fontWeight(.medium)
 
-                Text("接続時刻: \(self.device.formattedConnectionTime)")
+                Text("接続時刻: \(device.formattedConnectionTime)")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                Text("最終通信: \(self.device.formattedLastMessage)")
+                Text("最終通信: \(device.formattedLastMessage)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -403,12 +403,12 @@ struct ConnectionDeviceCard: View {
 
             VStack(spacing: 8) {
                 StatusIndicator(
-                    isActive: self.device.isConnected,
+                    isActive: device.isConnected,
                     activeText: "接続中",
                     inactiveText: "切断"
                 )
 
-                Button(action: self.onDisconnect) {
+                Button(action: onDisconnect) {
                     Text("切断")
                         .font(.caption)
                         .foregroundColor(.red)
@@ -431,32 +431,32 @@ struct ConnectionMessageBubble: View {
 
     var body: some View {
         HStack {
-            if self.message.isOutgoing {
+            if message.isOutgoing {
                 Spacer()
             }
 
-            VStack(alignment: self.message.isOutgoing ? .trailing : .leading, spacing: 4) {
-                Text(self.message.content)
+            VStack(alignment: message.isOutgoing ? .trailing : .leading, spacing: 4) {
+                Text(message.content)
                     .font(.body)
                     .padding(12)
-                    .background(self.message.isOutgoing ? Color.blue : Color.gray.opacity(0.2))
-                    .foregroundColor(self.message.isOutgoing ? .white : .primary)
+                    .background(message.isOutgoing ? Color.blue : Color.gray.opacity(0.2))
+                    .foregroundColor(message.isOutgoing ? .white : .primary)
                     .cornerRadius(16)
 
                 HStack {
-                    if !self.message.isOutgoing {
-                        Text(self.message.deviceName)
+                    if !message.isOutgoing {
+                        Text(message.deviceName)
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
 
-                    Text(self.message.formattedTime)
+                    Text(message.formattedTime)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
             }
 
-            if !self.message.isOutgoing {
+            if !message.isOutgoing {
                 Spacer()
             }
         }

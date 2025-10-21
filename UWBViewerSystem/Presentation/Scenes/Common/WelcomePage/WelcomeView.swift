@@ -23,8 +23,8 @@ struct WelcomeView: View {
                     .font(.system(size: 60))
                     .foregroundColor(.accentColor)
                     .padding(.bottom, 8)
-                    .scaleEffect(self.isAnimating ? 1.1 : 1.0)
-                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: self.isAnimating)
+                    .scaleEffect(isAnimating ? 1.1 : 1.0)
+                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: isAnimating)
 
                 Text("UWBViewerSystem")
                     .font(.largeTitle)
@@ -40,7 +40,7 @@ struct WelcomeView: View {
         }
         .padding()
         .onAppear {
-            self.isAnimating = true
+            isAnimating = true
         }
     }
 }

@@ -7,29 +7,49 @@ struct AntennaPositioningView: View {
     @StateObject private var flowNavigator = SensingFlowNavigator()
     @Environment(\.modelContext) private var modelContext
 
+    @State private var isDeviceListExpanded = true
+    @State private var isControlPanelExpanded = true
+
     var body: some View {
         VStack(spacing: 0) {
             // フロープログレス表示
-            SensingFlowProgressView(navigator: flowNavigator)
+            SensingFlowProgressView(navigator: self.flowNavigator)
 
-            ScrollView {
-                VStack(spacing: 20) {
-                    HeaderSection()
+            // フルスクリーンマップ with フローティングコントロール
+            ZStack {
+                // 背景: フルスクリーンマップ
+                MapCanvasSection(viewModel: self.viewModel)
 
-                    HStack(spacing: 20) {
-                        MapCanvasSection(viewModel: viewModel)
+                // 左側: デバイスリストパネル
+                VStack {
+                    HStack {
+                        FloatingDeviceListPanel(
+                            viewModel: self.viewModel,
+                            isExpanded: self.$isDeviceListExpanded
+                        )
+                        .frame(maxWidth: 380)
 
-                        AntennaDeviceListSection(viewModel: viewModel)
+                        Spacer()
                     }
-
-                    InstructionsSection()
-
-                    Spacer(minLength: 80)
+                    Spacer()
                 }
-                .padding()
-            }
+                .padding(16)
 
-            NavigationButtonsSection(viewModel: viewModel)
+                // 右下: コントロールパネル
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        FloatingControlPanel(
+                            viewModel: self.viewModel,
+                            flowNavigator: self.flowNavigator,
+                            isExpanded: self.$isControlPanelExpanded
+                        )
+                        .frame(maxWidth: 450)
+                    }
+                }
+                .padding(16)
+            }
         }
         .navigationTitle("アンテナ位置設定")
         #if os(iOS)
@@ -41,10 +61,9 @@ struct AntennaPositioningView: View {
         .background(Color(UIColor.systemBackground))
         #endif
         .onAppear {
-            viewModel.setModelContext(modelContext)
-            viewModel.loadMapAndDevices()
-            flowNavigator.currentStep = .antennaConfiguration
-            flowNavigator.setRouter(router)
+            self.viewModel.setModelContext(self.modelContext)
+            self.flowNavigator.currentStep = .antennaConfiguration
+            self.flowNavigator.setRouter(self.router)
         }
         .onReceive(NotificationCenter.default.publisher(for: .init("FloorMapChanged"))) { notification in
             // フロアマップが変更された時にデータを再読み込み
@@ -52,98 +71,14 @@ struct AntennaPositioningView: View {
             if let floorMapInfo = notification.object as? FloorMapInfo {
                 print("📢 新しいフロアマップ: \(floorMapInfo.name) (ID: \(floorMapInfo.id))")
             }
-            viewModel.loadMapAndDevices()
+            self.viewModel.loadMapAndDevices()
         }
-    }
-
-    // MARK: - Header Section
-
-    @ViewBuilder
-    private func HeaderSection() -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("アンテナ位置をマップ上に配置してください")
-                .font(.title2)
-                .fontWeight(.medium)
-
-            Text("選択したデバイスをマップ上の実際の位置にドラッグ&ドロップで配置してください。正確な位置設定により、より精密な位置測定が可能になります。")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .padding(.horizontal)
-    }
-
-    // MARK: - Navigation Buttons
-
-    @ViewBuilder
-    private func NavigationButtonsSection(viewModel: AntennaPositioningViewModel) -> some View {
-        VStack(spacing: 12) {
-            Divider()
-
-            HStack(spacing: 20) {
-                Button("戻る") {
-                    flowNavigator.goToPreviousStep()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.secondary)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(8)
-
-                Button("自動配置") {
-                    viewModel.autoArrangeAntennas()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.blue)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(8)
-
-                Button("リセット") {
-                    viewModel.resetPositions()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.orange)
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(8)
-
-                Button("全削除") {
-                    viewModel.removeAllDevices()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.red)
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(8)
-
-                Button("次へ") {
-                    print("🔘 Next button clicked")
-                    let saveSuccess = viewModel.saveAntennaPositionsForFlow()
-                    print("🔘 Save result: \(saveSuccess)")
-
-                    if saveSuccess {
-                        print("🔘 Calling flowNavigator.proceedToNextStep()")
-                        flowNavigator.proceedToNextStep()
-                    } else {
-                        print("❌ Cannot proceed: antenna positions not saved")
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.white)
-                .background(viewModel.canProceedValue ? Color.blue : Color.gray)
-                .cornerRadius(8)
-                .disabled(!viewModel.canProceedValue)
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-        }
-        .alert("エラー", isPresented: Binding.constant(flowNavigator.lastError != nil)) {
+        .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
             Button("OK") {
-                flowNavigator.lastError = nil
+                self.flowNavigator.lastError = nil
             }
         } message: {
-            Text(flowNavigator.lastError ?? "")
+            Text(self.flowNavigator.lastError ?? "")
         }
     }
 }
@@ -154,203 +89,72 @@ struct MapCanvasSection: View {
     @ObservedObject var viewModel: AntennaPositioningViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("フロアマップ")
-                .font(.headline)
+        FloorMapCanvas(
+            floorMapImage: self.viewModel.mapImage,
+            floorMapInfo: self.viewModel.currentFloorMapInfo,
+            calibrationPoints: self.viewModel.calibrationData.first?.calibrationPoints,
+            onMapTap: nil,
+            enableZoom: true,
+            fixedHeight: nil,
+            showGrid: true
+        ) { geometry in
+            // アンテナ位置
+            ForEach(self.viewModel.antennaPositions) { antenna in
+                let antennaDisplayData = AntennaDisplayData(
+                    id: antenna.id,
+                    name: antenna.deviceName,
+                    rotation: antenna.rotation,
+                    color: antenna.color
+                )
 
-            FloorMapCanvas(
-                floorMapImage: viewModel.mapImage,
-                floorMapInfo: viewModel.currentFloorMapInfo,
-                onMapTap: nil
-            ) { geometry in
-                // アンテナ位置
-                ForEach(viewModel.antennaPositions) { antenna in
-                    let antennaDisplayData = AntennaDisplayData(
-                        id: antenna.id,
-                        name: antenna.deviceName,
-                        rotation: antenna.rotation,
-                        color: antenna.color
-                    )
+                let displayPosition = geometry.normalizedToImageCoordinate(antenna.normalizedPosition)
 
-                    let displayPosition = geometry.normalizedToImageCoordinate(antenna.normalizedPosition)
-
-                    AntennaMarker(
-                        antenna: antennaDisplayData,
-                        position: displayPosition,
-                        size: geometry.antennaSizeInPixels(),
-                        sensorRange: geometry.sensorRangeInPixels(),
-                        isSelected: true,  // 常にセンサー範囲を表示
-                        isDraggable: true,
-                        showRotationControls: false,
-                        onPositionChanged: { newPosition in
-                            let normalizedPosition = geometry.imageCoordinateToNormalized(newPosition)
-                            viewModel.updateAntennaPosition(antenna.id, normalizedPosition: normalizedPosition)
-                        },
-                        onRotationChanged: { newRotation in
-                            viewModel.updateAntennaRotation(antenna.id, rotation: newRotation)
-                        }
-                    )
-                }
+                AntennaMarker(
+                    antenna: antennaDisplayData,
+                    position: displayPosition,
+                    size: geometry.antennaSizeInPixels(),
+                    sensorRange: geometry.sensorRangeInPixels(),
+                    isSelected: true,  // 常にセンサー範囲を表示
+                    isDraggable: true,
+                    showRotationControls: false,
+                    onPositionChanged: { newPosition in
+                        let normalizedPosition = geometry.imageCoordinateToNormalized(newPosition)
+                        self.viewModel.updateAntennaPosition(antenna.id, normalizedPosition: normalizedPosition)
+                    },
+                    onRotationChanged: { newRotation in
+                        self.viewModel.updateAntennaRotation(antenna.id, rotation: newRotation)
+                    }
+                )
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 400)
-        #if os(macOS)
-            .background(Color(NSColor.controlBackgroundColor))
-        #elseif os(iOS)
-            .background(Color(UIColor.systemBackground))
-        #endif
-            .cornerRadius(8)
-            .shadow(radius: 2)
     }
 }
 
 // MARK: - Antenna Device List Section
 
-struct AntennaDeviceListSection: View {
-    @ObservedObject var viewModel: AntennaPositioningViewModel
-    @State private var showingAddDeviceAlert = false
-    @State private var newDeviceName = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text("アンテナデバイス")
-                    .font(.headline)
-
-                Spacer()
-
-                Button(action: {
-                    print("🔘 Plus button clicked - showing add device alert")
-                    newDeviceName = ""
-                    showingAddDeviceAlert = true
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(viewModel.selectedDevices) { device in
-                        AntennaDeviceRowWithActions(
-                            device: AntennaInfo(id: device.id, name: device.name, coordinates: Point3D.zero),
-                            position: viewModel.getDevicePosition(device.id),
-                            rotation: viewModel.getDeviceRotation(device.id),
-                            isPositioned: viewModel.isDevicePositioned(device.id),
-                            onRemove: {
-                                viewModel.removeDevice(device.id)
-                            }
-                        )
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-        .frame(width: 300)
-        .alert("新しいデバイスを追加", isPresented: $showingAddDeviceAlert) {
-            TextField("デバイス名", text: $newDeviceName)
-
-            Button("追加") {
-                if !newDeviceName.isEmpty {
-                    print("🔘 Alert: Adding device with name: \(newDeviceName)")
-                    viewModel.addNewDevice(name: newDeviceName)
-                    newDeviceName = ""  // リセット
-                } else {
-                    print("❌ Alert: Device name is empty")
-                }
-            }
-            .disabled(newDeviceName.isEmpty)
-
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("アンテナデバイスの名前を入力してください。")
-        }
-    }
-}
-
-// MARK: - Enhanced Instructions Section with Rotation Info
-
-struct InstructionsSection: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("配置・設定のヒント")
-                .font(.headline)
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "1.circle.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 20)
-                    Text("デバイスをマップ上の実際の位置にドラッグしてください")
-                        .font(.subheadline)
-                }
-
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "2.circle.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 20)
-                    Text("アンテナをダブルタップして向き（回転）を調整できます")
-                        .font(.subheadline)
-                }
-
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "3.circle.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 20)
-                    Text("最低3台以上のアンテナを配置してください")
-                        .font(.subheadline)
-                }
-
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "4.circle.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 20)
-                    Text("三角形以上の形状になるように配置すると精度が向上します")
-                        .font(.subheadline)
-                }
-
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "antenna.radiowaves.left.and.right")
-                        .foregroundColor(.orange)
-                        .frame(width: 20)
-                    Text("アンテナの向きは電波の指向性に影響します。壁や障害物を考慮して設定してください")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemBlue).opacity(0.1))
-        .cornerRadius(8)
-        .padding(.horizontal)
-    }
-}
-
 // MARK: - Enhanced Antenna Device Row with Rotation Info
 
 struct AntennaDeviceRow: View {
-    let device: AntennaInfo
+    let device: DeviceInfo
     let position: CGPoint?
-    let rotation: Double?
     let isPositioned: Bool
+    let rotation: Double?
+    let onRemove: () -> Void
 
     var body: some View {
         HStack {
             // デバイス情報
             VStack(alignment: .leading, spacing: 4) {
-                Text(device.name)
+                Text(self.device.name)
                     .font(.subheadline)
                     .fontWeight(.medium)
 
-                Text(device.id)
+                Text(self.device.id)
                     .font(.caption)
                     .foregroundColor(.secondary)
 
                 if let position {
-                    Text("位置: (\(Int(position.x)), \(Int(position.y)))")
+                    Text("位置: X: \(String(format: "%.2f", position.x)), Y: \(String(format: "%.2f", position.y))")
                         .font(.caption2)
                         .foregroundColor(.blue)
                 }
@@ -362,7 +166,7 @@ struct AntennaDeviceRow: View {
                             .foregroundColor(.orange)
                             .rotationEffect(.degrees(rotation))
 
-                        Text("向き: \(Int(rotation))°")
+                        Text("向き: \(String(format: "%.1f", rotation))°")
                             .font(.caption2)
                             .foregroundColor(.orange)
                     }
@@ -373,46 +177,54 @@ struct AntennaDeviceRow: View {
 
             // ステータス表示
             VStack(spacing: 4) {
-                if isPositioned {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .font(.title3)
+                if self.isPositioned, let rotation = self.rotation, rotation != 0.0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("完了")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                    }
+                } else if self.isPositioned {
+                    HStack(spacing: 4) {
+                        Image(systemName: "location.circle.fill")
+                            .foregroundColor(.orange)
+                        Text("配置済")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
                 } else {
-                    Image(systemName: "exclamationmark.circle")
-                        .foregroundColor(.orange)
-                        .font(.title3)
-                }
-
-                Text(isPositioned ? "配置済み" : "未配置")
-                    .font(.caption2)
-                    .foregroundColor(isPositioned ? .green : .orange)
-
-                // 向き設定状況
-                if rotation != nil {
-                    Text("向き設定済み")
-                        .font(.caption2)
-                        .foregroundColor(.blue)
-                } else if isPositioned {
-                    Text("向き未設定")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.circle")
+                            .foregroundColor(.red)
+                        Text("未配置")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                    }
                 }
             }
+
+            // 削除ボタン
+            Button(action: self.onRemove) {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(.plain)
         }
-        .padding()
+        .padding(8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(backgroundColorForStatus)
+                .fill(self.backgroundColorForStatus)
         )
     }
 
     private var backgroundColorForStatus: Color {
-        if isPositioned && rotation != nil {
-            return Color(.systemGreen).opacity(0.15)
-        } else if isPositioned {
-            return Color(.systemOrange).opacity(0.1)
+        if self.isPositioned, let rotation = self.rotation, rotation != 0.0 {
+            return Color.green.opacity(0.15)
+        } else if self.isPositioned {
+            return Color.orange.opacity(0.1)
         } else {
-            return Color(.systemRed).opacity(0.1)
+            return Color.red.opacity(0.1)
         }
     }
 }
@@ -432,18 +244,23 @@ struct AntennaDeviceRowWithActions: View {
         HStack {
             // デバイス情報
             VStack(alignment: .leading, spacing: 4) {
-                Text(device.name)
+                Text(self.device.name)
                     .font(.subheadline)
                     .fontWeight(.medium)
 
-                Text(device.id)
+                Text(self.device.id)
                     .font(.caption)
                     .foregroundColor(.secondary)
 
+                // デバッグ: positionの状態を表示
                 if let position {
-                    Text("位置: (\(Int(position.x)), \(Int(position.y)))")
+                    Text("位置: X: \(String(format: "%.2f", position.x)), Y: \(String(format: "%.2f", position.y))")
                         .font(.caption2)
                         .foregroundColor(.blue)
+                } else if self.isPositioned {
+                    Text("位置: 取得中...")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
                 }
 
                 if let rotation {
@@ -453,7 +270,7 @@ struct AntennaDeviceRowWithActions: View {
                             .foregroundColor(.orange)
                             .rotationEffect(.degrees(rotation))
 
-                        Text("向き: \(Int(rotation))°")
+                        Text("向き: \(String(format: "%.1f", rotation))°")
                             .font(.caption2)
                             .foregroundColor(.orange)
                     }
@@ -465,7 +282,7 @@ struct AntennaDeviceRowWithActions: View {
             // ステータス表示と削除ボタン
             VStack(spacing: 8) {
                 VStack(spacing: 4) {
-                    if isPositioned {
+                    if self.isPositioned {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                             .font(.title3)
@@ -475,16 +292,16 @@ struct AntennaDeviceRowWithActions: View {
                             .font(.title3)
                     }
 
-                    Text(isPositioned ? "配置済み" : "未配置")
+                    Text(self.isPositioned ? "配置済み" : "未配置")
                         .font(.caption2)
-                        .foregroundColor(isPositioned ? .green : .orange)
+                        .foregroundColor(self.isPositioned ? .green : .orange)
 
                     // 向き設定状況
-                    if rotation != nil {
+                    if self.rotation != nil {
                         Text("向き設定済み")
                             .font(.caption2)
                             .foregroundColor(.blue)
-                    } else if isPositioned {
+                    } else if self.isPositioned {
                         Text("向き未設定")
                             .font(.caption2)
                             .foregroundColor(.orange)
@@ -492,7 +309,7 @@ struct AntennaDeviceRowWithActions: View {
                 }
 
                 Button(action: {
-                    showingRemoveAlert = true
+                    self.showingRemoveAlert = true
                 }) {
                     Image(systemName: "minus.circle.fill")
                         .font(.title3)
@@ -504,25 +321,262 @@ struct AntennaDeviceRowWithActions: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(backgroundColorForStatus)
+                .fill(self.backgroundColorForStatus)
         )
-        .alert("デバイスを削除", isPresented: $showingRemoveAlert) {
+        .alert("デバイスを削除", isPresented: self.$showingRemoveAlert) {
             Button("削除", role: .destructive) {
-                onRemove()
+                self.onRemove()
             }
             Button("キャンセル", role: .cancel) {}
         } message: {
-            Text("デバイス「\(device.name)」を削除しますか？この操作は取り消せません。")
+            Text("デバイス「\(self.device.name)」を削除しますか？この操作は取り消せません。")
         }
     }
 
     private var backgroundColorForStatus: Color {
-        if isPositioned && rotation != nil {
-            return Color(.systemGreen).opacity(0.15)
-        } else if isPositioned {
-            return Color(.systemOrange).opacity(0.1)
+        if self.isPositioned, let rotation = self.rotation, rotation != 0.0 {
+            return Color.green.opacity(0.15)
+        } else if self.isPositioned {
+            return Color.orange.opacity(0.1)
         } else {
-            return Color(.systemRed).opacity(0.1)
+            return Color.red.opacity(0.1)
+        }
+    }
+}
+
+// MARK: - Floating Device List Panel
+
+struct FloatingDeviceListPanel: View {
+    @ObservedObject var viewModel: AntennaPositioningViewModel
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            self.headerView
+
+            if self.isExpanded {
+                Divider()
+                self.deviceListView
+            }
+        }
+        .padding(16)
+        .background(self.backgroundView)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4)
+    }
+
+    private var headerView: some View {
+        HStack {
+            Image(systemName: "antenna.radiowaves.left.and.right")
+                .foregroundColor(.blue)
+            Text("デバイス")
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            Spacer()
+
+            Button(action: {
+                withAnimation(.spring(response: 0.3)) {
+                    self.isExpanded.toggle()
+                }
+            }) {
+                Image(systemName: self.isExpanded ? "chevron.up" : "chevron.down")
+                    .foregroundColor(.secondary)
+                    .imageScale(.small)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var deviceListView: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                ForEach(self.viewModel.antennaPositions) { antenna in
+                    AntennaDeviceRow(
+                        device: DeviceInfo(
+                            id: antenna.id,
+                            name: antenna.deviceName
+                        ),
+                        position: self.viewModel.getDevicePosition(antenna.id),
+                        isPositioned: self.viewModel.isDevicePositioned(antenna.id),
+                        rotation: antenna.rotation,
+                        onRemove: {
+                            self.viewModel.removeDevice(antenna.id)
+                        }
+                    )
+                }
+
+                self.addDeviceButton
+            }
+        }
+        .frame(maxHeight: 400)
+    }
+
+    private var addDeviceButton: some View {
+        Button(action: {
+            let deviceCount = self.viewModel.antennaPositions.count
+            let newDeviceName = "アンテナ \(deviceCount + 1)"
+            self.viewModel.addNewDevice(name: newDeviceName)
+        }) {
+            HStack {
+                Image(systemName: "plus.circle.fill")
+                Text("デバイスを追加")
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.blue.opacity(0.1))
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var backgroundView: some View {
+        Group {
+            #if os(macOS)
+                Color(NSColor.controlBackgroundColor).opacity(0.95)
+            #elseif os(iOS)
+                Color(UIColor.systemBackground).opacity(0.95)
+            #endif
+        }
+    }
+}
+
+// MARK: - Floating Control Panel
+
+struct FloatingControlPanel: View {
+    @ObservedObject var viewModel: AntennaPositioningViewModel
+    @ObservedObject var flowNavigator: SensingFlowNavigator
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            self.headerView
+
+            if self.isExpanded {
+                Divider()
+                self.instructionsView
+                Divider()
+                self.controlButtonsView
+            }
+        }
+        .padding(16)
+        .background(self.backgroundView)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4)
+    }
+
+    private var headerView: some View {
+        HStack {
+            Image(systemName: "gearshape.fill")
+                .foregroundColor(.blue)
+            Text("コントロール")
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            Spacer()
+
+            Button(action: {
+                withAnimation(.spring(response: 0.3)) {
+                    self.isExpanded.toggle()
+                }
+            }) {
+                Image(systemName: self.isExpanded ? "chevron.down" : "chevron.up")
+                    .foregroundColor(.secondary)
+                    .imageScale(.small)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var instructionsView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "hand.tap.fill")
+                    .foregroundColor(.blue)
+                Text("マップをピンチで拡大/縮小")
+                    .font(.caption)
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "hand.draw.fill")
+                    .foregroundColor(.blue)
+                Text("マップをドラッグで移動")
+                    .font(.caption)
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "move.3d")
+                    .foregroundColor(.blue)
+                Text("アンテナをドラッグして配置")
+                    .font(.caption)
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "rotate.right.fill")
+                    .foregroundColor(.blue)
+                Text("アンテナをダブルタップで回転")
+                    .font(.caption)
+            }
+        }
+        .foregroundColor(.secondary)
+    }
+
+    private var controlButtonsView: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Button("自動配置") {
+                    self.viewModel.autoArrangeAntennas()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color.blue.opacity(0.1))
+                .foregroundColor(.blue)
+                .cornerRadius(8)
+                .buttonStyle(.plain)
+
+                Button("リセット") {
+                    self.viewModel.resetPositions()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color.orange.opacity(0.1))
+                .foregroundColor(.orange)
+                .cornerRadius(8)
+                .buttonStyle(.plain)
+            }
+
+            HStack(spacing: 8) {
+                Button("戻る") {
+                    self.flowNavigator.goToPreviousStep()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color.secondary.opacity(0.1))
+                .foregroundColor(.secondary)
+                .cornerRadius(8)
+                .buttonStyle(.plain)
+
+                Button("次へ") {
+                    let saveSuccess = self.viewModel.saveAntennaPositionsForFlow()
+                    if saveSuccess {
+                        self.flowNavigator.proceedToNextStep()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(self.viewModel.canProceedValue ? Color.blue : Color.gray)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+                .buttonStyle(.plain)
+                .disabled(!self.viewModel.canProceedValue)
+            }
+        }
+    }
+
+    private var backgroundView: some View {
+        Group {
+            #if os(macOS)
+                Color(NSColor.controlBackgroundColor).opacity(0.95)
+            #elseif os(iOS)
+                Color(UIColor.systemBackground).opacity(0.95)
+            #endif
         }
     }
 }

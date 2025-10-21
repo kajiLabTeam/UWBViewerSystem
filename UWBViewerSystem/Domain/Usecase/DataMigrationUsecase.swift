@@ -59,7 +59,7 @@ public class DataMigrationUsecase {
     /// データ移行が必要かどうかを確認します
     /// - Returns: 移行が必要な場合true、既に完了している場合false
     public var needsMigration: Bool {
-        !preferenceRepository.isMigrationCompleted(for: migrationKey)
+        !self.preferenceRepository.isMigrationCompleted(for: self.migrationKey)
     }
 
     /// UserDefaultsからSwiftDataへデータを移行します
@@ -69,7 +69,7 @@ public class DataMigrationUsecase {
     ///
     /// - Throws: SwiftDataへの保存時に発生するエラー
     public func migrateDataIfNeeded() async throws {
-        guard needsMigration else {
+        guard self.needsMigration else {
             print("データ移行は既に完了しています")
             return
         }
@@ -77,16 +77,16 @@ public class DataMigrationUsecase {
         print("データ移行を開始します...")
 
         // センシングセッションの移行
-        await migrateSensingSessions()
+        await self.migrateSensingSessions()
 
         // アンテナ位置データの移行
-        await migrateAntennaPositions()
+        await self.migrateAntennaPositions()
 
         // システム活動履歴の移行
-        await migrateSystemActivities()
+        await self.migrateSystemActivities()
 
         // 移行完了フラグを設定
-        preferenceRepository.setMigrationCompleted(for: migrationKey, completed: true)
+        self.preferenceRepository.setMigrationCompleted(for: self.migrationKey, completed: true)
         print("データ移行が完了しました")
     }
 
@@ -100,7 +100,7 @@ public class DataMigrationUsecase {
 
             for session in sessions {
                 do {
-                    try await swiftDataRepository.saveSensingSession(session)
+                    try await self.swiftDataRepository.saveSensingSession(session)
                 } catch {
                     print("センシングセッション移行エラー (\(session.name)): \(error)")
                 }
@@ -114,7 +114,7 @@ public class DataMigrationUsecase {
 
             for position in positions {
                 do {
-                    try await swiftDataRepository.saveAntennaPosition(position)
+                    try await self.swiftDataRepository.saveAntennaPosition(position)
                 } catch {
                     print("アンテナ位置データ移行エラー (\(position.antennaName)): \(error)")
                 }
@@ -130,7 +130,7 @@ public class DataMigrationUsecase {
 
             for activity in activities {
                 do {
-                    try await swiftDataRepository.saveSystemActivity(activity)
+                    try await self.swiftDataRepository.saveSystemActivity(activity)
                 } catch {
                     print("システム活動履歴移行エラー: \(error)")
                 }
@@ -145,7 +145,7 @@ public class DataMigrationUsecase {
     ///
     /// - Warning: この操作は通常テスト目的でのみ使用してください
     public func resetMigration() {
-        preferenceRepository.setMigrationCompleted(for: migrationKey, completed: false)
+        self.preferenceRepository.setMigrationCompleted(for: self.migrationKey, completed: false)
         print("移行フラグをリセットしました")
     }
 
@@ -159,7 +159,7 @@ public class DataMigrationUsecase {
         print("UserDefaultsのデータをクリア中...")
 
         // PreferenceRepositoryから直接クリーンアップ
-        preferenceRepository.removeObject(forKey: "sensingSessions")
+        self.preferenceRepository.removeObject(forKey: "sensingSessions")
 
         // その他のデータ（必要に応じて追加）
         // ただし、設定値などは残すようにする

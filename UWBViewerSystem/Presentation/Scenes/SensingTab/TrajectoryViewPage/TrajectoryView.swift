@@ -6,17 +6,17 @@ struct TrajectoryView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            HeaderSection()
+            self.HeaderSection()
 
             HStack(spacing: 20) {
-                TrajectoryMapSection(viewModel: viewModel)
+                TrajectoryMapSection(viewModel: self.viewModel)
 
-                DataControlSection(viewModel: viewModel)
+                DataControlSection(viewModel: self.viewModel)
             }
 
-            TrajectoryAnalysisSection(viewModel: viewModel)
+            TrajectoryAnalysisSection(viewModel: self.viewModel)
 
-            NavigationButtonsSection()
+            self.NavigationButtonsSection()
         }
         .navigationTitle("センシングデータ軌跡")
         #if os(iOS)
@@ -28,7 +28,7 @@ struct TrajectoryView: View {
         .background(Color(UIColor.systemBackground))
         #endif
         .onAppear {
-            viewModel.initialize()
+            self.viewModel.initialize()
         }
     }
 
@@ -54,14 +54,14 @@ struct TrajectoryView: View {
     private func NavigationButtonsSection() -> some View {
         HStack(spacing: 20) {
             Button("戻る") {
-                router.pop()
+                self.router.pop()
             }
             .buttonStyle(.bordered)
 
             Spacer()
 
             Button("新しいセンシングを開始") {
-                router.navigateTo(.floorMapSetting)
+                self.router.navigateTo(.floorMapSetting)
             }
             .buttonStyle(.borderedProminent)
         }
@@ -84,13 +84,13 @@ struct TrajectoryMapSection: View {
 
                 HStack {
                     Button("リセット") {
-                        viewModel.resetView()
+                        self.viewModel.resetView()
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
 
                     Button("エクスポート") {
-                        viewModel.exportTrajectoryData()
+                        self.viewModel.exportTrajectoryData()
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -133,13 +133,13 @@ struct TrajectoryMapSection: View {
                 }
 
                 // アンテナ位置
-                ForEach(viewModel.antennaPositions) { antenna in
+                ForEach(self.viewModel.antennaPositions) { antenna in
                     AntennaMarkerView(antenna: antenna)
                 }
 
                 // 軌跡パス
-                if !viewModel.trajectoryPoints.isEmpty {
-                    TrajectoryPath(points: viewModel.trajectoryPoints, color: viewModel.trajectoryColor)
+                if !self.viewModel.trajectoryPoints.isEmpty {
+                    TrajectoryPath(points: self.viewModel.trajectoryPoints, color: self.viewModel.trajectoryColor)
                 }
 
                 // 現在位置
@@ -162,7 +162,7 @@ struct TrajectoryMapSection: View {
                 .cornerRadius(8)
                 .shadow(radius: 2)
                 .onTapGesture { location in
-                    viewModel.handleMapTap(at: location)
+                    self.viewModel.handleMapTap(at: location)
                 }
         }
         .frame(maxWidth: .infinity)
@@ -176,11 +176,11 @@ struct DataControlSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SessionSelectionSection(viewModel: viewModel)
+            SessionSelectionSection(viewModel: self.viewModel)
 
-            PlaybackControlSection(viewModel: viewModel)
+            PlaybackControlSection(viewModel: self.viewModel)
 
-            FilteringSection(viewModel: viewModel)
+            FilteringSection(viewModel: self.viewModel)
         }
         .frame(width: 350)
     }
@@ -196,7 +196,7 @@ struct SessionSelectionSection: View {
             Text("セッション選択")
                 .font(.headline)
 
-            if viewModel.availableSessions.isEmpty {
+            if self.viewModel.availableSessions.isEmpty {
                 VStack {
                     Image(systemName: "tray")
                         .font(.largeTitle)
@@ -216,12 +216,12 @@ struct SessionSelectionSection: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 8) {
-                        ForEach(viewModel.availableSessions) { session in
+                        ForEach(self.viewModel.availableSessions) { session in
                             TrajectorySessionRowView(
                                 session: session,
-                                isSelected: viewModel.selectedSession?.id == session.id,
+                                isSelected: self.viewModel.selectedSession?.id == session.id,
                                 onSelect: {
-                                    viewModel.selectSession(session)
+                                    self.viewModel.selectSession(session)
                                 }
                             )
                         }
@@ -245,52 +245,52 @@ struct PlaybackControlSection: View {
 
             VStack(spacing: 10) {
                 // 時間スライダー
-                if viewModel.hasTrajectoryData {
+                if self.viewModel.hasTrajectoryData {
                     VStack(spacing: 5) {
                         HStack {
-                            Text(viewModel.currentTimeString)
+                            Text(self.viewModel.currentTimeString)
                                 .font(.caption)
                                 .monospacedDigit()
                             Spacer()
-                            Text(viewModel.totalTimeString)
+                            Text(self.viewModel.totalTimeString)
                                 .font(.caption)
                                 .monospacedDigit()
                         }
                         .foregroundColor(.secondary)
 
                         Slider(
-                            value: $viewModel.currentTimeIndex,
-                            in: 0...Double(max(0, viewModel.trajectoryPoints.count - 1)),
+                            value: self.$viewModel.currentTimeIndex,
+                            in: 0...Double(max(0, self.viewModel.trajectoryPoints.count - 1)),
                             step: 1
                         )
-                        .disabled(!viewModel.hasTrajectoryData)
+                        .disabled(!self.viewModel.hasTrajectoryData)
                     }
                 }
 
                 // 再生ボタン
                 HStack {
                     Button(action: {
-                        if viewModel.isPlaying {
-                            viewModel.pausePlayback()
+                        if self.viewModel.isPlaying {
+                            self.viewModel.pausePlayback()
                         } else {
-                            viewModel.startPlayback()
+                            self.viewModel.startPlayback()
                         }
                     }) {
-                        Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
+                        Image(systemName: self.viewModel.isPlaying ? "pause.fill" : "play.fill")
                             .font(.title2)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!viewModel.hasTrajectoryData)
+                    .disabled(!self.viewModel.hasTrajectoryData)
 
                     Button("停止") {
-                        viewModel.stopPlayback()
+                        self.viewModel.stopPlayback()
                     }
                     .buttonStyle(.bordered)
-                    .disabled(!viewModel.hasTrajectoryData)
+                    .disabled(!self.viewModel.hasTrajectoryData)
 
                     Spacer()
 
-                    Text("速度: \(String(format: "%.1f", viewModel.playbackSpeed))x")
+                    Text("速度: \(String(format: "%.1f", self.viewModel.playbackSpeed))x")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -299,7 +299,7 @@ struct PlaybackControlSection: View {
                 HStack {
                     Text("0.5x")
                         .font(.caption2)
-                    Slider(value: $viewModel.playbackSpeed, in: 0.5...5.0, step: 0.5)
+                    Slider(value: self.$viewModel.playbackSpeed, in: 0.5...5.0, step: 0.5)
                     Text("5.0x")
                         .font(.caption2)
                 }

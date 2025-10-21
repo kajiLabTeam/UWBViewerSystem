@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
+
 @testable import UWBViewerSystem
 
 @MainActor
@@ -140,7 +141,7 @@ struct SwiftDataRepositoryXCTests {
         } catch let error as RepositoryError {
             switch error {
             case .duplicateEntry:
-                #expect(Bool(true)) // 期待される動作
+                #expect(Bool(true))  // 期待される動作
             default:
                 #expect(Bool(false), "予期しないエラータイプ: \(error)")
             }
@@ -242,7 +243,7 @@ struct SwiftDataRepositoryXCTests {
         } catch let error as RepositoryError {
             switch error {
             case .notFound:
-                #expect(Bool(true)) // 期待される動作
+                #expect(Bool(true))  // 期待される動作
             default:
                 #expect(Bool(false), "予期しないエラータイプ: \(error)")
             }
@@ -290,7 +291,7 @@ struct SwiftDataRepositoryXCTests {
             id: "floor-1",
             name: "テストフロア",
             buildingName: "テストビル",
-            width: 0.0, // 無効なサイズ
+            width: 0.0,  // 無効なサイズ
             depth: 20.0,
             createdAt: Date()
         )
@@ -343,7 +344,7 @@ struct SwiftDataRepositoryXCTests {
 
         let calibrationData = CalibrationData(
             antennaId: "antenna-1",
-            calibrationPoints: [], // 空の配列
+            calibrationPoints: [],  // 空の配列
             transform: nil,
             isActive: true
         )

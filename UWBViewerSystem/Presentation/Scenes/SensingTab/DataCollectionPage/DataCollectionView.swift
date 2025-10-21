@@ -11,11 +11,11 @@ struct DataCollectionView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                headerSection
+                self.headerSection
 
                 Divider()
 
-                sensingControlCard
+                self.sensingControlCard
 
                 // リアルタイムセンサーデータ表示（常時表示）
                 VStack {
@@ -23,10 +23,10 @@ struct DataCollectionView: View {
                         .font(.caption2)
                         .foregroundColor(.red)
                         .padding(.bottom, 4)
-                    realtimeDataDisplaySection
+                    self.realtimeDataDisplaySection
                 }
 
-                recentSessionsCard
+                self.recentSessionsCard
 
                 // 下部のスペースを確保
                 Spacer(minLength: 50)
@@ -34,7 +34,7 @@ struct DataCollectionView: View {
             .padding()
         }
         .navigationTitle("データ取得")
-        .alert("ファイル名が必要です", isPresented: $showFileNameAlert) {
+        .alert("ファイル名が必要です", isPresented: self.$showFileNameAlert) {
             Button("OK") {}
         } message: {
             Text("センシングを開始するには、ファイル名を入力してください。")
@@ -77,9 +77,9 @@ struct DataCollectionView: View {
                     .fontWeight(.medium)
 
                 HStack {
-                    TextField("例: experiment_001", text: $sensingFileName)
+                    TextField("例: experiment_001", text: self.$sensingFileName)
                         .textFieldStyle(.roundedBorder)
-                        .disabled(viewModel.isSensingActive)
+                        .disabled(self.viewModel.isSensingActive)
 
                     Text(".csv")
                         .foregroundColor(.secondary)
@@ -88,7 +88,7 @@ struct DataCollectionView: View {
 
             // 制御ボタン
             HStack(spacing: 16) {
-                Button(action: startSensing) {
+                Button(action: self.startSensing) {
                     HStack {
                         Image(systemName: "play.circle.fill")
                         Text("センシング開始")
@@ -106,9 +106,9 @@ struct DataCollectionView: View {
                     )
                     .cornerRadius(12)
                 }
-                .disabled(viewModel.isSensingActive || sensingFileName.isEmpty)
+                .disabled(self.viewModel.isSensingActive || self.sensingFileName.isEmpty)
 
-                Button(action: stopSensing) {
+                Button(action: self.stopSensing) {
                     HStack {
                         Image(systemName: "stop.circle.fill")
                         Text("センシング終了")
@@ -126,11 +126,11 @@ struct DataCollectionView: View {
                     )
                     .cornerRadius(12)
                 }
-                .disabled(!viewModel.isSensingActive)
+                .disabled(!self.viewModel.isSensingActive)
             }
 
             // 状態表示
-            statusIndicator
+            self.statusIndicator
         }
         .padding()
         .background(Color.gray.opacity(0.05))
@@ -142,23 +142,23 @@ struct DataCollectionView: View {
     private var statusIndicator: some View {
         HStack {
             Circle()
-                .fill(viewModel.isSensingActive ? Color.green : Color.gray)
+                .fill(self.viewModel.isSensingActive ? Color.green : Color.gray)
                 .frame(width: 12, height: 12)
 
-            Text(viewModel.sensingStatus)
+            Text(self.viewModel.sensingStatus)
                 .font(.body)
                 .fontWeight(.medium)
 
             Spacer()
 
-            if viewModel.isSensingActive {
-                Text("経過時間: \(viewModel.elapsedTime)")
+            if self.viewModel.isSensingActive {
+                Text("経過時間: \(self.viewModel.elapsedTime)")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
         .padding()
-        .background(viewModel.isSensingActive ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
+        .background(self.viewModel.isSensingActive ? Color.green.opacity(0.1) : Color.gray.opacity(0.1))
         .cornerRadius(8)
     }
 
@@ -174,7 +174,7 @@ struct DataCollectionView: View {
                 Spacer()
 
                 Button(action: {
-                    router.push(.dataDisplayPage)
+                    self.router.push(.dataDisplayPage)
                 }) {
                     Text("全て表示")
                         .font(.caption)
@@ -182,13 +182,13 @@ struct DataCollectionView: View {
                 }
             }
 
-            if viewModel.recentSessions.isEmpty {
+            if self.viewModel.recentSessions.isEmpty {
                 Text("まだセッションがありません")
                     .foregroundColor(.secondary)
                     .padding()
             } else {
                 LazyVStack(spacing: 8) {
-                    ForEach(Array(viewModel.recentSessions.prefix(3)), id: \.name) { session in
+                    ForEach(Array(self.viewModel.recentSessions.prefix(3)), id: \.name) { session in
                         SessionRowView(session: session)
                     }
                 }
@@ -202,16 +202,16 @@ struct DataCollectionView: View {
     // MARK: - Actions
 
     private func startSensing() {
-        guard !sensingFileName.isEmpty else {
-            showFileNameAlert = true
+        guard !self.sensingFileName.isEmpty else {
+            self.showFileNameAlert = true
             return
         }
 
-        viewModel.startSensing(fileName: sensingFileName)
+        self.viewModel.startSensing(fileName: self.sensingFileName)
     }
 
     private func stopSensing() {
-        viewModel.stopSensing()
+        self.viewModel.stopSensing()
     }
 
     // MARK: - Standalone Realtime Data Display Section
@@ -219,7 +219,7 @@ struct DataCollectionView: View {
     private var realtimeDataDisplaySection: some View {
         VStack(spacing: 16) {
             // デバッグ表示
-            Text("🔍 セクション内部: count=\(viewModel.dataPointCount)")
+            Text("🔍 セクション内部: count=\(self.viewModel.dataPointCount)")
                 .font(.caption2)
                 .foregroundColor(.red)
 
@@ -237,21 +237,21 @@ struct DataCollectionView: View {
             VStack(spacing: 8) {
                 HStack {
                     Circle()
-                        .fill(viewModel.deviceRealtimeDataList.isEmpty ? Color.gray : Color.green)
+                        .fill(self.viewModel.deviceRealtimeDataList.isEmpty ? Color.gray : Color.green)
                         .frame(width: 8, height: 8)
 
-                    Text(viewModel.deviceRealtimeDataList.isEmpty ? "UWBデータ待機中" : "UWBデータ受信中")
+                    Text(self.viewModel.deviceRealtimeDataList.isEmpty ? "UWBデータ待機中" : "UWBデータ受信中")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
 
-                if !viewModel.deviceRealtimeDataList.isEmpty {
+                if !self.viewModel.deviceRealtimeDataList.isEmpty {
                     VStack(spacing: 2) {
                         Text("最終更新: \(Date().formatted(.dateTime.hour().minute().second()))")
                             .font(.caption2)
                             .foregroundColor(.secondary)
 
-                        Text("受信デバイス数: \(viewModel.deviceRealtimeDataList.count)")
+                        Text("受信デバイス数: \(self.viewModel.deviceRealtimeDataList.count)")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -269,7 +269,7 @@ struct DataCollectionView: View {
             }
             .padding(.vertical, 8)
 
-            if viewModel.deviceRealtimeDataList.isEmpty {
+            if self.viewModel.deviceRealtimeDataList.isEmpty {
                 // データなしの表示
                 VStack(spacing: 12) {
                     Image(systemName: "wifi.slash")
@@ -321,13 +321,13 @@ struct DataCollectionView: View {
 
                         Spacer()
 
-                        Text("\(viewModel.deviceRealtimeDataList.count)台のデバイス")
+                        Text("\(self.viewModel.deviceRealtimeDataList.count)台のデバイス")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
                         Button(action: {
                             // データをクリア（デバッグ用）
-                            viewModel.clearRealtimeData()
+                            self.viewModel.clearRealtimeData()
                         }) {
                             Image(systemName: "trash")
                                 .font(.caption)
@@ -338,7 +338,7 @@ struct DataCollectionView: View {
                     .padding(.horizontal)
 
                     // デバイス別データ表示
-                    ForEach(viewModel.deviceRealtimeDataList) { deviceData in
+                    ForEach(self.viewModel.deviceRealtimeDataList) { deviceData in
                         if let latestData = deviceData.latestData {
                             RealtimeDeviceCardView(deviceData: deviceData, latestData: latestData)
                         }
@@ -362,11 +362,11 @@ struct DataCollectionView: View {
 
     private var realtimeDataSection: some View {
         Group {
-            if !viewModel.deviceRealtimeDataList.isEmpty {
+            if !self.viewModel.deviceRealtimeDataList.isEmpty {
                 VStack(spacing: 12) {
-                    realtimeDataHeader
+                    self.realtimeDataHeader
 
-                    ForEach(viewModel.deviceRealtimeDataList) { deviceData in
+                    ForEach(self.viewModel.deviceRealtimeDataList) { deviceData in
                         if let latestData = deviceData.latestData {
                             DeviceDataCardView(deviceData: deviceData, latestData: latestData)
                         }
@@ -388,7 +388,7 @@ struct DataCollectionView: View {
 
             Spacer()
 
-            Text("接続中: \(viewModel.deviceRealtimeDataList.count)台")
+            Text("接続中: \(self.viewModel.deviceRealtimeDataList.count)台")
                 .font(.caption)
                 .foregroundColor(.green)
                 .fontWeight(.semibold)
@@ -406,7 +406,7 @@ struct RealtimeDeviceCardView: View {
         VStack(spacing: 10) {
             // デバイス名とリアルタイム更新インジケータ
             HStack {
-                Text(deviceData.deviceName)
+                Text(self.deviceData.deviceName)
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
@@ -415,34 +415,34 @@ struct RealtimeDeviceCardView: View {
 
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(deviceData.isRecentlyUpdated ? Color.green : Color.red)
+                        .fill(self.deviceData.isRecentlyUpdated ? Color.green : Color.red)
                         .frame(width: 8, height: 8)
 
-                    Text(deviceData.isRecentlyUpdated ? "LIVE" : "OFFLINE")
+                    Text(self.deviceData.isRecentlyUpdated ? "LIVE" : "OFFLINE")
                         .font(.caption2)
                         .fontWeight(.bold)
-                        .foregroundColor(deviceData.isRecentlyUpdated ? .green : .red)
+                        .foregroundColor(self.deviceData.isRecentlyUpdated ? .green : .red)
                 }
             }
 
             // データ品質バー
-            dataQualityBar
+            self.dataQualityBar
 
             // メイン計測値（大きく表示）
-            mainMeasurements
+            self.mainMeasurements
 
             // 補助情報
-            auxiliaryInfo
+            self.auxiliaryInfo
 
             // データ履歴
             HStack {
-                Text("データ履歴: \(deviceData.dataHistory.count)件")
+                Text("データ履歴: \(self.deviceData.dataHistory.count)件")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
-                Text("更新: \(formatTimeAgo(deviceData.lastUpdateTime))")
+                Text("更新: \(formatTimeAgo(self.deviceData.lastUpdateTime))")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -451,8 +451,8 @@ struct RealtimeDeviceCardView: View {
         .background(
             LinearGradient(
                 gradient: Gradient(colors: [
-                    deviceData.isRecentlyUpdated ? Color.blue.opacity(0.05) : Color.gray.opacity(0.05),
-                    deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.gray.opacity(0.02),
+                    self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.05) : Color.gray.opacity(0.05),
+                    self.deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.gray.opacity(0.02),
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -462,7 +462,7 @@ struct RealtimeDeviceCardView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    deviceData.isRecentlyUpdated ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2),
+                    self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2),
                     lineWidth: 1
                 )
         )
@@ -472,7 +472,7 @@ struct RealtimeDeviceCardView: View {
         HStack(spacing: 2) {
             ForEach(0..<5) { index in
                 RoundedRectangle(cornerRadius: 1)
-                    .fill(qualityBarColor(for: index))
+                    .fill(self.qualityBarColor(for: index))
                     .frame(height: 4)
             }
         }
@@ -480,7 +480,7 @@ struct RealtimeDeviceCardView: View {
     }
 
     private func qualityBarColor(for index: Int) -> Color {
-        let quality = dataQuality
+        let quality = self.dataQuality
         if index < quality {
             return quality >= 4 ? .green : quality >= 2 ? .orange : .red
         } else {
@@ -490,11 +490,11 @@ struct RealtimeDeviceCardView: View {
 
     private var dataQuality: Int {
         var quality = 0
-        if latestData.distance > 0 { quality += 1 }
-        if latestData.elevation != 0 { quality += 1 }
-        if latestData.azimuth != 0 { quality += 1 }
-        if latestData.rssi > -80 { quality += 1 }
-        if latestData.nlos == 0 { quality += 1 }
+        if self.latestData.distance > 0 { quality += 1 }
+        if self.latestData.elevation != 0 { quality += 1 }
+        if self.latestData.azimuth != 0 { quality += 1 }
+        if self.latestData.rssi > -80 { quality += 1 }
+        if self.latestData.nlos == 0 { quality += 1 }
         return quality
     }
 
@@ -507,13 +507,13 @@ struct RealtimeDeviceCardView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()
-                    Text("\(String(format: "%.0f", latestData.distance)) cm")
+                    Text("\(String(format: "%.0f", self.latestData.distance)) cm")
                         .font(.headline)
                         .fontWeight(.bold)
                         .foregroundColor(.blue)
                 }
 
-                DistanceProgressView(distance: latestData.distance, maxDistance: 1000.0)  // 10m = 1000cm
+                DistanceProgressView(distance: self.latestData.distance, maxDistance: 1000.0)  // 10m = 1000cm
             }
 
             // 仰角と方位（コンパス形式）
@@ -524,9 +524,9 @@ struct RealtimeDeviceCardView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    ElevationGaugeView(elevation: latestData.elevation)
+                    ElevationGaugeView(elevation: self.latestData.elevation)
 
-                    Text("\(String(format: "%.1f", latestData.elevation))°")
+                    Text("\(String(format: "%.1f", self.latestData.elevation))°")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(.green)
@@ -542,9 +542,9 @@ struct RealtimeDeviceCardView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    AzimuthCompassView(azimuth: latestData.azimuth)
+                    AzimuthCompassView(azimuth: self.latestData.azimuth)
 
-                    Text("\(String(format: "%.1f", latestData.azimuth))°")
+                    Text("\(String(format: "%.1f", self.latestData.azimuth))°")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(.orange)
@@ -560,7 +560,7 @@ struct RealtimeDeviceCardView: View {
                 Text("RSSI:")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("\(String(format: "%.0f", latestData.rssi))dBm")
+                Text("\(String(format: "%.0f", self.latestData.rssi))dBm")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.purple)
@@ -570,10 +570,10 @@ struct RealtimeDeviceCardView: View {
                 Text("NLOS:")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("\(latestData.nlos)")
+                Text("\(self.latestData.nlos)")
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(latestData.nlos == 0 ? .green : .red)
+                    .foregroundColor(self.latestData.nlos == 0 ? .green : .red)
             }
 
             Spacer()
@@ -582,7 +582,7 @@ struct RealtimeDeviceCardView: View {
                 Text("Seq:")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("\(latestData.seqCount)")
+                Text("\(self.latestData.seqCount)")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.gray)
@@ -599,33 +599,33 @@ struct DeviceDataCardView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            deviceStatusHeader
-            measurementValues
+            self.deviceStatusHeader
+            self.measurementValues
         }
         .padding(12)
-        .background(backgroundColor)
+        .background(self.backgroundColor)
         .cornerRadius(8)
-        .overlay(borderOverlay)
+        .overlay(self.borderOverlay)
     }
 
     private var deviceStatusHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(deviceData.deviceName)
+                Text(self.deviceData.deviceName)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.primary)
 
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(deviceData.isRecentlyUpdated ? Color.green : Color.orange)
+                        .fill(self.deviceData.isRecentlyUpdated ? Color.green : Color.orange)
                         .frame(width: 8, height: 8)
 
-                    Text(deviceData.isRecentlyUpdated ? "アクティブ" : "非アクティブ")
+                    Text(self.deviceData.isRecentlyUpdated ? "アクティブ" : "非アクティブ")
                         .font(.caption2)
                         .foregroundColor(.secondary)
 
-                    Text("更新: \(formatTimeAgo(deviceData.lastUpdateTime))")
+                    Text("更新: \(formatTimeAgo(self.deviceData.lastUpdateTime))")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -637,7 +637,7 @@ struct DeviceDataCardView: View {
                 Text("データ履歴")
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                Text("\(deviceData.dataHistory.count)件")
+                Text("\(self.deviceData.dataHistory.count)件")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.blue)
@@ -650,49 +650,49 @@ struct DeviceDataCardView: View {
             HStack(spacing: 12) {
                 MeasurementValueView(
                     title: "距離",
-                    value: String(format: "%.2f", latestData.distance),
+                    value: String(format: "%.2f", self.latestData.distance),
                     unit: "m",
                     color: .blue,
-                    quality: latestData.distance > 0 ? .good : .poor
+                    quality: self.latestData.distance > 0 ? .good : .poor
                 )
 
                 MeasurementValueView(
                     title: "仰角",
-                    value: String(format: "%.1f", latestData.elevation),
+                    value: String(format: "%.1f", self.latestData.elevation),
                     unit: "°",
                     color: .green,
-                    quality: latestData.elevation != 0 ? .good : .poor
+                    quality: self.latestData.elevation != 0 ? .good : .poor
                 )
 
                 MeasurementValueView(
                     title: "方位",
-                    value: String(format: "%.1f", latestData.azimuth),
+                    value: String(format: "%.1f", self.latestData.azimuth),
                     unit: "°",
                     color: .orange,
-                    quality: latestData.azimuth != 0 ? .good : .poor
+                    quality: self.latestData.azimuth != 0 ? .good : .poor
                 )
             }
 
             HStack(spacing: 12) {
                 MeasurementValueView(
                     title: "RSSI",
-                    value: String(format: "%.0f", latestData.rssi),
+                    value: String(format: "%.0f", self.latestData.rssi),
                     unit: "dBm",
                     color: .purple,
-                    quality: latestData.rssi > -80 ? .good : .poor
+                    quality: self.latestData.rssi > -80 ? .good : .poor
                 )
 
                 MeasurementValueView(
                     title: "NLOS",
-                    value: "\(latestData.nlos)",
+                    value: "\(self.latestData.nlos)",
                     unit: "",
-                    color: latestData.nlos == 0 ? .green : .red,
-                    quality: latestData.nlos == 0 ? .good : .poor
+                    color: self.latestData.nlos == 0 ? .green : .red,
+                    quality: self.latestData.nlos == 0 ? .good : .poor
                 )
 
                 MeasurementValueView(
                     title: "SeqCount",
-                    value: "\(latestData.seqCount)",
+                    value: "\(self.latestData.seqCount)",
                     unit: "",
                     color: .gray,
                     quality: .good
@@ -702,13 +702,13 @@ struct DeviceDataCardView: View {
     }
 
     private var backgroundColor: Color {
-        deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.orange.opacity(0.05)
+        self.deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.orange.opacity(0.05)
     }
 
     private var borderOverlay: some View {
         RoundedRectangle(cornerRadius: 8)
             .stroke(
-                deviceData.isRecentlyUpdated ? Color.green.opacity(0.3) : Color.orange.opacity(0.3),
+                self.deviceData.isRecentlyUpdated ? Color.green.opacity(0.3) : Color.orange.opacity(0.3),
                 lineWidth: 1
             )
     }
@@ -725,11 +725,11 @@ struct SessionRowView: View {
                 .foregroundColor(.blue)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.name)
+                Text(self.session.name)
                     .font(.body)
                     .fontWeight(.medium)
 
-                Text(session.formattedDate)
+                Text(self.session.formattedDate)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -737,11 +737,11 @@ struct SessionRowView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("\(session.dataPoints) points")
+                Text("\(self.session.dataPoints) points")
                     .font(.caption)
                     .fontWeight(.medium)
 
-                Text(session.duration)
+                Text(self.session.duration)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -769,18 +769,18 @@ struct MeasurementValueView: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            Text(title)
+            Text(self.title)
                 .font(.caption2)
                 .foregroundColor(.secondary)
 
             HStack(spacing: 2) {
-                Text(value)
+                Text(self.value)
                     .font(.caption)
                     .fontWeight(.semibold)
-                    .foregroundColor(color)
+                    .foregroundColor(self.color)
 
-                if !unit.isEmpty {
-                    Text(unit)
+                if !self.unit.isEmpty {
+                    Text(self.unit)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -788,7 +788,7 @@ struct MeasurementValueView: View {
 
             // 品質インジケータ
             Circle()
-                .fill(quality == .good ? Color.green : Color.red)
+                .fill(self.quality == .good ? Color.green : Color.red)
                 .frame(width: 4, height: 4)
         }
         .frame(maxWidth: .infinity)
@@ -832,11 +832,11 @@ struct DistanceProgressView: View {
                             endPoint: .trailing
                         )
                     )
-                    .frame(width: progressWidth(geometry.size.width), height: 8)
-                    .animation(.easeInOut(duration: 0.3), value: distance)
+                    .frame(width: self.progressWidth(geometry.size.width), height: 8)
+                    .animation(.easeInOut(duration: 0.3), value: self.distance)
 
                 // 距離マーカー（100cm刻み）
-                ForEach(stride(from: 0, to: Int(maxDistance) + 1, by: 100).map { $0 }, id: \.self) { cm in
+                ForEach(stride(from: 0, to: Int(self.maxDistance) + 1, by: 100).map { $0 }, id: \.self) { cm in
                     VStack {
                         Rectangle()
                             .fill(Color.gray)
@@ -848,7 +848,7 @@ struct DistanceProgressView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
-                    .offset(x: CGFloat(cm) / maxDistance * geometry.size.width - 0.5)
+                    .offset(x: CGFloat(cm) / self.maxDistance * geometry.size.width - 0.5)
                 }
             }
         }
@@ -856,7 +856,7 @@ struct DistanceProgressView: View {
     }
 
     private func progressWidth(_ totalWidth: CGFloat) -> CGFloat {
-        let progress = min(distance / maxDistance, 1.0)
+        let progress = min(distance / self.maxDistance, 1.0)
         return totalWidth * progress
     }
 }
@@ -898,7 +898,7 @@ struct ElevationGaugeView: View {
                 ),
                 style: StrokeStyle(lineWidth: 6, lineCap: .round)
             )
-            .animation(.easeInOut(duration: 0.3), value: elevation)
+            .animation(.easeInOut(duration: 0.3), value: self.elevation)
 
             // 中心点
             Circle()
@@ -971,8 +971,8 @@ struct AzimuthCompassView: View {
                 path.addLine(to: CGPoint(x: 25, y: 8))
             }
             .stroke(Color.orange, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-            .rotationEffect(.degrees(azimuth))
-            .animation(.easeInOut(duration: 0.3), value: azimuth)
+            .rotationEffect(.degrees(self.azimuth))
+            .animation(.easeInOut(duration: 0.3), value: self.azimuth)
 
             // 中心点
             Circle()

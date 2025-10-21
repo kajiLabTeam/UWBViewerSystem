@@ -30,13 +30,13 @@ public struct ReceivedFile: Identifiable {
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useKB, .useMB]
         formatter.countStyle = .file
-        return formatter.string(fromByteCount: fileSize)
+        return formatter.string(fromByteCount: self.fileSize)
     }
 
     public var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .medium
-        return formatter.string(from: receivedAt)
+        return formatter.string(from: self.receivedAt)
     }
 }

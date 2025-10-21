@@ -94,3 +94,4 @@ iOSInjectionProject/
 # SwiftFormat
 BuildTools/.build
 BuildTools/.swiftpm
+log.txt

@@ -106,6 +106,12 @@ public class ObservationDataUsecase: ObservableObject {
     /// UWBデバイスとの接続状態
     @Published public var connectionStatus: UWBConnectionStatus = .disconnected
 
+    /// キャリブレーション用のプロパティ
+    @Published public var calibrationProgress: Double = 0.0
+    @Published public var calibrationTimeRemaining: TimeInterval = 0.0
+    @Published public var isCalibrationCollecting: Bool = false
+    @Published public var currentReferencePoint: String = ""
+
     // MARK: - Private Properties
 
     /// データ永続化を担当するリポジトリ
@@ -122,6 +128,10 @@ public class ObservationDataUsecase: ObservableObject {
     /// データ品質監視インスタンス
     private var qualityMonitor = DataQualityMonitor()
 
+    // キャリブレーション用のタイマー管理
+    private var calibrationTimers: [String: Timer] = [:]
+    private var calibrationDuration: TimeInterval = 15.0  // 15秒間のデータ収集
+
     // MARK: - Initialization
 
     /// ObservationDataUsecaseのイニシャライザ
@@ -137,7 +147,7 @@ public class ObservationDataUsecase: ObservableObject {
         self.dataRepository = dataRepository
         self.uwbManager = uwbManager
         self.preferenceRepository = preferenceRepository
-        setupObservers()
+        self.setupObservers()
     }
 
     deinit {
@@ -169,35 +179,35 @@ public class ObservationDataUsecase: ObservableObject {
         }
 
         // UWB接続状態を確認
-        guard connectionStatus == .connected else {
+        guard self.connectionStatus == .connected else {
             throw ObservationError.deviceNotConnected
         }
 
         do {
             // 既存セッションが実行中の場合は停止
-            let activeSession = currentSessions.values.first { session in
+            let activeSession = self.currentSessions.values.first { session in
                 session.antennaId == antennaId && session.status == .recording
             }
 
             if let existingSession = activeSession {
                 print("🔄 既存のアクティブセッションを停止します: \(existingSession.name)")
-                _ = try await stopObservationSession(existingSession.id)
+                _ = try await self.stopObservationSession(existingSession.id)
             }
 
             let session = ObservationSession(
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                 antennaId: antennaId.trimmingCharacters(in: .whitespacesAndNewlines),
-                floorMapId: getCurrentFloorMapId()
+                floorMapId: self.getCurrentFloorMapId()
             )
 
-            currentSessions[session.id] = session
-            isCollecting = true
+            self.currentSessions[session.id] = session
+            self.isCollecting = true
 
             // UWBデータ収集を開始
-            try await uwbManager.startDataCollection(for: antennaId, sessionId: session.id)
+            try await self.uwbManager.startDataCollection(for: antennaId, sessionId: session.id)
 
             // リアルタイムデータ更新タイマーを開始
-            startDataCollectionTimer(for: session.id)
+            self.startDataCollectionTimer(for: session.id)
 
             print("🚀 観測セッション開始: \(name) (アンテナ: \(antennaId))")
             return session
@@ -228,22 +238,22 @@ public class ObservationDataUsecase: ObservableObject {
 
         do {
             // UWBデータ収集を停止
-            try await uwbManager.stopDataCollection(sessionId: sessionId)
+            try await self.uwbManager.stopDataCollection(sessionId: sessionId)
 
             // セッション状態を更新
             session.endTime = Date()
             session.status = .completed
-            currentSessions[sessionId] = session
+            self.currentSessions[sessionId] = session
 
             // データを永続化
-            try await saveObservationSession(session)
+            try await self.saveObservationSession(session)
 
             // 他にアクティブなセッションがない場合は収集フラグをオフ
-            let hasActiveSessions = currentSessions.values.contains { $0.status == .recording }
+            let hasActiveSessions = self.currentSessions.values.contains { $0.status == .recording }
             if !hasActiveSessions {
-                isCollecting = false
-                dataCollectionTimer?.invalidate()
-                dataCollectionTimer = nil
+                self.isCollecting = false
+                self.dataCollectionTimer?.invalidate()
+                self.dataCollectionTimer = nil
             }
 
             print("⏹️ 観測セッション停止: \(session.name), データ点数: \(session.observations.count)")
@@ -259,8 +269,10 @@ public class ObservationDataUsecase: ObservableObject {
     /// 全ての観測セッションを停止
     public func stopAllSessions() {
         Task {
-            for sessionId in currentSessions.keys {
-                _ = try? await stopObservationSession(sessionId)
+            // Dictionary反復中の変更を避けるため、キーのコピーを作成
+            let sessionIds = Array(self.currentSessions.keys)
+            for sessionId in sessionIds {
+                _ = try? await self.stopObservationSession(sessionId)
             }
         }
     }
@@ -273,9 +285,9 @@ public class ObservationDataUsecase: ObservableObject {
         }
 
         session.status = .paused
-        currentSessions[sessionId] = session
+        self.currentSessions[sessionId] = session
 
-        try await uwbManager.pauseDataCollection(sessionId: sessionId)
+        try await self.uwbManager.pauseDataCollection(sessionId: sessionId)
         print("⏸️ 観測セッション一時停止: \(session.name)")
     }
 
@@ -287,10 +299,96 @@ public class ObservationDataUsecase: ObservableObject {
         }
 
         session.status = .recording
-        currentSessions[sessionId] = session
+        self.currentSessions[sessionId] = session
 
-        try await uwbManager.resumeDataCollection(sessionId: sessionId)
+        try await self.uwbManager.resumeDataCollection(sessionId: sessionId)
         print("▶️ 観測セッション再開: \(session.name)")
+    }
+
+    /// キャリブレーション用の15秒間データ収集
+    public func startCalibrationDataCollection(for antennaId: String, referencePoint: String) async throws
+        -> ObservationSession
+    {
+        print("🎯 キャリブレーション用データ収集開始: アンテナ\(antennaId), 基準点\(referencePoint)")
+
+        let sessionName = "キャリブレーション_\(referencePoint)_\(Date().timeIntervalSince1970)"
+        let session = try await startObservationSession(for: antennaId, name: sessionName)
+
+        // 15秒後に自動停止するタイマーを設定
+        let timer = Timer.scheduledTimer(withTimeInterval: self.calibrationDuration, repeats: false) { [weak self] _ in
+            Task { [weak self] in
+                do {
+                    _ = try await self?.stopObservationSession(session.id)
+                    print("⏰ 15秒間のデータ収集完了: \(sessionName)")
+                } catch {
+                    print("❌ 自動停止中にエラー: \(error)")
+                }
+            }
+        }
+
+        self.calibrationTimers[session.id] = timer
+        return session
+    }
+
+    /// キャリブレーション用データ収集の手動停止
+    public func stopCalibrationDataCollection(_ sessionId: String) async throws -> ObservationSession {
+        // タイマーをキャンセル
+        self.calibrationTimers[sessionId]?.invalidate()
+        self.calibrationTimers.removeValue(forKey: sessionId)
+
+        return try await self.stopObservationSession(sessionId)
+    }
+
+    /// キャリブレーション用の進捗付きデータ収集（進捗表示機能付き）
+    public func startCalibrationDataCollectionWithProgress(for antennaId: String, referencePoint: String) async throws
+        -> ObservationSession
+    {
+        print("🎯 進捗付きキャリブレーション開始: アンテナ\(antennaId), 基準点\(referencePoint)")
+
+        self.currentReferencePoint = referencePoint
+        self.isCalibrationCollecting = true
+        self.calibrationProgress = 0.0
+        self.calibrationTimeRemaining = self.calibrationDuration
+
+        let sessionName = "キャリブレーション_\(referencePoint)_\(Date().timeIntervalSince1970)"
+        let session = try await startObservationSession(for: antennaId, name: sessionName)
+
+        // 進捗更新タイマー（0.1秒間隔）
+        let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+
+            DispatchQueue.main.async {
+                self.calibrationTimeRemaining = max(0, self.calibrationTimeRemaining - 0.1)
+                self.calibrationProgress =
+                    (self.calibrationDuration - self.calibrationTimeRemaining) / self.calibrationDuration
+
+                if self.calibrationTimeRemaining <= 0 {
+                    timer.invalidate()
+                    Task {
+                        do {
+                            _ = try await self.stopObservationSession(session.id)
+                            await MainActor.run {
+                                self.isCalibrationCollecting = false
+                                self.calibrationProgress = 1.0
+                                self.calibrationTimeRemaining = 0.0
+                            }
+                            print("⏰ 15秒間のデータ収集完了: \(sessionName)")
+                        } catch {
+                            print("❌ 自動停止中にエラー: \(error)")
+                            await MainActor.run {
+                                self.isCalibrationCollecting = false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        self.calibrationTimers[session.id] = progressTimer
+        return session
     }
 
     // MARK: - データ品質管理
@@ -299,7 +397,7 @@ public class ObservationDataUsecase: ObservableObject {
     /// - Parameter observation: 観測データ点
     /// - Returns: 品質評価結果
     public func evaluateDataQuality(_ observation: ObservationPoint) -> DataQualityEvaluation {
-        qualityMonitor.evaluate(observation)
+        self.qualityMonitor.evaluate(observation)
     }
 
     /// セッションの品質統計を取得
@@ -314,7 +412,7 @@ public class ObservationDataUsecase: ObservableObject {
     /// - Parameter observations: 観測データ配列
     /// - Returns: nLoS検出結果
     public func detectNonLineOfSight(_ observations: [ObservationPoint]) -> NLoSDetectionResult {
-        qualityMonitor.detectNLoS(observations)
+        self.qualityMonitor.detectNLoS(observations)
     }
 
     // MARK: - データアクセス
@@ -357,24 +455,24 @@ public class ObservationDataUsecase: ObservableObject {
 
     private func setupObservers() {
         // UWB接続状態を監視
-        uwbManager.$connectionStatus
+        self.uwbManager.$connectionStatus
             .receive(on: DispatchQueue.main)
             .assign(to: \.connectionStatus, on: self)
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
 
         // リアルタイム観測データを監視
-        uwbManager.$latestObservation
+        self.uwbManager.$latestObservation
             .compactMap { $0 }
             .receive(on: DispatchQueue.main)
             .sink { [weak self] observation in
                 self?.handleNewObservation(observation)
             }
-            .store(in: &cancellables)
+            .store(in: &self.cancellables)
     }
 
     private func startDataCollectionTimer(for sessionId: String) {
-        dataCollectionTimer?.invalidate()
-        dataCollectionTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        self.dataCollectionTimer?.invalidate()
+        self.dataCollectionTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.updateSessionData(sessionId)
             }
@@ -390,31 +488,34 @@ public class ObservationDataUsecase: ObservableObject {
 
         // 品質チェック
         for observation in newObservations {
-            let qualityEval = evaluateDataQuality(observation)
+            let qualityEval = self.evaluateDataQuality(observation)
             if !qualityEval.isAcceptable {
                 print("⚠️ 低品質データ検出: \(qualityEval.issues.joined(separator: ", "))")
             }
         }
 
-        currentSessions[sessionId] = session
+        self.currentSessions[sessionId] = session
 
         // リアルタイム表示用データを更新
-        realtimeObservations = Array(session.observations.suffix(100))  // 最新100点を表示
+        self.realtimeObservations = Array(session.observations.suffix(100))  // 最新100点を表示
     }
 
     private func handleNewObservation(_ observation: ObservationPoint) {
         // 該当するセッションを見つけて追加
-        for (sessionId, var session) in currentSessions {
+        // Dictionary反復中の自身更新を避けるため、一時変数を使用
+        var updatedSessions = self.currentSessions
+        for (sessionId, var session) in self.currentSessions {
             if session.antennaId == observation.antennaId && session.status == .recording {
                 session.observations.append(observation)
-                currentSessions[sessionId] = session
+                updatedSessions[sessionId] = session
                 break
             }
         }
+        self.currentSessions = updatedSessions
 
-        realtimeObservations.append(observation)
-        if realtimeObservations.count > 100 {
-            realtimeObservations.removeFirst()
+        self.realtimeObservations.append(observation)
+        if self.realtimeObservations.count > 100 {
+            self.realtimeObservations.removeFirst()
         }
     }
 
@@ -424,7 +525,7 @@ public class ObservationDataUsecase: ObservableObject {
     }
 
     private func getCurrentFloorMapId() -> String? {
-        preferenceRepository.loadCurrentFloorMapInfo()?.id
+        self.preferenceRepository.loadCurrentFloorMapInfo()?.id
     }
 }
 
@@ -442,19 +543,19 @@ public class UWBDataManager: ObservableObject {
     public init() {}
 
     public func startDataCollection(for antennaId: String, sessionId: String) async throws {
-        activeSessions.insert(sessionId)
-        connectionStatus = .connected
+        self.activeSessions.insert(sessionId)
+        self.connectionStatus = .connected
 
         // シミュレーション用タイマー開始
-        startSimulation(for: antennaId, sessionId: sessionId)
+        self.startSimulation(for: antennaId, sessionId: sessionId)
         print("📡 UWBデータ収集開始: \(antennaId)")
     }
 
     public func stopDataCollection(sessionId: String) async throws {
-        activeSessions.remove(sessionId)
-        if activeSessions.isEmpty {
-            simulationTimer?.invalidate()
-            simulationTimer = nil
+        self.activeSessions.remove(sessionId)
+        if self.activeSessions.isEmpty {
+            self.simulationTimer?.invalidate()
+            self.simulationTimer = nil
         }
         print("📡 UWBデータ収集停止: \(sessionId)")
     }
@@ -473,7 +574,7 @@ public class UWBDataManager: ObservableObject {
     }
 
     private func startSimulation(for antennaId: String, sessionId: String) {
-        simulationTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
+        self.simulationTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.generateSimulatedObservation(antennaId: antennaId, sessionId: sessionId)
             }
@@ -499,7 +600,7 @@ public class UWBDataManager: ObservableObject {
             sessionId: sessionId
         )
 
-        latestObservation = observation
+        self.latestObservation = observation
     }
 }
 
@@ -534,7 +635,7 @@ public class DataQualityMonitor {
         var isAcceptable = true
 
         // 信号強度チェック
-        if observation.quality.strength < qualityThreshold {
+        if observation.quality.strength < self.qualityThreshold {
             issues.append("信号強度が低い")
             isAcceptable = false
         }
@@ -559,7 +660,7 @@ public class DataQualityMonitor {
             isAcceptable: isAcceptable,
             qualityScore: observation.quality.strength,
             issues: issues,
-            recommendations: generateRecommendations(for: issues)
+            recommendations: self.generateRecommendations(for: issues)
         )
     }
 

@@ -30,31 +30,31 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     // MARK: - Initialization
 
     override init() {
-        nearbyRepository = NearbyRepository()
+        self.nearbyRepository = NearbyRepository.shared
         super.init()
-        setupLocationManager()
-        setupNearbyRepository()
-        requestLocationPermission()
+        self.setupLocationManager()
+        self.setupNearbyRepository()
+        self.requestLocationPermission()
     }
 
     // MARK: - Setup Methods
 
     private func setupLocationManager() {
-        locationManager.delegate = self
-        locationPermissionStatus = locationManager.authorizationStatus
+        self.locationManager.delegate = self
+        self.locationPermissionStatus = self.locationManager.authorizationStatus
     }
 
     private func setupNearbyRepository() {
-        nearbyRepository.callback = self
+        self.nearbyRepository.addCallback(self)
     }
 
     private func requestLocationPermission() {
-        switch locationManager.authorizationStatus {
+        switch self.locationManager.authorizationStatus {
         case .notDetermined:
             #if os(macOS)
-                locationManager.requestAlwaysAuthorization()
+                self.locationManager.requestAlwaysAuthorization()
             #else
-                locationManager.requestWhenInUseAuthorization()
+                self.locationManager.requestWhenInUseAuthorization()
             #endif
         #if os(macOS)
             case .authorizedAlways:
@@ -66,7 +66,7 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
                 break
         #endif
         case .denied, .restricted:
-            statusMessage = "位置情報の権限が必要です"
+            self.statusMessage = "位置情報の権限が必要です"
         @unknown default:
             break
         }
@@ -76,39 +76,41 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
 
     func startAdvertising() {
         #if os(macOS)
-            guard locationPermissionStatus == .authorizedAlways else {
-                statusMessage = "位置情報権限が必要です"
+            guard self.locationPermissionStatus == .authorizedAlways else {
+                self.statusMessage = "位置情報権限が必要です"
                 return
             }
         #else
-            guard locationPermissionStatus == .authorizedWhenInUse || locationPermissionStatus == .authorizedAlways
+            guard
+                self.locationPermissionStatus == .authorizedWhenInUse
+                || self.locationPermissionStatus == .authorizedAlways
             else {
-                statusMessage = "位置情報権限が必要です"
+                self.statusMessage = "位置情報権限が必要です"
                 return
             }
         #endif
 
-        logger.info("広告開始")
-        nearbyRepository.startAdvertise()
-        isAdvertising = true
-        statusMessage = "広告中..."
+        self.logger.info("広告開始")
+        self.nearbyRepository.startAdvertise()
+        self.isAdvertising = true
+        self.statusMessage = "広告中..."
     }
 
     func stopAdvertising() {
-        logger.info("広告停止")
-        nearbyRepository.stopAdvertise()
-        isAdvertising = false
-        statusMessage = "停止中"
-        connectionRequests.removeAll()
-        connectedDevices.removeAll()
+        self.logger.info("広告停止")
+        self.nearbyRepository.stopAdvertise()
+        self.isAdvertising = false
+        self.statusMessage = "停止中"
+        self.connectionRequests.removeAll()
+        self.connectedDevices.removeAll()
     }
 
     func approveConnection(for request: ConnectionRequest) {
-        logger.info("接続承認: \(request.endpointId)")
+        self.logger.info("接続承認: \(request.endpointId)")
         request.responseHandler(true)
 
         // 承認されたリクエストをリストから削除
-        connectionRequests.removeAll { $0.id == request.id }
+        self.connectionRequests.removeAll { $0.id == request.id }
 
         // 接続済みデバイスリストに追加
         let connectedDevice = ConnectedDevice(
@@ -118,31 +120,31 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
             lastMessageTime: nil,
             isActive: true
         )
-        connectedDevices.append(connectedDevice)
+        self.connectedDevices.append(connectedDevice)
     }
 
     func rejectConnection(for request: ConnectionRequest) {
-        logger.info("接続拒否: \(request.endpointId)")
+        self.logger.info("接続拒否: \(request.endpointId)")
         request.responseHandler(false)
 
         // 拒否されたリクエストをリストから削除
-        connectionRequests.removeAll { $0.id == request.id }
+        self.connectionRequests.removeAll { $0.id == request.id }
     }
 
     func disconnectDevice(_ device: ConnectedDevice) {
-        logger.info("端末切断: \(device.endpointId)")
-        nearbyRepository.disconnect(device.endpointId)
-        connectedDevices.removeAll { $0.id == device.id }
+        self.logger.info("端末切断: \(device.endpointId)")
+        self.nearbyRepository.disconnect(device.endpointId)
+        self.connectedDevices.removeAll { $0.id == device.id }
     }
 
     func sendMessage() {
-        guard !newMessageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !self.newMessageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        let messageContent = newMessageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let messageContent = self.newMessageText.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // 接続済みの全デバイスにメッセージ送信
-        for device in connectedDevices {
-            nearbyRepository.sendMessage(messageContent, to: device.endpointId)
+        for device in self.connectedDevices {
+            self.nearbyRepository.sendMessage(messageContent, to: device.endpointId)
         }
 
         // メッセージ履歴に追加（送信者として）
@@ -153,12 +155,12 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
             senderName: "自分",
             isOutgoing: true
         )
-        messages.append(message)
+        self.messages.append(message)
 
         // 入力をクリア
-        newMessageText = ""
+        self.newMessageText = ""
 
-        logger.info("メッセージ送信: \(messageContent)")
+        self.logger.info("メッセージ送信: \(messageContent)")
     }
 
     // MARK: - Helper Methods
@@ -173,17 +175,17 @@ class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate
     // MARK: - CLLocationManagerDelegate
 
     func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        locationPermissionStatus = status
+        self.locationPermissionStatus = status
         switch status {
         #if os(macOS)
             case .authorizedAlways:
-                statusMessage = "権限許可完了"
+                self.statusMessage = "権限許可完了"
         #else
             case .authorizedWhenInUse, .authorizedAlways:
-                statusMessage = "権限許可完了"
+                self.statusMessage = "権限許可完了"
         #endif
         case .denied, .restricted:
-            statusMessage = "位置情報の権限が拒否されました"
+            self.statusMessage = "位置情報の権限が拒否されました"
         case .notDetermined:
             break
         @unknown default:
@@ -223,7 +225,7 @@ extension AdvertiserViewModel: NearbyRepositoryCallback {
     }
 
     func onConnectionResult(_ endpointId: String, _ success: Bool) {
-        logger.info("接続結果: \(endpointId) -> \(success)")
+        self.logger.info("接続結果: \(endpointId) -> \(success)")
 
         DispatchQueue.main.async {
             if !success {
@@ -234,13 +236,13 @@ extension AdvertiserViewModel: NearbyRepositoryCallback {
     }
 
     func onConnectionStateChanged(state: String) {
-        statusMessage = state
+        self.statusMessage = state
     }
 
     func onDataReceived(endpointId: String, data: Data) {
         if let messageContent = String(data: data, encoding: .utf8) {
             // 送信者のデバイス名を取得
-            let senderName = connectedDevices.first { $0.endpointId == endpointId }?.deviceName ?? "Unknown"
+            let senderName = self.connectedDevices.first { $0.endpointId == endpointId }?.deviceName ?? "Unknown"
 
             // メッセージ履歴に追加
             let message = Message(
@@ -250,17 +252,17 @@ extension AdvertiserViewModel: NearbyRepositoryCallback {
                 senderName: senderName,
                 isOutgoing: false
             )
-            messages.append(message)
+            self.messages.append(message)
 
             // 最終受信時刻を更新
             if let index = connectedDevices.firstIndex(where: { $0.endpointId == endpointId }) {
-                connectedDevices[index].lastMessageTime = Date()
+                self.connectedDevices[index].lastMessageTime = Date()
             }
         }
     }
 
     func onDeviceConnected(endpointId: String, deviceName: String) {
-        logger.info("端末接続: \(endpointId) (\(deviceName))")
+        self.logger.info("端末接続: \(endpointId) (\(deviceName))")
 
         let newDevice = ConnectedDevice(
             endpointId: endpointId,
@@ -276,7 +278,7 @@ extension AdvertiserViewModel: NearbyRepositoryCallback {
     }
 
     func onDeviceDisconnected(endpointId: String) {
-        logger.info("端末切断: \(endpointId)")
+        self.logger.info("端末切断: \(endpointId)")
 
         DispatchQueue.main.async {
             self.connectedDevices.removeAll { $0.endpointId == endpointId }

@@ -34,22 +34,22 @@ public class SensingControlUsecase: ObservableObject {
     // MARK: - Sensing Control
 
     public func startRemoteSensing(fileName: String) {
-        logger.info("センシング開始処理開始 - ファイル名: \(fileName)")
+        self.logger.info("センシング開始処理開始 - ファイル名: \(fileName)")
 
         guard !fileName.isEmpty else {
-            sensingStatus = "ファイル名を入力してください"
-            logger.error("ファイル名が空です")
+            self.sensingStatus = "ファイル名を入力してください"
+            self.logger.error("ファイル名が空です")
             return
         }
 
-        let hasConnected = connectionUsecase.hasConnectedDevices()
-        let connectedCount = connectionUsecase.getConnectedDeviceCount()
+        let hasConnected = self.connectionUsecase.hasConnectedDevices()
+        let connectedCount = self.connectionUsecase.getConnectedDeviceCount()
 
-        logger.debug("接続状態チェック - hasConnectedDevices: \(hasConnected), connectedCount: \(connectedCount)")
+        self.logger.debug("接続状態チェック - hasConnectedDevices: \(hasConnected), connectedCount: \(connectedCount)")
 
         guard hasConnected else {
-            sensingStatus = "接続された端末がありません（\(connectedCount)台接続中）"
-            logger.error("接続された端末がありません")
+            self.sensingStatus = "接続された端末がありません（\(connectedCount)台接続中）"
+            self.logger.error("接続された端末がありません")
             return
         }
 
@@ -58,7 +58,7 @@ public class SensingControlUsecase: ObservableObject {
                 // 新しいセンシングセッションを作成してSwiftDataに保存
                 let session = SensingSession(name: fileName, startTime: Date(), isActive: true)
                 try await swiftDataRepository.saveSensingSession(session)
-                currentSessionId = session.id
+                self.currentSessionId = session.id
 
                 // システム活動ログも記録
                 let activity = SystemActivity(
@@ -67,26 +67,26 @@ public class SensingControlUsecase: ObservableObject {
                 )
                 try await swiftDataRepository.saveSystemActivity(activity)
 
-                logger.info("センシングセッション作成完了: \(session.id)")
+                self.logger.info("センシングセッション作成完了: \(session.id)")
             } catch {
-                logger.error("センシングセッション作成エラー: \(error)")
-                sensingStatus = "セッション作成に失敗しました"
+                self.logger.error("センシングセッション作成エラー: \(error)")
+                self.sensingStatus = "セッション作成に失敗しました"
                 return
             }
         }
 
         let command = "SENSING_START:\(fileName)"
-        logger.info("送信するコマンド: \(command), 送信対象端末数: \(connectedCount)")
+        self.logger.info("送信するコマンド: \(command), 送信対象端末数: \(connectedCount)")
 
-        connectionUsecase.sendMessage(command)
-        sensingStatus = "センシング開始コマンド送信: \(fileName)"
-        isSensingControlActive = true
-        sensingFileName = fileName
-        currentSensingFileName = fileName
-        sensingStartTime = Date()
+        self.connectionUsecase.sendMessage(command)
+        self.sensingStatus = "センシング開始コマンド送信: \(fileName)"
+        self.isSensingControlActive = true
+        self.sensingFileName = fileName
+        self.currentSensingFileName = fileName
+        self.sensingStartTime = Date()
 
         // 継続時間タイマーを開始
-        startDurationTimer()
+        self.startDurationTimer()
 
         // 送信確認のため、少し遅らせてテストメッセージも送信
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -94,66 +94,66 @@ public class SensingControlUsecase: ObservableObject {
             self.connectionUsecase.sendMessage("SENSING_TEST_FOLLOW_UP")
         }
 
-        logger.info("センシング開始処理完了")
+        self.logger.info("センシング開始処理完了")
     }
 
     public func stopRemoteSensing() {
-        guard connectionUsecase.hasConnectedDevices() else {
-            sensingStatus = "接続された端末がありません"
+        guard self.connectionUsecase.hasConnectedDevices() else {
+            self.sensingStatus = "接続された端末がありません"
             return
         }
 
         let command = "SENSING_STOP"
-        connectionUsecase.sendMessage(command)
-        sensingStatus = "センシング終了コマンド送信"
-        isSensingControlActive = false
-        sensingFileName = ""
-        isPaused = false
+        self.connectionUsecase.sendMessage(command)
+        self.sensingStatus = "センシング終了コマンド送信"
+        self.isSensingControlActive = false
+        self.sensingFileName = ""
+        self.isPaused = false
 
-        stopDurationTimer()
+        self.stopDurationTimer()
 
-        if autoSave {
+        if self.autoSave {
             Task {
-                await saveCurrentSession()
+                await self.saveCurrentSession()
             }
         }
 
-        sensingStartTime = nil
-        currentSensingFileName = ""
-        currentSessionId = nil
+        self.sensingStartTime = nil
+        self.currentSensingFileName = ""
+        self.currentSessionId = nil
     }
 
     public func pauseRemoteSensing() {
-        guard connectionUsecase.hasConnectedDevices() else {
-            sensingStatus = "接続された端末がありません"
+        guard self.connectionUsecase.hasConnectedDevices() else {
+            self.sensingStatus = "接続された端末がありません"
             return
         }
 
         let command = "SENSING_PAUSE"
-        connectionUsecase.sendMessage(command)
-        sensingStatus = "センシング一時停止中"
-        isPaused = true
-        stopDurationTimer()
+        self.connectionUsecase.sendMessage(command)
+        self.sensingStatus = "センシング一時停止中"
+        self.isPaused = true
+        self.stopDurationTimer()
     }
 
     public func resumeRemoteSensing() {
-        guard connectionUsecase.hasConnectedDevices() else {
-            sensingStatus = "接続された端末がありません"
+        guard self.connectionUsecase.hasConnectedDevices() else {
+            self.sensingStatus = "接続された端末がありません"
             return
         }
 
         let command = "SENSING_RESUME"
-        connectionUsecase.sendMessage(command)
-        sensingStatus = "センシング実行中"
-        isSensingControlActive = true
-        isPaused = false
-        startDurationTimer()
+        self.connectionUsecase.sendMessage(command)
+        self.sensingStatus = "センシング実行中"
+        self.isSensingControlActive = true
+        self.isPaused = false
+        self.startDurationTimer()
     }
 
     // MARK: - Timer Management
 
     private func startDurationTimer() {
-        durationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        self.durationTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.updateSensingDuration()
             }
@@ -161,8 +161,8 @@ public class SensingControlUsecase: ObservableObject {
     }
 
     private func stopDurationTimer() {
-        durationTimer?.invalidate()
-        durationTimer = nil
+        self.durationTimer?.invalidate()
+        self.durationTimer = nil
     }
 
     private func updateSensingDuration() {
@@ -173,7 +173,7 @@ public class SensingControlUsecase: ObservableObject {
         let minutes = Int(elapsed) / 60 % 60
         let seconds = Int(elapsed) % 60
 
-        sensingDuration = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        self.sensingDuration = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 
     // MARK: - Session Management
@@ -181,7 +181,7 @@ public class SensingControlUsecase: ObservableObject {
     public func generateDefaultFileName() {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd_HHmmss"
-        sensingFileName = "sensing_\(formatter.string(from: Date()))"
+        self.sensingFileName = "sensing_\(formatter.string(from: Date()))"
     }
 
     private func saveCurrentSession() async {
@@ -208,10 +208,10 @@ public class SensingControlUsecase: ObservableObject {
                 )
                 try await swiftDataRepository.saveSystemActivity(activity)
 
-                logger.info("センシングセッション更新完了: \(sessionId)")
+                self.logger.info("センシングセッション更新完了: \(sessionId)")
             }
         } catch {
-            logger.error("センシングセッション更新エラー: \(error)")
+            self.logger.error("センシングセッション更新エラー: \(error)")
         }
     }
 
@@ -221,32 +221,32 @@ public class SensingControlUsecase: ObservableObject {
         guard let sessionId = currentSessionId else { return }
 
         do {
-            try await swiftDataRepository.saveRealtimeData(data, sessionId: sessionId)
+            try await self.swiftDataRepository.saveRealtimeData(data, sessionId: sessionId)
 
             // データポイント数を更新
             Task { @MainActor in
                 self.dataPointCount += 1
             }
         } catch {
-            logger.error("リアルタイムデータ保存エラー: \(error)")
+            self.logger.error("リアルタイムデータ保存エラー: \(error)")
         }
     }
 
     public func loadSensingHistory() async throws -> [SensingSession] {
-        try await swiftDataRepository.loadAllSensingSessions()
+        try await self.swiftDataRepository.loadAllSensingSessions()
     }
 
     // MARK: - Configuration
 
     public func updateDataPointCount(_ count: Int) {
-        dataPointCount = count
+        self.dataPointCount = count
     }
 
     public func canStartSensing(connectedDeviceCount: Int) -> Bool {
-        !sensingFileName.isEmpty && connectedDeviceCount >= 3
+        !self.sensingFileName.isEmpty && connectedDeviceCount >= 3
     }
 
     public var hasDataToView: Bool {
-        dataPointCount > 0
+        self.dataPointCount > 0
     }
 }

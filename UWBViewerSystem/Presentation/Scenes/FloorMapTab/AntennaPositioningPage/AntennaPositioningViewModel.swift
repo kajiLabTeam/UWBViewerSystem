@@ -112,10 +112,10 @@ class AntennaPositioningViewModel: ObservableObject {
 
         // 正規化座標から実世界座標に変換
         guard let floorMapInfo else {
-            // フォールバック: デフォルトサイズ28x37メートル
-            let realX = antenna.normalizedPosition.x * 28.0
-            let realY = (1.0 - antenna.normalizedPosition.y) * 37.0
-            return CGPoint(x: realX, y: realY)
+            #if DEBUG
+                print("⚠️ FloorMapInfo が設定されていません。デバイス位置の取得に失敗しました。")
+            #endif
+            return nil
         }
 
         // 実世界座標に変換（Y座標を反転）

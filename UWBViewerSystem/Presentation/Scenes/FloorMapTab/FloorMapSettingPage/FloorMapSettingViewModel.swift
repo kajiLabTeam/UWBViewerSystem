@@ -28,8 +28,8 @@ class FloorMapSettingViewModel: ObservableObject {
     #endif
     @Published var floorName: String = "テストフロア"
     @Published var buildingName: String = "テストビル"
-    @Published var floorWidth: Double = 28.0
-    @Published var floorDepth: Double = 37.0
+    @Published var floorWidth: Double = 10.0
+    @Published var floorDepth: Double = 10.0
     @Published var selectedPreset: FloorMapPreset?
     @Published var floorPresets: [FloorMapPreset] = []
 
@@ -208,13 +208,6 @@ class FloorMapSettingViewModel: ObservableObject {
     private func setupFloorPresets() {
         self.floorPresets = [
             FloorMapPreset(
-                name: "標準フロア (28x37m)",
-                description: "デフォルトのフロアサイズ",
-                width: 28.0,
-                depth: 37.0,
-                iconName: "square.grid.3x3"
-            ),
-            FloorMapPreset(
                 name: "小規模オフィス",
                 description: "10-20人程度のオフィス",
                 width: 8.0,
@@ -252,8 +245,8 @@ class FloorMapSettingViewModel: ObservableObject {
             FloorMapPreset(
                 name: "カスタム",
                 description: "手動で寸法を設定",
-                width: 28.0,
-                depth: 37.0,
+                width: 10.0,
+                depth: 10.0,
                 iconName: "slider.horizontal.3"
             ),
         ]

@@ -39,6 +39,7 @@ actor AutoAntennaCalibrationUsecase {
     private let swiftDataRepository: SwiftDataRepository
     private let observationUsecase: ObservationDataUsecase
     private let affineCalibration = AntennaAffineCalibration()
+    private let dataProcessor: SensorDataProcessor
 
     // MARK: - State
 
@@ -48,17 +49,25 @@ actor AutoAntennaCalibrationUsecase {
     /// アンテナIDごとの測定データ（タグIDごとの観測座標リスト）
     private var measuredDataByAntenna: [String: [String: [Point3D]]] = [:]
 
+    /// アンテナIDごとの生の観測データ（前処理前）
+    private var rawObservationsByAntenna: [String: [String: [ObservationPoint]]] = [:]
+
     /// キャリブレーション結果
     private var calibrationResults: [String: AntennaAffineCalibration.AntennaConfig] = [:]
+
+    /// データ処理の統計情報
+    private var processingStatistics: [String: [String: ProcessingStatistics]] = [:]
 
     // MARK: - Initialization
 
     init(
         swiftDataRepository: SwiftDataRepository,
-        observationUsecase: ObservationDataUsecase
+        observationUsecase: ObservationDataUsecase,
+        processingConfig: SensorDataProcessingConfig = .default
     ) {
         self.swiftDataRepository = swiftDataRepository
         self.observationUsecase = observationUsecase
+        self.dataProcessor = SensorDataProcessor(config: processingConfig)
     }
 
     // MARK: - Public Methods
@@ -92,7 +101,12 @@ actor AutoAntennaCalibrationUsecase {
     /// - Parameters:
     ///   - sessionId: センシングセッションID
     ///   - tagId: タグID（この位置でのセンシング対象）
-    func collectDataFromSession(sessionId: String, tagId: String) async throws {
+    ///   - applyPreprocessing: データ前処理を適用するか（デフォルト: true）
+    func collectDataFromSession(
+        sessionId: String,
+        tagId: String,
+        applyPreprocessing: Bool = true
+    ) async throws {
         // ObservationUsecaseからセッションデータを取得
         guard let session = await observationUsecase.currentSessions[sessionId] else {
             throw CalibrationError.noMeasuredData(antennaId: sessionId)
@@ -102,18 +116,56 @@ actor AutoAntennaCalibrationUsecase {
 
         print("📊 セッション \(sessionId) からデータ収集: \(observations.count)件")
 
-        for observation in observations {
-            let antennaId = observation.antennaId
+        // アンテナごとにデータを分類
+        let observationsByAntenna = Dictionary(grouping: observations) { $0.antennaId }
 
-            // 観測座標を取得
-            let measuredPosition = observation.position
+        for (antennaId, antennaObservations) in observationsByAntenna {
+            // 生データを保存
+            if self.rawObservationsByAntenna[antennaId] == nil {
+                self.rawObservationsByAntenna[antennaId] = [:]
+            }
+            if self.rawObservationsByAntenna[antennaId]?[tagId] == nil {
+                self.rawObservationsByAntenna[antennaId]?[tagId] = []
+            }
+            self.rawObservationsByAntenna[antennaId]?[tagId]?.append(contentsOf: antennaObservations)
 
-            // データを追加
-            self.addMeasuredData(
-                antennaId: antennaId,
-                tagId: tagId,
-                measuredPosition: measuredPosition
-            )
+            // データ前処理を適用
+            let processedObservations: [ObservationPoint]
+            if applyPreprocessing {
+                processedObservations = self.dataProcessor.processObservations(antennaObservations)
+
+                // 統計情報を計算
+                let stats = self.dataProcessor.calculateStatistics(
+                    original: antennaObservations,
+                    processed: processedObservations
+                )
+
+                // 統計情報を保存
+                if self.processingStatistics[antennaId] == nil {
+                    self.processingStatistics[antennaId] = [:]
+                }
+                self.processingStatistics[antennaId]?[tagId] = stats
+
+                print("""
+                🔄 \(antennaId) - タグ \(tagId) のデータ前処理完了:
+                   元データ: \(stats.originalCount)件
+                   処理後: \(stats.processedCount)件
+                   トリミング率: \(String(format: "%.1f", stats.trimRate * 100))%
+                   標準偏差改善: \(String(format: "%.1f", stats.stdDevImprovement * 100))%
+                """)
+            } else {
+                processedObservations = antennaObservations
+                print("⏭️  データ前処理をスキップしました")
+            }
+
+            // 処理後の座標を追加
+            for observation in processedObservations {
+                self.addMeasuredData(
+                    antennaId: antennaId,
+                    tagId: tagId,
+                    measuredPosition: observation.position
+                )
+            }
         }
 
         print("✅ タグ \(tagId) のデータ収集完了")
@@ -274,6 +326,19 @@ actor AutoAntennaCalibrationUsecase {
         self.measuredDataByAntenna.mapValues { tagData in
             tagData.mapValues { $0.count }
         }
+    }
+
+    /// データ処理の統計情報を取得
+    func getProcessingStatistics() -> [String: [String: ProcessingStatistics]] {
+        self.processingStatistics
+    }
+
+    /// 特定のアンテナとタグの統計情報を取得
+    func getProcessingStatistics(
+        antennaId: String,
+        tagId: String
+    ) -> ProcessingStatistics? {
+        self.processingStatistics[antennaId]?[tagId]
     }
 
     // MARK: - Errors

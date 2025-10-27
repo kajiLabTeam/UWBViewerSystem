@@ -9,6 +9,8 @@ struct AntennaPositioningView: View {
 
     @State private var isDeviceListExpanded = true
     @State private var isControlPanelExpanded = true
+    @State private var showingAddDeviceAlert = false
+    @State private var newDeviceName = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,7 +27,8 @@ struct AntennaPositioningView: View {
                     HStack {
                         FloatingDeviceListPanel(
                             viewModel: self.viewModel,
-                            isExpanded: self.$isDeviceListExpanded
+                            isExpanded: self.$isDeviceListExpanded,
+                            showingAddDeviceAlert: self.$showingAddDeviceAlert
                         )
                         .frame(maxWidth: 380)
 
@@ -80,6 +83,24 @@ struct AntennaPositioningView: View {
             }
         } message: {
             Text(self.flowNavigator.lastError ?? "")
+        }
+        .alert("新しいデバイスを追加", isPresented: self.$showingAddDeviceAlert) {
+            TextField("デバイス名", text: self.$newDeviceName)
+
+            Button("追加") {
+                if !self.newDeviceName.isEmpty {
+                    print("🔘 Alert: Adding device with name: \(self.newDeviceName)")
+                    self.viewModel.addNewDevice(name: self.newDeviceName)
+                    self.newDeviceName = ""  // リセット
+                } else {
+                    print("❌ Alert: Device name is empty")
+                }
+            }
+            .disabled(self.newDeviceName.isEmpty)
+
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("アンテナデバイスの名前を入力してください。")
         }
     }
 }
@@ -176,24 +197,6 @@ struct AntennaDeviceListSection: View {
             }
         }
         .frame(width: 300)
-        .alert("新しいデバイスを追加", isPresented: self.$showingAddDeviceAlert) {
-            TextField("デバイス名", text: self.$newDeviceName)
-
-            Button("追加") {
-                if !self.newDeviceName.isEmpty {
-                    print("🔘 Alert: Adding device with name: \(self.newDeviceName)")
-                    self.viewModel.addNewDevice(name: self.newDeviceName)
-                    self.newDeviceName = ""  // リセット
-                } else {
-                    print("❌ Alert: Device name is empty")
-                }
-            }
-            .disabled(self.newDeviceName.isEmpty)
-
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("アンテナデバイスの名前を入力してください。")
-        }
     }
 }
 
@@ -414,6 +417,7 @@ struct AntennaDeviceRowWithActions: View {
 struct FloatingDeviceListPanel: View {
     @ObservedObject var viewModel: AntennaPositioningViewModel
     @Binding var isExpanded: Bool
+    @Binding var showingAddDeviceAlert: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -479,7 +483,7 @@ struct FloatingDeviceListPanel: View {
 
     private var addDeviceButton: some View {
         Button(action: {
-            self.viewModel.addNewDevice(name: "New Device")
+            self.showingAddDeviceAlert = true
         }) {
             HStack {
                 Image(systemName: "plus.circle.fill")

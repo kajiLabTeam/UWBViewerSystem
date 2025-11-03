@@ -7,7 +7,6 @@ import Foundation
 /// データの品質を評価します。
 public class DataQualityMonitor {
     private let qualityThreshold: Double = 0.5
-    private let stabilityWindow: Int = 10
 
     public init() {}
 

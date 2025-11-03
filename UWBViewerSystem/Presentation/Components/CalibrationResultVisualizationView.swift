@@ -317,8 +317,8 @@ struct CalibrationResultVisualizationView: View {
             return 1.0
         }
 
-        let widthScale = floorMapInfo.width / Double(canvasSize.width)
-        let depthScale = floorMapInfo.depth / Double(canvasSize.height)
+        let widthScale = self.floorMapInfo.width / Double(canvasSize.width)
+        let depthScale = self.floorMapInfo.depth / Double(canvasSize.height)
         let scale = max(widthScale, depthScale)
 
         return scale == 0 ? 1.0 : scale

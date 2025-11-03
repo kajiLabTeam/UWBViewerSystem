@@ -19,15 +19,15 @@ struct TrajectoryView: View {
             self.NavigationButtonsSection()
         }
         .navigationTitle("センシングデータ軌跡")
-            .navigationBarTitleDisplayModeIfAvailable(.large)
+        .navigationBarTitleDisplayModeIfAvailable(.large)
         #if os(macOS)
-        .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-        .background(Color(UIColor.systemBackground))
+            .background(Color(UIColor.systemBackground))
         #endif
-        .onAppear {
-            self.viewModel.initialize()
-        }
+            .onAppear {
+                self.viewModel.initialize()
+            }
     }
 
     // MARK: - Header Section

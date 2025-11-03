@@ -76,75 +76,75 @@ struct AntennaPositioningView: View {
             }
         }
         .navigationTitle("アンテナ位置設定")
-            .navigationBarTitleDisplayModeIfAvailable(.large)
+        .navigationBarTitleDisplayModeIfAvailable(.large)
         #if os(macOS)
-        .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-        .background(Color(UIColor.systemBackground))
+            .background(Color(UIColor.systemBackground))
         #endif
-        .onAppear {
-            self.viewModel.setModelContext(self.modelContext)
-            self.viewModel.loadMapAndDevices()
-            self.flowNavigator.currentStep = .antennaConfiguration
-            self.flowNavigator.setRouter(self.router)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .init("FloorMapChanged"))) { notification in
-            // フロアマップが変更された時にデータを再読み込み
-            print("📢 AntennaPositioningView: FloorMapChanged通知を受信")
-            if let floorMapInfo = notification.object as? FloorMapInfo {
-                print("📢 新しいフロアマップ: \(floorMapInfo.name) (ID: \(floorMapInfo.id))")
+            .onAppear {
+                self.viewModel.setModelContext(self.modelContext)
+                self.viewModel.loadMapAndDevices()
+                self.flowNavigator.currentStep = .antennaConfiguration
+                self.flowNavigator.setRouter(self.router)
             }
-            self.viewModel.loadMapAndDevices()
-        }
-        .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
-            Button("OK") {
-                self.flowNavigator.lastError = nil
-            }
-        } message: {
-            Text(self.flowNavigator.lastError ?? "")
-        }
-        .alert("新しいデバイスを追加", isPresented: self.$showingAddDeviceAlert) {
-            TextField("デバイス名", text: self.$newDeviceName)
-
-            Button("追加") {
-                if !self.newDeviceName.isEmpty {
-                    print("🔘 Alert: Adding device with name: \(self.newDeviceName)")
-                    self.viewModel.addNewDevice(name: self.newDeviceName)
-                    self.newDeviceName = ""  // リセット
-                } else {
-                    print("❌ Alert: Device name is empty")
+            .onReceive(NotificationCenter.default.publisher(for: .init("FloorMapChanged"))) { notification in
+                // フロアマップが変更された時にデータを再読み込み
+                print("📢 AntennaPositioningView: FloorMapChanged通知を受信")
+                if let floorMapInfo = notification.object as? FloorMapInfo {
+                    print("📢 新しいフロアマップ: \(floorMapInfo.name) (ID: \(floorMapInfo.id))")
                 }
+                self.viewModel.loadMapAndDevices()
             }
-            .disabled(self.newDeviceName.isEmpty)
+            .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
+                Button("OK") {
+                    self.flowNavigator.lastError = nil
+                }
+            } message: {
+                Text(self.flowNavigator.lastError ?? "")
+            }
+            .alert("新しいデバイスを追加", isPresented: self.$showingAddDeviceAlert) {
+                TextField("デバイス名", text: self.$newDeviceName)
 
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("アンテナデバイスの名前を入力してください。")
-        }
-        .sheet(isPresented: self.$viewModel.showCalibrationResult) {
-            if let resultData = self.viewModel.calibrationResultData,
-               let floorMapInfo = self.viewModel.currentFloorMapInfo
-            {
-                NavigationStack {
-                    CalibrationResultVisualizationView(
-                        tagPositions: resultData.tagPositions,
-                        initialAntennaPositions: resultData.initialAntennaPositions,
-                        calibratedAntennaPositions: resultData.calibratedAntennaPositions,
-                        floorMapInfo: floorMapInfo,
-                        showInitialPositions: true
-                    )
-                    .navigationTitle("キャリブレーション結果")
-                    .navigationBarTitleDisplayModeIfAvailable(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("閉じる") {
-                                self.viewModel.showCalibrationResult = false
+                Button("追加") {
+                    if !self.newDeviceName.isEmpty {
+                        print("🔘 Alert: Adding device with name: \(self.newDeviceName)")
+                        self.viewModel.addNewDevice(name: self.newDeviceName)
+                        self.newDeviceName = ""  // リセット
+                    } else {
+                        print("❌ Alert: Device name is empty")
+                    }
+                }
+                .disabled(self.newDeviceName.isEmpty)
+
+                Button("キャンセル", role: .cancel) {}
+            } message: {
+                Text("アンテナデバイスの名前を入力してください。")
+            }
+            .sheet(isPresented: self.$viewModel.showCalibrationResult) {
+                if let resultData = self.viewModel.calibrationResultData,
+                   let floorMapInfo = self.viewModel.currentFloorMapInfo
+                {
+                    NavigationStack {
+                        CalibrationResultVisualizationView(
+                            tagPositions: resultData.tagPositions,
+                            initialAntennaPositions: resultData.initialAntennaPositions,
+                            calibratedAntennaPositions: resultData.calibratedAntennaPositions,
+                            floorMapInfo: floorMapInfo,
+                            showInitialPositions: true
+                        )
+                        .navigationTitle("キャリブレーション結果")
+                        .navigationBarTitleDisplayModeIfAvailable(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("閉じる") {
+                                    self.viewModel.showCalibrationResult = false
+                                }
                             }
                         }
                     }
                 }
             }
-        }
     }
 }
 

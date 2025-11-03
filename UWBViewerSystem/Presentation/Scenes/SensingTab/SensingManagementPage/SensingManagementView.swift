@@ -32,20 +32,20 @@ struct SensingManagementView: View {
             self.NavigationButtonsSection(viewModel: self.viewModel)
         }
         .navigationTitle("センシング管理")
-            .navigationBarTitleDisplayModeIfAvailable(.large)
+        .navigationBarTitleDisplayModeIfAvailable(.large)
         #if os(macOS)
-        .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-        .background(Color(UIColor.systemBackground))
+            .background(Color(UIColor.systemBackground))
         #endif
-        .onAppear {
-            // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
-            let repository = SwiftDataRepository(modelContext: modelContext)
-            self.viewModel.setSwiftDataRepository(repository)
-            self.viewModel.initialize()
-            self.flowNavigator.currentStep = .sensingExecution
-            self.flowNavigator.setRouter(self.router)
-        }
+            .onAppear {
+                // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
+                let repository = SwiftDataRepository(modelContext: modelContext)
+                self.viewModel.setSwiftDataRepository(repository)
+                self.viewModel.initialize()
+                self.flowNavigator.currentStep = .sensingExecution
+                self.flowNavigator.setRouter(self.router)
+            }
     }
 
     // MARK: - Header Section

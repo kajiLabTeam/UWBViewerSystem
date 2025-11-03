@@ -36,10 +36,14 @@ class DataCollectionViewModel: ObservableObject {
             connectionUsecase ?? ConnectionManagementUsecase.shared
 
         self.connectionUsecase = defaultConnectionUsecase
-        self.sensingControlUsecase =
-            sensingControlUsecase ?? SensingControlUsecase(connectionUsecase: defaultConnectionUsecase)
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
+        self.sensingControlUsecase =
+            sensingControlUsecase ?? SensingControlUsecase(connectionManagement: defaultConnectionUsecase)
         self.preferenceRepository = preferenceRepository
+
+        // Protocol経由で循環依存を解消
+        defaultConnectionUsecase.setRealtimeDataHandler(self.realtimeDataUsecase)
+        self.realtimeDataUsecase.setDataPersistence(self.sensingControlUsecase)
 
         self.loadRecentSessions()
         self.setupObservers()

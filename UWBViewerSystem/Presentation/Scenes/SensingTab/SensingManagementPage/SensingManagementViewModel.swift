@@ -32,12 +32,20 @@ class SensingManagementViewModel: ObservableObject {
     ) {
         self.swiftDataRepository = swiftDataRepository
         self.preferenceRepository = preferenceRepository
+
+        // Usecaseインスタンスの生成または既存のものを使用
+        let connectionManagement = ConnectionManagementUsecase.shared
         self.sensingControlUsecase =
             sensingControlUsecase
                 ?? SensingControlUsecase(
-                    connectionUsecase: ConnectionManagementUsecase.shared
+                    connectionManagement: connectionManagement
                 )
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
+
+        // Protocol経由で循環依存を解消
+        connectionManagement.setRealtimeDataHandler(self.realtimeDataUsecase)
+        self.realtimeDataUsecase.setDataPersistence(self.sensingControlUsecase)
+
         self.initialize()
     }
 

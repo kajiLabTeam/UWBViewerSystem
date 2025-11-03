@@ -51,7 +51,7 @@ struct SensingView: View {
                 }
                 .padding()
                 .navigationTitle("センシング")
-                .navigationBarTitleDisplayMode(.large)
+                .navigationBarTitleDisplayModeIfAvailable(.large)
             }
             .alert("設定が必要です", isPresented: self.$showValidationAlert) {
                 Button("フロアマップ設定へ") {

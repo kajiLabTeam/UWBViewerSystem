@@ -19,9 +19,7 @@ struct TrajectoryView: View {
             self.NavigationButtonsSection()
         }
         .navigationTitle("センシングデータ軌跡")
-        #if os(iOS)
-            .navigationBarTitleDisplayMode(.large)
-        #endif
+            .navigationBarTitleDisplayModeIfAvailable(.large)
         #if os(macOS)
         .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)

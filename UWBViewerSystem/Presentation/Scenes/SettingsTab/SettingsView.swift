@@ -43,7 +43,7 @@ struct SettingsView: View {
                     .padding()
                 }
                 .navigationTitle("設定")
-                .navigationBarTitleDisplayMode(.large)
+                .navigationBarTitleDisplayModeIfAvailable(.large)
             }
         #endif
     }

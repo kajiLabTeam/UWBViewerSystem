@@ -32,9 +32,7 @@ struct SensingManagementView: View {
             self.NavigationButtonsSection(viewModel: self.viewModel)
         }
         .navigationTitle("センシング管理")
-        #if os(iOS)
-            .navigationBarTitleDisplayMode(.large)
-        #endif
+            .navigationBarTitleDisplayModeIfAvailable(.large)
         #if os(macOS)
         .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)

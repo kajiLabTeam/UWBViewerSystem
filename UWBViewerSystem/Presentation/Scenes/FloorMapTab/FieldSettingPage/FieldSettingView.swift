@@ -359,9 +359,7 @@ struct AddAntennaSheet: View {
                 self.coordinatesSection
             }
             .navigationTitle("アンテナを追加")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
+                .navigationBarTitleDisplayModeIfAvailable(.inline)
                 .toolbar(content: self.toolbarContent)
         }
         #if os(macOS)
@@ -498,9 +496,7 @@ struct SimpleAddAntennaSheet: View {
                 }
             }
             .navigationTitle("アンテナを追加")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
+                .navigationBarTitleDisplayModeIfAvailable(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("キャンセル") {
@@ -553,9 +549,7 @@ struct EditAntennaSheet: View {
                 self.editCoordinatesSection
             }
             .navigationTitle("アンテナを編集")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
+                .navigationBarTitleDisplayModeIfAvailable(.inline)
                 .toolbar(content: self.editToolbarContent)
         }
         .frame(width: 400, height: 350)

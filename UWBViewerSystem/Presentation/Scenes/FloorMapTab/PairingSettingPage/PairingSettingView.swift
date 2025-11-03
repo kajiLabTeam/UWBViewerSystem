@@ -70,9 +70,7 @@ struct PairingSettingView: View {
             self.navigationSection
         }
         .navigationTitle("Android端末ペアリング")
-        #if os(iOS)
-            .navigationBarTitleDisplayMode(.large)
-        #endif
+            .navigationBarTitleDisplayModeIfAvailable(.large)
             .alert(isPresented: self.$viewModel.showingConnectionAlert) {
                 Alert(
                     title: Text("ペアリング情報"),

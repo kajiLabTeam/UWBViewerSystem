@@ -30,8 +30,6 @@ class FloorMapSettingViewModel: ObservableObject {
     @Published var buildingName: String = "テストビル"
     @Published var floorWidth: Double = 10.0
     @Published var floorDepth: Double = 10.0
-    @Published var selectedPreset: FloorMapPreset?
-    @Published var floorPresets: [FloorMapPreset] = []
 
     @Published var isImagePickerPresented: Bool = false
     #if canImport(UIKit)
@@ -70,7 +68,6 @@ class FloorMapSettingViewModel: ObservableObject {
         #if DEBUG
             print("🚀 FloorMapSettingViewModel: init called")
         #endif
-        self.setupFloorPresets()
     }
 
     func setModelContext(_ context: ModelContext) {
@@ -91,28 +88,6 @@ class FloorMapSettingViewModel: ObservableObject {
             self.imagePickerSourceType = .photoLibrary
         #endif
         self.isImagePickerPresented = true
-    }
-
-    func captureImageFromCamera() {
-        guard self.isCameraAvailable else {
-            self.showError("カメラが利用できません")
-            return
-        }
-
-        #if canImport(UIKit)
-            self.imagePickerSourceType = .camera
-        #endif
-        self.isImagePickerPresented = true
-    }
-
-    func selectPreset(_ preset: FloorMapPreset) {
-        self.selectedPreset = preset
-        self.floorWidth = preset.width
-        self.floorDepth = preset.depth
-
-        if self.floorName.isEmpty {
-            self.floorName = preset.name
-        }
     }
 
     func saveFloorMapSettings() async -> Bool {
@@ -185,7 +160,6 @@ class FloorMapSettingViewModel: ObservableObject {
         self.buildingName = ""
         self.floorWidth = 10.0
         self.floorDepth = 15.0
-        self.selectedPreset = nil
 
         // ナビゲーションを戻る
         NavigationRouterModel.shared.pop()
@@ -202,55 +176,6 @@ class FloorMapSettingViewModel: ObservableObject {
             self.isImagePickerPresented = false
         }
     #endif
-
-    // MARK: - Private Methods
-
-    private func setupFloorPresets() {
-        self.floorPresets = [
-            FloorMapPreset(
-                name: "小規模オフィス",
-                description: "10-20人程度のオフィス",
-                width: 8.0,
-                depth: 12.0,
-                iconName: "building.2"
-            ),
-            FloorMapPreset(
-                name: "中規模オフィス",
-                description: "20-50人程度のオフィス",
-                width: 15.0,
-                depth: 20.0,
-                iconName: "building.2.fill"
-            ),
-            FloorMapPreset(
-                name: "大規模オフィス",
-                description: "50人以上のオフィス",
-                width: 25.0,
-                depth: 30.0,
-                iconName: "building.columns"
-            ),
-            FloorMapPreset(
-                name: "会議室",
-                description: "中規模の会議室",
-                width: 6.0,
-                depth: 8.0,
-                iconName: "person.3"
-            ),
-            FloorMapPreset(
-                name: "展示ホール",
-                description: "展示会・イベント会場",
-                width: 30.0,
-                depth: 40.0,
-                iconName: "building.columns.fill"
-            ),
-            FloorMapPreset(
-                name: "カスタム",
-                description: "手動で寸法を設定",
-                width: 10.0,
-                depth: 10.0,
-                iconName: "slider.horizontal.3"
-            ),
-        ]
-    }
 
     private func loadSavedSettings() {
         // PreferenceRepositoryから保存された設定を読み込む
@@ -373,17 +298,6 @@ class FloorMapSettingViewModel: ObservableObject {
             print("🔍 === 保存検証終了 ===")
         #endif
     }
-}
-
-// MARK: - Supporting Types
-
-struct FloorMapPreset: Identifiable {
-    let id = UUID()
-    let name: String
-    let description: String
-    let width: Double
-    let depth: Double
-    let iconName: String
 }
 
 // FloorMapInfoはCommonTypes.swiftで定義済み

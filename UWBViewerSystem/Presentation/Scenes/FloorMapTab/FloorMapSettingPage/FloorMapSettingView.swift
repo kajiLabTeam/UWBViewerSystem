@@ -25,9 +25,6 @@ struct FloorMapSettingView: View {
                     // 基本情報設定セクション
                     self.basicInfoSection
 
-                    // プリセット選択セクション
-                    self.presetSection
-
                     Spacer(minLength: 80)
                 }
                 .padding()
@@ -156,22 +153,6 @@ struct FloorMapSettingView: View {
                         .foregroundColor(.blue)
                         .cornerRadius(8)
                     }
-
-                    Button(action: {
-                        print("🔘 FloorMapSettingView: カメラで撮影ボタンがクリックされました")
-                        self.viewModel.captureImageFromCamera()
-                    }) {
-                        HStack {
-                            Image(systemName: "camera")
-                            Text("カメラで撮影")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.green.opacity(0.1))
-                        .foregroundColor(.green)
-                        .cornerRadius(8)
-                    }
-                    .disabled(!self.viewModel.isCameraAvailable)
                 }
             }
         }
@@ -253,32 +234,6 @@ struct FloorMapSettingView: View {
         .shadow(radius: 2)
     }
 
-    // MARK: - Preset Section
-
-    private var presetSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("プリセット")
-                .font(.headline)
-                .foregroundColor(.primary)
-
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                ForEach(self.viewModel.floorPresets, id: \.id) { preset in
-                    FloorPresetCard(
-                        preset: preset,
-                        isSelected: self.viewModel.selectedPreset?.id == preset.id,
-                        onTap: {
-                            self.viewModel.selectPreset(preset)
-                        }
-                    )
-                }
-            }
-        }
-        .padding()
-        .background(Color.secondary.opacity(0.1))
-        .cornerRadius(12)
-        .shadow(radius: 2)
-    }
-
     // MARK: - Navigation Buttons
 
     private var navigationButtons: some View {
@@ -312,60 +267,6 @@ struct FloorMapSettingView: View {
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
-    }
-}
-
-// MARK: - Floor Preset Card
-
-struct FloorPresetCard: View {
-    let preset: FloorMapPreset
-    let isSelected: Bool
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: self.onTap) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: self.preset.iconName)
-                        .foregroundColor(self.isSelected ? .blue : .secondary)
-                        .font(.title2)
-
-                    Spacer()
-
-                    if self.isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.blue)
-                    }
-                }
-
-                Text(self.preset.name)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.leading)
-
-                Text(self.preset.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.leading)
-
-                HStack {
-                    Text("\(self.preset.width, specifier: "%.1f")m")
-                    Text("×")
-                    Text("\(self.preset.depth, specifier: "%.1f")m")
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(self.isSelected ? Color.blue.opacity(0.1) : Color.gray.opacity(0.1))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(self.isSelected ? Color.blue : Color.clear, lineWidth: 2)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
     }
 }
 

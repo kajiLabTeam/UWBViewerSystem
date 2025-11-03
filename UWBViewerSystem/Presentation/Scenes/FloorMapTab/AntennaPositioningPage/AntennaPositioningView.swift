@@ -742,44 +742,6 @@ struct FloatingControlPanel: View {
     private var controlButtonsView: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                Button("自動配置") {
-                    self.viewModel.autoArrangeAntennas()
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(Color.blue.opacity(0.1))
-                .foregroundColor(.blue)
-                .cornerRadius(8)
-                .buttonStyle(.plain)
-
-                Button("リセット") {
-                    self.viewModel.resetPositions()
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(Color.orange.opacity(0.1))
-                .foregroundColor(.orange)
-                .cornerRadius(8)
-                .buttonStyle(.plain)
-            }
-
-            Button {
-                self.viewModel.showCalibrationResultVisualization()
-            } label: {
-                HStack {
-                    Image(systemName: "chart.xyaxis.line")
-                    Text("キャリブレーション結果")
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(Color.purple.opacity(0.1))
-                .foregroundColor(.purple)
-                .cornerRadius(8)
-            }
-            .buttonStyle(.plain)
-            .disabled(!self.viewModel.hasCalibrationData)
-
-            HStack(spacing: 8) {
                 Button("戻る") {
                     self.flowNavigator.goToPreviousStep()
                 }

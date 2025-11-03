@@ -12,7 +12,8 @@ enum SettingsDetailType: String, CaseIterable {
     case terms = "利用規約"
 }
 
-class SettingsViewModel: ObservableObject {
+@MainActor
+class SettingsViewModel: BaseViewModel {
     @Published var selectedSettingDetail: SettingsDetailType?
 
     let appVersion = "1.0.0"

@@ -21,7 +21,8 @@ struct ValidationResult {
     let message: String
 }
 
-class SensingViewModel: ObservableObject {
+@MainActor
+class SensingViewModel: BaseViewModel {
     @Published var savedSensingData: [SensingData] = []
     @Published var selectedSensingData: SensingData?
     @Published var hasFloorMap: Bool = false
@@ -31,6 +32,7 @@ class SensingViewModel: ObservableObject {
 
     init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
         self.preferenceRepository = preferenceRepository
+        super.init()
         self.loadSavedData()
         self.checkSystemStatus()
     }

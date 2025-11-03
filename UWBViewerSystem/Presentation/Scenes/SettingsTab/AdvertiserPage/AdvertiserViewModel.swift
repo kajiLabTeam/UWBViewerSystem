@@ -10,7 +10,8 @@ import Foundation
 import os
 import SwiftUI
 
-class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
+@MainActor
+class AdvertiserViewModel: BaseViewModel, CLLocationManagerDelegate {
     // MARK: - Published Properties
 
     @Published var isAdvertising = false
@@ -219,19 +220,15 @@ extension AdvertiserViewModel: NearbyRepositoryCallback {
             responseHandler: accept
         )
 
-        DispatchQueue.main.async {
-            self.connectionRequests.append(request)
-        }
+        self.connectionRequests.append(request)
     }
 
     func onConnectionResult(_ endpointId: String, _ success: Bool) {
         self.logger.info("接続結果: \(endpointId) -> \(success)")
 
-        DispatchQueue.main.async {
-            if !success {
-                // 接続失敗時は接続済みリストから削除
-                self.connectedDevices.removeAll { $0.endpointId == endpointId }
-            }
+        if !success {
+            // 接続失敗時は接続済みリストから削除
+            self.connectedDevices.removeAll { $0.endpointId == endpointId }
         }
     }
 
@@ -271,18 +268,14 @@ extension AdvertiserViewModel: NearbyRepositoryCallback {
             isActive: true
         )
 
-        DispatchQueue.main.async {
-            self.connectedDevices.append(newDevice)
-            self.statusMessage = "接続完了: \(deviceName)"
-        }
+        self.connectedDevices.append(newDevice)
+        self.statusMessage = "接続完了: \(deviceName)"
     }
 
     func onDeviceDisconnected(endpointId: String) {
         self.logger.info("端末切断: \(endpointId)")
 
-        DispatchQueue.main.async {
-            self.connectedDevices.removeAll { $0.endpointId == endpointId }
-            self.statusMessage = "端末切断: \(endpointId)"
-        }
+        self.connectedDevices.removeAll { $0.endpointId == endpointId }
+        self.statusMessage = "端末切断: \(endpointId)"
     }
 }

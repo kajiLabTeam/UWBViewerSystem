@@ -9,7 +9,7 @@ import SwiftUI
 #endif
 
 @MainActor
-class TrajectoryViewModel: ObservableObject {
+class TrajectoryViewModel: BaseViewModel {
     @Published var availableSessions: [SensingSession] = []
     @Published var selectedSession: SensingSession?
     @Published var trajectoryPoints: [TrajectoryPoint] = []

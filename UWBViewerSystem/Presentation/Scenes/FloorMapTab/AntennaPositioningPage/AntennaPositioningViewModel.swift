@@ -15,6 +15,17 @@ class AntennaPositioningViewModel: ObservableObject {
     @Published var canProceedValue: Bool = false
     @Published var calibrationData: [MapCalibrationData] = []
 
+    // キャリブレーション可視化用のデータ
+    @Published var showCalibrationResult: Bool = false
+    @Published var calibrationResultData: CalibrationResultData?
+
+    // キャリブレーション可視化用のデータ構造
+    struct CalibrationResultData {
+        let tagPositions: [TagPosition]
+        let initialAntennaPositions: [AntennaCalibrationPosition]
+        let calibratedAntennaPositions: [AntennaCalibrationPosition]
+    }
+
     #if os(macOS)
         var mapImage: NSImage?
     #elseif os(iOS)
@@ -55,6 +66,11 @@ class AntennaPositioningViewModel: ObservableObject {
     var floorMapAspectRatio: Double {
         guard let info = floorMapInfo else { return 1.0 }
         return info.width / info.depth
+    }
+
+    // キャリブレーションデータが存在するかを確認
+    var hasCalibrationData: Bool {
+        !self.calibrationData.isEmpty && self.calibrationData.contains { !$0.calibrationPoints.isEmpty }
     }
 
     // フロアマップのスケール（メートル/ピクセル）
@@ -912,6 +928,74 @@ class AntennaPositioningViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// キャリブレーション結果を表示
+    /// 現在のアンテナ位置と初期位置を比較表示
+    func showCalibrationResultVisualization() {
+        guard let floorMapInfo else {
+            print("❌ FloorMapInfo が取得できません")
+            return
+        }
+
+        // タグ位置を取得（キャリブレーションデータから）
+        let tags = self.calibrationData.flatMap { data in
+            data.calibrationPoints.map { point in
+                TagPosition(
+                    id: UUID().uuidString,
+                    name: "Tag",
+                    position: point.realWorldCoordinate
+                )
+            }
+        }
+
+        // 初期アンテナ位置を取得（デフォルト位置または保存されたデータ）
+        let initialPositions = self.antennaPositions.map { antenna in
+            // デフォルト位置(0.125, 0.125)の場合は、適切な初期値を設定
+            let position: Point3D
+            if antenna.normalizedPosition == CGPoint(x: 0.125, y: 0.125) {
+                // デフォルト位置の場合は、フロアマップの中央に配置
+                position = Point3D(
+                    x: floorMapInfo.width / 2.0,
+                    y: floorMapInfo.depth / 2.0,
+                    z: 0
+                )
+            } else {
+                // 正規化座標から実世界座標に変換
+                let realWorldX = Double(antenna.normalizedPosition.x) * floorMapInfo.width
+                let realWorldY = (1.0 - Double(antenna.normalizedPosition.y)) * floorMapInfo.depth
+                position = Point3D(x: realWorldX, y: realWorldY, z: 0)
+            }
+
+            return AntennaCalibrationPosition(
+                id: antenna.id,
+                name: antenna.deviceName,
+                position: position,
+                rotation: antenna.rotation
+            )
+        }
+
+        // 現在のアンテナ位置を取得
+        let calibratedPositions = self.antennaPositions.map { antenna in
+            // 正規化座標から実世界座標に変換
+            let realWorldX = Double(antenna.normalizedPosition.x) * floorMapInfo.width
+            let realWorldY = (1.0 - Double(antenna.normalizedPosition.y)) * floorMapInfo.depth
+
+            return AntennaCalibrationPosition(
+                id: antenna.id,
+                name: antenna.deviceName,
+                position: Point3D(x: realWorldX, y: realWorldY, z: 0),
+                rotation: antenna.rotation
+            )
+        }
+
+        self.calibrationResultData = CalibrationResultData(
+            tagPositions: tags,
+            initialAntennaPositions: initialPositions,
+            calibratedAntennaPositions: calibratedPositions
+        )
+
+        self.showCalibrationResult = true
     }
 }
 

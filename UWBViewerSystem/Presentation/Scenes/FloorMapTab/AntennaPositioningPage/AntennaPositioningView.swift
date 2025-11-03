@@ -1,14 +1,37 @@
 import SwiftData
 import SwiftUI
 
+/// アンテナ位置設定画面
+///
+/// フロアマップ上でアンテナデバイスの位置と向きを設定するための画面です。
+/// - フローティングパネルでデバイスの追加・削除・管理
+/// - ドラッグ&ドロップでアンテナの配置
+/// - ダブルタップでアンテナの回転
+/// - キャリブレーション結果の可視化
 struct AntennaPositioningView: View {
+    /// ナビゲーションルーター
     @EnvironmentObject var router: NavigationRouterModel
+
+    /// アンテナ位置設定のViewModel
     @StateObject private var viewModel = AntennaPositioningViewModel()
+
+    /// センシングフローのナビゲーター
     @StateObject private var flowNavigator = SensingFlowNavigator()
+
+    /// SwiftDataのモデルコンテキスト
     @Environment(\.modelContext) private var modelContext
 
+    /// デバイスリストパネルの展開状態
     @State private var isDeviceListExpanded = true
+
+    /// コントロールパネルの展開状態
     @State private var isControlPanelExpanded = true
+
+    /// デバイス追加アラートの表示状態
+    @State private var showingAddDeviceAlert = false
+
+    /// 新しいデバイスの名前
+    @State private var newDeviceName = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,7 +48,8 @@ struct AntennaPositioningView: View {
                     HStack {
                         FloatingDeviceListPanel(
                             viewModel: self.viewModel,
-                            isExpanded: self.$isDeviceListExpanded
+                            isExpanded: self.$isDeviceListExpanded,
+                            showingAddDeviceAlert: self.$showingAddDeviceAlert
                         )
                         .frame(maxWidth: 380)
 
@@ -52,41 +76,88 @@ struct AntennaPositioningView: View {
             }
         }
         .navigationTitle("アンテナ位置設定")
-        #if os(iOS)
-            .navigationBarTitleDisplayMode(.large)
-        #endif
+        .navigationBarTitleDisplayModeIfAvailable(.large)
         #if os(macOS)
-        .background(Color(NSColor.controlBackgroundColor))
+            .background(Color(NSColor.controlBackgroundColor))
         #elseif os(iOS)
-        .background(Color(UIColor.systemBackground))
+            .background(Color(UIColor.systemBackground))
         #endif
-        .onAppear {
-            self.viewModel.setModelContext(self.modelContext)
-            self.viewModel.loadMapAndDevices()
-            self.flowNavigator.currentStep = .antennaConfiguration
-            self.flowNavigator.setRouter(self.router)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .init("FloorMapChanged"))) { notification in
-            // フロアマップが変更された時にデータを再読み込み
-            print("📢 AntennaPositioningView: FloorMapChanged通知を受信")
-            if let floorMapInfo = notification.object as? FloorMapInfo {
-                print("📢 新しいフロアマップ: \(floorMapInfo.name) (ID: \(floorMapInfo.id))")
+            .onAppear {
+                self.viewModel.setModelContext(self.modelContext)
+                self.viewModel.loadMapAndDevices()
+                self.flowNavigator.currentStep = .antennaConfiguration
+                self.flowNavigator.setRouter(self.router)
             }
-            self.viewModel.loadMapAndDevices()
-        }
-        .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
-            Button("OK") {
-                self.flowNavigator.lastError = nil
+            .onReceive(NotificationCenter.default.publisher(for: .init("FloorMapChanged"))) { notification in
+                // フロアマップが変更された時にデータを再読み込み
+                print("📢 AntennaPositioningView: FloorMapChanged通知を受信")
+                if let floorMapInfo = notification.object as? FloorMapInfo {
+                    print("📢 新しいフロアマップ: \(floorMapInfo.name) (ID: \(floorMapInfo.id))")
+                }
+                self.viewModel.loadMapAndDevices()
             }
-        } message: {
-            Text(self.flowNavigator.lastError ?? "")
-        }
+            .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
+                Button("OK") {
+                    self.flowNavigator.lastError = nil
+                }
+            } message: {
+                Text(self.flowNavigator.lastError ?? "")
+            }
+            .alert("新しいデバイスを追加", isPresented: self.$showingAddDeviceAlert) {
+                TextField("デバイス名", text: self.$newDeviceName)
+
+                Button("追加") {
+                    if !self.newDeviceName.isEmpty {
+                        print("🔘 Alert: Adding device with name: \(self.newDeviceName)")
+                        self.viewModel.addNewDevice(name: self.newDeviceName)
+                        self.newDeviceName = ""  // リセット
+                    } else {
+                        print("❌ Alert: Device name is empty")
+                    }
+                }
+                .disabled(self.newDeviceName.isEmpty)
+
+                Button("キャンセル", role: .cancel) {}
+            } message: {
+                Text("アンテナデバイスの名前を入力してください。")
+            }
+            .sheet(isPresented: self.$viewModel.showCalibrationResult) {
+                if let resultData = self.viewModel.calibrationResultData,
+                   let floorMapInfo = self.viewModel.currentFloorMapInfo
+                {
+                    NavigationStack {
+                        CalibrationResultVisualizationView(
+                            tagPositions: resultData.tagPositions,
+                            initialAntennaPositions: resultData.initialAntennaPositions,
+                            calibratedAntennaPositions: resultData.calibratedAntennaPositions,
+                            floorMapInfo: floorMapInfo,
+                            showInitialPositions: true
+                        )
+                        .navigationTitle("キャリブレーション結果")
+                        .navigationBarTitleDisplayModeIfAvailable(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("閉じる") {
+                                    self.viewModel.showCalibrationResult = false
+                                }
+                            }
+                        }
+                    }
+                }
+            }
     }
 }
 
 // MARK: - Map Canvas Section
 
+/// マップキャンバスセクション
+///
+/// フロアマップ上にアンテナマーカーを配置し、ドラッグ&ドロップと回転機能を提供します。
+/// - アンテナの位置をドラッグで変更可能
+/// - アンテナの向きをダブルタップで回転可能
+/// - センサー範囲を常に表示
 struct MapCanvasSection: View {
+    /// アンテナ位置設定のViewModel
     @ObservedObject var viewModel: AntennaPositioningViewModel
 
     var body: some View {
@@ -133,9 +204,20 @@ struct MapCanvasSection: View {
 
 // MARK: - Antenna Device List Section
 
+/// アンテナデバイスリストセクション
+///
+/// アンテナデバイスの一覧を表示し、追加・削除機能を提供します。
+/// - デバイスの追加ボタン
+/// - デバイス情報（名前、ID、位置、向き）の表示
+/// - デバイスの削除機能
 struct AntennaDeviceListSection: View {
+    /// アンテナ位置設定のViewModel
     @ObservedObject var viewModel: AntennaPositioningViewModel
+
+    /// デバイス追加アラートの表示状態
     @State private var showingAddDeviceAlert = false
+
+    /// 新しいデバイスの名前
     @State private var newDeviceName = ""
 
     var body: some View {
@@ -176,34 +258,33 @@ struct AntennaDeviceListSection: View {
             }
         }
         .frame(width: 300)
-        .alert("新しいデバイスを追加", isPresented: self.$showingAddDeviceAlert) {
-            TextField("デバイス名", text: self.$newDeviceName)
-
-            Button("追加") {
-                if !self.newDeviceName.isEmpty {
-                    print("🔘 Alert: Adding device with name: \(self.newDeviceName)")
-                    self.viewModel.addNewDevice(name: self.newDeviceName)
-                    self.newDeviceName = ""  // リセット
-                } else {
-                    print("❌ Alert: Device name is empty")
-                }
-            }
-            .disabled(self.newDeviceName.isEmpty)
-
-            Button("キャンセル", role: .cancel) {}
-        } message: {
-            Text("アンテナデバイスの名前を入力してください。")
-        }
     }
 }
 
 // MARK: - Enhanced Antenna Device Row with Rotation Info
 
+/// アンテナデバイス行（向き情報付き）
+///
+/// アンテナデバイスの情報を1行で表示するコンポーネント。
+/// - デバイス名とID
+/// - 位置情報（メートル単位）
+/// - 向き情報（度単位、矢印アイコン付き）
+/// - 配置ステータス（未配置/配置済/完了）
+/// - 削除ボタン
 struct AntennaDeviceRow: View {
+    /// デバイス情報
     let device: DeviceInfo
+
+    /// デバイスの位置（メートル単位）
     let position: CGPoint?
+
+    /// デバイスが配置されているかどうか
     let isPositioned: Bool
+
+    /// デバイスの向き（度単位）
     let rotation: Double?
+
+    /// 削除時のコールバック
     let onRemove: () -> Void
 
     var body: some View {
@@ -283,6 +364,12 @@ struct AntennaDeviceRow: View {
         )
     }
 
+    /// ステータスに応じた背景色を取得
+    ///
+    /// - Returns: 配置状態に応じた背景色
+    ///   - 完了（配置済み + 向き設定済み）: 緑色
+    ///   - 配置済み（向き未設定）: オレンジ色
+    ///   - 未配置: 赤色
     private var backgroundColorForStatus: Color {
         if self.isPositioned && self.rotation != nil {
             return Color(.systemGreen).opacity(0.15)
@@ -296,13 +383,31 @@ struct AntennaDeviceRow: View {
 
 // MARK: - Antenna Device Row with Actions (Add/Remove)
 
+/// アンテナデバイス行（アクション付き）
+///
+/// アンテナデバイスの情報を1行で表示し、削除機能を提供するコンポーネント。
+/// - デバイス名とID
+/// - 位置情報（メートル単位）
+/// - 向き情報（度単位、矢印アイコン付き）
+/// - 配置ステータス（未配置/配置済み）
+/// - 削除確認アラート付きの削除ボタン
 struct AntennaDeviceRowWithActions: View {
+    /// アンテナ情報
     let device: AntennaInfo
+
+    /// デバイスの位置（メートル単位）
     let position: CGPoint?
+
+    /// デバイスの向き（度単位）
     let rotation: Double?
+
+    /// デバイスが配置されているかどうか
     let isPositioned: Bool
+
+    /// 削除時のコールバック
     let onRemove: () -> Void
 
+    /// 削除確認アラートの表示状態
     @State private var showingRemoveAlert = false
 
     var body: some View {
@@ -398,6 +503,12 @@ struct AntennaDeviceRowWithActions: View {
         }
     }
 
+    /// ステータスに応じた背景色を取得
+    ///
+    /// - Returns: 配置状態に応じた背景色
+    ///   - 完了（配置済み + 向き設定済み）: 緑色
+    ///   - 配置済み（向き未設定）: オレンジ色
+    ///   - 未配置: 赤色
     private var backgroundColorForStatus: Color {
         if self.isPositioned && self.rotation != nil {
             return Color(.systemGreen).opacity(0.15)
@@ -411,9 +522,22 @@ struct AntennaDeviceRowWithActions: View {
 
 // MARK: - Floating Device List Panel
 
+/// フローティングデバイスリストパネル
+///
+/// 画面左側に配置されるフローティングパネルで、アンテナデバイスの一覧と管理機能を提供します。
+/// - 展開/折りたたみ可能
+/// - デバイスの一覧表示（位置、向き、ステータス）
+/// - デバイスの追加ボタン
+/// - デバイスの削除機能
 struct FloatingDeviceListPanel: View {
+    /// アンテナ位置設定のViewModel
     @ObservedObject var viewModel: AntennaPositioningViewModel
+
+    /// パネルの展開状態
     @Binding var isExpanded: Bool
+
+    /// デバイス追加アラートの表示状態
+    @Binding var showingAddDeviceAlert: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -430,6 +554,9 @@ struct FloatingDeviceListPanel: View {
         .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4)
     }
 
+    /// パネルのヘッダー部分
+    ///
+    /// デバイスアイコン、タイトル、展開/折りたたみボタンを含みます。
     private var headerView: some View {
         HStack {
             Image(systemName: "antenna.radiowaves.left.and.right")
@@ -453,6 +580,9 @@ struct FloatingDeviceListPanel: View {
         }
     }
 
+    /// デバイス一覧表示部分
+    ///
+    /// アンテナデバイスのリストをスクロール可能な形式で表示します。
     private var deviceListView: some View {
         ScrollView {
             VStack(spacing: 8) {
@@ -477,9 +607,12 @@ struct FloatingDeviceListPanel: View {
         .frame(maxHeight: 400)
     }
 
+    /// デバイス追加ボタン
+    ///
+    /// 新しいアンテナデバイスを追加するためのボタンです。
     private var addDeviceButton: some View {
         Button(action: {
-            self.viewModel.addNewDevice(name: "New Device")
+            self.showingAddDeviceAlert = true
         }) {
             HStack {
                 Image(systemName: "plus.circle.fill")
@@ -493,6 +626,9 @@ struct FloatingDeviceListPanel: View {
         .buttonStyle(.plain)
     }
 
+    /// パネルの背景ビュー
+    ///
+    /// プラットフォームに応じた背景色を提供します。
     private var backgroundView: some View {
         Group {
             #if os(macOS)
@@ -506,9 +642,22 @@ struct FloatingDeviceListPanel: View {
 
 // MARK: - Floating Control Panel
 
+/// フローティングコントロールパネル
+///
+/// 画面右下に配置されるフローティングパネルで、操作ガイドと各種制御機能を提供します。
+/// - 操作説明（ピンチ、ドラッグ、タップなど）
+/// - 自動配置ボタン
+/// - リセットボタン
+/// - キャリブレーション結果表示ボタン
+/// - 前のステップ/次のステップへの遷移ボタン
 struct FloatingControlPanel: View {
+    /// アンテナ位置設定のViewModel
     @ObservedObject var viewModel: AntennaPositioningViewModel
+
+    /// センシングフローのナビゲーター
     @ObservedObject var flowNavigator: SensingFlowNavigator
+
+    /// パネルの展開状態
     @Binding var isExpanded: Bool
 
     var body: some View {
@@ -528,6 +677,9 @@ struct FloatingControlPanel: View {
         .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4)
     }
 
+    /// パネルのヘッダー部分
+    ///
+    /// コントロールアイコン、タイトル、展開/折りたたみボタンを含みます。
     private var headerView: some View {
         HStack {
             Image(systemName: "gearshape.fill")
@@ -551,6 +703,9 @@ struct FloatingControlPanel: View {
         }
     }
 
+    /// 操作説明部分
+    ///
+    /// マップとアンテナの操作方法を表示します。
     private var instructionsView: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -581,6 +736,9 @@ struct FloatingControlPanel: View {
         .foregroundColor(.secondary)
     }
 
+    /// コントロールボタン部分
+    ///
+    /// 各種制御ボタン（自動配置、リセット、キャリブレーション結果、戻る、次へ）を表示します。
     private var controlButtonsView: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
@@ -604,6 +762,22 @@ struct FloatingControlPanel: View {
                 .cornerRadius(8)
                 .buttonStyle(.plain)
             }
+
+            Button {
+                self.viewModel.showCalibrationResultVisualization()
+            } label: {
+                HStack {
+                    Image(systemName: "chart.xyaxis.line")
+                    Text("キャリブレーション結果")
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(Color.purple.opacity(0.1))
+                .foregroundColor(.purple)
+                .cornerRadius(8)
+            }
+            .buttonStyle(.plain)
+            .disabled(!self.viewModel.hasCalibrationData)
 
             HStack(spacing: 8) {
                 Button("戻る") {
@@ -633,6 +807,9 @@ struct FloatingControlPanel: View {
         }
     }
 
+    /// パネルの背景ビュー
+    ///
+    /// プラットフォームに応じた背景色を提供します。
     private var backgroundView: some View {
         Group {
             #if os(macOS)

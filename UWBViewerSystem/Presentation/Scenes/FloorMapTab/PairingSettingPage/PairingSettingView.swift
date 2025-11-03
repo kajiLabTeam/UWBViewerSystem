@@ -70,23 +70,21 @@ struct PairingSettingView: View {
             self.navigationSection
         }
         .navigationTitle("Android端末ペアリング")
-        #if os(iOS)
-            .navigationBarTitleDisplayMode(.large)
-        #endif
-            .alert(isPresented: self.$viewModel.showingConnectionAlert) {
-                Alert(
-                    title: Text("ペアリング情報"),
-                    message: Text(self.viewModel.alertMessage),
-                    dismissButton: .default(Text("OK"))
-                )
-            }
-            .onAppear {
-                // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
-                let repository = SwiftDataRepository(modelContext: modelContext)
-                self.viewModel.setSwiftDataRepository(repository)
-                self.flowNavigator.currentStep = .devicePairing
-                self.flowNavigator.setRouter(self.router)
-            }
+        .navigationBarTitleDisplayModeIfAvailable(.large)
+        .alert(isPresented: self.$viewModel.showingConnectionAlert) {
+            Alert(
+                title: Text("ペアリング情報"),
+                message: Text(self.viewModel.alertMessage),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+        .onAppear {
+            // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
+            let repository = SwiftDataRepository(modelContext: modelContext)
+            self.viewModel.setSwiftDataRepository(repository)
+            self.flowNavigator.currentStep = .devicePairing
+            self.flowNavigator.setRouter(self.router)
+        }
     }
 
     private var headerSection: some View {

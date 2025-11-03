@@ -359,10 +359,8 @@ struct AddAntennaSheet: View {
                 self.coordinatesSection
             }
             .navigationTitle("アンテナを追加")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
-                .toolbar(content: self.toolbarContent)
+            .navigationBarTitleDisplayModeIfAvailable(.inline)
+            .toolbar(content: self.toolbarContent)
         }
         #if os(macOS)
         .frame(minWidth: 400, minHeight: 350)
@@ -498,33 +496,31 @@ struct SimpleAddAntennaSheet: View {
                 }
             }
             .navigationTitle("アンテナを追加")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("キャンセル") {
-                            self.isPresented = false
-                        }
-                    }
-
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("追加") {
-                            let antenna = FieldAntennaInfo(
-                                name: antennaName.isEmpty ? "アンテナ\(self.viewModel.antennas.count + 1)" : self.antennaName,
-                                coordinates: Point3D(
-                                    x: Double(self.xCoordinate) ?? 0,
-                                    y: Double(self.yCoordinate) ?? 0,
-                                    z: Double(self.zCoordinate) ?? 1.5
-                                ),
-                                antennaColor: self.selectedColor
-                            )
-
-                            self.viewModel.addAntenna(antenna)
-                            self.isPresented = false
-                        }
+            .navigationBarTitleDisplayModeIfAvailable(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("キャンセル") {
+                        self.isPresented = false
                     }
                 }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("追加") {
+                        let antenna = FieldAntennaInfo(
+                            name: antennaName.isEmpty ? "アンテナ\(self.viewModel.antennas.count + 1)" : self.antennaName,
+                            coordinates: Point3D(
+                                x: Double(self.xCoordinate) ?? 0,
+                                y: Double(self.yCoordinate) ?? 0,
+                                z: Double(self.zCoordinate) ?? 1.5
+                            ),
+                            antennaColor: self.selectedColor
+                        )
+
+                        self.viewModel.addAntenna(antenna)
+                        self.isPresented = false
+                    }
+                }
+            }
         }
         #if os(macOS)
         .frame(minWidth: 400, minHeight: 350)
@@ -553,10 +549,8 @@ struct EditAntennaSheet: View {
                 self.editCoordinatesSection
             }
             .navigationTitle("アンテナを編集")
-            #if os(iOS)
-                .navigationBarTitleDisplayMode(.inline)
-            #endif
-                .toolbar(content: self.editToolbarContent)
+            .navigationBarTitleDisplayModeIfAvailable(.inline)
+            .toolbar(content: self.editToolbarContent)
         }
         .frame(width: 400, height: 350)
         .onAppear {

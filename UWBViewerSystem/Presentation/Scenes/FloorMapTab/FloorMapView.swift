@@ -66,7 +66,7 @@ struct FloorMapView: View {
                 }
                 .padding()
                 .navigationTitle("フロアマップ")
-                .navigationBarTitleDisplayMode(.large)
+                .navigationBarTitleDisplayModeIfAvailable(.large)
                 .onAppear {
                     print("📱 FloorMapView (iOS): onAppear called")
                     self.viewModel.setModelContext(self.modelContext)

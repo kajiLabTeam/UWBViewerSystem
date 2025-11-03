@@ -11,8 +11,13 @@ import os
 import SwiftUI
 
 @MainActor
-class AdvertiserViewModel: BaseViewModel, CLLocationManagerDelegate {
+class AdvertiserViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Published Properties
+
+    // BaseViewModel properties
+    @Published var errorMessage: String = ""
+    @Published var showErrorAlert: Bool = false
+    @Published var isLoading: Bool = false
 
     @Published var isAdvertising = false
     @Published var statusMessage = "停止中"
@@ -36,6 +41,21 @@ class AdvertiserViewModel: BaseViewModel, CLLocationManagerDelegate {
         self.setupLocationManager()
         self.setupNearbyRepository()
         self.requestLocationPermission()
+    }
+
+    // MARK: - BaseViewModel methods
+
+    func showError(_ message: String) {
+        self.errorMessage = message
+        self.showErrorAlert = true
+    }
+
+    func startLoading() {
+        self.isLoading = true
+    }
+
+    func stopLoading() {
+        self.isLoading = false
     }
 
     // MARK: - Setup Methods

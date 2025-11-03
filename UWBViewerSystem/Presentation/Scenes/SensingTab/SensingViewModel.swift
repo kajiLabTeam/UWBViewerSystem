@@ -22,7 +22,12 @@ struct ValidationResult {
 }
 
 @MainActor
-class SensingViewModel: BaseViewModel {
+class SensingViewModel: ObservableObject {
+    // BaseViewModel properties
+    @Published var errorMessage: String = ""
+    @Published var showErrorAlert: Bool = false
+    @Published var isLoading: Bool = false
+
     @Published var savedSensingData: [SensingData] = []
     @Published var selectedSensingData: SensingData?
     @Published var hasFloorMap: Bool = false
@@ -32,9 +37,22 @@ class SensingViewModel: BaseViewModel {
 
     init(preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()) {
         self.preferenceRepository = preferenceRepository
-        super.init()
         self.loadSavedData()
         self.checkSystemStatus()
+    }
+
+    // BaseViewModel methods
+    func showError(_ message: String) {
+        self.errorMessage = message
+        self.showErrorAlert = true
+    }
+
+    func startLoading() {
+        self.isLoading = true
+    }
+
+    func stopLoading() {
+        self.isLoading = false
     }
 
     func loadSavedData() {

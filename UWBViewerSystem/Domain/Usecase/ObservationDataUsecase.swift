@@ -4,7 +4,8 @@ import Foundation
 /// 観測データ収集を管理するUseCase
 ///
 /// このUseCaseは、UWBデバイスからの観測データ収集プロセス全体を管理します。
-/// セッション管理、リアルタイムデータ監視、データ品質チェック、エラーハンドリングを統合的に提供します。
+/// セッション管理とリアルタイムデータ監視を提供します。
+/// データ品質チェックはDataQualityUsecaseに委譲されています。
 
 // MARK: - Observation Errors
 
@@ -120,13 +121,12 @@ public class ObservationDataUsecase: ObservableObject {
     private let preferenceRepository: PreferenceRepositoryProtocol
     /// UWBデバイスとの通信を管理するマネージャー
     private let uwbManager: UWBDataManager
+    /// データ品質管理用のUsecase
+    private let dataQualityUsecase: DataQualityUsecase
     /// データ収集用のタイマー
     private var dataCollectionTimer: Timer?
     /// Combineの購読を管理するセット
     private var cancellables = Set<AnyCancellable>()
-
-    /// データ品質監視インスタンス
-    private var qualityMonitor = DataQualityMonitor()
 
     // キャリブレーション用のタイマー管理
     private var calibrationTimers: [String: Timer] = [:]
@@ -139,14 +139,17 @@ public class ObservationDataUsecase: ObservableObject {
     ///   - dataRepository: データ永続化用リポジトリ
     ///   - uwbManager: UWBデバイス通信管理用マネージャー
     ///   - preferenceRepository: アプリケーション設定管理用リポジトリ
+    ///   - dataQualityUsecase: データ品質管理用Usecase
     public init(
         dataRepository: DataRepositoryProtocol,
         uwbManager: UWBDataManager,
-        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository(),
+        dataQualityUsecase: DataQualityUsecase = DataQualityUsecase()
     ) {
         self.dataRepository = dataRepository
         self.uwbManager = uwbManager
         self.preferenceRepository = preferenceRepository
+        self.dataQualityUsecase = dataQualityUsecase
         self.setupObservers()
     }
 
@@ -395,7 +398,7 @@ public class ObservationDataUsecase: ObservableObject {
     /// - Parameter observation: 観測データ点
     /// - Returns: 品質評価結果
     public func evaluateDataQuality(_ observation: ObservationPoint) -> DataQualityEvaluation {
-        self.qualityMonitor.evaluate(observation)
+        self.dataQualityUsecase.evaluateDataQuality(observation)
     }
 
     /// セッションの品質統計を取得
@@ -410,7 +413,7 @@ public class ObservationDataUsecase: ObservableObject {
     /// - Parameter observations: 観測データ配列
     /// - Returns: nLoS検出結果
     public func detectNonLineOfSight(_ observations: [ObservationPoint]) -> NLoSDetectionResult {
-        self.qualityMonitor.detectNLoS(observations)
+        self.dataQualityUsecase.detectNonLineOfSight(observations)
     }
 
     // MARK: - データアクセス
@@ -433,20 +436,11 @@ public class ObservationDataUsecase: ObservableObject {
         timeRange: DateInterval? = nil
     ) -> [ObservationPoint] {
         guard let session = currentSessions[sessionId] else { return [] }
-
-        return session.observations.filter { observation in
-            // 品質フィルタ
-            if observation.quality.strength < qualityThreshold {
-                return false
-            }
-
-            // 時間範囲フィルタ
-            if let timeRange {
-                return timeRange.contains(observation.timestamp)
-            }
-
-            return true
-        }
+        return self.dataQualityUsecase.filterObservations(
+            session.observations,
+            qualityThreshold: qualityThreshold,
+            timeRange: timeRange
+        )
     }
 
     // MARK: - Private Methods
@@ -521,211 +515,5 @@ public class ObservationDataUsecase: ObservableObject {
 
     private func getCurrentFloorMapId() -> String? {
         self.preferenceRepository.loadCurrentFloorMapInfo()?.id
-    }
-}
-
-// MARK: - Supporting Classes
-
-/// UWBデータ管理（モックとして実装）
-@MainActor
-public class UWBDataManager: ObservableObject {
-    @Published public var connectionStatus: UWBConnectionStatus = .disconnected
-    @Published public var latestObservation: ObservationPoint?
-
-    private var activeSessions: Set<String> = []
-    private var simulationTimer: Timer?
-
-    public init() {}
-
-    public func startDataCollection(for antennaId: String, sessionId: String) async throws {
-        self.activeSessions.insert(sessionId)
-        self.connectionStatus = .connected
-
-        // シミュレーション用タイマー開始
-        self.startSimulation(for: antennaId, sessionId: sessionId)
-        print("📡 UWBデータ収集開始: \(antennaId)")
-    }
-
-    public func stopDataCollection(sessionId: String) async throws {
-        self.activeSessions.remove(sessionId)
-        if self.activeSessions.isEmpty {
-            self.simulationTimer?.invalidate()
-            self.simulationTimer = nil
-        }
-        print("📡 UWBデータ収集停止: \(sessionId)")
-    }
-
-    public func pauseDataCollection(sessionId: String) async throws {
-        // 実装は省略
-    }
-
-    public func resumeDataCollection(sessionId: String) async throws {
-        // 実装は省略
-    }
-
-    public func getLatestObservations(for sessionId: String) async -> [ObservationPoint] {
-        // 実際の実装では、UWBデバイスから最新データを取得
-        []
-    }
-
-    private func startSimulation(for antennaId: String, sessionId: String) {
-        self.simulationTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.generateSimulatedObservation(antennaId: antennaId, sessionId: sessionId)
-            }
-        }
-    }
-
-    private func generateSimulatedObservation(antennaId: String, sessionId: String) {
-        let observation = ObservationPoint(
-            antennaId: antennaId,
-            position: Point3D(
-                x: Double.random(in: -10...10),
-                y: Double.random(in: -10...10),
-                z: Double.random(in: 0...3)
-            ),
-            quality: SignalQuality(
-                strength: Double.random(in: 0.3...1.0),
-                isLineOfSight: Bool.random(),
-                confidenceLevel: Double.random(in: 0.5...1.0),
-                errorEstimate: Double.random(in: 0.1...2.0)
-            ),
-            distance: Double.random(in: 1...20),
-            rssi: Double.random(in: -80...(-30)),
-            sessionId: sessionId
-        )
-
-        self.latestObservation = observation
-    }
-}
-
-/// UWB接続状態
-public enum UWBConnectionStatus: Equatable {
-    case disconnected
-    case connecting
-    case connected
-    case error(String)
-
-    public var displayText: String {
-        switch self {
-        case .disconnected:
-            return "未接続"
-        case .connecting:
-            return "接続中"
-        case .connected:
-            return "接続済み"
-        case .error(let message):
-            return "エラー: \(message)"
-        }
-    }
-}
-
-/// データ品質監視
-public class DataQualityMonitor {
-    private let qualityThreshold: Double = 0.5
-    private let stabilityWindow: Int = 10
-
-    public func evaluate(_ observation: ObservationPoint) -> DataQualityEvaluation {
-        var issues: [String] = []
-        var isAcceptable = true
-
-        // 信号強度チェック
-        if observation.quality.strength < self.qualityThreshold {
-            issues.append("信号強度が低い")
-            isAcceptable = false
-        }
-
-        // RSSI チェック
-        if observation.rssi < -75 {
-            issues.append("RSSI値が低い")
-        }
-
-        // 信頼度チェック
-        if observation.quality.confidenceLevel < 0.6 {
-            issues.append("信頼度が低い")
-            isAcceptable = false
-        }
-
-        // 誤差推定チェック
-        if observation.quality.errorEstimate > 3.0 {
-            issues.append("誤差推定値が大きい")
-        }
-
-        return DataQualityEvaluation(
-            isAcceptable: isAcceptable,
-            qualityScore: observation.quality.strength,
-            issues: issues,
-            recommendations: self.generateRecommendations(for: issues)
-        )
-    }
-
-    public func detectNLoS(_ observations: [ObservationPoint]) -> NLoSDetectionResult {
-        let losCount = observations.filter { $0.quality.isLineOfSight }.count
-        let losPercentage = observations.isEmpty ? 0.0 : Double(losCount) / Double(observations.count) * 100.0
-
-        let isNLoSCondition = losPercentage < 50.0  // 見通し線が50%未満の場合
-        let averageSignalStrength =
-            observations.isEmpty
-                ? 0.0 : observations.map { $0.quality.strength }.reduce(0, +) / Double(observations.count)
-
-        return NLoSDetectionResult(
-            isNLoSDetected: isNLoSCondition,
-            lineOfSightPercentage: losPercentage,
-            averageSignalStrength: averageSignalStrength,
-            recommendation: isNLoSCondition ? "障害物を除去するか、アンテナ位置を調整してください" : "良好な測定環境です"
-        )
-    }
-
-    private func generateRecommendations(for issues: [String]) -> [String] {
-        var recommendations: [String] = []
-
-        if issues.contains("信号強度が低い") {
-            recommendations.append("アンテナ間の距離を短くしてください")
-            recommendations.append("障害物を除去してください")
-        }
-
-        if issues.contains("RSSI値が低い") {
-            recommendations.append("アンテナの向きを調整してください")
-        }
-
-        if issues.contains("信頼度が低い") {
-            recommendations.append("測定環境を安定化してください")
-        }
-
-        return recommendations
-    }
-}
-
-// MARK: - Supporting Types
-
-/// データ品質評価結果
-public struct DataQualityEvaluation {
-    public let isAcceptable: Bool
-    public let qualityScore: Double
-    public let issues: [String]
-    public let recommendations: [String]
-
-    public init(isAcceptable: Bool, qualityScore: Double, issues: [String], recommendations: [String]) {
-        self.isAcceptable = isAcceptable
-        self.qualityScore = qualityScore
-        self.issues = issues
-        self.recommendations = recommendations
-    }
-}
-
-/// nLoS検出結果
-public struct NLoSDetectionResult {
-    public let isNLoSDetected: Bool
-    public let lineOfSightPercentage: Double
-    public let averageSignalStrength: Double
-    public let recommendation: String
-
-    public init(
-        isNLoSDetected: Bool, lineOfSightPercentage: Double, averageSignalStrength: Double, recommendation: String
-    ) {
-        self.isNLoSDetected = isNLoSDetected
-        self.lineOfSightPercentage = lineOfSightPercentage
-        self.averageSignalStrength = averageSignalStrength
-        self.recommendation = recommendation
     }
 }

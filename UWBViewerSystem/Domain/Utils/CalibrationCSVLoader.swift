@@ -157,7 +157,7 @@ struct CalibrationCSVLoader {
         }
 
         // ANGLE または ROTATION 列を検索
-        let angleColumnIndex: Int?
+        let angleColumnIndex: Int
         if let index = header.firstIndex(where: { $0 == "ANGLE" || $0 == "ROTATION" }) {
             angleColumnIndex = index
         } else {
@@ -194,10 +194,18 @@ struct CalibrationCSVLoader {
                 )
             }
 
-            guard let angle = Double(columns[angleColumnIndex!].trimmingCharacters(in: .whitespaces))
-            else {
+            guard columns.count > angleColumnIndex else {
                 throw LoaderError.parsingError(
-                    "ANGLE/ROTATIONの値が無効です: \(columns[angleColumnIndex!])",
+                    "ANGLE/ROTATION 列が不足しています（必要: \(angleColumnIndex + 1)列目）",
+                    line: lineNumber
+                )
+            }
+
+            let angleColumnValue = columns[angleColumnIndex].trimmingCharacters(in: .whitespaces)
+
+            guard let angle = Double(angleColumnValue) else {
+                throw LoaderError.parsingError(
+                    "ANGLE/ROTATIONの値が無効です: \(angleColumnValue)",
                     line: lineNumber
                 )
             }

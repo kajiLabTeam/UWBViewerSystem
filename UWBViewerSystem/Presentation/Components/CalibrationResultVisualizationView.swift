@@ -313,9 +313,15 @@ struct CalibrationResultVisualizationView: View {
 
     /// スケールを計算（メートル/ピクセル）
     private func calculateScale(canvasSize: CGSize) -> Double {
-        let maxRealSize = max(floorMapInfo.width, self.floorMapInfo.depth)
-        let maxCanvasSize = max(canvasSize.width, canvasSize.height)
-        return maxRealSize / Double(maxCanvasSize)
+        guard canvasSize.width > 0, canvasSize.height > 0 else {
+            return 1.0
+        }
+
+        let widthScale = floorMapInfo.width / Double(canvasSize.width)
+        let depthScale = floorMapInfo.depth / Double(canvasSize.height)
+        let scale = max(widthScale, depthScale)
+
+        return scale == 0 ? 1.0 : scale
     }
 
     /// 実世界座標をスクリーン座標に変換

@@ -5,21 +5,21 @@ import os.log
 // MARK: - リアルタイムデータ管理 Usecase
 
 @MainActor
-public class RealtimeDataUsecase: ObservableObject, RealtimeDataHandlerProtocol {
+public class RealtimeDataUsecase: ObservableObject {
     @Published var deviceRealtimeDataList: [DeviceRealtimeData] = []
     @Published var isReceivingRealtimeData = false
 
     private var cancellables = Set<AnyCancellable>()
     private let swiftDataRepository: SwiftDataRepositoryProtocol
-    private weak var dataPersistence: RealtimeDataPersistenceProtocol?
+    private weak var sensingControlUsecase: SensingControlUsecase?
     private let logger = Logger(subsystem: "com.uwbviewer.system", category: "realtime-data")
 
     public init(
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository(),
-        dataPersistence: RealtimeDataPersistenceProtocol? = nil
+        sensingControlUsecase: SensingControlUsecase? = nil
     ) {
         self.swiftDataRepository = swiftDataRepository
-        self.dataPersistence = dataPersistence
+        self.sensingControlUsecase = sensingControlUsecase
     }
 
     // MARK: - Public Methods
@@ -133,17 +133,17 @@ public class RealtimeDataUsecase: ObservableObject, RealtimeDataHandlerProtocol 
         }
     }
 
-    public func setDataPersistence(_ persistence: RealtimeDataPersistenceProtocol) {
-        self.dataPersistence = persistence
+    public func setSensingControlUsecase(_ usecase: SensingControlUsecase) {
+        self.sensingControlUsecase = usecase
     }
 
     // MARK: - Private Methods
 
     private func addDataToDevice(_ data: RealtimeData) {
-        // DataPersistenceがアクティブな場合は永続化
-        if let persistence = dataPersistence {
+        // SensingControlUsecaseがアクティブな場合は永続化
+        if let sensingControl = sensingControlUsecase {
             Task {
-                await persistence.saveRealtimeData(data)
+                await sensingControl.saveRealtimeData(data)
             }
         }
 

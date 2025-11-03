@@ -5,7 +5,7 @@ import Foundation
 // MARK: - 接続管理 Usecase
 
 @MainActor
-public class ConnectionManagementUsecase: NSObject, ObservableObject, ConnectionManagementProtocol {
+public class ConnectionManagementUsecase: NSObject, ObservableObject {
     // シングルトンインスタンス
     public static let shared = ConnectionManagementUsecase(nearbyRepository: NearbyRepository.shared)
 
@@ -18,8 +18,8 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject, Connection
     private let locationManager = CLLocationManager()
     private let nearbyRepository: NearbyRepository
 
-    // RealtimeDataHandlerへの参照（Protocol経由で循環依存を解消）
-    public weak var realtimeDataHandler: RealtimeDataHandlerProtocol?
+    // RealtimeDataUsecaseへの参照を追加
+    public weak var realtimeDataUsecase: RealtimeDataUsecase?
 
     init(nearbyRepository: NearbyRepository) {
         self.nearbyRepository = nearbyRepository
@@ -155,11 +155,11 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject, Connection
         self.connectedEndpoints.count
     }
 
-    // MARK: - RealtimeDataHandler Integration
+    // MARK: - RealtimeDataUsecase Integration
 
-    public func setRealtimeDataHandler(_ handler: RealtimeDataHandlerProtocol) {
-        self.realtimeDataHandler = handler
-        print("✅ RealtimeDataHandlerを設定しました")
+    public func setRealtimeDataUsecase(_ usecase: RealtimeDataUsecase) {
+        self.realtimeDataUsecase = usecase
+        print("✅ RealtimeDataUsecaseを設定しました")
     }
 }
 
@@ -217,9 +217,9 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
             self.connectedEndpoints.insert(endpointId)
             self.connectState = "端末接続: \(deviceName)"
 
-            // RealtimeDataHandlerにデバイス接続を通知
-            self.realtimeDataHandler?.addConnectedDevice(deviceName)
-            print("📱 RealtimeDataHandlerに端末接続を通知: \(deviceName)")
+            // RealtimeDataUsecaseにデバイス接続を通知
+            self.realtimeDataUsecase?.addConnectedDevice(deviceName)
+            print("📱 RealtimeDataUsecaseに端末接続を通知: \(deviceName)")
         }
     }
 
@@ -229,12 +229,12 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
             self.connectedEndpoints.remove(endpointId)
             self.connectState = "端末切断: \(endpointId)"
 
-            // RealtimeDataHandlerに端末切断を通知
+            // RealtimeDataUsecaseに端末切断を通知
             // endpointIdではなくdeviceNameが必要だが、ここではendpointIdしかないので
             // 接続中のdeviceNamesから削除する
             if let deviceName = self.connectedDeviceNames.first(where: { _ in true }) {
-                self.realtimeDataHandler?.removeDisconnectedDevice(deviceName)
-                print("📱 RealtimeDataHandlerに端末切断を通知: \(deviceName)")
+                self.realtimeDataUsecase?.removeDisconnectedDevice(deviceName)
+                print("📱 RealtimeDataUsecaseに端末切断を通知: \(deviceName)")
             }
         }
     }
@@ -300,12 +300,12 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
             if let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
                 print("✅ JSONオブジェクトに変換成功")
 
-                // RealtimeDataHandlerに渡す
-                if let handler = self.realtimeDataHandler {
-                    print("📤 RealtimeDataHandlerにデータを転送: \(fromEndpointId)")
-                    handler.processRealtimeDataMessage(json, fromEndpointId: fromEndpointId)
+                // RealtimeDataUsecaseに渡す
+                if let realtimeUsecase = self.realtimeDataUsecase {
+                    print("📤 RealtimeDataUsecaseにデータを転送: \(fromEndpointId)")
+                    realtimeUsecase.processRealtimeDataMessage(json, fromEndpointId: fromEndpointId)
                 } else {
-                    print("⚠️ RealtimeDataHandlerが設定されていません")
+                    print("⚠️ RealtimeDataUsecaseが設定されていません")
                 }
             }
         } catch {

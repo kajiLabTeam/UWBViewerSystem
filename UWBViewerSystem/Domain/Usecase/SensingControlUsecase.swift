@@ -5,7 +5,7 @@ import os.log
 // MARK: - センシング制御 Usecase
 
 @MainActor
-public class SensingControlUsecase: ObservableObject, RealtimeDataPersistenceProtocol {
+public class SensingControlUsecase: ObservableObject {
     @Published var sensingStatus: String = "停止中"
     @Published var isSensingControlActive = false
     @Published var sensingFileName: String = ""
@@ -16,7 +16,7 @@ public class SensingControlUsecase: ObservableObject, RealtimeDataPersistencePro
     @Published var sampleRate = 10
     @Published var autoSave = true
 
-    private let connectionManagement: ConnectionManagementProtocol
+    private let connectionUsecase: ConnectionManagementUsecase
     private let swiftDataRepository: SwiftDataRepositoryProtocol
     private var sensingStartTime: Date?
     private var durationTimer: Timer?
@@ -24,10 +24,10 @@ public class SensingControlUsecase: ObservableObject, RealtimeDataPersistencePro
     private let logger = Logger(subsystem: "com.uwbviewer.system", category: "sensing-control")
 
     public init(
-        connectionManagement: ConnectionManagementProtocol,
+        connectionUsecase: ConnectionManagementUsecase,
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()
     ) {
-        self.connectionManagement = connectionManagement
+        self.connectionUsecase = connectionUsecase
         self.swiftDataRepository = swiftDataRepository
     }
 
@@ -42,8 +42,8 @@ public class SensingControlUsecase: ObservableObject, RealtimeDataPersistencePro
             return
         }
 
-        let hasConnected = self.connectionManagement.hasConnectedDevices()
-        let connectedCount = self.connectionManagement.getConnectedDeviceCount()
+        let hasConnected = self.connectionUsecase.hasConnectedDevices()
+        let connectedCount = self.connectionUsecase.getConnectedDeviceCount()
 
         self.logger.debug("接続状態チェック - hasConnectedDevices: \(hasConnected), connectedCount: \(connectedCount)")
 
@@ -78,7 +78,7 @@ public class SensingControlUsecase: ObservableObject, RealtimeDataPersistencePro
         let command = "SENSING_START:\(fileName)"
         self.logger.info("送信するコマンド: \(command), 送信対象端末数: \(connectedCount)")
 
-        self.connectionManagement.sendMessage(command)
+        self.connectionUsecase.sendMessage(command)
         self.sensingStatus = "センシング開始コマンド送信: \(fileName)"
         self.isSensingControlActive = true
         self.sensingFileName = fileName
@@ -91,20 +91,20 @@ public class SensingControlUsecase: ObservableObject, RealtimeDataPersistencePro
         // 送信確認のため、少し遅らせてテストメッセージも送信
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             self.logger.debug("フォローアップテストメッセージ送信")
-            self.connectionManagement.sendMessage("SENSING_TEST_FOLLOW_UP")
+            self.connectionUsecase.sendMessage("SENSING_TEST_FOLLOW_UP")
         }
 
         self.logger.info("センシング開始処理完了")
     }
 
     public func stopRemoteSensing() {
-        guard self.connectionManagement.hasConnectedDevices() else {
+        guard self.connectionUsecase.hasConnectedDevices() else {
             self.sensingStatus = "接続された端末がありません"
             return
         }
 
         let command = "SENSING_STOP"
-        self.connectionManagement.sendMessage(command)
+        self.connectionUsecase.sendMessage(command)
         self.sensingStatus = "センシング終了コマンド送信"
         self.isSensingControlActive = false
         self.sensingFileName = ""
@@ -124,26 +124,26 @@ public class SensingControlUsecase: ObservableObject, RealtimeDataPersistencePro
     }
 
     public func pauseRemoteSensing() {
-        guard self.connectionManagement.hasConnectedDevices() else {
+        guard self.connectionUsecase.hasConnectedDevices() else {
             self.sensingStatus = "接続された端末がありません"
             return
         }
 
         let command = "SENSING_PAUSE"
-        self.connectionManagement.sendMessage(command)
+        self.connectionUsecase.sendMessage(command)
         self.sensingStatus = "センシング一時停止中"
         self.isPaused = true
         self.stopDurationTimer()
     }
 
     public func resumeRemoteSensing() {
-        guard self.connectionManagement.hasConnectedDevices() else {
+        guard self.connectionUsecase.hasConnectedDevices() else {
             self.sensingStatus = "接続された端末がありません"
             return
         }
 
         let command = "SENSING_RESUME"
-        self.connectionManagement.sendMessage(command)
+        self.connectionUsecase.sendMessage(command)
         self.sensingStatus = "センシング実行中"
         self.isSensingControlActive = true
         self.isPaused = false

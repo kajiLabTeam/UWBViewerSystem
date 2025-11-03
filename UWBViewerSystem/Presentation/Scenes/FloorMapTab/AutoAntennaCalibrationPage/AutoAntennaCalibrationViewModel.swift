@@ -211,7 +211,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             sensingControlUsecase: self.sensingControlUsecase
         )
         self.realtimeDataUsecase = realtimeUsecase
-        connectionUsecase.setRealtimeDataUsecase(realtimeUsecase)
+        connectionUsecase.realtimeDataUsecase = realtimeUsecase
 
         self.loadInitialData()
     }

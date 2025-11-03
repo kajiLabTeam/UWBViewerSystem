@@ -12,10 +12,30 @@ enum SettingsDetailType: String, CaseIterable {
     case terms = "利用規約"
 }
 
+@MainActor
 class SettingsViewModel: ObservableObject {
+    // BaseViewModel properties
+    @Published var errorMessage: String = ""
+    @Published var showErrorAlert: Bool = false
+    @Published var isLoading: Bool = false
+
     @Published var selectedSettingDetail: SettingsDetailType?
 
     let appVersion = "1.0.0"
+
+    // BaseViewModel methods
+    func showError(_ message: String) {
+        self.errorMessage = message
+        self.showErrorAlert = true
+    }
+
+    func startLoading() {
+        self.isLoading = true
+    }
+
+    func stopLoading() {
+        self.isLoading = false
+    }
 
     func selectSettingDetail(_ detail: SettingsDetailType) {
         self.selectedSettingDetail = detail

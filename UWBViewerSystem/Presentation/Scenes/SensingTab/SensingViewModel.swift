@@ -21,7 +21,13 @@ struct ValidationResult {
     let message: String
 }
 
+@MainActor
 class SensingViewModel: ObservableObject {
+    // BaseViewModel properties
+    @Published var errorMessage: String = ""
+    @Published var showErrorAlert: Bool = false
+    @Published var isLoading: Bool = false
+
     @Published var savedSensingData: [SensingData] = []
     @Published var selectedSensingData: SensingData?
     @Published var hasFloorMap: Bool = false
@@ -33,6 +39,20 @@ class SensingViewModel: ObservableObject {
         self.preferenceRepository = preferenceRepository
         self.loadSavedData()
         self.checkSystemStatus()
+    }
+
+    // BaseViewModel methods
+    func showError(_ message: String) {
+        self.errorMessage = message
+        self.showErrorAlert = true
+    }
+
+    func startLoading() {
+        self.isLoading = true
+    }
+
+    func stopLoading() {
+        self.isLoading = false
     }
 
     func loadSavedData() {

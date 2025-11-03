@@ -10,6 +10,11 @@ import SwiftUI
 
 @MainActor
 class TrajectoryViewModel: ObservableObject {
+    // BaseViewModel properties
+    @Published var errorMessage: String = ""
+    @Published var showErrorAlert: Bool = false
+    @Published var isLoading: Bool = false
+
     @Published var availableSessions: [SensingSession] = []
     @Published var selectedSession: SensingSession?
     @Published var trajectoryPoints: [TrajectoryPoint] = []

@@ -15,6 +15,7 @@ enum Route: Hashable {
     // センシングフロー
     case floorMapSetting  // フロアマップ設定
     case antennaConfiguration  // アンテナ設定（向き設定機能付き）
+    case systemCalibration  // システムキャリブレーション（自動アンテナキャリブレーション）
     case trajectoryView  // センシングデータの軌跡確認
 
     // メイン機能画面

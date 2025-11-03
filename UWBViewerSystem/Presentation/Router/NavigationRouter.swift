@@ -56,6 +56,8 @@ struct NavigationRouter: View {
             FloorMapSettingView()
         case .antennaConfiguration:
             AntennaPositioningView()
+        case .systemCalibration:
+            AutoAntennaCalibrationView()
         case .trajectoryView:
             TrajectoryView()
         case .welcomePage:

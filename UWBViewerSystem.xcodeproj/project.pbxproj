@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		6F3B796275C8433E90EA9480 /* BaseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09A5A5735EA34F689AB11139 /* BaseViewModel.swift */; };
 		5C9EDDFE2E1C514F00572D26 /* NearbyConnections in Frameworks */ = {isa = PBXBuildFile; productRef = 5C9EDDFD2E1C514F00572D26 /* NearbyConnections */; };
 		5C9EDE002E1C514F00572D26 /* (null) in Frameworks */ = {isa = PBXBuildFile; };
 /* End PBXBuildFile section */
@@ -29,6 +30,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		09A5A5735EA34F689AB11139 /* BaseViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseViewModel.swift; sourceTree = "<group>"; };
 		5C9EDD672E1C419A00572D26 /* UWBViewerSystem.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UWBViewerSystem.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5C9EDD772E1C419C00572D26 /* UWBViewerSystemTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UWBViewerSystemTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5C9EDD812E1C419C00572D26 /* UWBViewerSystemUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UWBViewerSystemUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -251,21 +253,27 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
+			
+				6F3B796275C8433E90EA9480 /* BaseViewModel.swift in Sources */,
+				);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5C9EDD732E1C419C00572D26 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
+			
+				6F3B796275C8433E90EA9480 /* BaseViewModel.swift in Sources */,
+				);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5C9EDD7D2E1C419C00572D26 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
+			
+				6F3B796275C8433E90EA9480 /* BaseViewModel.swift in Sources */,
+				);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */

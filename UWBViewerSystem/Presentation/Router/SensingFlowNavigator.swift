@@ -236,13 +236,13 @@ enum SensingFlowStep: String, CaseIterable {
         case .antennaConfiguration:
             return .antennaConfiguration
         case .devicePairing:
-            return .devicePairing
+            return .pairingSettingPage
         case .systemCalibration:
             return .systemCalibration
         case .sensingExecution:
-            return .sensingExecution
+            return .dataCollectionPage
         case .dataViewer:
-            return .sensingDataViewer
+            return .dataDisplayPage
         }
     }
 

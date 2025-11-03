@@ -12,26 +12,16 @@ import Foundation
 enum Route: Hashable {
     case welcomePage
 
-    // 新しいセンシングフロー
-    case floorMapSetting  // フロアマップ設定（新規追加）
+    // センシングフロー
+    case floorMapSetting  // フロアマップ設定
     case antennaConfiguration  // アンテナ設定（向き設定機能付き）
-    case devicePairing  // デバイスペアリング
-    case systemCalibration  // システムキャリブレーション（新規実装）
-    case sensingExecution  // センシング実行
-    case sensingDataViewer  // センシングデータ閲覧
-
-    // レガシー画面（互換性のため残す）
-    case antennaPositioning  // アンテナ位置の設定（フロアマップの登録）
-    case sensingManagement  // センシングの管理
+    case systemCalibration  // システムキャリブレーション（自動アンテナキャリブレーション）
     case trajectoryView  // センシングデータの軌跡確認
 
     // メイン機能画面
-    case fieldSettingPage
     case pairingSettingPage
     case dataCollectionPage
     case dataDisplayPage
-    case connectionManagementPage
-    case advertiserPage
     case mainTabView
 }
 

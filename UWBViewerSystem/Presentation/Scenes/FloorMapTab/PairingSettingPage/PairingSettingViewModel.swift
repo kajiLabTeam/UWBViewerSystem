@@ -363,11 +363,7 @@ class PairingSettingViewModel: ObservableObject {
             return
         }
 
-        self.navigationModel.push(.dataCollectionPage)
-    }
-
-    func skipPairing() {
-        self.navigationModel.push(.dataCollectionPage)
+        self.navigationModel.push(.systemCalibration)
     }
 
     func savePairingForFlow() -> Bool {

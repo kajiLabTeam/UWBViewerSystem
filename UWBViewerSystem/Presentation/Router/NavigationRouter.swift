@@ -51,42 +51,24 @@ struct NavigationRouter: View {
     @ViewBuilder
     private func destinationView(for route: Route) -> some View {
         switch route {
-        // 新しいセンシングフロー
+        // センシングフロー
         case .floorMapSetting:
             FloorMapSettingView()
         case .antennaConfiguration:
-            AntennaPositioningView()  // 改修済み：向き設定機能付き
-        case .devicePairing:
-            PairingSettingView()
-        case .systemCalibration:
-            // 自動アンテナキャリブレーション画面（2Dアフィン変換による自動キャリブレーション）
-            AutoAntennaCalibrationView()
-        case .sensingExecution:
-            SensingManagementView()
-        case .sensingDataViewer:
-            DataDisplayView()
-        // レガシー画面（互換性のため）
-        case .welcomePage:
-            WelcomeView()
-        case .antennaPositioning:
             AntennaPositioningView()
-        case .sensingManagement:
-            SensingManagementView()
+        case .systemCalibration:
+            AutoAntennaCalibrationView()
         case .trajectoryView:
             TrajectoryView()
+        case .welcomePage:
+            WelcomeView()
         // メイン機能画面
-        case .fieldSettingPage:
-            FieldSettingView()
         case .pairingSettingPage:
             PairingSettingView()
         case .dataCollectionPage:
             DataCollectionView()
         case .dataDisplayPage:
             DataDisplayView()
-        case .connectionManagementPage:
-            ConnectionManagementView()
-        case .advertiserPage:
-            AdvertiserView()
         case .mainTabView:
             MainTabView()
         }

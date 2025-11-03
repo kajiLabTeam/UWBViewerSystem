@@ -67,8 +67,9 @@ struct DataRepositoryDeprecationTests {
             antennaId: "ant-001",
             calibrationPoints: [
                 CalibrationPoint(
-                    truePosition: Point3D(x: 0, y: 0, z: 0),
-                    measuredPosition: Point3D(x: 0.1, y: 0.1, z: 0.05)
+                    referencePosition: Point3D(x: 0, y: 0, z: 0),
+                    measuredPosition: Point3D(x: 0.1, y: 0.1, z: 0.05),
+                    antennaId: "ant-001"
                 )
             ],
             transform: nil,
@@ -182,16 +183,19 @@ struct DataRepositoryDeprecationTests {
             antennaId: "ant-001",
             calibrationPoints: [
                 CalibrationPoint(
-                    truePosition: Point3D(x: 0, y: 0, z: 0),
-                    measuredPosition: Point3D(x: 0.1, y: 0.1, z: 0.05)
+                    referencePosition: Point3D(x: 0, y: 0, z: 0),
+                    measuredPosition: Point3D(x: 0.1, y: 0.1, z: 0.05),
+                    antennaId: "ant-001"
                 ),
                 CalibrationPoint(
-                    truePosition: Point3D(x: 1, y: 0, z: 0),
-                    measuredPosition: Point3D(x: 1.1, y: 0.1, z: 0.05)
+                    referencePosition: Point3D(x: 1, y: 0, z: 0),
+                    measuredPosition: Point3D(x: 1.1, y: 0.1, z: 0.05),
+                    antennaId: "ant-001"
                 ),
                 CalibrationPoint(
-                    truePosition: Point3D(x: 0, y: 1, z: 0),
-                    measuredPosition: Point3D(x: 0.1, y: 1.1, z: 0.05)
+                    referencePosition: Point3D(x: 0, y: 1, z: 0),
+                    measuredPosition: Point3D(x: 0.1, y: 1.1, z: 0.05),
+                    antennaId: "ant-001"
                 ),
             ],
             transform: nil,
@@ -234,9 +238,11 @@ struct DataRepositoryDeprecationTests {
             antennaId: "ant-001",
             floorMapId: "floor-001",
             calibrationPoints: [
-                CalibrationPoint(
-                    truePosition: Point3D(x: 0, y: 0, z: 0),
-                    measuredPosition: Point3D(x: 0.1, y: 0.1, z: 0.05)
+                MapCalibrationPoint(
+                    mapCoordinate: Point3D(x: 0, y: 0, z: 0),
+                    realWorldCoordinate: Point3D(x: 0.1, y: 0.1, z: 0.05),
+                    antennaId: "ant-001",
+                    pointIndex: 1
                 )
             ],
             affineTransform: nil,
@@ -288,11 +294,10 @@ struct DataRepositoryDeprecationTests {
         let floorMapInfo = FloorMapInfo(
             id: "floor-001",
             name: "テストフロア",
+            buildingName: "テストビル",
             width: 10.0,
             depth: 10.0,
-            imageData: nil,
-            createdAt: Date(),
-            isActive: true
+            createdAt: Date()
         )
 
         try await repository.saveFloorMap(floorMapInfo)
@@ -308,9 +313,6 @@ struct DataRepositoryDeprecationTests {
 
         // Set Active
         try await repository.setActiveFloorMap(id: "floor-001")
-
-        let activeFloorMap = try await repository.loadFloorMap(by: "floor-001")
-        #expect(activeFloorMap?.isActive == true)
 
         // Delete
         try await repository.deleteFloorMap(by: "floor-001")
@@ -332,8 +334,8 @@ struct DataRepositoryDeprecationTests {
         let progress = ProjectProgress(
             id: "progress-001",
             floorMapId: "floor-001",
-            currentStep: .antennaPositioning,
-            completedSteps: [.floorMapCreation],
+            currentStep: .antennaConfiguration,
+            completedSteps: [.floorMapSetting],
             stepData: [:],
             createdAt: Date(),
             updatedAt: Date()
@@ -352,11 +354,11 @@ struct DataRepositoryDeprecationTests {
 
         // Update
         var updatedProgress = progress
-        updatedProgress.currentStep = .calibration
+        updatedProgress.currentStep = .dataCollection
         try await repository.updateProjectProgress(updatedProgress)
 
         let reloadedProgress = try await repository.loadProjectProgress(by: "progress-001")
-        #expect(reloadedProgress?.currentStep == .calibration)
+        #expect(reloadedProgress?.currentStep == .dataCollection)
 
         // Delete
         try await repository.deleteProjectProgress(by: "progress-001")

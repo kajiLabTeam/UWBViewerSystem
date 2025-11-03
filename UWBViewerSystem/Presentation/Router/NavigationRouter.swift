@@ -63,8 +63,6 @@ struct NavigationRouter: View {
         case .welcomePage:
             WelcomeView()
         // メイン機能画面
-        case .fieldSettingPage:
-            FieldSettingView()
         case .pairingSettingPage:
             PairingSettingView()
         case .dataCollectionPage:

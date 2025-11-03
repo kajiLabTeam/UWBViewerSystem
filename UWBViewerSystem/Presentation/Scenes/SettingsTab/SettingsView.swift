@@ -168,7 +168,7 @@ struct SettingsView: View {
                     #if os(macOS)
                         self.viewModel.selectSettingDetail(.antennaSettings)
                     #else
-                        self.router.push(.fieldSettingPage)
+                        self.router.push(.antennaConfiguration)
                     #endif
                 }
 
@@ -365,7 +365,7 @@ struct SettingsDetailView: View {
     private var antennaSettingsContent: some View {
         VStack(spacing: 16) {
             Button(action: {
-                self.router.push(.fieldSettingPage)
+                self.router.push(.antennaConfiguration)
             }) {
                 HStack {
                     Image(systemName: "antenna.radiowaves.left.and.right")

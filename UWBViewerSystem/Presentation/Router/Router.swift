@@ -19,7 +19,6 @@ enum Route: Hashable {
     case trajectoryView  // センシングデータの軌跡確認
 
     // メイン機能画面
-    case fieldSettingPage
     case pairingSettingPage
     case dataCollectionPage
     case dataDisplayPage

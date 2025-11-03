@@ -55,7 +55,7 @@ struct SensingView: View {
             }
             .alert("設定が必要です", isPresented: self.$showValidationAlert) {
                 Button("フロアマップ設定へ") {
-                    self.router.push(.fieldSettingPage)
+                    self.router.push(.floorMapSetting)
                 }
                 Button("端末接続設定へ") {
                     self.router.push(.connectionManagementPage)

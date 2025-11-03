@@ -69,10 +69,6 @@ struct NavigationRouter: View {
             DataCollectionView()
         case .dataDisplayPage:
             DataDisplayView()
-        case .connectionManagementPage:
-            ConnectionManagementView()
-        case .advertiserPage:
-            AdvertiserView()
         case .mainTabView:
             MainTabView()
         }

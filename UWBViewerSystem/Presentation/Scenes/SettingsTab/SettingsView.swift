@@ -2,50 +2,19 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
-    @EnvironmentObject var router: NavigationRouterModel
 
     var body: some View {
-        #if os(macOS)
-            NavigationSplitView {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        self.headerSection
-
-                        self.aboutSection
-                    }
-                    .padding()
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    self.headerSection
+                    self.aboutSection
                 }
-                .navigationSplitViewColumnWidth(min: 300, ideal: 350)
-            } detail: {
-                if let selectedDetail = viewModel.selectedSettingDetail {
-                    SettingsDetailView(detailType: selectedDetail)
-                } else {
-                    Text("設定項目を選択してください")
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color(NSColor.controlBackgroundColor))
-                }
+                .padding()
             }
-        #else
-            NavigationView {
-                ScrollView {
-                    VStack(spacing: 20) {
-                        self.headerSection
-
-                        self.connectionSettingsSection
-
-                        self.dataManagementSection
-
-                        self.advancedSettingsSection
-
-                        self.aboutSection
-                    }
-                    .padding()
-                }
-                .navigationTitle("設定")
-                .navigationBarTitleDisplayModeIfAvailable(.large)
-            }
-        #endif
+            .navigationTitle("設定")
+            .navigationBarTitleDisplayModeIfAvailable(.large)
+        }
     }
 
     private var headerSection: some View {
@@ -60,7 +29,7 @@ struct SettingsView: View {
                     .fontWeight(.bold)
             }
 
-            Text("アプリケーションの設定と管理")
+            Text("アプリケーション情報")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -68,129 +37,6 @@ struct SettingsView: View {
         .padding()
         .background(Color.purple.opacity(0.1))
         .cornerRadius(12)
-    }
-
-    private var connectionSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("接続設定")
-                .font(.headline)
-                .fontWeight(.semibold)
-
-            VStack(spacing: 0) {
-                SettingsRow(
-                    icon: "wifi",
-                    title: "ペアリング設定",
-                    subtitle: "Android端末との接続",
-                    showChevron: true
-                ) {
-                    #if os(macOS)
-                        self.viewModel.selectSettingDetail(.pairingSettings)
-                    #else
-                        self.router.push(.pairingSettingPage)
-                    #endif
-                }
-
-                Divider()
-                    .padding(.leading, 44)
-
-                SettingsRow(
-                    icon: "network",
-                    title: "接続管理",
-                    subtitle: "現在の接続状態",
-                    showChevron: true
-                ) {
-                    #if os(macOS)
-                        self.viewModel.selectSettingDetail(.connectionManagement)
-                    #else
-                        self.router.push(.connectionManagementPage)
-                    #endif
-                }
-            }
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
-        }
-    }
-
-    private var dataManagementSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("データ管理")
-                .font(.headline)
-                .fontWeight(.semibold)
-
-            VStack(spacing: 0) {
-                SettingsRow(
-                    icon: "externaldrive",
-                    title: "データエクスポート",
-                    subtitle: "センシングデータの書き出し",
-                    showChevron: true
-                ) {
-                    #if os(macOS)
-                        self.viewModel.selectSettingDetail(.dataExport)
-                    #else
-                        // データエクスポート処理 (未実装)
-                    #endif
-                }
-
-                Divider()
-                    .padding(.leading, 44)
-
-                SettingsRow(
-                    icon: "trash",
-                    title: "キャッシュクリア",
-                    subtitle: "一時データの削除",
-                    showChevron: true
-                ) {
-                    #if os(macOS)
-                        self.viewModel.selectSettingDetail(.cacheManagement)
-                    #else
-                        // キャッシュクリア処理 (未実装)
-                    #endif
-                }
-            }
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
-        }
-    }
-
-    private var advancedSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("詳細設定")
-                .font(.headline)
-                .fontWeight(.semibold)
-
-            VStack(spacing: 0) {
-                SettingsRow(
-                    icon: "antenna.radiowaves.left.and.right",
-                    title: "アンテナ設定",
-                    subtitle: "配置とキャリブレーション",
-                    showChevron: true
-                ) {
-                    #if os(macOS)
-                        self.viewModel.selectSettingDetail(.antennaSettings)
-                    #else
-                        self.router.push(.antennaConfiguration)
-                    #endif
-                }
-
-                Divider()
-                    .padding(.leading, 44)
-
-                SettingsRow(
-                    icon: "megaphone",
-                    title: "広告設定",
-                    subtitle: "デバイス広告機能",
-                    showChevron: true
-                ) {
-                    #if os(macOS)
-                        self.viewModel.selectSettingDetail(.advertiserSettings)
-                    #else
-                        self.router.push(.advertiserPage)
-                    #endif
-                }
-            }
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
-        }
     }
 
     private var aboutSection: some View {
@@ -223,11 +69,7 @@ struct SettingsView: View {
                     subtitle: "使い方ガイド",
                     showChevron: true
                 ) {
-                    #if os(macOS)
-                        self.viewModel.selectSettingDetail(.help)
-                    #else
-                        self.viewModel.showHelp()
-                    #endif
+                    self.viewModel.showHelp()
                 }
 
                 Divider()
@@ -239,11 +81,7 @@ struct SettingsView: View {
                     subtitle: nil,
                     showChevron: true
                 ) {
-                    #if os(macOS)
-                        self.viewModel.selectSettingDetail(.terms)
-                    #else
-                        self.viewModel.showTerms()
-                    #endif
+                    self.viewModel.showTerms()
                 }
             }
             .background(Color.gray.opacity(0.05))
@@ -290,243 +128,6 @@ struct SettingsRow: View {
     }
 }
 
-struct SettingsDetailView: View {
-    let detailType: SettingsDetailType
-    @EnvironmentObject var router: NavigationRouterModel
-
-    var body: some View {
-        VStack(spacing: 30) {
-            // ヘッダー
-            VStack(alignment: .leading, spacing: 16) {
-                Text(self.detailType.rawValue)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-
-                Text(self.subtitle)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(Color.primary.opacity(0.05))
-            .cornerRadius(12)
-
-            // メインコンテンツ
-            switch self.detailType {
-            case .antennaSettings:
-                self.antennaSettingsContent
-            case .pairingSettings:
-                self.pairingSettingsContent
-            case .connectionManagement:
-                self.connectionManagementContent
-            case .dataExport:
-                self.dataExportContent
-            case .cacheManagement:
-                self.cacheManagementContent
-            case .advertiserSettings:
-                self.advertiserSettingsContent
-            case .help:
-                self.helpContent
-            case .terms:
-                self.termsContent
-            }
-
-            Spacer()
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        #if os(macOS)
-            .background(Color(NSColor.controlBackgroundColor))
-        #else
-            .background(Color(UIColor.systemBackground))
-        #endif
-    }
-
-    private var subtitle: String {
-        switch self.detailType {
-        case .antennaSettings:
-            return "UWBアンテナの位置と設定を管理します"
-        case .pairingSettings:
-            return "Android端末との接続を設定します"
-        case .connectionManagement:
-            return "現在の接続状態を確認・管理します"
-        case .dataExport:
-            return "センシングデータを外部ファイルに出力します"
-        case .cacheManagement:
-            return "アプリの一時データを削除します"
-        case .advertiserSettings:
-            return "デバイス広告機能の設定を行います"
-        case .help:
-            return "アプリの使用方法を確認できます"
-        case .terms:
-            return "利用規約とプライバシーポリシー"
-        }
-    }
-
-    @ViewBuilder
-    private var antennaSettingsContent: some View {
-        VStack(spacing: 16) {
-            Button(action: {
-                self.router.push(.antennaConfiguration)
-            }) {
-                HStack {
-                    Image(systemName: "antenna.radiowaves.left.and.right")
-                    Text("アンテナ配置設定を開く")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var pairingSettingsContent: some View {
-        VStack(spacing: 16) {
-            Button(action: {
-                self.router.push(.pairingSettingPage)
-            }) {
-                HStack {
-                    Image(systemName: "link.circle")
-                    Text("ペアリング設定を開く")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.green)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var connectionManagementContent: some View {
-        VStack(spacing: 16) {
-            Button(action: {
-                self.router.push(.connectionManagementPage)
-            }) {
-                HStack {
-                    Image(systemName: "network")
-                    Text("接続管理を開く")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.orange)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var dataExportContent: some View {
-        VStack(spacing: 16) {
-            Text("データエクスポート機能")
-                .font(.headline)
-
-            Text("センシングデータをCSVまたはJSON形式で出力できます。")
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button(action: {
-                // データエクスポート処理
-            }) {
-                HStack {
-                    Image(systemName: "externaldrive")
-                    Text("データをエクスポート")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.purple)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var cacheManagementContent: some View {
-        VStack(spacing: 16) {
-            Text("キャッシュ管理")
-                .font(.headline)
-
-            Text("アプリの動作を軽快に保つため、定期的にキャッシュをクリアすることをお勧めします。")
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button(action: {
-                // キャッシュクリア処理
-            }) {
-                HStack {
-                    Image(systemName: "trash")
-                    Text("キャッシュをクリア")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.red)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var advertiserSettingsContent: some View {
-        VStack(spacing: 16) {
-            Button(action: {
-                self.router.push(.advertiserPage)
-            }) {
-                HStack {
-                    Image(systemName: "megaphone")
-                    Text("広告設定を開く")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.indigo)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var helpContent: some View {
-        VStack(spacing: 16) {
-            Text("ヘルプ・使い方ガイド")
-                .font(.headline)
-
-            VStack(alignment: .leading, spacing: 12) {
-                Text("• フロアマップの登録方法")
-                Text("• アンテナの配置設定")
-                Text("• 端末のペアリング手順")
-                Text("• センシングの開始方法")
-                Text("• データの表示・エクスポート")
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(8)
-        }
-    }
-
-    @ViewBuilder
-    private var termsContent: some View {
-        VStack(spacing: 16) {
-            Text("利用規約・プライバシーポリシー")
-                .font(.headline)
-
-            ScrollView {
-                Text("このアプリケーションは研究目的で開発されたUWBセンシングシステムです。収集されたデータは研究目的でのみ使用され、第三者に提供されることはありません。")
-                    .padding()
-            }
-            .frame(height: 200)
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(8)
-        }
-    }
-}
-
 #Preview {
     SettingsView()
-        .environmentObject(NavigationRouterModel())
 }

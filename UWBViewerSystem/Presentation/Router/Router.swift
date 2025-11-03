@@ -22,8 +22,6 @@ enum Route: Hashable {
     case pairingSettingPage
     case dataCollectionPage
     case dataDisplayPage
-    case connectionManagementPage
-    case advertiserPage
     case mainTabView
 }
 

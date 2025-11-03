@@ -238,7 +238,7 @@ enum SensingFlowStep: String, CaseIterable {
         case .devicePairing:
             return .pairingSettingPage
         case .systemCalibration:
-            return .floorMapSetting  // 代替なし、フロアマップに戻す
+            return .systemCalibration
         case .sensingExecution:
             return .dataCollectionPage
         case .dataViewer:

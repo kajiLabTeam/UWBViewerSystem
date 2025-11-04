@@ -49,6 +49,15 @@ struct AutoAntennaCalibrationView: View {
         } message: {
             Text("全てのアンテナのキャリブレーションが正常に完了しました")
         }
+        .sheet(isPresented: self.$viewModel.showConnectionRecovery) {
+            ConnectionRecoveryView(
+                connectionUsecase: ConnectionManagementUsecase.shared,
+                isPresented: self.$viewModel.showConnectionRecovery
+            )
+            #if os(iOS)
+            .presentationDetents([.medium, .large])
+            #endif
+        }
     }
 
     // MARK: - Header

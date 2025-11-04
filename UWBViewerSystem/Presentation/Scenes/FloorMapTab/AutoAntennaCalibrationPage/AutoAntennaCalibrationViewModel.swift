@@ -47,6 +47,9 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     /// 全アンテナのキャリブレーション結果（履歴）
     @Published var calibrationResults: [String: CalibrationResult] = [:]
 
+    /// 接続エラー表示フラグ
+    @Published var showConnectionRecovery: Bool = false
+
     /// エラーメッセージ
     @Published var errorMessage: String = ""
 
@@ -213,7 +216,44 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         self.realtimeDataUsecase = realtimeUsecase
         connectionUsecase.setRealtimeDataUsecase(realtimeUsecase)
 
+        // 接続監視を設定
+        self.setupConnectionMonitoring()
+
         self.loadInitialData()
+    }
+
+    /// 接続監視を設定
+    private func setupConnectionMonitoring() {
+        // hasConnectionErrorの変更を監視
+        ConnectionManagementUsecase.shared.$hasConnectionError
+            .sink { [weak self] hasError in
+                guard let self else { return }
+                if hasError {
+                    print("⚠️ 接続断検出: 接続復旧画面を表示します")
+                    self.handleConnectionError()
+                }
+            }
+            .store(in: &self.cancellables)
+    }
+
+    /// 接続エラーハンドリング
+    private func handleConnectionError() {
+        // データ収集中・キャリブレーション中の場合は停止
+        if self.isCollecting || self.isCalibrating {
+            print("⚠️ データ収集/キャリブレーションを中断します")
+            self.isCollecting = false
+            self.isCalibrating = false
+        }
+
+        // エラーメッセージを設定
+        if let deviceName = ConnectionManagementUsecase.shared.lastDisconnectedDevice {
+            self.errorMessage = "デバイス「\(deviceName)」との接続が切断されました"
+        } else {
+            self.errorMessage = "接続が切断されました"
+        }
+
+        // 接続復旧画面を表示
+        self.showConnectionRecovery = true
     }
 
     // MARK: - Public Methods

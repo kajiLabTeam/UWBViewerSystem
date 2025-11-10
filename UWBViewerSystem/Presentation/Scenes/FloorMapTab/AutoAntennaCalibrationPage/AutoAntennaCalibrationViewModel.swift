@@ -133,10 +133,11 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     }
 
     var canGoToPreviousTag: Bool {
+        // データ収集ステップで、完了済みのタグが1つ以上ある場合に戻れる
         self.currentStep == 2 &&
-            self.currentTagPositionIndex > 0 &&
             !self.isCollecting &&
-            !self.isCalibrating
+            !self.isCalibrating &&
+            self.trueTagPositions.contains(where: { $0.isCollected })
     }
 
     var hasMoreAntennas: Bool {
@@ -350,33 +351,39 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         print("➡️  次のタグ位置へ: \(self.trueTagPositions[self.currentTagPositionIndex].tagId)")
     }
 
-    /// 前のタグ位置に戻る（現在のタグのデータを取り消して前のタグからやり直す）
+    /// 前のタグ位置に戻る（最後に完了したタグのデータを取り消してそのタグからやり直す）
     func goToPreviousTagPosition() {
         guard self.canGoToPreviousTag else { return }
-        guard self.currentTagPositionIndex > 0 else { return }
 
-        // 現在のタグ（これから取り消すタグ）
-        let currentTag = self.trueTagPositions[self.currentTagPositionIndex]
+        // 最後に完了したタグを見つける（後ろから探す）
+        guard let lastCompletedIndex = self.trueTagPositions.indices.reversed().first(where: { index in
+            self.trueTagPositions[index].isCollected
+        }) else {
+            print("⚠️  完了済みのタグが見つかりません")
+            return
+        }
+
+        let tagToUndo = self.trueTagPositions[lastCompletedIndex]
 
         Task {
             guard let usecase = autoCalibrationUsecase,
                   let antennaId = currentAntennaId
             else { return }
 
-            // 現在のタグのデータをクリア
-            await usecase.clearData(for: antennaId, tagId: currentTag.tagId)
+            // 最後に完了したタグのデータをクリア
+            await usecase.clearData(for: antennaId, tagId: tagToUndo.tagId)
 
-            // 現在のタグの収集状態をリセット
-            self.trueTagPositions[self.currentTagPositionIndex].isCollected = false
+            // そのタグの収集状態をリセット
+            self.trueTagPositions[lastCompletedIndex].isCollected = false
 
-            // インデックスを1つ戻す
-            self.currentTagPositionIndex -= 1
+            // インデックスをそのタグに戻す
+            self.currentTagPositionIndex = lastCompletedIndex
 
             // 進行状況を更新
             let completedCount = self.trueTagPositions.filter { $0.isCollected }.count
             self.collectionProgress = Double(completedCount) / Double(self.trueTagPositions.count)
 
-            print("⬅️  現在のタグ(\(currentTag.tagId))を取り消して前のタグ位置に戻る: \(self.trueTagPositions[self.currentTagPositionIndex].tagId)")
+            print("⬅️  タグ(\(tagToUndo.tagId))を取り消してそのタグ位置に戻る（index: \(lastCompletedIndex)）")
 
             // データ統計を更新
             await self.updateDataStatistics()

@@ -576,20 +576,58 @@ struct FloatingCalibrationControlPanel: View {
                             .cornerRadius(8)
                         }
                     }
-                    // 次の位置へ
+                    // 次の位置へ & 前のタグに戻る
                     else if self.viewModel.hasMoreTagPositions {
+                        HStack(spacing: 8) {
+                            // 前のタグに戻るボタン
+                            if self.viewModel.canGoToPreviousTag {
+                                Button(action: {
+                                    self.viewModel.goToPreviousTagPosition()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "arrow.left.circle.fill")
+                                        Text("前のタグへ")
+                                    }
+                                    .font(.caption)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(8)
+                                    .foregroundColor(.white)
+                                    .background(Color.orange)
+                                    .cornerRadius(8)
+                                }
+                            }
+
+                            // 次のタグ位置へボタン
+                            Button(action: {
+                                self.viewModel.proceedToNextTagPosition()
+                            }) {
+                                HStack {
+                                    Image(systemName: "arrow.right.circle.fill")
+                                    Text("次のタグ位置へ")
+                                }
+                                .font(.caption)
+                                .frame(maxWidth: .infinity)
+                                .padding(8)
+                                .foregroundColor(.white)
+                                .background(Color.blue)
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    // 最後のタグで「前のタグに戻る」のみ表示
+                    else if self.viewModel.canGoToPreviousTag {
                         Button(action: {
-                            self.viewModel.proceedToNextTagPosition()
+                            self.viewModel.goToPreviousTagPosition()
                         }) {
                             HStack {
-                                Image(systemName: "arrow.right.circle.fill")
-                                Text("次のタグ位置へ")
+                                Image(systemName: "arrow.left.circle.fill")
+                                Text("前のタグへ")
                             }
                             .font(.caption)
                             .frame(maxWidth: .infinity)
                             .padding(8)
                             .foregroundColor(.white)
-                            .background(Color.blue)
+                            .background(Color.orange)
                             .cornerRadius(8)
                         }
                     }

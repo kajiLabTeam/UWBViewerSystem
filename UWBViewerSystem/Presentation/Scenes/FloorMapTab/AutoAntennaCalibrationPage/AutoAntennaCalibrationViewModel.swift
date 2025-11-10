@@ -132,6 +132,13 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         !self.isCollecting && self.allTagPositionsCollected
     }
 
+    var canGoToPreviousTag: Bool {
+        self.currentStep == 2 &&
+            self.currentTagPositionIndex > 0 &&
+            !self.isCollecting &&
+            !self.isCalibrating
+    }
+
     var hasMoreAntennas: Bool {
         let uncalibratedAntennas = self.availableAntennas.filter { !self.completedAntennaIds.contains($0.id) }
         return !uncalibratedAntennas.isEmpty
@@ -341,6 +348,39 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         guard self.currentTagPositionIndex < self.trueTagPositions.count - 1 else { return }
         self.currentTagPositionIndex += 1
         print("➡️  次のタグ位置へ: \(self.trueTagPositions[self.currentTagPositionIndex].tagId)")
+    }
+
+    /// 前のタグ位置に戻る（現在のタグのデータを取り消して前のタグからやり直す）
+    func goToPreviousTagPosition() {
+        guard self.canGoToPreviousTag else { return }
+        guard self.currentTagPositionIndex > 0 else { return }
+
+        // 現在のタグ（これから取り消すタグ）
+        let currentTag = self.trueTagPositions[self.currentTagPositionIndex]
+
+        Task {
+            guard let usecase = autoCalibrationUsecase,
+                  let antennaId = currentAntennaId
+            else { return }
+
+            // 現在のタグのデータをクリア
+            await usecase.clearData(for: antennaId, tagId: currentTag.tagId)
+
+            // 現在のタグの収集状態をリセット
+            self.trueTagPositions[self.currentTagPositionIndex].isCollected = false
+
+            // インデックスを1つ戻す
+            self.currentTagPositionIndex -= 1
+
+            // 進行状況を更新
+            let completedCount = self.trueTagPositions.filter { $0.isCollected }.count
+            self.collectionProgress = Double(completedCount) / Double(self.trueTagPositions.count)
+
+            print("⬅️  現在のタグ(\(currentTag.tagId))を取り消して前のタグ位置に戻る: \(self.trueTagPositions[self.currentTagPositionIndex].tagId)")
+
+            // データ統計を更新
+            await self.updateDataStatistics()
+        }
     }
 
     func startCalibration() {

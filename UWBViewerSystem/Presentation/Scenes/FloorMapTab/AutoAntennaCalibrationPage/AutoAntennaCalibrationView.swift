@@ -8,7 +8,9 @@ import SwiftUI
 /// アフィン変換を推定してアンテナのANTENNA_CONFIGを自動生成します。
 struct AutoAntennaCalibrationView: View {
     @StateObject private var viewModel = AutoAntennaCalibrationViewModel()
+    @StateObject private var flowNavigator = SensingFlowNavigator()
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject var router: NavigationRouterModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,6 +37,9 @@ struct AutoAntennaCalibrationView: View {
         }
         .onAppear {
             self.viewModel.setup(modelContext: self.modelContext)
+            self.flowNavigator.currentStep = .systemCalibration
+            self.flowNavigator.setRouter(self.router)
+            self.viewModel.setFlowNavigator(self.flowNavigator)
         }
         .alert("エラー", isPresented: self.$viewModel.showErrorAlert) {
             Button("OK", role: .cancel) {}
@@ -48,6 +53,15 @@ struct AutoAntennaCalibrationView: View {
             Button("完了", role: .cancel) {}
         } message: {
             Text("全てのアンテナのキャリブレーションが正常に完了しました")
+        }
+        .sheet(isPresented: self.$viewModel.showConnectionRecovery) {
+            ConnectionRecoveryView(
+                connectionUsecase: ConnectionManagementUsecase.shared,
+                isPresented: self.$viewModel.showConnectionRecovery
+            )
+            #if os(iOS)
+            .presentationDetents([.medium, .large])
+            #endif
         }
     }
 
@@ -567,20 +581,58 @@ struct FloatingCalibrationControlPanel: View {
                             .cornerRadius(8)
                         }
                     }
-                    // 次の位置へ
+                    // 次の位置へ & 前のタグに戻る
                     else if self.viewModel.hasMoreTagPositions {
+                        HStack(spacing: 8) {
+                            // 前のタグに戻るボタン
+                            if self.viewModel.canGoToPreviousTag {
+                                Button(action: {
+                                    self.viewModel.goToPreviousTagPosition()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "arrow.left.circle.fill")
+                                        Text("前のタグへ")
+                                    }
+                                    .font(.caption)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(8)
+                                    .foregroundColor(.white)
+                                    .background(Color.orange)
+                                    .cornerRadius(8)
+                                }
+                            }
+
+                            // 次のタグ位置へボタン
+                            Button(action: {
+                                self.viewModel.proceedToNextTagPosition()
+                            }) {
+                                HStack {
+                                    Image(systemName: "arrow.right.circle.fill")
+                                    Text("次のタグ位置へ")
+                                }
+                                .font(.caption)
+                                .frame(maxWidth: .infinity)
+                                .padding(8)
+                                .foregroundColor(.white)
+                                .background(Color.blue)
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    // 最後のタグで「前のタグに戻る」のみ表示
+                    else if self.viewModel.canGoToPreviousTag {
                         Button(action: {
-                            self.viewModel.proceedToNextTagPosition()
+                            self.viewModel.goToPreviousTagPosition()
                         }) {
                             HStack {
-                                Image(systemName: "arrow.right.circle.fill")
-                                Text("次のタグ位置へ")
+                                Image(systemName: "arrow.left.circle.fill")
+                                Text("前のタグへ")
                             }
                             .font(.caption)
                             .frame(maxWidth: .infinity)
                             .padding(8)
                             .foregroundColor(.white)
-                            .background(Color.blue)
+                            .background(Color.orange)
                             .cornerRadius(8)
                         }
                     }

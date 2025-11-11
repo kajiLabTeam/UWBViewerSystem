@@ -215,9 +215,7 @@ struct PairingSettingView: View {
                 .cornerRadius(8)
 
                 Button("次へ") {
-                    if self.viewModel.savePairingForFlow() {
-                        self.flowNavigator.proceedToNextStep()
-                    }
+                    self.viewModel.saveAndProceedToNextStep(flowNavigator: self.flowNavigator)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()

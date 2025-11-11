@@ -47,6 +47,9 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     /// 全アンテナのキャリブレーション結果（履歴）
     @Published var calibrationResults: [String: CalibrationResult] = [:]
 
+    /// 接続エラー表示フラグ
+    @Published var showConnectionRecovery: Bool = false
+
     /// エラーメッセージ
     @Published var errorMessage: String = ""
 
@@ -90,6 +93,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     private var swiftDataRepository: SwiftDataRepository?
     private var sensingControlUsecase: SensingControlUsecase?
     private var modelContext: ModelContext?
+    private weak var flowNavigator: SensingFlowNavigator?
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -127,6 +131,14 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     var canStartCalibration: Bool {
         !self.isCollecting && self.allTagPositionsCollected
+    }
+
+    var canGoToPreviousTag: Bool {
+        // データ収集ステップで、完了済みのタグが1つ以上ある場合に戻れる
+        self.currentStep == 2 &&
+            !self.isCollecting &&
+            !self.isCalibrating &&
+            self.trueTagPositions.contains(where: { $0.isCollected })
     }
 
     var hasMoreAntennas: Bool {
@@ -213,7 +225,60 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         self.realtimeDataUsecase = realtimeUsecase
         connectionUsecase.setRealtimeDataUsecase(realtimeUsecase)
 
+        // 接続監視を設定
+        self.setupConnectionMonitoring()
+
         self.loadInitialData()
+    }
+
+    /// SensingFlowNavigatorを設定
+    func setFlowNavigator(_ navigator: SensingFlowNavigator) {
+        self.flowNavigator = navigator
+    }
+
+    /// 接続監視を設定
+    private func setupConnectionMonitoring() {
+        // hasConnectionErrorの変更を監視
+        ConnectionManagementUsecase.shared.$hasConnectionError
+            .sink { [weak self] hasError in
+                guard let self else { return }
+                if hasError {
+                    print("⚠️ 接続断検出: 接続復旧画面を表示します")
+                    self.handleConnectionError()
+                }
+            }
+            .store(in: &self.cancellables)
+
+        // 接続デバイス数の変更を監視してアンテナリストを更新
+        ConnectionManagementUsecase.shared.$connectedDeviceNames
+            .sink { [weak self] _ in
+                guard let self else { return }
+                Task {
+                    print("🔌 接続デバイスの変更を検出: アンテナリストを再読み込みします")
+                    await self.loadAvailableAntennas()
+                }
+            }
+            .store(in: &self.cancellables)
+    }
+
+    /// 接続エラーハンドリング
+    private func handleConnectionError() {
+        // データ収集中・キャリブレーション中の場合は停止
+        if self.isCollecting || self.isCalibrating {
+            print("⚠️ データ収集/キャリブレーションを中断します")
+            self.isCollecting = false
+            self.isCalibrating = false
+        }
+
+        // エラーメッセージを設定
+        if let deviceName = ConnectionManagementUsecase.shared.lastDisconnectedDevice {
+            self.errorMessage = "デバイス「\(deviceName)」との接続が切断されました"
+        } else {
+            self.errorMessage = "接続が切断されました"
+        }
+
+        // 接続復旧画面を表示
+        self.showConnectionRecovery = true
     }
 
     // MARK: - Public Methods
@@ -303,6 +368,45 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         print("➡️  次のタグ位置へ: \(self.trueTagPositions[self.currentTagPositionIndex].tagId)")
     }
 
+    /// 前のタグ位置に戻る（最後に完了したタグのデータを取り消してそのタグからやり直す）
+    func goToPreviousTagPosition() {
+        guard self.canGoToPreviousTag else { return }
+
+        // 最後に完了したタグを見つける（後ろから探す）
+        guard let lastCompletedIndex = self.trueTagPositions.indices.reversed().first(where: { index in
+            self.trueTagPositions[index].isCollected
+        }) else {
+            print("⚠️  完了済みのタグが見つかりません")
+            return
+        }
+
+        let tagToUndo = self.trueTagPositions[lastCompletedIndex]
+
+        Task {
+            guard let usecase = autoCalibrationUsecase,
+                  let antennaId = currentAntennaId
+            else { return }
+
+            // 最後に完了したタグのデータをクリア
+            await usecase.clearData(for: antennaId, tagId: tagToUndo.tagId)
+
+            // そのタグの収集状態をリセット
+            self.trueTagPositions[lastCompletedIndex].isCollected = false
+
+            // インデックスをそのタグに戻す
+            self.currentTagPositionIndex = lastCompletedIndex
+
+            // 進行状況を更新
+            let completedCount = self.trueTagPositions.filter { $0.isCollected }.count
+            self.collectionProgress = Double(completedCount) / Double(self.trueTagPositions.count)
+
+            print("⬅️  タグ(\(tagToUndo.tagId))を取り消してそのタグ位置に戻る（index: \(lastCompletedIndex)）")
+
+            // データ統計を更新
+            await self.updateDataStatistics()
+        }
+    }
+
     func startCalibration() {
         guard self.canStartCalibration else { return }
 
@@ -336,6 +440,44 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             print("➡️  次のアンテナへ: \(self.currentAntennaName) (ID: \(nextId))")
         } else {
             print("✅ 全アンテナのキャリブレーション完了")
+
+            // キャリブレーション結果をUserDefaultsに保存
+            self.saveCalibrationResultToUserDefaults()
+
+            // 成功アラートを表示
+            self.showSuccessAlert = true
+
+            // フローナビゲーターで次のステップへ進む
+            if let flowNavigator = self.flowNavigator {
+                print("🚀 次のステップ（センシング実行）へ自動遷移します")
+                // アラート表示後に自動で次へ進むため、少し待機
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    flowNavigator.proceedToNextStep()
+                }
+            } else {
+                print("⚠️ FlowNavigatorが設定されていないため、手動で次へ進んでください")
+            }
+        }
+    }
+
+    /// キャリブレーション結果をUserDefaultsに保存
+    private func saveCalibrationResultToUserDefaults() {
+        // キャリブレーションデータを作成（アンテナ数の情報を含める）
+        let calibrationData: [String: Double] = [
+            "completedAntennaCount": Double(self.completedAntennaIds.count),
+            "totalAntennaCount": Double(self.availableAntennas.count)
+        ]
+
+        let calibrationResult = SystemCalibrationResult(
+            timestamp: Date(),
+            wasSuccessful: true,
+            calibrationData: calibrationData,
+            errorMessage: nil
+        )
+
+        if let encoded = try? JSONEncoder().encode(calibrationResult) {
+            UserDefaults.standard.set(encoded, forKey: "lastCalibrationResult")
+            print("💾 キャリブレーション結果をUserDefaultsに保存しました")
         }
     }
 
@@ -403,8 +545,35 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             // すべてのアンテナ位置を保存（マップ常時表示用）
             self.allAntennaPositions = antennaPositions
 
-            // アンテナ位置データからアンテナリストを構築
-            self.availableAntennas = antennaPositions.map { position in
+            // ConnectionManagementUsecaseからペアリング情報を取得
+            let antennaPairings = ConnectionManagementUsecase.shared.antennaPairings
+            print("🔗 [DEBUG] ペアリング情報: \(antennaPairings.count)件")
+
+            for (antennaId, deviceName) in antennaPairings {
+                print("🔗 [DEBUG] ペアリング: \(antennaId) → \(deviceName)")
+            }
+
+            // 接続中のデバイス名を取得
+            let connectedDeviceNames = ConnectionManagementUsecase.shared.connectedDeviceNames
+            print("🔌 [DEBUG] 接続中のデバイス: \(connectedDeviceNames)")
+
+            // ペアリングされている かつ 接続中のアンテナのみをフィルタリング
+            let connectedAntennaPositions = antennaPositions.filter { position in
+                // アンテナIDに紐づくデバイス名を取得
+                if let deviceName = antennaPairings[position.antennaId] {
+                    let isConnected = connectedDeviceNames.contains(deviceName)
+                    print("🔍 [DEBUG] \(position.antennaName) (\(position.antennaId)) → デバイス: \(deviceName), 接続: \(isConnected)")
+                    return isConnected
+                } else {
+                    print("⚠️ [DEBUG] \(position.antennaName) (\(position.antennaId)) はペアリングされていません")
+                    return false
+                }
+            }
+
+            print("📡 [DEBUG] 接続中のアンテナ: \(connectedAntennaPositions.count)個")
+
+            // アンテナ位置データからアンテナリストを構築（接続中のアンテナのみ）
+            self.availableAntennas = connectedAntennaPositions.map { position in
                 AntennaInfo(
                     id: position.antennaId,
                     name: position.antennaName,
@@ -412,7 +581,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                 )
             }
 
-            print("📡 利用可能なアンテナ: \(self.availableAntennas.count)個")
+            print("📡 キャリブレーション対象アンテナ: \(self.availableAntennas.count)個")
         } catch {
             self.showError("アンテナリストの読み込みに失敗しました: \(error.localizedDescription)")
         }

@@ -19,6 +19,9 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     @Published var hasConnectionError = false
     @Published var lastDisconnectedDevice: String?
 
+    // ペアリング情報管理（アンテナID → デバイス名）
+    @Published public var antennaPairings: [String: String] = [:]
+
     private let locationManager = CLLocationManager()
     private let nearbyRepository: NearbyRepository
 
@@ -167,6 +170,38 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     public func setRealtimeDataUsecase(_ usecase: RealtimeDataUsecase) {
         self.realtimeDataUsecase = usecase
         print("✅ RealtimeDataUsecaseを設定しました")
+    }
+
+    // MARK: - Pairing Management
+
+    /// アンテナと端末のペアリングを登録
+    public func pairAntennaWithDevice(antennaId: String, deviceName: String) {
+        self.antennaPairings[antennaId] = deviceName
+        print("🔗 ペアリング登録: \(antennaId) → \(deviceName)")
+    }
+
+    /// ペアリングを削除
+    public func unpairAntenna(antennaId: String) {
+        self.antennaPairings.removeValue(forKey: antennaId)
+        print("✂️ ペアリング削除: \(antennaId)")
+    }
+
+    /// すべてのペアリングをクリア
+    public func clearAllPairings() {
+        self.antennaPairings.removeAll()
+        print("🧹 すべてのペアリングをクリアしました")
+    }
+
+    /// 特定のアンテナに紐づくデバイス名を取得
+    public func getDeviceName(for antennaId: String) -> String? {
+        self.antennaPairings[antennaId]
+    }
+
+    /// ペアリングされているかつ接続中のアンテナIDリストを取得
+    public func getConnectedAntennaIds() -> [String] {
+        self.antennaPairings.compactMap { antennaId, deviceName in
+            self.connectedDeviceNames.contains(deviceName) ? antennaId : nil
+        }
     }
 }
 

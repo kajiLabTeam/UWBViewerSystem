@@ -8,7 +8,9 @@ import SwiftUI
 /// アフィン変換を推定してアンテナのANTENNA_CONFIGを自動生成します。
 struct AutoAntennaCalibrationView: View {
     @StateObject private var viewModel = AutoAntennaCalibrationViewModel()
+    @StateObject private var flowNavigator = SensingFlowNavigator()
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject var router: NavigationRouterModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,6 +37,9 @@ struct AutoAntennaCalibrationView: View {
         }
         .onAppear {
             self.viewModel.setup(modelContext: self.modelContext)
+            self.flowNavigator.currentStep = .systemCalibration
+            self.flowNavigator.setRouter(self.router)
+            self.viewModel.setFlowNavigator(self.flowNavigator)
         }
         .alert("エラー", isPresented: self.$viewModel.showErrorAlert) {
             Button("OK", role: .cancel) {}

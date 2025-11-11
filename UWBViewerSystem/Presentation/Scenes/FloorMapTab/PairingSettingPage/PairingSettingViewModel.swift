@@ -166,48 +166,9 @@ class PairingSettingViewModel: ObservableObject {
     }
 
     private func loadPairingData() async {
-        do {
-            // SwiftDataからペアリングデータを読み込み
-            let pairings = try await swiftDataRepository.loadAntennaPairings()
-            self.antennaPairings = pairings
-
-            // ペアリング済みデバイスをavailableDevicesに追加
-            for pairing in pairings {
-                if !self.availableDevices.contains(where: { $0.id == pairing.device.id }) {
-                    var restoredDevice = pairing.device
-                    // 復元されたデバイスは一旦未接続状態として表示
-                    restoredDevice.isConnected = false
-                    self.availableDevices.append(restoredDevice)
-                }
-            }
-
-            // 接続状態を復元（ペアリングがあるかどうかで判定）
-            self.isConnected = !pairings.isEmpty
-        } catch {
-            print("Error loading pairing data: \(error)")
-            // エラーの場合は空の配列を設定
-            self.antennaPairings = []
-            self.isConnected = false
-        }
-    }
-
-    private func savePairingData() {
-        Task {
-            do {
-                // 既存のペアリングデータを全て削除してから新しいデータを保存
-                let existingPairings = try await swiftDataRepository.loadAntennaPairings()
-                for existingPairing in existingPairings {
-                    try await self.swiftDataRepository.deleteAntennaPairing(by: existingPairing.id)
-                }
-
-                // 現在のペアリングデータを保存
-                for pairing in self.antennaPairings {
-                    try await self.swiftDataRepository.saveAntennaPairing(pairing)
-                }
-            } catch {
-                print("Error saving pairing data: \(error)")
-            }
-        }
+        // ペアリング情報はConnectionManagementUsecaseで管理されるため、
+        // ここでは何もしない（互換性のため残す）
+        self.isConnected = !self.connectionUsecase.antennaPairings.isEmpty
     }
 
     // MARK: - Device Discovery
@@ -262,10 +223,12 @@ class PairingSettingViewModel: ObservableObject {
 
         // アンテナ紐付け時に実際のペアリング（接続）を実行
         if device.isNearbyDevice {
-            // まずペアリング情報を作成・保存
+            // ペアリング情報を作成
             let pairing = AntennaPairing(antenna: antenna, device: device)
             self.antennaPairings.append(pairing)
-            self.savePairingData()
+
+            // ConnectionManagementUsecaseに登録
+            self.connectionUsecase.pairAntennaWithDevice(antennaId: antenna.id, deviceName: device.name)
 
             // 接続済みの場合の処理
             if device.isConnected {
@@ -298,12 +261,14 @@ class PairingSettingViewModel: ObservableObject {
             let pairing = AntennaPairing(antenna: antenna, device: device)
             self.antennaPairings.append(pairing)
 
+            // ConnectionManagementUsecaseに登録
+            self.connectionUsecase.pairAntennaWithDevice(antennaId: antenna.id, deviceName: device.name)
+
             if let index = availableDevices.firstIndex(where: { $0.id == device.id }) {
                 self.availableDevices[index].isConnected = true
             }
 
             self.isConnected = true
-            self.savePairingData()
 
             self.alertMessage = "\(antenna.name) と \(device.name) のペアリングが完了しました"
             self.showingConnectionAlert = true
@@ -312,6 +277,9 @@ class PairingSettingViewModel: ObservableObject {
 
     func removePairing(_ pairing: AntennaPairing) {
         self.antennaPairings.removeAll { $0.id == pairing.id }
+
+        // ConnectionManagementUsecaseからも削除
+        self.connectionUsecase.unpairAntenna(antennaId: pairing.antenna.id)
 
         // 1対1対応なので、ペアリング削除時は必ず接続を切断
         // デバイスの接続状態を更新
@@ -329,7 +297,6 @@ class PairingSettingViewModel: ObservableObject {
 
         // 接続状態を更新
         self.isConnected = !self.antennaPairings.isEmpty
-        self.savePairingData()
     }
 
     func removeAllPairings() {
@@ -342,6 +309,9 @@ class PairingSettingViewModel: ObservableObject {
 
         self.antennaPairings.removeAll()
 
+        // ConnectionManagementUsecaseからもすべて削除
+        self.connectionUsecase.clearAllPairings()
+
         // すべてのデバイスの接続状態をリセット
         for i in self.availableDevices.indices {
             self.availableDevices[i].isConnected = false
@@ -351,7 +321,6 @@ class PairingSettingViewModel: ObservableObject {
         self.connectionRequestHandlers.removeAll()
 
         self.isConnected = false
-        self.savePairingData()
     }
 
     // MARK: - Navigation
@@ -363,7 +332,26 @@ class PairingSettingViewModel: ObservableObject {
             return
         }
 
+        // ペアリング情報はConnectionManagementUsecaseに既に登録済み
+        // UserDefaultsにも保存（互換性のため）
+        _ = self.savePairingForFlow()
+
+        // 画面遷移
         self.navigationModel.push(.systemCalibration)
+    }
+
+    /// フローナビゲーターで次へ進む
+    func saveAndProceedToNextStep(flowNavigator: SensingFlowNavigator) {
+        guard self.canProceedToNext else {
+            return
+        }
+
+        // ペアリング情報はConnectionManagementUsecaseに既に登録済み
+        // UserDefaultsにも保存（互換性のため）
+        _ = self.savePairingForFlow()
+
+        // 画面遷移
+        flowNavigator.proceedToNextStep()
     }
 
     func savePairingForFlow() -> Bool {
@@ -536,7 +524,11 @@ extension PairingSettingViewModel: NearbyRepositoryCallback {
             // ペアリング情報からも削除
             self.antennaPairings.removeAll { $0.device.id == endpointId }
             self.isConnected = !self.antennaPairings.isEmpty
-            self.savePairingData()
+
+            // ConnectionManagementUsecaseからも削除
+            if let pairing = self.antennaPairings.first(where: { $0.device.id == endpointId }) {
+                self.connectionUsecase.unpairAntenna(antennaId: pairing.antenna.id)
+            }
         }
     }
 

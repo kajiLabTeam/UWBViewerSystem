@@ -8,11 +8,14 @@ import os.log
 public class RealtimeDataUsecase: ObservableObject {
     @Published var deviceRealtimeDataList: [DeviceRealtimeData] = []
     @Published var isReceivingRealtimeData = false
+    @Published var globalCoordinates: [String: Point3D] = [:]  // デバイス名 → グローバル座標
 
     private var cancellables = Set<AnyCancellable>()
-    private let swiftDataRepository: SwiftDataRepositoryProtocol
+    private var swiftDataRepository: SwiftDataRepositoryProtocol
     private weak var sensingControlUsecase: SensingControlUsecase?
     private let logger = Logger(subsystem: "com.uwbviewer.system", category: "realtime-data")
+    private var coordinateTransformUsecase: RealtimeCoordinateTransformUsecase?
+    private var currentFloorMapId: String?
 
     public init(
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository(),
@@ -20,6 +23,28 @@ public class RealtimeDataUsecase: ObservableObject {
     ) {
         self.swiftDataRepository = swiftDataRepository
         self.sensingControlUsecase = sensingControlUsecase
+
+        // SwiftDataRepositoryが有効な場合は座標変換Usecaseを初期化
+        if let swiftDataRepo = swiftDataRepository as? SwiftDataRepository {
+            self.coordinateTransformUsecase = RealtimeCoordinateTransformUsecase(
+                swiftDataRepository: swiftDataRepo
+            )
+        }
+    }
+
+    /// SwiftDataRepositoryを更新（ViewModelから呼ばれる）
+    public func updateSwiftDataRepository(_ repository: SwiftDataRepository) {
+        self.swiftDataRepository = repository
+        self.coordinateTransformUsecase = RealtimeCoordinateTransformUsecase(
+            swiftDataRepository: repository
+        )
+        print("✅ RealtimeDataUsecase: SwiftDataRepositoryを更新しました")
+    }
+
+    /// フロアマップIDを設定（座標変換に必要）
+    public func setFloorMapId(_ floorMapId: String) {
+        self.currentFloorMapId = floorMapId
+        print("📍 RealtimeDataUsecase: FloorMapIDを設定しました: \(floorMapId)")
     }
 
     // MARK: - Public Methods
@@ -52,6 +77,9 @@ public class RealtimeDataUsecase: ObservableObject {
             // 距離をcmからmに変換
             let distanceInMeters = Double(realtimeMessage.data.distance) / 100.0
 
+            // デバイス名から対応するアンテナIDを取得
+            let antennaId = self.getAntennaId(for: realtimeMessage.deviceName)
+
             let realtimeData = RealtimeData(
                 id: UUID(),
                 deviceName: realtimeMessage.deviceName,
@@ -61,7 +89,8 @@ public class RealtimeDataUsecase: ObservableObject {
                 distance: distanceInMeters,
                 nlos: realtimeMessage.data.nlos,
                 rssi: realtimeMessage.data.rssi,
-                seqCount: realtimeMessage.data.seqCount
+                seqCount: realtimeMessage.data.seqCount,
+                antennaId: antennaId
             )
 
             self.addDataToDevice(realtimeData)
@@ -192,8 +221,68 @@ public class RealtimeDataUsecase: ObservableObject {
         self.isReceivingRealtimeData = true
         objectWillChange.send()
 
+        // 座標変換を実行
+        self.performCoordinateTransform(for: data)
+
         // デバイス状況をログ出力
         self.logDeviceStatus()
+    }
+
+    /// デバイス名から対応するアンテナIDを取得
+    ///
+    /// ConnectionManagementUsecaseのペアリング情報から逆引きでアンテナIDを取得します。
+    private func getAntennaId(for deviceName: String) -> String {
+        let antennaPairings = ConnectionManagementUsecase.shared.antennaPairings
+
+        // アンテナID → デバイス名のマッピングから逆引き
+        for (antennaId, pairedDeviceName) in antennaPairings {
+            if pairedDeviceName == deviceName {
+                #if DEBUG
+                    print("🔗 デバイス \(deviceName) はアンテナ \(antennaId) に紐づいています")
+                #endif
+                return antennaId
+            }
+        }
+
+        #if DEBUG
+            print("⚠️ デバイス \(deviceName) に対応するアンテナIDが見つかりません")
+        #endif
+        return ""
+    }
+
+    /// リアルタイムデータのグローバル座標変換を実行
+    private func performCoordinateTransform(for data: RealtimeData) {
+        guard let transformUsecase = coordinateTransformUsecase,
+              let floorMapId = currentFloorMapId
+        else {
+            #if DEBUG
+                print("⚠️ 座標変換がスキップされました: transformUsecase=\(self.coordinateTransformUsecase != nil), floorMapId=\(self.currentFloorMapId ?? "nil")")
+            #endif
+            return
+        }
+
+        // antennaIdが空の場合は変換不可
+        guard !data.antennaId.isEmpty else {
+            #if DEBUG
+                print("⚠️ antennaIdが空のため座標変換をスキップ: deviceName=\(data.deviceName)")
+            #endif
+            return
+        }
+
+        Task {
+            if let globalCoord = await transformUsecase.transformToGlobalCoordinate(
+                distance: data.distance,
+                elevation: data.elevation,
+                azimuth: data.azimuth,
+                antennaId: data.antennaId,
+                floorMapId: floorMapId
+            ) {
+                self.globalCoordinates[data.deviceName] = globalCoord
+                #if DEBUG
+                    print("📍 グローバル座標変換成功: \(data.deviceName) → (\(globalCoord.x), \(globalCoord.y), \(globalCoord.z))")
+                #endif
+            }
+        }
     }
 
     private func logDeviceStatus() {

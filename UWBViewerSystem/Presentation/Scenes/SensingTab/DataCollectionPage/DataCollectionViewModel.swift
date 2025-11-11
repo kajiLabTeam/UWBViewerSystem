@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SwiftData
 import SwiftUI
 
 // MARK: - ViewModel
@@ -15,6 +16,17 @@ class DataCollectionViewModel: ObservableObject {
     @Published var recentSessions: [SensingSession] = []
     @Published var deviceRealtimeDataList: [DeviceRealtimeData] = []
 
+    // フロアマップ表示用
+    @Published var currentFloorMapInfo: FloorMapInfo?
+    @Published var allAntennaPositions: [AntennaPositionData] = []
+    @Published var globalCoordinates: [String: Point3D] = [:]
+
+    #if canImport(UIKit)
+        #if os(iOS)
+            @Published var floorMapImage: UIImage?
+        #endif
+    #endif
+
     private var currentSession: SensingSession?
     private var sensingTimer: Timer?
     private var startTime: Date?
@@ -25,12 +37,14 @@ class DataCollectionViewModel: ObservableObject {
     private let connectionUsecase: ConnectionManagementUsecase
     private let realtimeDataUsecase: RealtimeDataUsecase
     private let preferenceRepository: PreferenceRepositoryProtocol
+    private var swiftDataRepository: SwiftDataRepository?
 
     init(
         sensingControlUsecase: SensingControlUsecase? = nil,
         connectionUsecase: ConnectionManagementUsecase? = nil,
         realtimeDataUsecase: RealtimeDataUsecase? = nil,
-        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository()
+        preferenceRepository: PreferenceRepositoryProtocol = PreferenceRepository(),
+        swiftDataRepository: SwiftDataRepository? = nil
     ) {
         let defaultConnectionUsecase =
             connectionUsecase ?? ConnectionManagementUsecase.shared
@@ -40,6 +54,7 @@ class DataCollectionViewModel: ObservableObject {
             sensingControlUsecase ?? SensingControlUsecase(connectionUsecase: defaultConnectionUsecase)
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
         self.preferenceRepository = preferenceRepository
+        self.swiftDataRepository = swiftDataRepository
 
         self.loadRecentSessions()
         self.setupObservers()
@@ -70,6 +85,88 @@ class DataCollectionViewModel: ObservableObject {
         self.realtimeDataUsecase.$deviceRealtimeDataList
             .map { $0.count }
             .assign(to: &self.$dataPointCount)
+
+        // グローバル座標の購読
+        self.realtimeDataUsecase.$globalCoordinates
+            .assign(to: &self.$globalCoordinates)
+    }
+
+    /// SwiftDataRepositoryを設定（ViewのonAppearから呼ばれる）
+    func setupSwiftDataRepository(modelContext: ModelContext) {
+        if self.swiftDataRepository == nil {
+            let repository = SwiftDataRepository(modelContext: modelContext)
+            self.swiftDataRepository = repository
+
+            // RealtimeDataUsecaseにSwiftDataRepositoryを設定
+            self.realtimeDataUsecase.updateSwiftDataRepository(repository)
+
+            // ConnectionManagementUsecaseにRealtimeDataUsecaseを設定
+            self.connectionUsecase.realtimeDataUsecase = self.realtimeDataUsecase
+            print("✅ ConnectionManagementUsecaseにRealtimeDataUsecaseを設定しました")
+
+            self.loadInitialData()
+        }
+    }
+
+    /// 初期データの読み込み
+    private func loadInitialData() {
+        Task {
+            await self.loadFloorMapInfo()
+            await self.loadAntennaPositions()
+        }
+    }
+
+    /// フロアマップ情報を読み込み
+    private func loadFloorMapInfo() async {
+        guard let repository = swiftDataRepository else {
+            print("⚠️ SwiftDataRepositoryが利用できません")
+            return
+        }
+
+        do {
+            let floorMaps = try await repository.loadAllFloorMaps()
+            if let floorMap = floorMaps.first {
+                self.currentFloorMapInfo = floorMap
+
+                // フロアマップIDをRealtimeDataUsecaseに設定
+                self.realtimeDataUsecase.setFloorMapId(floorMap.id)
+
+                // フロアマップ画像を読み込み
+                #if canImport(UIKit)
+                    #if os(iOS)
+                        self.floorMapImage = floorMap.image
+                        if self.floorMapImage != nil {
+                            print("📍 フロアマップ画像読み込み成功: \(floorMap.name)")
+                        } else {
+                            print("⚠️ フロアマップ画像が見つかりません: \(floorMap.name)")
+                        }
+                    #endif
+                #endif
+
+                print("📍 フロアマップ情報読み込み完了: \(floorMap.name) (ID: \(floorMap.id))")
+            } else {
+                print("⚠️ フロアマップが登録されていません")
+            }
+        } catch {
+            print("❌ フロアマップ情報の読み込みに失敗: \(error)")
+        }
+    }
+
+    /// アンテナ位置情報を読み込み
+    private func loadAntennaPositions() async {
+        guard let repository = swiftDataRepository,
+              let floorMapId = currentFloorMapInfo?.id
+        else {
+            return
+        }
+
+        do {
+            let positions = try await repository.loadAntennaPositions(for: floorMapId)
+            self.allAntennaPositions = positions
+            print("📍 アンテナ位置情報読み込み完了: \(positions.count)件")
+        } catch {
+            print("❌ アンテナ位置情報の読み込みに失敗: \(error)")
+        }
     }
 
     // MARK: - Sensing Control

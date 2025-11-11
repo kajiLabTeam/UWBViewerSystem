@@ -8,6 +8,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     self.headerSection
+                    self.debugSection
                     self.aboutSection
                 }
                 .padding()
@@ -37,6 +38,37 @@ struct SettingsView: View {
         .padding()
         .background(Color.purple.opacity(0.1))
         .cornerRadius(12)
+    }
+
+    private var debugSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("デバッグ設定")
+                .font(.headline)
+                .fontWeight(.semibold)
+
+            VStack(spacing: 0) {
+                Toggle(isOn: self.$viewModel.skipCalibration) {
+                    HStack {
+                        Image(systemName: "hammer")
+                            .frame(width: 20)
+                            .foregroundColor(.orange)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("キャリブレーションをスキップ")
+                            Text("デバッグ時に毎回キャリブレーションを行わない")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding()
+                .onChange(of: self.viewModel.skipCalibration) { _, newValue in
+                    print("🔧 キャリブレーションスキップ設定: \(newValue)")
+                }
+            }
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
+        }
     }
 
     private var aboutSection: some View {

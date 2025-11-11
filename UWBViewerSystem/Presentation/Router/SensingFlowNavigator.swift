@@ -67,6 +67,19 @@ class SensingFlowNavigator: ObservableObject {
         let nextStep = SensingFlowStep.allCases[currentIndex + 1]
         print("➡️ proceedToNextStep: Moving to next step = \(nextStep.rawValue)")
 
+        // キャリブレーションステップをスキップする場合
+        if nextStep == .systemCalibration && UserDefaults.standard.bool(forKey: "skipCalibration") {
+            print("🔧 キャリブレーションスキップ設定が有効: キャリブレーションステップをスキップします")
+            self.currentStep = nextStep
+            self.markStepAsCompleted(nextStep)
+            self.updateProgress()
+            self.saveFlowState()
+
+            // 再帰的に次のステップ（センシング実行）に進む
+            self.proceedToNextStep()
+            return
+        }
+
         self.currentStep = nextStep
         self.updateProgress()
         self.saveFlowState()
@@ -393,6 +406,12 @@ enum SensingFlowStep: String, CaseIterable {
     }
 
     private func checkSystemCalibrationCompletion() -> Bool {
+        // デバッグ設定でキャリブレーションをスキップする場合
+        if UserDefaults.standard.bool(forKey: "skipCalibration") {
+            print("🔧 キャリブレーションスキップ設定が有効: 自動的に完了とみなします")
+            return true
+        }
+
         // キャリブレーション結果を確認
         guard let data = UserDefaults.standard.data(forKey: "lastCalibrationResult"),
               let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data)

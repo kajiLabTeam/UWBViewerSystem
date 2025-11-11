@@ -12,10 +12,11 @@ public struct RealtimeData: Identifiable, Codable {
     public let nlos: Int
     public let rssi: Double
     public let seqCount: Int
+    public let antennaId: String  // デバイスに紐づくアンテナID
 
     public init(
         id: UUID = UUID(), deviceName: String, timestamp: TimeInterval, elevation: Double, azimuth: Double,
-        distance: Double, nlos: Int, rssi: Double, seqCount: Int
+        distance: Double, nlos: Int, rssi: Double, seqCount: Int, antennaId: String = ""
     ) {
         self.id = id
         self.deviceName = deviceName
@@ -26,6 +27,7 @@ public struct RealtimeData: Identifiable, Codable {
         self.nlos = nlos
         self.rssi = rssi
         self.seqCount = seqCount
+        self.antennaId = antennaId
     }
 
     public var formattedTime: String {

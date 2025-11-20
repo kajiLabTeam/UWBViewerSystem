@@ -759,9 +759,6 @@ class AntennaPositioningViewModel: ObservableObject {
         // データを保存
         self.saveAntennaPositions()
 
-        // プロジェクト進行状況を更新
-        self.updateProjectProgress(toStep: .antennaConfiguration)
-
         return true
     }
 
@@ -782,41 +779,6 @@ class AntennaPositioningViewModel: ObservableObject {
         let realY = Double(screenPosition.y) * scaleY
 
         return RealWorldPosition(x: realX, y: realY, z: 0)
-    }
-
-    // MARK: - プロジェクト進行状況更新
-
-    private func updateProjectProgress(toStep step: SetupStep) {
-        guard let repository = swiftDataRepository,
-              let floorMapInfo
-        else { return }
-
-        Task {
-            do {
-                // 既存の進行状況を取得
-                var projectProgress = try await repository.loadProjectProgress(for: floorMapInfo.id)
-
-                if projectProgress == nil {
-                    // 進行状況が存在しない場合は新規作成
-                    projectProgress = ProjectProgress(
-                        floorMapId: floorMapInfo.id,
-                        currentStep: step
-                    )
-                } else {
-                    // 既存の進行状況を更新
-                    projectProgress!.currentStep = step
-                    projectProgress!.completedSteps.insert(step)
-                    projectProgress!.updatedAt = Date()
-                }
-
-                try await repository.updateProjectProgress(projectProgress!)
-
-            } catch {
-                #if DEBUG
-                    print("❌ プロジェクト進行状況の更新エラー: \(error)")
-                #endif
-            }
-        }
     }
 
     // MARK: - エラーハンドリング

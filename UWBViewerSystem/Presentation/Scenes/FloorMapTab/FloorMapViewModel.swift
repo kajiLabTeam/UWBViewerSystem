@@ -9,23 +9,13 @@ struct FloorMap: Identifiable {
     let width: Double
     let height: Double
     var isActive: Bool
-    var projectProgress: ProjectProgress?
 
     var formattedSize: String {
         String(format: "%.1f × %.1f m", self.width, self.height)
     }
 
-    var progressPercentage: Double {
-        self.projectProgress?.completionPercentage ?? 0.0
-    }
-
-    var currentStepDisplayName: String {
-        self.projectProgress?.currentStep.displayName ?? "未開始"
-    }
-
     init(
-        from floorMapInfo: FloorMapInfo, antennaCount: Int = 0, isActive: Bool = false,
-        projectProgress: ProjectProgress? = nil
+        from floorMapInfo: FloorMapInfo, antennaCount: Int = 0, isActive: Bool = false
     ) {
         self.id = floorMapInfo.id
         self.name = floorMapInfo.name
@@ -33,12 +23,10 @@ struct FloorMap: Identifiable {
         self.width = floorMapInfo.width
         self.height = floorMapInfo.depth
         self.isActive = isActive
-        self.projectProgress = projectProgress
     }
 
     init(
-        id: String, name: String, antennaCount: Int, width: Double, height: Double, isActive: Bool,
-        projectProgress: ProjectProgress? = nil
+        id: String, name: String, antennaCount: Int, width: Double, height: Double, isActive: Bool
     ) {
         self.id = id
         self.name = name
@@ -46,7 +34,6 @@ struct FloorMap: Identifiable {
         self.width = width
         self.height = height
         self.isActive = isActive
-        self.projectProgress = projectProgress
     }
 
     func toFloorMapInfo() -> FloorMapInfo {
@@ -118,19 +105,10 @@ class FloorMapViewModel: ObservableObject {
                     // アンテナ数をカウント（TODO: 実際のアンテナ数を取得）
                     let antennaCount = self.getAntennaCount(for: floorMapInfo.id)
 
-                    // プロジェクト進行状況を取得
-                    var projectProgress: ProjectProgress?
-                    do {
-                        projectProgress = try await repository.loadProjectProgress(for: floorMapInfo.id)
-                    } catch {
-                        print("⚠️ プロジェクト進行状況の読み込みエラー: \(error)")
-                    }
-
                     let floorMap = FloorMap(
                         from: floorMapInfo,
                         antennaCount: antennaCount,
-                        isActive: false,  // 後で設定
-                        projectProgress: projectProgress
+                        isActive: false  // 後で設定
                     )
                     floorMaps.append(floorMap)
                 }
@@ -267,20 +245,6 @@ class FloorMapViewModel: ObservableObject {
     }
 
     private func deleteCascadingData(for mapId: String, repository: SwiftDataRepository) async {
-        // 関連するプロジェクト進行状況の削除
-        do {
-            if let progress = try await repository.loadProjectProgress(for: mapId) {
-                try await repository.deleteProjectProgress(by: progress.id)
-                #if DEBUG
-                    print("✅ 関連するプロジェクト進行状況も削除: \(progress.id)")
-                #endif
-            }
-        } catch {
-            #if DEBUG
-                print("⚠️ プロジェクト進行状況の削除中にエラー（続行）: \(error)")
-            #endif
-        }
-
         // 関連するアンテナ位置データの削除
         do {
             try await repository.deleteAllAntennaPositions(for: mapId)

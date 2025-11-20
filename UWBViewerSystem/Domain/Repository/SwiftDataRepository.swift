@@ -99,14 +99,6 @@ public protocol SwiftDataRepositoryProtocol {
     func deleteFloorMap(by id: String) async throws
     func setActiveFloorMap(id: String) async throws
 
-    // プロジェクト進行状況関連
-    func saveProjectProgress(_ progress: ProjectProgress) async throws
-    func loadProjectProgress(by id: String) async throws -> ProjectProgress?
-    func loadProjectProgress(for floorMapId: String) async throws -> ProjectProgress?
-    func loadAllProjectProgress() async throws -> [ProjectProgress]
-    func deleteProjectProgress(by id: String) async throws
-    func updateProjectProgress(_ progress: ProjectProgress) async throws
-
     // キャリブレーション関連
     func saveCalibrationData(_ data: CalibrationData) async throws
     func loadCalibrationData() async throws -> [CalibrationData]
@@ -675,78 +667,6 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
         try self.modelContext.save()
     }
 
-    // MARK: - プロジェクト進行状況関連
-
-    public func saveProjectProgress(_ progress: ProjectProgress) async throws {
-        let persistentProgress = progress.toPersistent()
-        self.modelContext.insert(persistentProgress)
-        try self.modelContext.save()
-    }
-
-    public func loadProjectProgress(by id: String) async throws -> ProjectProgress? {
-        let predicate = #Predicate<PersistentProjectProgress> { $0.id == id }
-        let descriptor = FetchDescriptor<PersistentProjectProgress>(predicate: predicate)
-
-        let progresses = try modelContext.fetch(descriptor)
-        return progresses.first?.toEntity()
-    }
-
-    public func loadProjectProgress(for floorMapId: String) async throws -> ProjectProgress? {
-        let predicate = #Predicate<PersistentProjectProgress> { $0.floorMapId == floorMapId }
-        let descriptor = FetchDescriptor<PersistentProjectProgress>(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
-        )
-
-        let progresses = try modelContext.fetch(descriptor)
-        return progresses.first?.toEntity()
-    }
-
-    public func loadAllProjectProgress() async throws -> [ProjectProgress] {
-        let descriptor = FetchDescriptor<PersistentProjectProgress>(
-            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
-        )
-
-        let persistentProgresses = try modelContext.fetch(descriptor)
-        return persistentProgresses.map { $0.toEntity() }
-    }
-
-    public func deleteProjectProgress(by id: String) async throws {
-        let predicate = #Predicate<PersistentProjectProgress> { $0.id == id }
-        let descriptor = FetchDescriptor<PersistentProjectProgress>(predicate: predicate)
-
-        let progresses = try modelContext.fetch(descriptor)
-        for progress in progresses {
-            self.modelContext.delete(progress)
-        }
-        try self.modelContext.save()
-    }
-
-    public func updateProjectProgress(_ progress: ProjectProgress) async throws {
-        let predicate = #Predicate<PersistentProjectProgress> { $0.id == progress.id }
-        let descriptor = FetchDescriptor<PersistentProjectProgress>(predicate: predicate)
-
-        let existingProgresses = try modelContext.fetch(descriptor)
-        if let existingProgress = existingProgresses.first {
-            // 既存のプロジェクト進行状況を更新
-            existingProgress.currentStep = progress.currentStep.rawValue
-            existingProgress.updatedAt = progress.updatedAt
-
-            // completedStepsの更新
-            let encoder = JSONEncoder()
-            let stepStrings = progress.completedSteps.map { $0.rawValue }
-            existingProgress.completedStepsData = (try? encoder.encode(stepStrings)) ?? Data()
-
-            // stepDataの更新
-            existingProgress.stepData = (try? encoder.encode(progress.stepData)) ?? Data()
-
-            try self.modelContext.save()
-        } else {
-            // 存在しない場合は新規作成
-            try await self.saveProjectProgress(progress)
-        }
-    }
-
     // MARK: - キャリブレーション関連
 
     public func saveCalibrationData(_ data: CalibrationData) async throws {
@@ -1055,12 +975,6 @@ public class DummySwiftDataRepository: SwiftDataRepositoryProtocol {
     public func loadFloorMap(by id: String) async throws -> FloorMapInfo? { nil }
     public func deleteFloorMap(by id: String) async throws {}
     public func setActiveFloorMap(id: String) async throws {}
-    public func saveProjectProgress(_ progress: ProjectProgress) async throws {}
-    public func loadProjectProgress(by id: String) async throws -> ProjectProgress? { nil }
-    public func loadProjectProgress(for floorMapId: String) async throws -> ProjectProgress? { nil }
-    public func loadAllProjectProgress() async throws -> [ProjectProgress] { [] }
-    public func deleteProjectProgress(by id: String) async throws {}
-    public func updateProjectProgress(_ progress: ProjectProgress) async throws {}
 
     // キャリブレーション関連
     public func saveCalibrationData(_ data: CalibrationData) async throws {}

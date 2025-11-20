@@ -158,45 +158,6 @@ public enum SetupStep: String, Codable, CaseIterable {
     }
 }
 
-/// プロジェクトの進行状況を表すデータ構造
-public struct ProjectProgress: Codable {
-    public let id: String
-    public let floorMapId: String
-    public var currentStep: SetupStep
-    public var completedSteps: Set<SetupStep>
-    public var stepData: [String: Data]  // 各ステップの詳細データ
-    public let createdAt: Date
-    public var updatedAt: Date
-
-    public init(
-        id: String = UUID().uuidString,
-        floorMapId: String,
-        currentStep: SetupStep = .floorMapSetting,
-        completedSteps: Set<SetupStep> = [],
-        stepData: [String: Data] = [:],
-        createdAt: Date = Date(),
-        updatedAt: Date = Date()
-    ) {
-        self.id = id
-        self.floorMapId = floorMapId
-        self.currentStep = currentStep
-        self.completedSteps = completedSteps
-        self.stepData = stepData
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-    }
-
-    public var completionPercentage: Double {
-        let totalSteps = SetupStep.allCases.count - 1  // completedを除く
-        let completed = self.completedSteps.filter { $0 != .completed }.count
-        return Double(completed) / Double(totalSteps)
-    }
-
-    public var isCompleted: Bool {
-        self.currentStep == .completed
-    }
-}
-
 // FloorMapInfo用のプラットフォーム固有拡張
 #if os(macOS)
     extension FloorMapInfo {

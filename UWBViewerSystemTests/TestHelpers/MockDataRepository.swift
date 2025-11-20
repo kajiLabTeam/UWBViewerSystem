@@ -175,7 +175,6 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     private var systemActivityStorage: [SystemActivity] = []
     private var receivedFileStorage: [ReceivedFile] = []
     private var floorMapStorage: [FloorMapInfo] = []
-    private var projectProgressStorage: [ProjectProgress] = []
     private var calibrationDataStorage: [String: Data] = [:]
     private var mapCalibrationDataStorage: [String: MapCalibrationData] = [:]
 
@@ -334,35 +333,6 @@ public class MockSwiftDataRepository: SwiftDataRepositoryProtocol {
     public func setActiveFloorMap(id: String) async throws {
         // FloorMapInfoにisActiveプロパティがないため、テスト用のダミー実装
         // 実際の実装では別途アクティブなフロアマップを管理する
-    }
-
-    // MARK: - Project Progress Methods
-
-    public func saveProjectProgress(_ progress: ProjectProgress) async throws {
-        if self.shouldThrowError { throw self.errorToThrow }
-        self.projectProgressStorage.append(progress)
-    }
-
-    public func loadProjectProgress(by id: String) async throws -> ProjectProgress? {
-        self.projectProgressStorage.first { $0.id == id }
-    }
-
-    public func loadProjectProgress(for floorMapId: String) async throws -> ProjectProgress? {
-        self.projectProgressStorage.first { $0.floorMapId == floorMapId }
-    }
-
-    public func loadAllProjectProgress() async throws -> [ProjectProgress] {
-        self.projectProgressStorage
-    }
-
-    public func deleteProjectProgress(by id: String) async throws {
-        self.projectProgressStorage.removeAll { $0.id == id }
-    }
-
-    public func updateProjectProgress(_ progress: ProjectProgress) async throws {
-        if let index = projectProgressStorage.firstIndex(where: { $0.id == progress.id }) {
-            self.projectProgressStorage[index] = progress
-        }
     }
 
     // MARK: - Calibration Data Methods

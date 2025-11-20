@@ -81,6 +81,8 @@ class PairingSettingViewModel: ObservableObject {
         self.floorMapId = floorMapId
         Task {
             await self.loadFloorMapInfoById(floorMapId: floorMapId)
+            // フロアマップ情報読み込み後、アンテナ情報を読み込み
+            await self.loadAntennasFromPositionData()
         }
     }
 
@@ -100,9 +102,6 @@ class PairingSettingViewModel: ObservableObject {
     // MARK: - Data Management
 
     private func loadSampleAntennas() {
-        // まず、保存されたアンテナ位置情報から読み込む
-        self.loadAntennasFromPositionData()
-
         // データがない場合は従来の方法で読み込む
         if self.selectedAntennas.isEmpty {
             // FieldSettingViewModelから保存されたアンテナ設定を読み込み
@@ -126,29 +125,33 @@ class PairingSettingViewModel: ObservableObject {
     }
 
     /// 保存されたアンテナ位置データから読み込む
-    private func loadAntennasFromPositionData() {
-        Task {
-            do {
-                // SwiftDataからアンテナ位置データを読み込み
-                if let floorMapInfo = getCurrentFloorMapInfo() {
-                    let positionData = try await swiftDataRepository.loadAntennaPositions(for: floorMapInfo.id)
-
-                    await MainActor.run {
-                        self.selectedAntennas = positionData.map { position in
-                            AntennaInfo(
-                                id: position.antennaId,
-                                name: position.antennaName,
-                                coordinates: position.position
-                            )
-                        }
-                        print("✅ SwiftDataからアンテナ位置情報を読み込み: \(self.selectedAntennas.count)台")
-                    }
-                }
-            } catch {
-                print("❌ アンテナ位置データの読み込みエラー: \(error)")
+    private func loadAntennasFromPositionData() async {
+        do {
+            // SwiftDataからアンテナ位置データを読み込み
+            guard let floorMapId = self.floorMapId else {
+                print("⚠️ floorMapIdが設定されていません")
                 await MainActor.run {
                     self.loadAntennasFromUserDefaults()
                 }
+                return
+            }
+
+            let positionData = try await swiftDataRepository.loadAntennaPositions(for: floorMapId)
+
+            await MainActor.run {
+                self.selectedAntennas = positionData.map { position in
+                    AntennaInfo(
+                        id: position.antennaId,
+                        name: position.antennaName,
+                        coordinates: position.position
+                    )
+                }
+                print("✅ SwiftDataからアンテナ位置情報を読み込み: \(self.selectedAntennas.count)台 (floorMapId: \(floorMapId))")
+            }
+        } catch {
+            print("❌ アンテナ位置データの読み込みエラー: \(error)")
+            await MainActor.run {
+                self.loadAntennasFromUserDefaults()
             }
         }
     }
@@ -376,8 +379,8 @@ class PairingSettingViewModel: ObservableObject {
         // UserDefaultsにも保存（互換性のため）
         _ = self.savePairingForFlow()
 
-        // 画面遷移
-        flowNavigator.proceedToNextStep()
+        // 画面遷移 - floorMapIdを明示的に渡す
+        flowNavigator.proceedToNextStep(floorMapId: self.floorMapId)
     }
 
     func savePairingForFlow() -> Bool {

@@ -71,7 +71,6 @@ struct UWBViewerSystemApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             PersistentFloorMap.self,
-            PersistentProjectProgress.self,
             PersistentAntennaPosition.self,
             PersistentSensingSession.self,
             PersistentSystemActivity.self,
@@ -298,18 +297,6 @@ struct UWBViewerSystemApp: App {
                     print("      Building: \(floorMap.buildingName)")
                     print("      Size: \(floorMap.width) × \(floorMap.depth)")
                     print("      Created: \(floorMap.createdAt)")
-                }
-
-                // プロジェクト進行状況の確認
-                let projectProgresses = try await swiftDataRepository.loadAllProjectProgress()
-                print("📊 データベース内のプロジェクト進行状況: \(projectProgresses.count)件")
-                for (index, progress) in projectProgresses.enumerated() {
-                    print("  [\(index + 1)] ID: \(progress.id)")
-                    print("      FloorMapID: \(progress.floorMapId)")
-                    print("      CurrentStep: \(progress.currentStep.displayName)")
-                    print(
-                        "      CompletedSteps: \(progress.completedSteps.map { $0.displayName }.joined(separator: ", "))"
-                    )
                 }
 
                 // アンテナ位置の確認

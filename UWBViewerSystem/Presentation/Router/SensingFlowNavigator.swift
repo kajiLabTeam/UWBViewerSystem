@@ -44,6 +44,8 @@ class SensingFlowNavigator: ObservableObject {
     /// 次のステップに進む
     func proceedToNextStep(floorMapId: String? = nil) {
         print("🚀 proceedToNextStep: Current step = \(self.currentStep.rawValue)")
+        print("🔍 DEBUG: Received floorMapId parameter = '\(floorMapId ?? "nil")'")
+        print("🔍 DEBUG: Current self.currentFloorMapId = '\(self.currentFloorMapId)'")
 
         // floorMapIdが指定されている場合は保存
         if let floorMapId {
@@ -79,13 +81,16 @@ class SensingFlowNavigator: ObservableObject {
         // キャリブレーションステップをスキップする場合
         if nextStep == .systemCalibration && UserDefaults.standard.bool(forKey: "skipCalibration") {
             print("🔧 キャリブレーションスキップ設定が有効: キャリブレーションステップをスキップします")
+            print("🔍 DEBUG: currentFloorMapId = '\(self.currentFloorMapId)'")
             self.currentStep = nextStep
             self.markStepAsCompleted(nextStep)
             self.updateProgress()
             self.saveFlowState()
 
             // 再帰的に次のステップ（センシング実行）に進む
-            self.proceedToNextStep()
+            // currentFloorMapIdを明示的に渡す
+            print("🔍 DEBUG: Calling proceedToNextStep with floorMapId = '\(self.currentFloorMapId)'")
+            self.proceedToNextStep(floorMapId: self.currentFloorMapId)
             return
         }
 

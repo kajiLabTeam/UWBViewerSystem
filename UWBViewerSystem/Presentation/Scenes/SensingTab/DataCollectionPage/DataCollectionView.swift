@@ -81,9 +81,10 @@ struct DataCollectionView: View {
 
     private var fullScreenFloorMap: some View {
         GeometryReader { geometry in
-            if let floorMapInfo = self.viewModel.currentFloorMapInfo {
+            if let floorMapImage = self.viewModel.floorMapImage,
+               let floorMapInfo = self.viewModel.currentFloorMapInfo {
                 FloorMapCanvas(
-                    floorMapImage: self.viewModel.floorMapImage,
+                    floorMapImage: floorMapImage,
                     floorMapInfo: floorMapInfo,
                     calibrationPoints: nil,
                     onMapTap: nil,
@@ -154,6 +155,18 @@ struct DataCollectionView: View {
                             .position(screenPos)
                             .animation(.easeInOut(duration: 0.3), value: screenPos)
                         }
+                    }
+                }
+                .ignoresSafeArea()
+            } else {
+                // フロアマップ画像が読み込まれていない場合はローディング表示
+                ZStack {
+                    Color.secondary.opacity(0.1)
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("フロアマップを読み込んでいます...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                 }
                 .ignoresSafeArea()

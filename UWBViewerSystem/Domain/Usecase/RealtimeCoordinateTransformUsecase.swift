@@ -83,12 +83,13 @@ public class RealtimeCoordinateTransformUsecase {
     /// - Parameters:
     ///   - distance: 距離（メートル）
     ///   - elevation: 仰角（度）
-    ///   - azimuth: 方位角（度）
+    ///   - azimuth: 方位角（度） - UWB座標系では東が0度
     /// - Returns: ローカル直交座標（アンテナ中心）
     private func polarToCartesian(distance: Double, elevation: Double, azimuth: Double) -> Point3D {
         // 角度をラジアンに変換
         let elevationRad = elevation * .pi / 180.0
-        let azimuthRad = azimuth * .pi / 180.0
+        // UWB座標系（東が0度）から数学的座標系（北が0度）に変換するため90度加算
+        let azimuthRad = (azimuth + 90.0) * .pi / 180.0
 
         // 球面座標から直交座標への変換
         // x: 東西方向（東が正）

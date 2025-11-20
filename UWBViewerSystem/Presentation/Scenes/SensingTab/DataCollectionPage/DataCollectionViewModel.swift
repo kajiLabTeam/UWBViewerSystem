@@ -108,24 +108,31 @@ class DataCollectionViewModel: ObservableObject {
         }
     }
 
-    /// 初期データの読み込み
+    /// 初期データの読み込み（非推奨：loadFloorMapInfo(floorMapId:)を使用すること）
     private func loadInitialData() {
         Task {
-            await self.loadFloorMapInfo()
+            // フロアマップは画面遷移時に明示的に指定されるため、ここでは読み込まない
             await self.loadAntennaPositions()
         }
     }
 
-    /// フロアマップ情報を読み込み
-    private func loadFloorMapInfo() async {
+    /// 指定されたフロアマップ情報を読み込み
+    func loadFloorMapInfo(floorMapId: String) {
+        Task {
+            await self.loadFloorMapInfoById(floorMapId: floorMapId)
+            await self.loadAntennaPositions()
+        }
+    }
+
+    /// 指定されたIDのフロアマップ情報を読み込み
+    private func loadFloorMapInfoById(floorMapId: String) async {
         guard let repository = swiftDataRepository else {
             print("⚠️ SwiftDataRepositoryが利用できません")
             return
         }
 
         do {
-            let floorMaps = try await repository.loadAllFloorMaps()
-            if let floorMap = floorMaps.first {
+            if let floorMap = try await repository.loadFloorMap(by: floorMapId) {
                 self.currentFloorMapInfo = floorMap
 
                 // フロアマップIDをRealtimeDataUsecaseに設定
@@ -145,7 +152,7 @@ class DataCollectionViewModel: ObservableObject {
 
                 print("📍 フロアマップ情報読み込み完了: \(floorMap.name) (ID: \(floorMap.id))")
             } else {
-                print("⚠️ フロアマップが登録されていません")
+                print("⚠️ フロアマップが見つかりません (ID: \(floorMapId))")
             }
         } catch {
             print("❌ フロアマップ情報の読み込みに失敗: \(error)")
@@ -191,6 +198,9 @@ class DataCollectionViewModel: ObservableObject {
     func stopSensing() {
         // 直接SensingControlUsecaseを使用してセンシング停止
         self.sensingControlUsecase.stopRemoteSensing()
+
+        // センシングデータをCSVとしてエクスポート
+        self.exportSensingDataToCSV()
 
         // セッションを完了
         if let session = currentSession, let _ = startTime {
@@ -263,6 +273,56 @@ class DataCollectionViewModel: ObservableObject {
     private func loadRecentSessions() {
         if let sessions = preferenceRepository.getData([SensingSession].self, forKey: "RecentSensingSessions") {
             self.recentSessions = sessions
+        }
+    }
+
+    // MARK: - CSV Export
+
+    /// センシングデータをCSVとしてエクスポート
+    ///
+    /// 生データとグローバル座標変換後のデータの両方をエクスポートします
+    private func exportSensingDataToCSV() {
+        print("📊 CSVエクスポート開始")
+        print("   デバイス数: \(self.deviceRealtimeDataList.count)")
+
+        // SwiftDataに保存された全データを読み込む
+        guard let sessionId = currentSession?.id else {
+            print("⚠️ セッションIDが見つかりません")
+            return
+        }
+
+        Task {
+            do {
+                // SwiftDataから全リアルタイムデータを読み込み
+                let allRealtimeData = try await swiftDataRepository?.loadRealtimeData(for: sessionId) ?? []
+
+                print("   SwiftDataから読み込んだデータ数: \(allRealtimeData.count)")
+
+                guard !allRealtimeData.isEmpty else {
+                    print("⚠️ エクスポートするデータがありません")
+                    return
+                }
+
+                // タイムスタンプでソート
+                let sortedData = allRealtimeData.sorted { $0.timestamp < $1.timestamp }
+
+                let sessionName = self.currentFileName.isEmpty ? "unknown_session" : self.currentFileName
+                print("   セッション名: \(sessionName)")
+
+                // 生データとグローバル座標データの両方をエクスポート
+                let (rawDataURL, globalCoordinateURL) = try SensingDataCSVExporter.exportBothCSVs(
+                    realtimeDataList: sortedData,
+                    globalCoordinates: self.globalCoordinates,
+                    sessionName: sessionName
+                )
+
+                print("✅ センシングデータのCSVエクスポート成功")
+                print("   総データポイント数: \(sortedData.count)")
+                print("   生データ: \(rawDataURL.path)")
+                print("   グローバル座標データ: \(globalCoordinateURL.path)")
+            } catch {
+                print("❌ CSVエクスポートエラー: \(error.localizedDescription)")
+            }
         }
     }
 }

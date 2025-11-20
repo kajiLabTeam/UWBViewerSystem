@@ -2,12 +2,16 @@ import SwiftData
 import SwiftUI
 
 struct PairingSettingView: View {
+    /// 選択されたフロアマップID
+    let floorMapId: String
+
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel: PairingSettingViewModel
     @StateObject private var flowNavigator = SensingFlowNavigator()
     @EnvironmentObject var router: NavigationRouterModel
 
-    init() {
+    init(floorMapId: String) {
+        self.floorMapId = floorMapId
         // ViewModelの初期化時に一時的なダミーリポジトリを使用
         // onAppearで実際のModelContextベースのリポジトリに置き換える
         _viewModel = StateObject(
@@ -82,6 +86,8 @@ struct PairingSettingView: View {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
             let repository = SwiftDataRepository(modelContext: modelContext)
             self.viewModel.setSwiftDataRepository(repository)
+            // 指定されたフロアマップIDでフロアマップ情報を読み込み
+            self.viewModel.loadFloorMapInfo(floorMapId: self.floorMapId)
             self.flowNavigator.currentStep = .devicePairing
             self.flowNavigator.setRouter(self.router)
         }
@@ -467,5 +473,6 @@ struct PairingStatusCard: View {
 }
 
 #Preview {
-    PairingSettingView()
+    PairingSettingView(floorMapId: "test-floor-map-id")
+        .environmentObject(NavigationRouterModel())
 }

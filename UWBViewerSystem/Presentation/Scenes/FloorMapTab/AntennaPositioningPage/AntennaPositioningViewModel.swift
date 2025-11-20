@@ -37,6 +37,7 @@ class AntennaPositioningViewModel: ObservableObject {
     // SwiftData関連
     private var modelContext: ModelContext?
     private var swiftDataRepository: SwiftDataRepository?
+    private var floorMapId: String?
 
     // フロアマップ情報を保持（SwiftDataから読み込み）
     @Published private var loadedFloorMapInfo: FloorMapInfo?
@@ -104,9 +105,11 @@ class AntennaPositioningViewModel: ObservableObject {
         if #available(macOS 14, iOS 17, *) {
             swiftDataRepository = SwiftDataRepository(modelContext: context)
         }
-        // SwiftDataRepository設定後にデータを再読み込み
-        self.loadMapAndDevices()
-        // loadAntennaPositionsFromSwiftDataはcreateAntennaPositions内で呼び出すため、ここでは呼ばない
+    }
+
+    /// フロアマップIDを設定
+    func setFloorMapId(_ floorMapId: String) {
+        self.floorMapId = floorMapId
     }
 
     private func updateCanProceed() {
@@ -152,20 +155,18 @@ class AntennaPositioningViewModel: ObservableObject {
         return antenna.rotation
     }
 
-    func loadMapAndDevices() {
-        self.loadSelectedDevices()
-        self.loadMapData()
+    func loadMapAndDevices(floorMapId: String) {
         // SwiftDataからフロアマップ情報とキャリブレーションデータを非同期でロード
         Task { @MainActor in
-            await self.loadFloorMapInfoFromSwiftData()
+            await self.loadFloorMapInfoFromSwiftData(floorMapId: floorMapId)
             await self.loadCalibrationDataAsync()
-            // ロード完了後にアンテナ位置を作成
-            self.createAntennaPositions()
+            // フロアマップ情報ロード後にデバイスを読み込み
+            self.loadSelectedDevices()
         }
     }
 
-    /// SwiftDataからフロアマップ情報を読み込み
-    private func loadFloorMapInfoFromSwiftData() async {
+    /// SwiftDataから指定されたフロアマップ情報を読み込み
+    private func loadFloorMapInfoFromSwiftData(floorMapId: String) async {
         guard let repository = swiftDataRepository else {
             #if DEBUG
                 print("❌ SwiftDataRepository が利用できません")
@@ -174,17 +175,27 @@ class AntennaPositioningViewModel: ObservableObject {
         }
 
         do {
-            let floorMaps = try await repository.loadAllFloorMaps()
-            if let floorMap = floorMaps.first {
+            if let floorMap = try await repository.loadFloorMap(by: floorMapId) {
                 await MainActor.run {
                     self.loadedFloorMapInfo = floorMap
+
+                    // フロアマップ画像を読み込み
+                    #if canImport(UIKit)
+                        #if os(iOS)
+                            self.mapImage = floorMap.image
+                        #elseif os(macOS)
+                            self.mapImage = floorMap.image
+                        #endif
+                    #elseif canImport(AppKit)
+                        self.mapImage = floorMap.image
+                    #endif
                 }
                 #if DEBUG
-                    print("✅ フロアマップ情報を読み込みました: \(floorMap.name), サイズ: \(floorMap.width)x\(floorMap.depth)m")
+                    print("✅ フロアマップ情報を読み込みました: \(floorMap.name), サイズ: \(floorMap.width)x\(floorMap.depth)m, 画像: \(self.mapImage != nil ? "あり" : "なし")")
                 #endif
             } else {
                 #if DEBUG
-                    print("⚠️ フロアマップが見つかりません")
+                    print("⚠️ フロアマップが見つかりません (ID: \(floorMapId))")
                 #endif
             }
         } catch {

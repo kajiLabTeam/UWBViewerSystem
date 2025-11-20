@@ -290,6 +290,14 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         }
     }
 
+    /// 指定されたフロアマップ情報を読み込み
+    func loadFloorMapInfo(floorMapId: String) {
+        Task {
+            await self.loadFloorMapInfoById(floorMapId: floorMapId)
+            await self.loadAvailableAntennas()
+        }
+    }
+
     func addTagPosition(at point: Point3D) {
         let newTag = TagPosition(
             id: UUID(),
@@ -499,6 +507,37 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     }
 
     // MARK: - Private Methods
+
+    /// 指定されたIDのフロアマップ情報を読み込み
+    private func loadFloorMapInfoById(floorMapId: String) async {
+        guard let repository = swiftDataRepository else {
+            print("⚠️ SwiftDataRepositoryが利用できません")
+            return
+        }
+
+        do {
+            if let floorMap = try await repository.loadFloorMap(by: floorMapId) {
+                self.currentFloorMapInfo = floorMap
+
+                // フロアマップ画像を読み込み
+                #if canImport(UIKit)
+                    #if os(iOS)
+                        self.floorMapImage = floorMap.image
+                    #elseif os(macOS)
+                        self.floorMapImage = floorMap.image
+                    #endif
+                #elseif canImport(AppKit)
+                    self.floorMapImage = floorMap.image
+                #endif
+
+                print("🗺️ フロアマップ読み込み完了: \(floorMap.name), 画像: \(self.floorMapImage != nil ? "あり" : "なし")")
+            } else {
+                print("⚠️ フロアマップが見つかりません (ID: \(floorMapId))")
+            }
+        } catch {
+            self.showError("フロアマップの読み込みに失敗しました: \(error.localizedDescription)")
+        }
+    }
 
     private func loadFloorMapInfo() async {
         guard let repository = swiftDataRepository else { return }

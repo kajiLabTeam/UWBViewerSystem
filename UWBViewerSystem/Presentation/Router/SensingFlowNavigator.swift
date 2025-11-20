@@ -15,6 +15,7 @@ class SensingFlowNavigator: ObservableObject {
     @Published var isFlowCompleted: Bool = false
     @Published var completedSteps: Set<SensingFlowStep> = []
     @Published var lastError: String?
+    @Published var currentFloorMapId: String?
 
     private var router: NavigationRouterModel
     private let preferenceRepository: PreferenceRepositoryProtocol
@@ -41,8 +42,16 @@ class SensingFlowNavigator: ObservableObject {
     }
 
     /// 次のステップに進む
-    func proceedToNextStep() {
+    func proceedToNextStep(floorMapId: String? = nil) {
         print("🚀 proceedToNextStep: Current step = \(self.currentStep.rawValue)")
+
+        // floorMapIdが指定されている場合は保存
+        if let floorMapId {
+            self.currentFloorMapId = floorMapId
+            #if DEBUG
+                print("📍 proceedToNextStep: FloorMapId set to \(floorMapId)")
+            #endif
+        }
 
         // 現在のステップの完了条件をチェック
         guard self.canProceedFromCurrentStep() else {
@@ -85,8 +94,9 @@ class SensingFlowNavigator: ObservableObject {
         self.saveFlowState()
 
         // ルーターを使用して実際の画面遷移を実行
-        print("🔄 proceedToNextStep: Navigating to route = \(nextStep.route)")
-        self.router.navigateTo(nextStep.route)
+        let route = nextStep.route(floorMapId: self.currentFloorMapId)
+        print("🔄 proceedToNextStep: Navigating to route = \(route)")
+        self.router.navigateTo(route)
         print("✅ proceedToNextStep: Navigation completed")
     }
 
@@ -102,14 +112,16 @@ class SensingFlowNavigator: ObservableObject {
         self.currentStep = previousStep
         self.updateProgress()
 
-        self.router.navigateTo(previousStep.route)
+        let route = previousStep.route(floorMapId: self.currentFloorMapId)
+        self.router.navigateTo(route)
     }
 
     /// 指定したステップに直接ジャンプ
     func jumpToStep(_ step: SensingFlowStep) {
         self.currentStep = step
         self.updateProgress()
-        self.router.navigateTo(step.route)
+        let route = step.route(floorMapId: self.currentFloorMapId)
+        self.router.navigateTo(route)
     }
 
     /// フローを最初から開始
@@ -117,7 +129,8 @@ class SensingFlowNavigator: ObservableObject {
         self.currentStep = .floorMapSetting
         self.isFlowCompleted = false
         self.updateProgress()
-        self.router.navigateTo(self.currentStep.route)
+        let route = self.currentStep.route(floorMapId: self.currentFloorMapId)
+        self.router.navigateTo(route)
     }
 
     /// フローを完了
@@ -241,19 +254,22 @@ enum SensingFlowStep: String, CaseIterable {
     case sensingExecution = "センシング実行"
     case dataViewer = "データ閲覧"
 
-    /// 各ステップに対応するRoute
-    var route: Route {
+    /// 各ステップに対応するRouteを取得
+    func route(floorMapId: String?) -> Route {
+        // floorMapIdが必要なRouteの場合、デフォルト値を使用
+        let mapId = floorMapId ?? ""
+
         switch self {
         case .floorMapSetting:
             return .floorMapSetting
         case .antennaConfiguration:
-            return .antennaConfiguration
+            return .antennaConfiguration(floorMapId: mapId)
         case .devicePairing:
-            return .pairingSettingPage
+            return .pairingSettingPage(floorMapId: mapId)
         case .systemCalibration:
-            return .systemCalibration
+            return .systemCalibration(floorMapId: mapId)
         case .sensingExecution:
-            return .dataCollectionPage
+            return .dataCollectionPage(floorMapId: mapId)
         case .dataViewer:
             return .dataDisplayPage
         }

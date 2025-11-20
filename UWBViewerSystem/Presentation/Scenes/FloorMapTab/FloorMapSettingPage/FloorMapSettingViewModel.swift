@@ -90,10 +90,10 @@ class FloorMapSettingViewModel: ObservableObject {
         self.isImagePickerPresented = true
     }
 
-    func saveFloorMapSettings() async -> Bool {
+    func saveFloorMapSettings() async -> String? {
         guard self.canProceedToNext else {
             self.showError("必要な情報がすべて入力されていません")
-            return false
+            return nil
         }
 
         self.isLoading = true
@@ -140,16 +140,16 @@ class FloorMapSettingViewModel: ObservableObject {
                     #endif
                     self.showError("データベースへの保存に失敗しました: \(error.localizedDescription)")
                     self.isLoading = false
-                    return false
+                    return nil
                 }
             }
 
             self.isLoading = false
-            return true
+            return floorMapInfo.id
         } catch {
             self.showError("フロアマップ情報の保存に失敗しました: \(error.localizedDescription)")
             self.isLoading = false
-            return false
+            return nil
         }
     }
 
@@ -211,9 +211,6 @@ class FloorMapSettingViewModel: ObservableObject {
         if let image = selectedFloorMapImage {
             try self.saveImageToDocuments(image, with: info.id)
         }
-
-        // フロアマップ情報を保存
-        self.preferenceRepository.saveCurrentFloorMapInfo(info)
     }
 
     #if os(iOS)

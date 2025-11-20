@@ -4,13 +4,17 @@ import SwiftUI
 /// データ取得専用画面
 /// センシング制御に特化し、参考デザイン「Stitch Design-4.png」に対応
 struct DataCollectionView: View {
+    /// 選択されたフロアマップID
+    let floorMapId: String
+
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel: DataCollectionViewModel
     @EnvironmentObject var router: NavigationRouterModel
     @State private var sensingFileName = ""
     @State private var showFileNameAlert = false
 
-    init() {
+    init(floorMapId: String) {
+        self.floorMapId = floorMapId
         // StateObjectの初期化はinitで行う必要がある
         // ただし、modelContextはinitの段階ではアクセスできないため、
         // ViewModelにmodelContextを設定する別の方法を取る
@@ -63,6 +67,8 @@ struct DataCollectionView: View {
         .onAppear {
             // ModelContextを使ってSwiftDataRepositoryを初期化
             self.viewModel.setupSwiftDataRepository(modelContext: self.modelContext)
+            // 指定されたフロアマップIDでフロアマップ情報を読み込み
+            self.viewModel.loadFloorMapInfo(floorMapId: self.floorMapId)
         }
         .alert("ファイル名が必要です", isPresented: self.$showFileNameAlert) {
             Button("OK") {}
@@ -1383,6 +1389,6 @@ struct AzimuthCompassView: View {
 }
 
 #Preview {
-    DataCollectionView()
+    DataCollectionView(floorMapId: "test-floor-map-id")
         .environmentObject(NavigationRouterModel())
 }

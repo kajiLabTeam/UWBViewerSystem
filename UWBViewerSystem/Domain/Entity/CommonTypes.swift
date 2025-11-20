@@ -220,11 +220,25 @@ public struct ProjectProgress: Codable {
             get {
                 let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
                 let imageURL = documentsDirectory.appendingPathComponent("\(self.id).jpg")
+
+                #if DEBUG
+                    print("🖼️ FloorMapInfo.image: フロアマップ '\(self.name)' (ID: \(self.id)) の画像を読み込み中")
+                    print("   画像パス: \(imageURL.path)")
+                    print("   ファイル存在: \(FileManager.default.fileExists(atPath: imageURL.path))")
+                #endif
+
                 if FileManager.default.fileExists(atPath: imageURL.path),
                    let data = try? Data(contentsOf: imageURL)
                 {
+                    #if DEBUG
+                        print("   ✅ 画像読み込み成功")
+                    #endif
                     return UIImage(data: data)
                 }
+
+                #if DEBUG
+                    print("   ❌ 画像が見つからないか読み込みに失敗")
+                #endif
                 return nil
             }
             set {

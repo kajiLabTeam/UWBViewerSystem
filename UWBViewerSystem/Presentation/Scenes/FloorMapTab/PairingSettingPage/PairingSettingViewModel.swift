@@ -26,6 +26,9 @@ class PairingSettingViewModel: ObservableObject {
     private let connectionUsecase: ConnectionManagementUsecase
     private var swiftDataRepository: SwiftDataRepositoryProtocol
 
+    // フロアマップID
+    private var floorMapId: String?
+
     // 接続要求ハンドラーを保存
     private var connectionRequestHandlers: [String: (Bool) -> Void] = [:]
 
@@ -70,6 +73,27 @@ class PairingSettingViewModel: ObservableObject {
         self.swiftDataRepository = repository
         Task {
             await self.loadPairingData()
+        }
+    }
+
+    /// 指定されたフロアマップ情報を読み込み
+    func loadFloorMapInfo(floorMapId: String) {
+        self.floorMapId = floorMapId
+        Task {
+            await self.loadFloorMapInfoById(floorMapId: floorMapId)
+        }
+    }
+
+    /// 指定されたIDのフロアマップ情報を読み込み
+    private func loadFloorMapInfoById(floorMapId: String) async {
+        do {
+            if let floorMap = try await swiftDataRepository.loadFloorMap(by: floorMapId) {
+                print("📍 フロアマップ情報読み込み完了: \(floorMap.name) (ID: \(floorMap.id))")
+            } else {
+                print("⚠️ フロアマップが見つかりません (ID: \(floorMapId))")
+            }
+        } catch {
+            print("❌ フロアマップ情報の読み込みに失敗: \(error)")
         }
     }
 
@@ -337,7 +361,9 @@ class PairingSettingViewModel: ObservableObject {
         _ = self.savePairingForFlow()
 
         // 画面遷移
-        self.navigationModel.push(.systemCalibration)
+        if let floorMapId = self.floorMapId {
+            self.navigationModel.push(.systemCalibration(floorMapId: floorMapId))
+        }
     }
 
     /// フローナビゲーターで次へ進む

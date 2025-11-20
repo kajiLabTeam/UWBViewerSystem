@@ -6,23 +6,17 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: self.$selectedTab) {
-            SensingView()
-                .tabItem {
-                    Label("センシング", systemImage: "waveform.path.ecg")
-                }
-                .tag(0)
-
             FloorMapView()
                 .tabItem {
                     Label("フロアマップ", systemImage: "map")
                 }
-                .tag(1)
+                .tag(0)
 
             SettingsView()
                 .tabItem {
                     Label("設定", systemImage: "gearshape")
                 }
-                .tag(2)
+                .tag(1)
         }
         #if os(macOS)
         .tabViewStyle(.automatic)

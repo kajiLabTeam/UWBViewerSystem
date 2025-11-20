@@ -54,19 +54,19 @@ struct NavigationRouter: View {
         // センシングフロー
         case .floorMapSetting:
             FloorMapSettingView()
-        case .antennaConfiguration:
-            AntennaPositioningView()
-        case .systemCalibration:
-            AutoAntennaCalibrationView()
+        case .antennaConfiguration(let floorMapId):
+            AntennaPositioningView(floorMapId: floorMapId)
+        case .systemCalibration(let floorMapId):
+            AutoAntennaCalibrationView(floorMapId: floorMapId)
         case .trajectoryView:
             TrajectoryView()
         case .welcomePage:
             WelcomeView()
         // メイン機能画面
-        case .pairingSettingPage:
-            PairingSettingView()
-        case .dataCollectionPage:
-            DataCollectionView()
+        case .pairingSettingPage(let floorMapId):
+            PairingSettingView(floorMapId: floorMapId)
+        case .dataCollectionPage(let floorMapId):
+            DataCollectionView(floorMapId: floorMapId)
         case .dataDisplayPage:
             DataDisplayView()
         case .mainTabView:

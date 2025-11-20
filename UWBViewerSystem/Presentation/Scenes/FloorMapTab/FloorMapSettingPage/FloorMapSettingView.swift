@@ -252,8 +252,8 @@ struct FloorMapSettingView: View {
 
                 Button("次へ") {
                     Task {
-                        if await self.viewModel.saveFloorMapSettings() {
-                            self.flowNavigator.proceedToNextStep()
+                        if let floorMapId = await self.viewModel.saveFloorMapSettings() {
+                            self.flowNavigator.proceedToNextStep(floorMapId: floorMapId)
                         }
                     }
                 }

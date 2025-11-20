@@ -7,10 +7,17 @@ import SwiftUI
 /// 複数のタグ位置（既知）でセンシングを行い、各アンテナが観測した座標から
 /// アフィン変換を推定してアンテナのANTENNA_CONFIGを自動生成します。
 struct AutoAntennaCalibrationView: View {
+    /// 選択されたフロアマップID
+    let floorMapId: String
+
     @StateObject private var viewModel = AutoAntennaCalibrationViewModel()
     @StateObject private var flowNavigator = SensingFlowNavigator()
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject var router: NavigationRouterModel
+
+    init(floorMapId: String) {
+        self.floorMapId = floorMapId
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,6 +44,8 @@ struct AutoAntennaCalibrationView: View {
         }
         .onAppear {
             self.viewModel.setup(modelContext: self.modelContext)
+            // 指定されたフロアマップIDでフロアマップ情報を読み込み
+            self.viewModel.loadFloorMapInfo(floorMapId: self.floorMapId)
             self.flowNavigator.currentStep = .systemCalibration
             self.flowNavigator.setRouter(self.router)
             self.viewModel.setFlowNavigator(self.flowNavigator)
@@ -827,6 +836,7 @@ struct FloatingCalibrationControlPanel: View {
 
 struct AutoAntennaCalibrationView_Previews: PreviewProvider {
     static var previews: some View {
-        AutoAntennaCalibrationView()
+        AutoAntennaCalibrationView(floorMapId: "test-floor-map-id")
+            .environmentObject(NavigationRouterModel())
     }
 }

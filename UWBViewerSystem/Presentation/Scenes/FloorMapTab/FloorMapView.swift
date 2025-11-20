@@ -133,7 +133,7 @@ struct FloorMapView: View {
                     FloorMapRow(map: map) {
                         self.viewModel.selectFloorMap(map)
                         #if os(iOS)
-                            self.router.push(.antennaConfiguration)
+                            self.router.push(.antennaConfiguration(floorMapId: map.id))
                         #endif
                     } onDelete: {
                         self.viewModel.deleteFloorMap(map)
@@ -267,7 +267,7 @@ struct FloorMapDetailView: View {
             // アクション
             VStack(spacing: 16) {
                 Button(action: {
-                    self.router.push(.antennaConfiguration)
+                    self.router.push(.antennaConfiguration(floorMapId: self.floorMap.id))
                 }) {
                     HStack {
                         Image(systemName: "antenna.radiowaves.left.and.right")
@@ -281,7 +281,7 @@ struct FloorMapDetailView: View {
                 }
 
                 Button(action: {
-                    self.router.push(.pairingSettingPage)
+                    self.router.push(.pairingSettingPage(floorMapId: self.floorMap.id))
                 }) {
                     HStack {
                         Image(systemName: "link.circle")
@@ -295,7 +295,7 @@ struct FloorMapDetailView: View {
                 }
 
                 Button(action: {
-                    self.router.push(.dataCollectionPage)
+                    self.router.push(.dataCollectionPage(floorMapId: self.floorMap.id))
                 }) {
                     HStack {
                         Image(systemName: "play.circle")

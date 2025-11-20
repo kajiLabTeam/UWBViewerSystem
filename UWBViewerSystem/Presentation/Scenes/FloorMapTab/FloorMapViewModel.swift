@@ -138,15 +138,12 @@ class FloorMapViewModel: ObservableObject {
                 await MainActor.run {
                     self.floorMaps = floorMaps
                     print("✅ FloorMapViewModel: フロアマップ一覧をUIに反映: \(floorMaps.count)件")
+                    for (index, map) in floorMaps.enumerated() {
+                        print("   [\(index + 1)] ID: \(map.id), Name: \(map.name)")
+                    }
 
-                    // アクティブなフロアマップを設定
-                    if let activeId = getCurrentActiveFloorMapId(),
-                       let index = self.floorMaps.firstIndex(where: { $0.id == activeId })
-                    {
-                        self.floorMaps[index].isActive = true
-                        self.selectedFloorMap = self.floorMaps[index]
-                        print("🔄 アクティブなフロアマップを復元: \(self.selectedFloorMap?.name ?? "Unknown")")
-                    } else if !self.floorMaps.isEmpty {
+                    // デフォルトで最初のフロアマップを選択（グローバルな選択状態は保存しない）
+                    if !self.floorMaps.isEmpty {
                         self.floorMaps[0].isActive = true
                         self.selectedFloorMap = self.floorMaps[0]
                         print("🔄 デフォルトで最初のフロアマップを選択: \(self.selectedFloorMap?.name ?? "Unknown")")
@@ -196,10 +193,6 @@ class FloorMapViewModel: ObservableObject {
         0
     }
 
-    private func getCurrentActiveFloorMapId() -> String? {
-        self.preferenceRepository.loadCurrentFloorMapInfo()?.id
-    }
-
     private func updatePreferences() {
         self.preferenceRepository.setHasFloorMapConfigured(!self.floorMaps.isEmpty)
     }
@@ -209,17 +202,6 @@ class FloorMapViewModel: ObservableObject {
             self.floorMaps[i].isActive = (self.floorMaps[i].id == map.id)
         }
         self.selectedFloorMap = map
-
-        // UserDefaultsのcurrentFloorMapInfoを更新
-        self.updateCurrentFloorMapInfo(map.toFloorMapInfo())
-    }
-
-    private func updateCurrentFloorMapInfo(_ floorMapInfo: FloorMapInfo) {
-        self.preferenceRepository.saveCurrentFloorMapInfo(floorMapInfo)
-        print("📍 FloorMapViewModel: currentFloorMapInfo updated to: \(floorMapInfo.name)")
-
-        // フロアマップ変更を通知
-        NotificationCenter.default.post(name: .init("FloorMapChanged"), object: floorMapInfo)
     }
 
     func toggleActiveFloorMap(_ map: FloorMap) {
@@ -228,8 +210,6 @@ class FloorMapViewModel: ObservableObject {
                 self.floorMaps[i].isActive.toggle()
                 if self.floorMaps[i].isActive {
                     self.selectedFloorMap = self.floorMaps[i]
-                    // UserDefaultsのcurrentFloorMapInfoを更新
-                    self.updateCurrentFloorMapInfo(self.floorMaps[i].toFloorMapInfo())
                     for j in 0..<self.floorMaps.count {
                         if j != i && self.floorMaps[j].isActive {
                             self.floorMaps[j].isActive = false
@@ -237,10 +217,6 @@ class FloorMapViewModel: ObservableObject {
                     }
                 } else if self.selectedFloorMap?.id == map.id {
                     self.selectedFloorMap = self.floorMaps.first { $0.isActive }
-                    // 新しく選択されたフロアマップのcurrentFloorMapInfoを更新
-                    if let newSelectedMap = selectedFloorMap {
-                        self.updateCurrentFloorMapInfo(newSelectedMap.toFloorMapInfo())
-                    }
                 }
                 break
             }
@@ -344,7 +320,6 @@ class FloorMapViewModel: ObservableObject {
         } else if deletedMap.isActive {
             self.floorMaps[0].isActive = true
             self.selectedFloorMap = self.floorMaps[0]
-            self.updateCurrentFloorMapInfo(self.floorMaps[0].toFloorMapInfo())
             #if DEBUG
                 print("🔄 新しいアクティブフロアマップ: \(self.floorMaps[0].name)")
             #endif

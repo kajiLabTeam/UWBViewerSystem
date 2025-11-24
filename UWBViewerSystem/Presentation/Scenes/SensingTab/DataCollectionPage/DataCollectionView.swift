@@ -243,7 +243,7 @@ struct DataCollectionView: View {
                     .fill(Color.green)
                     .frame(width: 8, height: 8)
 
-                Text("\(self.viewModel.deviceRealtimeDataList.count)台のデバイス")
+                Text("\(self.viewModel.activeAntennaIds.count)個のアンテナ / \(self.viewModel.deviceRealtimeDataList.count)台のデバイス")
                     .font(.caption)
                     .fontWeight(.medium)
 
@@ -257,12 +257,26 @@ struct DataCollectionView: View {
                 }
             }
 
-            // 簡易データ表示
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(self.viewModel.deviceRealtimeDataList) { deviceData in
-                        if let latestData = deviceData.latestData {
-                            CompactDeviceDataView(deviceData: deviceData, latestData: latestData)
+            // アンテナごとのデータ表示
+            if !self.viewModel.activeAntennaIds.isEmpty {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 8) {
+                        ForEach(Array(self.viewModel.activeAntennaIds.sorted()), id: \.self) { antennaId in
+                            if let antennaDevices = self.viewModel.antennaDataMap[antennaId], !antennaDevices.isEmpty {
+                                CompactAntennaGroupView(antennaId: antennaId, devices: antennaDevices)
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 200)
+            } else {
+                // 従来の表示（アンテナIDがない場合のフォールバック）
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(self.viewModel.deviceRealtimeDataList) { deviceData in
+                            if let latestData = deviceData.latestData {
+                                CompactDeviceDataView(deviceData: deviceData, latestData: latestData)
+                            }
                         }
                     }
                 }
@@ -792,6 +806,67 @@ struct DataCollectionView: View {
     }
 }
 
+// MARK: - Compact Antenna Group View
+
+struct CompactAntennaGroupView: View {
+    let antennaId: String
+    let devices: [DeviceRealtimeData]
+    @State private var isExpanded = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // アンテナヘッダー
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    self.isExpanded.toggle()
+                }
+            }) {
+                HStack {
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .font(.caption)
+                        .foregroundColor(.red)
+
+                    Text("アンテナ: \(self.antennaId)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    Text("\(self.devices.count)台")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    Image(systemName: self.isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            // デバイスリスト（展開時）
+            if self.isExpanded {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(self.devices) { deviceData in
+                            if let latestData = deviceData.latestData {
+                                CompactDeviceDataView(deviceData: deviceData, latestData: latestData)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(8)
+        .background(Color.red.opacity(0.05))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.red.opacity(0.2), lineWidth: 1)
+        )
+        .cornerRadius(8)
+    }
+}
+
 // MARK: - Compact Device Data View
 
 struct CompactDeviceDataView: View {
@@ -809,7 +884,7 @@ struct CompactDeviceDataView: View {
                     Text("距離")
                         .font(.caption2)
                         .foregroundColor(.secondary)
-                    Text("\(String(format: "%.1f", self.latestData.distance))cm")
+                    Text("\(String(format: "%.1f", self.latestData.distance))m")
                         .font(.caption)
                         .fontWeight(.medium)
                 }

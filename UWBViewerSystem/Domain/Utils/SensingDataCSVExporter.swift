@@ -32,12 +32,14 @@ struct SensingDataCSVExporter {
 
     /// センシングセッション用のディレクトリを作成
     ///
-    /// ディレクトリ構造: /Applications/sensing/yyyymmdd/hhmmss/
+    /// ディレクトリ構造: /Applications/sensing/yyyymmdd/customName_hhmmss/
     ///
-    /// - Parameter startTime: センシング開始時刻
+    /// - Parameters:
+    ///   - startTime: センシング開始時刻
+    ///   - customName: カスタムディレクトリ名（省略時はhhmmssのみ）
     /// - Returns: 作成されたディレクトリのURL
     /// - Throws: ディレクトリ作成に失敗した場合
-    static func createSessionDirectory(startTime: Date) throws -> URL {
+    static func createSessionDirectory(startTime: Date, customName: String? = nil) throws -> URL {
         // Documentsディレクトリを取得（ファイルアプリから見えるようにするため）
         guard let documentsDirectory = FileManager.default.urls(
             for: .documentDirectory,
@@ -59,11 +61,18 @@ struct SensingDataCSVExporter {
         dateFormatter.dateFormat = "HHmmss"
         let timeString = dateFormatter.string(from: startTime)
 
+        // ディレクトリ名を決定（カスタム名がある場合は「customName_hhmmss」形式）
+        let directoryName = if let customName = customName, !customName.isEmpty {
+            "\(customName)_\(timeString)"
+        } else {
+            timeString
+        }
+
         // ディレクトリパスを構築
         let sessionDirectory = documentsDirectory
             .appendingPathComponent("sensing")
             .appendingPathComponent(dateString)
-            .appendingPathComponent(timeString)
+            .appendingPathComponent(directoryName)
 
         // ディレクトリを作成
         try FileManager.default.createDirectory(

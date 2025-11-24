@@ -146,8 +146,18 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     // MARK: - Message Sending
 
     public func sendMessage(_ content: String) {
-        if let firstEndpoint = connectedEndpoints.first {
-            self.nearbyRepository.sendDataToDevice(text: content, toEndpointId: firstEndpoint)
+        // 全ての接続されたエンドポイントにメッセージを送信
+        for endpointId in connectedEndpoints {
+            self.nearbyRepository.sendDataToDevice(text: content, toEndpointId: endpointId)
+            #if DEBUG
+                print("📤 メッセージを送信: \(content) → エンドポイント: \(endpointId)")
+            #endif
+        }
+
+        if connectedEndpoints.isEmpty {
+            #if DEBUG
+                print("⚠️ 送信先のエンドポイントがありません")
+            #endif
         }
     }
 

@@ -21,6 +21,11 @@ class DataCollectionViewModel: ObservableObject {
     @Published var allAntennaPositions: [AntennaPositionData] = []
     @Published var globalCoordinates: [String: Point3D] = [:]
 
+    // 複数アンテナ対応
+    @Published var antennaDataMap: [String: [DeviceRealtimeData]] = [:] // アンテナID別のデータ
+    @Published var activeAntennaIds = Set<String>() // アクティブなアンテナIDのセット
+    @Published var totalDataPointCount = 0 // 全アンテナの総データポイント数
+
     #if canImport(UIKit)
         #if os(iOS)
             @Published var floorMapImage: UIImage?
@@ -112,6 +117,25 @@ class DataCollectionViewModel: ObservableObject {
         self.realtimeDataUsecase.$globalCoordinates
             .sink { [weak self] value in
                 self?.globalCoordinates = value
+            }
+            .store(in: &self.cancellables)
+
+        // 複数アンテナ対応のプロパティを購読
+        self.realtimeDataUsecase.$antennaDataMap
+            .sink { [weak self] value in
+                self?.antennaDataMap = value
+            }
+            .store(in: &self.cancellables)
+
+        self.realtimeDataUsecase.$activeAntennaIds
+            .sink { [weak self] value in
+                self?.activeAntennaIds = value
+            }
+            .store(in: &self.cancellables)
+
+        self.realtimeDataUsecase.$totalDataPointCount
+            .sink { [weak self] value in
+                self?.totalDataPointCount = value
             }
             .store(in: &self.cancellables)
     }
@@ -339,10 +363,12 @@ class DataCollectionViewModel: ObservableObject {
 
     /// センシングデータをCSVとしてエクスポート
     ///
-    /// 生データとグローバル座標変換後のデータの両方をエクスポートします
+    /// アンテナごとに分けて生データとグローバル座標変換後のデータをエクスポートします
     private func exportSensingDataToCSV() async {
         print("📊 CSVエクスポート開始")
         print("   デバイス数: \(self.deviceRealtimeDataList.count)")
+        print("   アンテナ数: \(self.activeAntennaIds.count)")
+        print("   ファイル名: \(self.currentFileName)")
 
         // SensingControlUsecaseの実際のセッションIDを使用
         guard let sessionId = sensingControlUsecase.activeSessionId else {
@@ -367,24 +393,150 @@ class DataCollectionViewModel: ObservableObject {
                 return
             }
 
-            // タイムスタンプでソート
-            let sortedData = allRealtimeData.sorted { $0.timestamp < $1.timestamp }
+            // アンテナ位置情報を取得してアンテナID→アンテナ名のマッピングを作成
+            var antennaIdToNameMap: [String: String] = [:]
+            for antennaPosition in self.allAntennaPositions {
+                antennaIdToNameMap[antennaPosition.antennaId] = antennaPosition.antennaName
+            }
 
-            // 全データ（生データ、グローバル座標、フィルタリング後）をエクスポート
-            let processor = SensorDataProcessor()
-            let result = try SensingDataCSVExporter.exportAllData(
-                realtimeDataList: sortedData,
-                globalCoordinates: self.globalCoordinates,
+            // アンテナIDごとにデータをグループ化
+            let groupedByAntenna = Dictionary(grouping: allRealtimeData) { $0.antennaId }
+
+            print("📊 アンテナごとのデータ分布:")
+            for (antennaId, data) in groupedByAntenna {
+                print("   アンテナID: \(antennaId.isEmpty ? "空" : antennaId) - データ数: \(data.count)")
+            }
+
+            // センシングファイル名を使用してセッションディレクトリを作成
+            let sessionDirectory = try SensingDataCSVExporter.createSessionDirectory(
                 startTime: sessionStartTime,
-                processor: processor
+                customName: self.currentFileName.isEmpty ? nil : self.currentFileName
             )
 
-            print("✅ センシングデータのCSVエクスポート成功")
-            print("   総データポイント数: \(sortedData.count)")
-            print("   セッションディレクトリ: \(result.sessionDirectory.path)")
-            print("   生データ: \(result.rawDataURL.lastPathComponent)")
-            print("   グローバル座標データ: \(result.globalCoordinateURL.lastPathComponent)")
-            print("   フィルタリング後データ: \(result.filteredDataURL.lastPathComponent)")
+            // 各アンテナごとにCSVファイルを出力
+            var exportedFileCount = 0
+            for (antennaId, antennaData) in groupedByAntenna {
+                guard !antennaId.isEmpty else {
+                    print("⚠️ 空のアンテナIDをスキップ (データ数: \(antennaData.count))")
+                    // 空のアンテナIDのデータも処理する（フォールバック）
+                    if !antennaData.isEmpty {
+                        // デバイス名でグループ化して処理
+                        let deviceGroups = Dictionary(grouping: antennaData) { $0.deviceName }
+                        for (deviceName, deviceData) in deviceGroups {
+                            print("📱 デバイス \(deviceName) のデータをエクスポート中...")
+                            let sortedData = deviceData.sorted { $0.timestamp < $1.timestamp }
+                            let baseFileName = self.currentFileName.isEmpty ? "sensing" : self.currentFileName
+
+                            // デバイス名を使用したファイル名
+                            let rawFileName = "\(baseFileName)_\(deviceName)_raw.csv"
+                            let globalFileName = "\(baseFileName)_\(deviceName)_global.csv"
+                            let filteredFileName = "\(baseFileName)_\(deviceName)_filtered.csv"
+
+                            // 生データをエクスポート
+                            _ = try SensingDataCSVExporter.exportRawDataToCSV(
+                                realtimeDataList: sortedData,
+                                directoryURL: sessionDirectory,
+                                fileName: rawFileName
+                            )
+
+                            // グローバル座標データ
+                            var deviceGlobalCoordinates: [String: Point3D] = [:]
+                            if let coord = self.globalCoordinates[deviceName] {
+                                deviceGlobalCoordinates[deviceName] = coord
+                            }
+
+                            _ = try SensingDataCSVExporter.exportGlobalCoordinateDataToCSV(
+                                realtimeDataList: sortedData,
+                                globalCoordinates: deviceGlobalCoordinates,
+                                directoryURL: sessionDirectory,
+                                fileName: globalFileName
+                            )
+
+                            // フィルタリング後データ
+                            let processor = SensorDataProcessor()
+                            _ = try SensingDataCSVExporter.exportFilteredDataToCSV(
+                                realtimeDataList: sortedData,
+                                globalCoordinates: deviceGlobalCoordinates,
+                                processor: processor,
+                                directoryURL: sessionDirectory,
+                                fileName: filteredFileName
+                            )
+
+                            exportedFileCount += 3
+                            print("✅ デバイス \(deviceName) のデータエクスポート完了")
+                        }
+                    }
+                    continue
+                }
+
+                // アンテナ名を取得（登録されていない場合はアンテナIDを使用）
+                let antennaName = antennaIdToNameMap[antennaId] ?? antennaId
+                print("📡 アンテナ \(antennaName) のデータをエクスポート中...")
+
+                // タイムスタンプでソート
+                let sortedData = antennaData.sorted { $0.timestamp < $1.timestamp }
+
+                // アンテナ名を含むファイル名を生成
+                let rawFileName = "\(self.currentFileName)_\(antennaName)_raw.csv"
+                let globalFileName = "\(self.currentFileName)_\(antennaName)_global.csv"
+                let filteredFileName = "\(self.currentFileName)_\(antennaName)_filtered.csv"
+
+                // デバイス名をアンテナ名に置換したデータを作成
+                let modifiedData = sortedData.map { data in
+                    RealtimeData(
+                        id: data.id,
+                        deviceName: antennaName,  // アンテナ名を使用
+                        timestamp: data.timestamp,
+                        elevation: data.elevation,
+                        azimuth: data.azimuth,
+                        distance: data.distance,
+                        nlos: data.nlos,
+                        rssi: data.rssi,
+                        seqCount: data.seqCount,
+                        antennaId: data.antennaId
+                    )
+                }
+
+                // 生データをエクスポート
+                _ = try SensingDataCSVExporter.exportRawDataToCSV(
+                    realtimeDataList: modifiedData,
+                    directoryURL: sessionDirectory,
+                    fileName: rawFileName
+                )
+
+                // このアンテナに関連するグローバル座標のみを抽出
+                var antennaGlobalCoordinates: [String: Point3D] = [:]
+                for data in antennaData {
+                    if let coord = self.globalCoordinates[data.deviceName] {
+                        antennaGlobalCoordinates[antennaName] = coord  // アンテナ名をキーとして使用
+                    }
+                }
+
+                // グローバル座標データをエクスポート
+                _ = try SensingDataCSVExporter.exportGlobalCoordinateDataToCSV(
+                    realtimeDataList: modifiedData,
+                    globalCoordinates: antennaGlobalCoordinates,
+                    directoryURL: sessionDirectory,
+                    fileName: globalFileName
+                )
+
+                // フィルタリング後データをエクスポート
+                let processor = SensorDataProcessor()
+                _ = try SensingDataCSVExporter.exportFilteredDataToCSV(
+                    realtimeDataList: modifiedData,
+                    globalCoordinates: antennaGlobalCoordinates,
+                    processor: processor,
+                    directoryURL: sessionDirectory,
+                    fileName: filteredFileName
+                )
+
+                print("✅ アンテナ \(antennaName) のデータエクスポート完了")
+                print("   データポイント数: \(sortedData.count)")
+            }
+
+            print("✅ 全センシングデータのCSVエクスポート成功")
+            print("   セッションディレクトリ: \(sessionDirectory.path)")
+            print("   アンテナ別ファイル数: \(groupedByAntenna.count * 3) ファイル")
         } catch {
             print("❌ CSVエクスポートエラー: \(error.localizedDescription)")
         }

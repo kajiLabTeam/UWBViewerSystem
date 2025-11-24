@@ -10,6 +10,11 @@ public class RealtimeDataUsecase: ObservableObject {
     @Published var isReceivingRealtimeData = false
     @Published var globalCoordinates: [String: Point3D] = [:]  // デバイス名 → グローバル座標
 
+    // 複数アンテナ対応のプロパティ
+    @Published var antennaDataMap: [String: [DeviceRealtimeData]] = [:] // アンテナID別のデータ
+    @Published var activeAntennaIds = Set<String>() // アクティブなアンテナIDのセット
+    @Published var totalDataPointCount = 0 // 全アンテナの総データポイント数
+
     private var cancellables = Set<AnyCancellable>()
     private var swiftDataRepository: SwiftDataRepositoryProtocol
     private weak var sensingControlUsecase: SensingControlUsecase?
@@ -183,6 +188,14 @@ public class RealtimeDataUsecase: ObservableObject {
             #endif
         }
 
+        // アンテナIDをアクティブリストに追加
+        if !data.antennaId.isEmpty {
+            self.activeAntennaIds.insert(data.antennaId)
+            #if DEBUG
+                print("📡 アクティブアンテナ追加: \(data.antennaId) (総数: \(activeAntennaIds.count))")
+            #endif
+        }
+
         if let index = deviceRealtimeDataList.firstIndex(where: { $0.deviceName == data.deviceName }) {
             // 既存デバイスのデータ更新
             #if DEBUG
@@ -224,6 +237,25 @@ public class RealtimeDataUsecase: ObservableObject {
                 print("🟢 デバイス追加完了: 総デバイス数=\(self.deviceRealtimeDataList.count)")
             #endif
         }
+
+        // アンテナ別データマップを更新
+        if !data.antennaId.isEmpty {
+            if antennaDataMap[data.antennaId] == nil {
+                antennaDataMap[data.antennaId] = []
+            }
+
+            // 該当アンテナのデバイスリストを更新
+            if let deviceData = deviceRealtimeDataList.first(where: { $0.deviceName == data.deviceName }) {
+                if let existingIndex = antennaDataMap[data.antennaId]?.firstIndex(where: { $0.deviceName == data.deviceName }) {
+                    antennaDataMap[data.antennaId]?[existingIndex] = deviceData
+                } else {
+                    antennaDataMap[data.antennaId]?.append(deviceData)
+                }
+            }
+        }
+
+        // 総データポイント数を更新
+        self.totalDataPointCount = deviceRealtimeDataList.reduce(0) { $0 + $1.dataHistory.count }
 
         self.isReceivingRealtimeData = true
         objectWillChange.send()

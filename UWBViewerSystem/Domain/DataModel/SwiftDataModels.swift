@@ -153,6 +153,7 @@ public final class PersistentRealtimeData {
     public var nlos: Int
     public var rssi: Double
     public var seqCount: Int
+    public var antennaId: String? = ""  // アンテナIDを追加（オプショナル、デフォルト値付き）
     public var sessionId: String  // セッションIDを追加
     // public var session: PersistentSensingSession?  // リレーションシップを一旦削除
 
@@ -166,6 +167,7 @@ public final class PersistentRealtimeData {
         nlos: Int,
         rssi: Double,
         seqCount: Int,
+        antennaId: String? = "",  // アンテナIDを追加（オプショナル）
         sessionId: String = "",  // デフォルト値を設定
         // session: PersistentSensingSession? = nil  // リレーションシップを一旦削除
     ) {
@@ -178,6 +180,7 @@ public final class PersistentRealtimeData {
         self.nlos = nlos
         self.rssi = rssi
         self.seqCount = seqCount
+        self.antennaId = antennaId
         self.sessionId = sessionId
         // self.session = session  // リレーションシップを一旦削除
     }
@@ -192,7 +195,8 @@ public final class PersistentRealtimeData {
             distance: self.distance,
             nlos: self.nlos,
             rssi: self.rssi,
-            seqCount: self.seqCount
+            seqCount: self.seqCount,
+            antennaId: self.antennaId ?? ""  // アンテナIDを含める（nil合体演算子）
         )
     }
 }
@@ -412,6 +416,7 @@ extension RealtimeData {
             nlos: nlos,
             rssi: rssi,
             seqCount: seqCount,
+            antennaId: antennaId,  // アンテナIDを含める
             sessionId: sessionId
         )
     }

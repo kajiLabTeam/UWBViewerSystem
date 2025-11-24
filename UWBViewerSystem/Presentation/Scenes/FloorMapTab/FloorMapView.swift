@@ -7,35 +7,23 @@ struct FloorMapView: View {
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        #if os(macOS)
-            NavigationSplitView {
-                VStack(spacing: 20) {
-                    self.headerSection
+        VStack {
+            VStack(spacing: 20) {
+                self.headerSection
 
-                    if self.viewModel.floorMaps.isEmpty {
-                        self.emptyStateView
-                    } else {
-                        self.floorMapList
-                    }
-
-                    Spacer()
-
-                    self.addFloorMapButton
-                }
-                .padding()
-                .navigationSplitViewColumnWidth(min: 300, ideal: 350)
-            } detail: {
-                if let selectedMap = viewModel.selectedFloorMap {
-                    FloorMapDetailView(floorMap: selectedMap)
+                if self.viewModel.floorMaps.isEmpty {
+                    self.emptyStateView
                 } else {
-                    Text("フロアマップを選択してください")
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color(NSColor.controlBackgroundColor))
+                    self.floorMapList
                 }
+
+                Spacer()
+
+                self.addFloorMapButton
             }
+            .padding()
             .onAppear {
-                print("📱 FloorMapView (macOS): onAppear called")
+                print("📱 FloorMapView (iOS): onAppear called")
                 self.viewModel.setModelContext(self.modelContext)
 
                 // データが空の場合は少し遅れて再読み込み
@@ -49,41 +37,7 @@ struct FloorMapView: View {
             .onChange(of: self.modelContext) { _, newContext in
                 self.viewModel.setModelContext(newContext)
             }
-        #else
-            NavigationView {
-                VStack(spacing: 20) {
-                    self.headerSection
-
-                    if self.viewModel.floorMaps.isEmpty {
-                        self.emptyStateView
-                    } else {
-                        self.floorMapList
-                    }
-
-                    Spacer()
-
-                    self.addFloorMapButton
-                }
-                .padding()
-                .navigationTitle("フロアマップ")
-                .navigationBarTitleDisplayModeIfAvailable(.large)
-                .onAppear {
-                    print("📱 FloorMapView (iOS): onAppear called")
-                    self.viewModel.setModelContext(self.modelContext)
-
-                    // データが空の場合は少し遅れて再読み込み
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        if self.viewModel.floorMaps.isEmpty {
-                            print("🔄 フロアマップが空のため再読み込み")
-                            self.viewModel.loadFloorMaps()
-                        }
-                    }
-                }
-                .onChange(of: self.modelContext) { _, newContext in
-                    self.viewModel.setModelContext(newContext)
-                }
-            }
-        #endif
+        }
     }
 
     private var headerSection: some View {

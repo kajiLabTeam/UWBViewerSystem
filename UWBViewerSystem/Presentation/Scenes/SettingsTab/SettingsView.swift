@@ -4,7 +4,7 @@ struct SettingsView: View {
     @StateObject private var viewModel = SettingsViewModel()
 
     var body: some View {
-        NavigationView {
+        VStack {
             ScrollView {
                 VStack(spacing: 20) {
                     self.headerSection

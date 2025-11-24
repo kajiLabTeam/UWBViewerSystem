@@ -141,26 +141,41 @@ struct DataCollectionView: View {
                             )
                             let screenPos = canvasGeometry.normalizedToImageCoordinate(normalizedPoint)
 
-                            ZStack {
-                                // パルスエフェクト
-                                Circle()
-                                    .stroke(Color.blue.opacity(0.5), lineWidth: 4)
-                                    .scaleEffect(2.0)
-                                    .opacity(0.3)
+                            // デバイスの最新データからNLOS値を取得
+                            let deviceData = self.viewModel.deviceRealtimeDataList.first { $0.deviceName == deviceName }
+                            let nlosValue = deviceData?.latestData?.nlos ?? 0
+                            let isNLOS = nlosValue == 1
+                            let dotColor = isNLOS ? Color.red : Color.blue
 
+                            ZStack {
+                                // パルスエフェクト（NLOS時は赤いパルス）
                                 Circle()
-                                    .fill(Color.blue)
-                                    .frame(width: 16, height: 16)
+                                    .stroke(dotColor.opacity(0.5), lineWidth: isNLOS ? 6 : 4)
+                                    .scaleEffect(isNLOS ? 2.5 : 2.0)
+                                    .opacity(isNLOS ? 0.5 : 0.3)
+
+                                // メインの円（NLOS時は赤）
+                                Circle()
+                                    .fill(dotColor)
+                                    .frame(width: isNLOS ? 20 : 16, height: isNLOS ? 20 : 16)
                                     .overlay(
                                         Circle()
                                             .stroke(Color.white, lineWidth: 2)
                                     )
 
+                                // NLOS警告アイコン
+                                if isNLOS {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.caption2)
+                                        .foregroundColor(.white)
+                                }
+
+                                // デバイス名ラベル（NLOS時は赤背景）
                                 Text(deviceName)
                                     .font(.caption)
                                     .foregroundColor(.white)
                                     .padding(6)
-                                    .background(Color.blue.opacity(0.9))
+                                    .background(dotColor.opacity(0.9))
                                     .cornerRadius(6)
                                     .offset(x: 0, y: -25)
                             }
@@ -875,9 +890,26 @@ struct CompactDeviceDataView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(self.deviceData.deviceName)
-                .font(.caption2)
-                .fontWeight(.semibold)
+            HStack {
+                Text(self.deviceData.deviceName)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                // NLOS インジケータ
+                if self.latestData.nlos == 1 {
+                    HStack(spacing: 2) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                        Text("NLOS")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+                    }
+                }
+            }
 
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -903,7 +935,11 @@ struct CompactDeviceDataView: View {
             }
         }
         .padding(8)
-        .background(Color.blue.opacity(0.1))
+        .background(self.latestData.nlos == 1 ? Color.red.opacity(0.15) : Color.blue.opacity(0.1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(self.latestData.nlos == 1 ? Color.red.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
         .cornerRadius(8)
     }
 }
@@ -963,8 +999,12 @@ struct RealtimeDeviceCardView: View {
         .background(
             LinearGradient(
                 gradient: Gradient(colors: [
-                    self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.05) : Color.gray.opacity(0.05),
-                    self.deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.gray.opacity(0.02),
+                    self.latestData.nlos == 1
+                        ? Color.red.opacity(0.1)
+                        : (self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.05) : Color.gray.opacity(0.05)),
+                    self.latestData.nlos == 1
+                        ? Color.red.opacity(0.05)
+                        : (self.deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.gray.opacity(0.02)),
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -974,8 +1014,10 @@ struct RealtimeDeviceCardView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2),
-                    lineWidth: 1
+                    self.latestData.nlos == 1
+                        ? Color.red.opacity(0.5)
+                        : (self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2)),
+                    lineWidth: self.latestData.nlos == 1 ? 2 : 1
                 )
         )
     }
@@ -1012,6 +1054,22 @@ struct RealtimeDeviceCardView: View {
 
     private var mainMeasurements: some View {
         VStack(spacing: 16) {
+            // NLOS警告表示
+            if self.latestData.nlos == 1 {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    Text("Non-Line-of-Sight (NLOS) 検出")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+                    Spacer()
+                }
+                .padding(8)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(8)
+            }
+
             // 距離表示（進歩バー式）
             VStack(spacing: 8) {
                 HStack {
@@ -1022,7 +1080,7 @@ struct RealtimeDeviceCardView: View {
                     Text("\(String(format: "%.0f", self.latestData.distance)) cm")
                         .font(.headline)
                         .fontWeight(.bold)
-                        .foregroundColor(.blue)
+                        .foregroundColor(self.latestData.nlos == 1 ? .red : .blue)
                 }
 
                 DistanceProgressView(distance: self.latestData.distance, maxDistance: 1000.0)  // 10m = 1000cm

@@ -7,16 +7,10 @@ struct DataDisplayView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = DataDisplayViewModel()
     @EnvironmentObject var router: NavigationRouterModel
-    @State private var selectedDisplayMode: DisplayMode = .history
     @State private var shareURL: URL?
     @State private var showShareSheet = false
     @State private var sessionToDelete: SensingSession?
     @State private var showDeleteAlert = false
-
-    enum DisplayMode: String, CaseIterable {
-        case history = "履歴データ"
-        case files = "ファイル管理"
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,9 +18,7 @@ struct DataDisplayView: View {
                 VStack(spacing: 20) {
                     self.headerSection
 
-                    self.displayModeSelector
-
-                    self.contentArea
+                    self.historyDataView
 
                     Spacer(minLength: 20)
                 }
@@ -100,30 +92,6 @@ struct DataDisplayView: View {
         }
     }
 
-    // MARK: - Display Mode Selector
-
-    private var displayModeSelector: some View {
-        Picker("表示モード", selection: self.$selectedDisplayMode) {
-            ForEach(DisplayMode.allCases, id: \.self) { mode in
-                Text(mode.rawValue).tag(mode)
-            }
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal)
-    }
-
-    // MARK: - Content Area
-
-    @ViewBuilder
-    private var contentArea: some View {
-        switch self.selectedDisplayMode {
-        case .history:
-            self.historyDataView
-        case .files:
-            self.fileManagementView
-        }
-    }
-
     // MARK: - History Data View
 
     private var historyDataView: some View {
@@ -175,75 +143,6 @@ struct DataDisplayView: View {
                         }
                     }
                 }
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(16)
-    }
-
-    // MARK: - File Management View
-
-    private var fileManagementView: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Text("ファイル管理")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                Button(action: self.viewModel.openStorageFolder) {
-                    HStack {
-                        Image(systemName: "folder")
-                        Text("フォルダを開く")
-                    }
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .cornerRadius(6)
-                }
-            }
-
-            if self.viewModel.receivedFiles.isEmpty {
-                EmptyDataView(
-                    icon: "doc",
-                    title: "ファイルなし",
-                    subtitle: "まだ受信されたファイルがありません"
-                )
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(self.viewModel.receivedFiles, id: \.name) { file in
-                            FileItemCard(file: file) {
-                                self.viewModel.openFile(file)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ファイル転送進捗
-            if !self.viewModel.fileTransferProgress.isEmpty {
-                VStack(spacing: 8) {
-                    Text("ファイル転送中")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-
-                    ForEach(Array(self.viewModel.fileTransferProgress.keys), id: \.self) { endpointId in
-                        if let progress = viewModel.fileTransferProgress[endpointId] {
-                            FileTransferProgressView(
-                                endpointId: endpointId,
-                                progress: progress
-                            )
-                        }
-                    }
-                }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(8)
             }
         }
         .padding()
@@ -321,68 +220,6 @@ struct HistorySessionCard: View {
         .background(Color.primary.opacity(0.05))
         .cornerRadius(8)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-}
-
-// MARK: - File Item Card
-
-struct FileItemCard: View {
-    let file: DataDisplayFile
-    let onTap: () -> Void
-
-    var body: some View {
-        HStack {
-            Image(systemName: self.file.isCSV ? "doc.text" : "doc")
-                .foregroundColor(self.file.isCSV ? .green : .blue)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(self.file.name)
-                    .font(.body)
-                    .fontWeight(.medium)
-
-                Text(self.file.formattedDate)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            Text(self.file.formattedSize)
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Button(action: self.onTap) {
-                Image(systemName: "square.and.arrow.up")
-                    .foregroundColor(.blue)
-            }
-        }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(8)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-}
-
-// MARK: - File Transfer Progress View
-
-struct FileTransferProgressView: View {
-    let endpointId: String
-    let progress: Int
-
-    var body: some View {
-        VStack(spacing: 4) {
-            HStack {
-                Text("端末: \(self.endpointId)")
-                    .font(.caption)
-                Spacer()
-                Text("\(self.progress)%")
-                    .font(.caption)
-                    .fontWeight(.medium)
-            }
-
-            ProgressView(value: Double(self.progress), total: 100)
-                .progressViewStyle(LinearProgressViewStyle())
-        }
     }
 }
 

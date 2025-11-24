@@ -62,7 +62,19 @@ struct DataCollectionView: View {
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
+            .navigationBarBackButtonHidden(true)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        self.router.pop()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("戻る")
+                        }
+                    }
+                }
+
                 ToolbarItem(placement: {
                     #if os(iOS)
                         return .navigationBarTrailing

@@ -40,12 +40,19 @@ class NavigationRouterModel: ObservableObject {
         self.path.removeLast(self.path.count)
     }
 
-    /// 指定されたルートに直接遷移する（スタックをクリアしてから）
-    func navigateTo(_ route: Route) {
-        print("🔄 NavigationRouter.navigateTo(\(route)) called")
-        print("🔄 Current path count before reset: \(self.path.count)")
-        self.reset()
-        print("🔄 Path reset, count: \(self.path.count)")
+    /// 指定されたルートに直接遷移する
+    /// - Parameters:
+    ///   - route: 遷移先のルート
+    ///   - resetStack: スタックをクリアしてから遷移するかどうか（デフォルト: false）
+    func navigateTo(_ route: Route, resetStack: Bool = false) {
+        print("🔄 NavigationRouter.navigateTo(\(route), resetStack: \(resetStack)) called")
+        print("🔄 Current path count: \(self.path.count)")
+
+        if resetStack {
+            self.reset()
+            print("🔄 Path reset, count: \(self.path.count)")
+        }
+
         self.currentRoute = route
         print("🔄 Current route updated to: \(self.currentRoute)")
         self.push(route)

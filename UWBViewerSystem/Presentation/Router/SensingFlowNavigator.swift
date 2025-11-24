@@ -100,8 +100,8 @@ class SensingFlowNavigator: ObservableObject {
 
         // ルーターを使用して実際の画面遷移を実行
         let route = nextStep.route(floorMapId: self.currentFloorMapId)
-        print("🔄 proceedToNextStep: Navigating to route = \(route)")
-        self.router.navigateTo(route)
+        print("🔄 proceedToNextStep: Pushing route = \(route)")
+        self.router.push(route)
         print("✅ proceedToNextStep: Navigation completed")
     }
 
@@ -117,8 +117,8 @@ class SensingFlowNavigator: ObservableObject {
         self.currentStep = previousStep
         self.updateProgress()
 
-        let route = previousStep.route(floorMapId: self.currentFloorMapId)
-        self.router.navigateTo(route)
+        print("🔙 goToPreviousStep: Popping to previous step")
+        self.router.pop()
     }
 
     /// 指定したステップに直接ジャンプ
@@ -126,7 +126,7 @@ class SensingFlowNavigator: ObservableObject {
         self.currentStep = step
         self.updateProgress()
         let route = step.route(floorMapId: self.currentFloorMapId)
-        self.router.navigateTo(route)
+        self.router.navigateTo(route, resetStack: true)
     }
 
     /// フローを最初から開始
@@ -135,7 +135,7 @@ class SensingFlowNavigator: ObservableObject {
         self.isFlowCompleted = false
         self.updateProgress()
         let route = self.currentStep.route(floorMapId: self.currentFloorMapId)
-        self.router.navigateTo(route)
+        self.router.navigateTo(route, resetStack: true)
     }
 
     /// フローを完了

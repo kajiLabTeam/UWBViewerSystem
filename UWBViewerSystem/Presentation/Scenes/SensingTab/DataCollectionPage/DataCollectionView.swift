@@ -12,6 +12,7 @@ struct DataCollectionView: View {
     @EnvironmentObject var router: NavigationRouterModel
     @State private var sensingFileName = ""
     @State private var showFileNameAlert = false
+    @State private var isRealtimeDataExpanded = true
 
     init(floorMapId: String) {
         self.floorMapId = floorMapId
@@ -265,32 +266,37 @@ struct DataCollectionView: View {
                 Spacer()
 
                 Button(action: {
-                    // 詳細表示に遷移
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        self.isRealtimeDataExpanded.toggle()
+                    }
                 }) {
-                    Image(systemName: "chevron.up")
+                    Image(systemName: self.isRealtimeDataExpanded ? "chevron.down" : "chevron.up")
                         .font(.caption)
                 }
+                .buttonStyle(.borderless)
             }
 
             // アンテナごとのデータ表示
-            if !self.viewModel.activeAntennaIds.isEmpty {
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 8) {
-                        ForEach(Array(self.viewModel.activeAntennaIds.sorted()), id: \.self) { antennaId in
-                            if let antennaDevices = self.viewModel.antennaDataMap[antennaId], !antennaDevices.isEmpty {
-                                CompactAntennaGroupView(antennaId: antennaId, devices: antennaDevices)
+            if self.isRealtimeDataExpanded {
+                if !self.viewModel.activeAntennaIds.isEmpty {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 8) {
+                            ForEach(Array(self.viewModel.activeAntennaIds.sorted()), id: \.self) { antennaId in
+                                if let antennaDevices = self.viewModel.antennaDataMap[antennaId], !antennaDevices.isEmpty {
+                                    CompactAntennaGroupView(antennaId: antennaId, devices: antennaDevices)
+                                }
                             }
                         }
                     }
-                }
-                .frame(maxHeight: 200)
-            } else {
-                // 従来の表示（アンテナIDがない場合のフォールバック）
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(self.viewModel.deviceRealtimeDataList) { deviceData in
-                            if let latestData = deviceData.latestData {
-                                CompactDeviceDataView(deviceData: deviceData, latestData: latestData)
+                    .frame(maxHeight: 200)
+                } else {
+                    // 従来の表示（アンテナIDがない場合のフォールバック）
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(self.viewModel.deviceRealtimeDataList) { deviceData in
+                                if let latestData = deviceData.latestData {
+                                    CompactDeviceDataView(deviceData: deviceData, latestData: latestData)
+                                }
                             }
                         }
                     }
@@ -831,35 +837,36 @@ struct CompactAntennaGroupView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // アンテナヘッダー
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    self.isExpanded.toggle()
-                }
-            }) {
-                HStack {
-                    Image(systemName: "antenna.radiowaves.left.and.right")
-                        .font(.caption)
-                        .foregroundColor(.red)
+            HStack {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .font(.caption)
+                    .foregroundColor(.red)
 
-                    Text("アンテナ: \(self.antennaId)")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
+                Text("アンテナ: \(self.antennaId)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
 
-                    Spacer()
+                Spacer()
 
-                    Text("\(self.devices.count)台")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                Text("\(self.devices.count)台")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
 
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        self.isExpanded.toggle()
+                    }
+                }) {
                     Image(systemName: self.isExpanded ? "chevron.down" : "chevron.right")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(PlainButtonStyle())
+            .contentShape(Rectangle())
 
-            // デバイスリスト（展開時）
+            // デバイスリスト(展開時)
             if self.isExpanded {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {

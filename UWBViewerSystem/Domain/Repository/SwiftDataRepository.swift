@@ -477,7 +477,7 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     // MARK: - リアルタイムデータ関連
 
     public func saveRealtimeData(_ data: RealtimeData, sessionId: String) async throws {
-        let persistentData = data.toPersistent()
+        let persistentData = data.toPersistent(sessionId: sessionId)
 
         // リレーションシップを削除したため、セッション関連付けはコメントアウト
         // let sessionPredicate = #Predicate<PersistentSensingSession> { $0.id == sessionId }
@@ -493,14 +493,23 @@ public class SwiftDataRepository: SwiftDataRepositoryProtocol {
     }
 
     public func loadRealtimeData(for sessionId: String) async throws -> [RealtimeData] {
-        // リレーションシップを削除したため、簡易的に全てのデータを返す（将来的にsessionIdフィールドで絞り込む）
-        // let predicate = #Predicate<PersistentRealtimeData> { $0.session?.id == sessionId }
+        // まず全データを取得して確認
+        let allDescriptor = FetchDescriptor<PersistentRealtimeData>()
+        let allData = try modelContext.fetch(allDescriptor)
+        print("📊 [DEBUG] SwiftData内の全リアルタイムデータ数: \(allData.count)")
+        if !allData.isEmpty {
+            print("📊 [DEBUG] 最初のデータのsessionId: \(allData[0].sessionId)")
+        }
+
+        // sessionIdフィールドで絞り込み
+        let predicate = #Predicate<PersistentRealtimeData> { $0.sessionId == sessionId }
         let descriptor = FetchDescriptor<PersistentRealtimeData>(
-            // predicate: predicate,
+            predicate: predicate,
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
 
         let persistentData = try modelContext.fetch(descriptor)
+        print("📊 [DEBUG] sessionId '\(sessionId)' で絞り込んだデータ数: \(persistentData.count)")
         return persistentData.map { $0.toEntity() }
     }
 

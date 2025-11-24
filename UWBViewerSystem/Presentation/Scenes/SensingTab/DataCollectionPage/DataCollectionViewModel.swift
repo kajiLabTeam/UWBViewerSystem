@@ -27,13 +27,17 @@ class DataCollectionViewModel: ObservableObject {
         #endif
     #endif
 
+    #if os(macOS)
+        @Published var floorMapImage: NSImage?
+    #endif
+
     private var currentSession: SensingSession?
     private var sensingTimer: Timer?
     private var startTime: Date?
     private var cancellables = Set<AnyCancellable>()
 
     // DI対応: 必要なUseCaseとRepositoryを直接注入
-    private let sensingControlUsecase: SensingControlUsecase
+    private var sensingControlUsecase: SensingControlUsecase
     private let connectionUsecase: ConnectionManagementUsecase
     private let realtimeDataUsecase: RealtimeDataUsecase
     private let preferenceRepository: PreferenceRepositoryProtocol
@@ -68,27 +72,48 @@ class DataCollectionViewModel: ObservableObject {
     }
 
     private func setupObservers() {
+        // 既存の購読をクリア
+        self.cancellables.removeAll()
+
         // 直接注入されたUsecaseからの状態を監視
         self.sensingControlUsecase.$isSensingControlActive
-            .assign(to: &self.$isSensingActive)
+            .sink { [weak self] value in
+                self?.isSensingActive = value
+            }
+            .store(in: &self.cancellables)
 
         self.sensingControlUsecase.$sensingStatus
-            .assign(to: &self.$sensingStatus)
+            .sink { [weak self] value in
+                self?.sensingStatus = value
+            }
+            .store(in: &self.cancellables)
 
         self.connectionUsecase.$connectedEndpoints
             .map { $0.count }
-            .assign(to: &self.$connectedDeviceCount)
+            .sink { [weak self] value in
+                self?.connectedDeviceCount = value
+            }
+            .store(in: &self.cancellables)
 
         self.realtimeDataUsecase.$deviceRealtimeDataList
-            .assign(to: &self.$deviceRealtimeDataList)
+            .sink { [weak self] value in
+                self?.deviceRealtimeDataList = value
+            }
+            .store(in: &self.cancellables)
 
         self.realtimeDataUsecase.$deviceRealtimeDataList
             .map { $0.count }
-            .assign(to: &self.$dataPointCount)
+            .sink { [weak self] value in
+                self?.dataPointCount = value
+            }
+            .store(in: &self.cancellables)
 
         // グローバル座標の購読
         self.realtimeDataUsecase.$globalCoordinates
-            .assign(to: &self.$globalCoordinates)
+            .sink { [weak self] value in
+                self?.globalCoordinates = value
+            }
+            .store(in: &self.cancellables)
     }
 
     /// SwiftDataRepositoryを設定（ViewのonAppearから呼ばれる）
@@ -97,12 +122,26 @@ class DataCollectionViewModel: ObservableObject {
             let repository = SwiftDataRepository(modelContext: modelContext)
             self.swiftDataRepository = repository
 
+            // SensingControlUsecaseを新しく作成（正しいSwiftDataRepositoryを使用）
+            self.sensingControlUsecase = SensingControlUsecase(
+                connectionUsecase: self.connectionUsecase,
+                swiftDataRepository: repository
+            )
+            print("✅ SensingControlUsecaseに正しいSwiftDataRepositoryを設定しました")
+
             // RealtimeDataUsecaseにSwiftDataRepositoryを設定
             self.realtimeDataUsecase.updateSwiftDataRepository(repository)
+
+            // RealtimeDataUsecaseにSensingControlUsecaseを設定（データ永続化に必要）
+            self.realtimeDataUsecase.setSensingControlUsecase(self.sensingControlUsecase)
+            print("✅ RealtimeDataUsecaseにSensingControlUsecaseを設定しました")
 
             // ConnectionManagementUsecaseにRealtimeDataUsecaseを設定
             self.connectionUsecase.realtimeDataUsecase = self.realtimeDataUsecase
             print("✅ ConnectionManagementUsecaseにRealtimeDataUsecaseを設定しました")
+
+            // Observersを再設定（新しいSensingControlUsecaseのイベントを購読）
+            self.setupObservers()
 
             self.loadInitialData()
         }
@@ -148,6 +187,15 @@ class DataCollectionViewModel: ObservableObject {
                             print("⚠️ フロアマップ画像が見つかりません: \(floorMap.name)")
                         }
                     #endif
+                #endif
+
+                #if os(macOS)
+                    self.floorMapImage = floorMap.image
+                    if self.floorMapImage != nil {
+                        print("📍 フロアマップ画像読み込み成功: \(floorMap.name)")
+                    } else {
+                        print("⚠️ フロアマップ画像が見つかりません: \(floorMap.name)")
+                    }
                 #endif
 
                 print("📍 フロアマップ情報読み込み完了: \(floorMap.name) (ID: \(floorMap.id))")
@@ -200,7 +248,18 @@ class DataCollectionViewModel: ObservableObject {
         self.sensingControlUsecase.stopRemoteSensing()
 
         // センシングデータをCSVとしてエクスポート
-        self.exportSensingDataToCSV()
+        Task {
+            // SwiftDataの永続化完了を待つため少し待機
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒待機
+
+            await self.exportSensingDataToCSV()
+
+            // CSV出力完了後にSensingControlUsecaseのセッションIDをクリア
+            await MainActor.run {
+                // SensingControlUsecaseのcurrentSessionIdをクリア
+                // これにより次のセンシングセッションで新しいIDが使用される
+            }
+        }
 
         // セッションを完了
         if let session = currentSession, let _ = startTime {
@@ -281,48 +340,53 @@ class DataCollectionViewModel: ObservableObject {
     /// センシングデータをCSVとしてエクスポート
     ///
     /// 生データとグローバル座標変換後のデータの両方をエクスポートします
-    private func exportSensingDataToCSV() {
+    private func exportSensingDataToCSV() async {
         print("📊 CSVエクスポート開始")
         print("   デバイス数: \(self.deviceRealtimeDataList.count)")
 
-        // SwiftDataに保存された全データを読み込む
-        guard let sessionId = currentSession?.id else {
-            print("⚠️ セッションIDが見つかりません")
+        // SensingControlUsecaseの実際のセッションIDを使用
+        guard let sessionId = sensingControlUsecase.activeSessionId else {
+            print("⚠️ アクティブなセッションIDが見つかりません")
+            return
+        }
+        print("   使用するセッションID: \(sessionId)")
+
+        guard let sessionStartTime = self.startTime else {
+            print("⚠️ セッション開始時刻が見つかりません")
             return
         }
 
-        Task {
-            do {
-                // SwiftDataから全リアルタイムデータを読み込み
-                let allRealtimeData = try await swiftDataRepository?.loadRealtimeData(for: sessionId) ?? []
+        do {
+            // SwiftDataから全リアルタイムデータを読み込み
+            let allRealtimeData = try await swiftDataRepository?.loadRealtimeData(for: sessionId) ?? []
 
-                print("   SwiftDataから読み込んだデータ数: \(allRealtimeData.count)")
+            print("   SwiftDataから読み込んだデータ数: \(allRealtimeData.count)")
 
-                guard !allRealtimeData.isEmpty else {
-                    print("⚠️ エクスポートするデータがありません")
-                    return
-                }
-
-                // タイムスタンプでソート
-                let sortedData = allRealtimeData.sorted { $0.timestamp < $1.timestamp }
-
-                let sessionName = self.currentFileName.isEmpty ? "unknown_session" : self.currentFileName
-                print("   セッション名: \(sessionName)")
-
-                // 生データとグローバル座標データの両方をエクスポート
-                let (rawDataURL, globalCoordinateURL) = try SensingDataCSVExporter.exportBothCSVs(
-                    realtimeDataList: sortedData,
-                    globalCoordinates: self.globalCoordinates,
-                    sessionName: sessionName
-                )
-
-                print("✅ センシングデータのCSVエクスポート成功")
-                print("   総データポイント数: \(sortedData.count)")
-                print("   生データ: \(rawDataURL.path)")
-                print("   グローバル座標データ: \(globalCoordinateURL.path)")
-            } catch {
-                print("❌ CSVエクスポートエラー: \(error.localizedDescription)")
+            guard !allRealtimeData.isEmpty else {
+                print("⚠️ エクスポートするデータがありません")
+                return
             }
+
+            // タイムスタンプでソート
+            let sortedData = allRealtimeData.sorted { $0.timestamp < $1.timestamp }
+
+            // 全データ（生データ、グローバル座標、フィルタリング後）をエクスポート
+            let processor = SensorDataProcessor()
+            let result = try SensingDataCSVExporter.exportAllData(
+                realtimeDataList: sortedData,
+                globalCoordinates: self.globalCoordinates,
+                startTime: sessionStartTime,
+                processor: processor
+            )
+
+            print("✅ センシングデータのCSVエクスポート成功")
+            print("   総データポイント数: \(sortedData.count)")
+            print("   セッションディレクトリ: \(result.sessionDirectory.path)")
+            print("   生データ: \(result.rawDataURL.lastPathComponent)")
+            print("   グローバル座標データ: \(result.globalCoordinateURL.lastPathComponent)")
+            print("   フィルタリング後データ: \(result.filteredDataURL.lastPathComponent)")
+        } catch {
+            print("❌ CSVエクスポートエラー: \(error.localizedDescription)")
         }
     }
 }

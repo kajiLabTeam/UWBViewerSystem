@@ -23,6 +23,11 @@ public class SensingControlUsecase: ObservableObject {
     private var currentSessionId: String?
     private let logger = Logger(subsystem: "com.uwbviewer.system", category: "sensing-control")
 
+    /// 現在のセッションIDを取得（CSV出力用）
+    public var activeSessionId: String? {
+        self.currentSessionId
+    }
+
     public init(
         connectionUsecase: ConnectionManagementUsecase,
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()
@@ -120,7 +125,8 @@ public class SensingControlUsecase: ObservableObject {
 
         self.sensingStartTime = nil
         self.currentSensingFileName = ""
-        self.currentSessionId = nil
+        // NOTE: currentSessionIdはCSV出力で使用されるため、ここではクリアしない
+        // DataCollectionViewModelでのCSV出力完了後に明示的にクリアされる
     }
 
     public func pauseRemoteSensing() {
@@ -218,17 +224,21 @@ public class SensingControlUsecase: ObservableObject {
     // MARK: - Data Management
 
     public func saveRealtimeData(_ data: RealtimeData) async {
-        guard let sessionId = currentSessionId else { return }
+        guard let sessionId = currentSessionId else {
+            self.logger.warning("⚠️ saveRealtimeData: currentSessionIdがnil")
+            return
+        }
 
         do {
             try await self.swiftDataRepository.saveRealtimeData(data, sessionId: sessionId)
+            self.logger.debug("💾 リアルタイムデータ保存成功: \(data.deviceName) - SeqCount: \(data.seqCount) - SessionID: \(sessionId)")
 
             // データポイント数を更新
             Task { @MainActor in
                 self.dataPointCount += 1
             }
         } catch {
-            self.logger.error("リアルタイムデータ保存エラー: \(error)")
+            self.logger.error("❌ リアルタイムデータ保存エラー: \(error)")
         }
     }
 

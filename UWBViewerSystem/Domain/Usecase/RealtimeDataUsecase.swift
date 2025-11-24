@@ -171,9 +171,16 @@ public class RealtimeDataUsecase: ObservableObject {
     private func addDataToDevice(_ data: RealtimeData) {
         // SensingControlUsecaseがアクティブな場合は永続化
         if let sensingControl = sensingControlUsecase {
+            #if DEBUG
+                print("💾 SensingControlUsecaseにデータ保存を依頼: \(data.deviceName)")
+            #endif
             Task {
                 await sensingControl.saveRealtimeData(data)
             }
+        } else {
+            #if DEBUG
+                print("⚠️ sensingControlUsecaseがnilのためデータ保存スキップ")
+            #endif
         }
 
         if let index = deviceRealtimeDataList.firstIndex(where: { $0.deviceName == data.deviceName }) {

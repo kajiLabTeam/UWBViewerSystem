@@ -31,7 +31,6 @@ struct SwiftDataRepositoryTests {
             PersistentRealtimeData.self,
             PersistentSystemActivity.self,
             PersistentFloorMap.self,
-            PersistentProjectProgress.self,
         ])
 
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
@@ -152,57 +151,6 @@ struct SwiftDataRepositoryTests {
         try await repository.deleteAntennaPosition(by: testPosition.id)
         let emptyPositions = try await repository.loadAntennaPositions()
         #expect(emptyPositions.isEmpty)
-    }
-
-    @Test("プロジェクト進行状況保存・読み込みテスト")
-    @MainActor
-    func projectProgressSaveAndLoad() async throws {
-        let repository = try createInMemoryRepository()
-
-        // テストデータを作成
-        let testProgress = ProjectProgress(
-            id: "test_progress_1",
-            floorMapId: "test_floor_1",
-            currentStep: .antennaConfiguration,
-            completedSteps: [.floorMapSetting, .antennaConfiguration]
-        )
-
-        // 保存
-        try await repository.saveProjectProgress(testProgress)
-
-        // ID指定で読み込み
-        let loadedProgress = try await repository.loadProjectProgress(by: testProgress.id)
-        #expect(loadedProgress != nil)
-        #expect(loadedProgress?.id == testProgress.id)
-        #expect(loadedProgress?.floorMapId == testProgress.floorMapId)
-        #expect(loadedProgress?.currentStep == testProgress.currentStep)
-        #expect(loadedProgress?.completedSteps == testProgress.completedSteps)
-
-        // フロアマップID指定で読み込み
-        let progressByFloorMap = try await repository.loadProjectProgress(for: testProgress.floorMapId)
-        #expect(progressByFloorMap?.id == testProgress.id)
-
-        // 全件取得
-        let allProgress = try await repository.loadAllProjectProgress()
-        #expect(allProgress.count == 1)
-        #expect(allProgress.first?.id == testProgress.id)
-
-        // 更新テスト
-        var updatedProgress = testProgress
-        updatedProgress.currentStep = .devicePairing
-        updatedProgress.completedSteps.insert(.devicePairing)
-        updatedProgress.updatedAt = Date()
-
-        try await repository.updateProjectProgress(updatedProgress)
-
-        let updatedLoadedProgress = try await repository.loadProjectProgress(by: testProgress.id)
-        #expect(updatedLoadedProgress?.currentStep == .devicePairing)
-        #expect(updatedLoadedProgress?.completedSteps.contains(.devicePairing) == true)
-
-        // 削除
-        try await repository.deleteProjectProgress(by: testProgress.id)
-        let deletedProgress = try await repository.loadProjectProgress(by: testProgress.id)
-        #expect(deletedProgress == nil)
     }
 
     @Test("フロアマップ保存・読み込みテスト")

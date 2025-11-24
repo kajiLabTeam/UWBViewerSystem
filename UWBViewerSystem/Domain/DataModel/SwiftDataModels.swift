@@ -153,6 +153,7 @@ public final class PersistentRealtimeData {
     public var nlos: Int
     public var rssi: Double
     public var seqCount: Int
+    public var sessionId: String  // セッションIDを追加
     // public var session: PersistentSensingSession?  // リレーションシップを一旦削除
 
     public init(
@@ -165,6 +166,7 @@ public final class PersistentRealtimeData {
         nlos: Int,
         rssi: Double,
         seqCount: Int,
+        sessionId: String = "",  // デフォルト値を設定
         // session: PersistentSensingSession? = nil  // リレーションシップを一旦削除
     ) {
         self.id = id
@@ -176,6 +178,7 @@ public final class PersistentRealtimeData {
         self.nlos = nlos
         self.rssi = rssi
         self.seqCount = seqCount
+        self.sessionId = sessionId
         // self.session = session  // リレーションシップを一旦削除
     }
 
@@ -398,7 +401,7 @@ extension AntennaPairing {
 }
 
 extension RealtimeData {
-    public func toPersistent() -> PersistentRealtimeData {
+    public func toPersistent(sessionId: String = "") -> PersistentRealtimeData {
         PersistentRealtimeData(
             id: id,
             deviceName: deviceName,
@@ -408,7 +411,8 @@ extension RealtimeData {
             distance: distance,
             nlos: nlos,
             rssi: rssi,
-            seqCount: seqCount
+            seqCount: seqCount,
+            sessionId: sessionId
         )
     }
 }

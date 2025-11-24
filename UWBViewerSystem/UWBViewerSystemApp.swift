@@ -73,6 +73,8 @@ struct UWBViewerSystemApp: App {
             PersistentFloorMap.self,
             PersistentAntennaPosition.self,
             PersistentSensingSession.self,
+            PersistentRealtimeData.self,
+            PersistentAntennaPairing.self,
             PersistentSystemActivity.self,
             PersistentReceivedFile.self,
             PersistentCalibrationData.self,
@@ -83,10 +85,11 @@ struct UWBViewerSystemApp: App {
         let inMemoryConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
 
         do {
-            #if DEBUG
-                // まず既存のデータベースを強制削除
-                deleteExistingDatabase()
-            #endif
+            // DEBUG時の自動削除は無効化（必要に応じて手動でクリーンインストールを実行）
+            // #if DEBUG
+            //     // まず既存のデータベースを強制削除
+            //     deleteExistingDatabase()
+            // #endif
 
             // ApplicationSupportディレクトリの作成を確実に行う
             let fileManager = FileManager.default
@@ -122,7 +125,7 @@ struct UWBViewerSystemApp: App {
             case .schemaError(let originalError):
                 #if DEBUG
                     print("🔄 スキーマエラーのため既存データベースを削除して再作成します")
-                    deleteExistingDatabase()
+                    // deleteExistingDatabase()
                 #endif
 
                 do {
@@ -138,7 +141,7 @@ struct UWBViewerSystemApp: App {
                 #if DEBUG
                     print("📁 ファイルシステムエラーを検出。ApplicationSupportディレクトリの再作成を試行します")
                     // ディレクトリ再作成を試行
-                    deleteExistingDatabase()
+                    // deleteExistingDatabase()
                 #endif
 
                 do {

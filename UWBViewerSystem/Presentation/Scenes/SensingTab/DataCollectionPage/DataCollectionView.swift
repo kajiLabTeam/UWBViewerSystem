@@ -47,34 +47,46 @@ struct DataCollectionView: View {
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 20)
+                    #if os(iOS)
                         .fill(Color(UIColor.systemBackground).opacity(0.95))
+                    #else
+                        .fill(Color(NSColor.windowBackgroundColor).opacity(0.95))
+                    #endif
                         .shadow(radius: 10)
                 )
                 .padding()
             }
         }
         .navigationTitle("データ取得")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    self.router.push(.dataDisplayPage)
-                }) {
-                    Image(systemName: "list.bullet")
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+        #endif
+            .toolbar {
+                ToolbarItem(placement: {
+                    #if os(iOS)
+                        return .navigationBarTrailing
+                    #else
+                        return .automatic
+                    #endif
+                }()) {
+                    Button(action: {
+                        self.router.push(.dataDisplayPage)
+                    }) {
+                        Image(systemName: "list.bullet")
+                    }
                 }
             }
-        }
-        .onAppear {
-            // ModelContextを使ってSwiftDataRepositoryを初期化
-            self.viewModel.setupSwiftDataRepository(modelContext: self.modelContext)
-            // 指定されたフロアマップIDでフロアマップ情報を読み込み
-            self.viewModel.loadFloorMapInfo(floorMapId: self.floorMapId)
-        }
-        .alert("ファイル名が必要です", isPresented: self.$showFileNameAlert) {
-            Button("OK") {}
-        } message: {
-            Text("センシングを開始するには、ファイル名を入力してください。")
-        }
+            .onAppear {
+                // ModelContextを使ってSwiftDataRepositoryを初期化
+                self.viewModel.setupSwiftDataRepository(modelContext: self.modelContext)
+                // 指定されたフロアマップIDでフロアマップ情報を読み込み
+                self.viewModel.loadFloorMapInfo(floorMapId: self.floorMapId)
+            }
+            .alert("ファイル名が必要です", isPresented: self.$showFileNameAlert) {
+                Button("OK") {}
+            } message: {
+                Text("センシングを開始するには、ファイル名を入力してください。")
+            }
     }
 
     // MARK: - Full Screen Floor Map
@@ -673,77 +685,84 @@ struct DataCollectionView: View {
     }
 
     private func floorMapCanvas(floorMapInfo: FloorMapInfo) -> some View {
-        FloorMapCanvas(
-            floorMapImage: self.viewModel.floorMapImage,
-            floorMapInfo: floorMapInfo,
-            calibrationPoints: nil,
-            onMapTap: nil,
-            enableZoom: true,
-            fixedHeight: 400,
-            showGrid: true
-        ) { geometry in
-            // アンテナ位置を表示
-            ForEach(self.viewModel.allAntennaPositions, id: \.id) { antenna in
-                let normalizedPoint = geometry.realWorldToNormalized(
-                    CGPoint(x: antenna.position.x, y: antenna.position.y)
-                )
-                let screenPos = geometry.normalizedToImageCoordinate(normalizedPoint)
-
-                ZStack {
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 16, height: 16)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white, lineWidth: 2)
+        Group {
+            if let floorMapImage = self.viewModel.floorMapImage {
+                FloorMapCanvas(
+                    floorMapImage: floorMapImage,
+                    floorMapInfo: floorMapInfo,
+                    calibrationPoints: nil,
+                    onMapTap: nil,
+                    enableZoom: true,
+                    fixedHeight: 400,
+                    showGrid: true
+                ) { geometry in
+                    // アンテナ位置を表示
+                    ForEach(self.viewModel.allAntennaPositions, id: \.id) { antenna in
+                        let normalizedPoint = geometry.realWorldToNormalized(
+                            CGPoint(x: antenna.position.x, y: antenna.position.y)
                         )
+                        let screenPos = geometry.normalizedToImageCoordinate(normalizedPoint)
 
-                    Text(antenna.antennaId)
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding(4)
-                        .background(Color.red.opacity(0.8))
-                        .cornerRadius(4)
-                        .offset(x: 0, y: -20)
-                }
-                .position(screenPos)
-            }
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 16, height: 16)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white, lineWidth: 2)
+                                )
 
-            // タグのリアルタイム位置を表示
-            ForEach(Array(self.viewModel.globalCoordinates.keys.sorted()), id: \.self) { deviceName in
-                if let tagPos = self.viewModel.globalCoordinates[deviceName] {
-                    let normalizedPoint = geometry.realWorldToNormalized(
-                        CGPoint(x: tagPos.x, y: tagPos.y)
-                    )
-                    let screenPos = geometry.normalizedToImageCoordinate(normalizedPoint)
-
-                    ZStack {
-                        Circle()
-                            .fill(Color.blue)
-                            .frame(width: 12, height: 12)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 2)
-                            )
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.blue.opacity(0.5), lineWidth: 8)
-                                    .scaleEffect(1.5)
-                                    .opacity(0.5)
-                            )
-
-                        Text(deviceName)
-                            .font(.caption2)
-                            .foregroundColor(.white)
-                            .padding(4)
-                            .background(Color.blue.opacity(0.8))
-                            .cornerRadius(4)
-                            .offset(x: 0, y: -20)
+                            Text(antenna.antennaId)
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(4)
+                                .background(Color.red.opacity(0.8))
+                                .cornerRadius(4)
+                                .offset(x: 0, y: -20)
+                        }
+                        .position(screenPos)
                     }
-                    .position(screenPos)
-                    .animation(.easeInOut(duration: 0.3), value: screenPos)
+
+                    // タグのリアルタイム位置を表示
+                    ForEach(Array(self.viewModel.globalCoordinates.keys.sorted()), id: \.self) { deviceName in
+                        if let tagPos = self.viewModel.globalCoordinates[deviceName] {
+                            let normalizedPoint = geometry.realWorldToNormalized(
+                                CGPoint(x: tagPos.x, y: tagPos.y)
+                            )
+                            let screenPos = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                            ZStack {
+                                Circle()
+                                    .fill(Color.blue)
+                                    .frame(width: 12, height: 12)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.white, lineWidth: 2)
+                                    )
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.blue.opacity(0.5), lineWidth: 8)
+                                            .scaleEffect(1.5)
+                                            .opacity(0.5)
+                                    )
+
+                                Text(deviceName)
+                                    .font(.caption2)
+                                    .foregroundColor(.white)
+                                    .padding(4)
+                                    .background(Color.blue.opacity(0.8))
+                                    .cornerRadius(4)
+                                    .offset(x: 0, y: -20)
+                            }
+                            .position(screenPos)
+                            .animation(.easeInOut(duration: 0.3), value: screenPos)
+                        }
+                    }
                 }
+            } else {
+                Text("フロアマップ画像がありません")
+                    .foregroundColor(.secondary)
             }
         }
     }

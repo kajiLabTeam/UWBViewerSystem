@@ -28,6 +28,57 @@ struct SensingDataCSVExporter {
         }
     }
 
+    // MARK: - ディレクトリ管理
+
+    /// センシングセッション用のディレクトリを作成
+    ///
+    /// ディレクトリ構造: /Applications/sensing/yyyymmdd/hhmmss/
+    ///
+    /// - Parameter startTime: センシング開始時刻
+    /// - Returns: 作成されたディレクトリのURL
+    /// - Throws: ディレクトリ作成に失敗した場合
+    static func createSessionDirectory(startTime: Date) throws -> URL {
+        // Documentsディレクトリを取得（ファイルアプリから見えるようにするため）
+        guard let documentsDirectory = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first else {
+            throw ExportError.fileCreationFailed("Documentsディレクトリが見つかりません")
+        }
+
+        // 日付フォーマッターの設定
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone.current
+
+        // 日付ディレクトリ名 (yyyymmdd)
+        dateFormatter.dateFormat = "yyyyMMdd"
+        let dateString = dateFormatter.string(from: startTime)
+
+        // 時刻ディレクトリ名 (hhmmss)
+        dateFormatter.dateFormat = "HHmmss"
+        let timeString = dateFormatter.string(from: startTime)
+
+        // ディレクトリパスを構築
+        let sessionDirectory = documentsDirectory
+            .appendingPathComponent("sensing")
+            .appendingPathComponent(dateString)
+            .appendingPathComponent(timeString)
+
+        // ディレクトリを作成
+        try FileManager.default.createDirectory(
+            at: sessionDirectory,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        print("✅ セッションディレクトリを作成: \(sessionDirectory.path)")
+        print("📁 Documentsディレクトリ: \(documentsDirectory.path)")
+        print("📁 相対パス: sensing/\(dateString)/\(timeString)")
+
+        return sessionDirectory
+    }
+
     // MARK: - 生データCSVエクスポート
 
     /// 生データ(Android側からの受信データ)をCSVとしてエクスポート
@@ -40,12 +91,14 @@ struct SensingDataCSVExporter {
     ///
     /// - Parameters:
     ///   - realtimeDataList: エクスポートするリアルタイムデータのリスト
-    ///   - sessionName: センシングセッション名（ファイル名に使用）
+    ///   - directoryURL: 保存先ディレクトリのURL
+    ///   - fileName: ファイル名（デフォルト: "raw_data.csv"）
     /// - Returns: 生成されたCSVファイルのURL
     /// - Throws: データが空、またはファイル作成/書き込みに失敗した場合
     static func exportRawDataToCSV(
         realtimeDataList: [RealtimeData],
-        sessionName: String
+        directoryURL: URL,
+        fileName: String = "raw_data.csv"
     ) throws -> URL {
         guard !realtimeDataList.isEmpty else {
             throw ExportError.noDataToExport
@@ -72,11 +125,9 @@ struct SensingDataCSVExporter {
             csvContent += row + "\n"
         }
 
-        // ファイル名生成
-        let fileName = "\(sessionName)_raw_data.csv"
-
         // ファイルに書き込み
-        return try self.writeCSVToDocumentsDirectory(content: csvContent, fileName: fileName)
+        let fileURL = directoryURL.appendingPathComponent(fileName)
+        return try self.writeCSV(content: csvContent, to: fileURL)
     }
 
     // MARK: - グローバル座標データCSVエクスポート
@@ -92,13 +143,15 @@ struct SensingDataCSVExporter {
     /// - Parameters:
     ///   - realtimeDataList: エクスポートするリアルタイムデータのリスト
     ///   - globalCoordinates: デバイス名をキーとしたグローバル座標の辞書
-    ///   - sessionName: センシングセッション名（ファイル名に使用）
+    ///   - directoryURL: 保存先ディレクトリのURL
+    ///   - fileName: ファイル名（デフォルト: "global_coordinates.csv"）
     /// - Returns: 生成されたCSVファイルのURL
     /// - Throws: データが空、またはファイル作成/書き込みに失敗した場合
     static func exportGlobalCoordinateDataToCSV(
         realtimeDataList: [RealtimeData],
         globalCoordinates: [String: Point3D],
-        sessionName: String
+        directoryURL: URL,
+        fileName: String = "global_coordinates.csv"
     ) throws -> URL {
         guard !realtimeDataList.isEmpty else {
             throw ExportError.noDataToExport
@@ -130,34 +183,98 @@ struct SensingDataCSVExporter {
             csvContent += row + "\n"
         }
 
-        // ファイル名生成
-        let fileName = "\(sessionName)_global_coordinates.csv"
+        // ファイルに書き込み
+        let fileURL = directoryURL.appendingPathComponent(fileName)
+        return try self.writeCSV(content: csvContent, to: fileURL)
+    }
+
+    // MARK: - フィルタリング後データCSVエクスポート
+
+    /// フィルタリング後（移動平均適用後）のデータをCSVとしてエクスポート
+    ///
+    /// CSVフォーマット:
+    /// ```
+    /// timestamp,deviceName,antennaId,filtered_x,filtered_y,filtered_z,original_x,original_y,original_z
+    /// 1699876543210,Device1,antenna1,14.123,18.456,0.0,14.200,18.500,0.0
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - realtimeDataList: エクスポートするリアルタイムデータのリスト
+    ///   - globalCoordinates: デバイス名をキーとしたグローバル座標の辞書（元データ）
+    ///   - processor: データ処理を行うSensorDataProcessor
+    ///   - directoryURL: 保存先ディレクトリのURL
+    ///   - fileName: ファイル名（デフォルト: "filtered_data.csv"）
+    /// - Returns: 生成されたCSVファイルのURL
+    /// - Throws: データが空、またはファイル作成/書き込みに失敗した場合
+    static func exportFilteredDataToCSV(
+        realtimeDataList: [RealtimeData],
+        globalCoordinates: [String: Point3D],
+        processor: SensorDataProcessor,
+        directoryURL: URL,
+        fileName: String = "filtered_data.csv"
+    ) throws -> URL {
+        guard !realtimeDataList.isEmpty else {
+            throw ExportError.noDataToExport
+        }
+
+        // デバイスごとにグループ化
+        let groupedData = Dictionary(grouping: realtimeDataList) { $0.deviceName }
+
+        // CSVヘッダー
+        var csvContent =
+            "timestamp,deviceName,antennaId,filtered_x,filtered_y,filtered_z,original_x,original_y,original_z\n"
+
+        // 各デバイスのデータに移動平均フィルタを適用
+        for (deviceName, deviceData) in groupedData.sorted(by: { $0.key < $1.key }) {
+            // タイムスタンプでソート
+            let sortedData = deviceData.sorted { $0.timestamp < $1.timestamp }
+
+            // グローバル座標のリストを作成
+            let coordinates = sortedData.compactMap { globalCoordinates[$0.deviceName] }
+
+            guard !coordinates.isEmpty else { continue }
+
+            // 移動平均フィルタを適用
+            let filteredCoordinates = processor.applyMovingAverageToPoints(coordinates)
+
+            // CSV行を作成
+            for (index, data) in sortedData.enumerated() {
+                guard index < filteredCoordinates.count else { break }
+
+                let originalCoord = coordinates[index]
+                let filteredCoord = filteredCoordinates[index]
+
+                let row = [
+                    String(data.timestamp),
+                    deviceName,
+                    data.antennaId,
+                    String(format: "%.6f", filteredCoord.x),
+                    String(format: "%.6f", filteredCoord.y),
+                    String(format: "%.6f", filteredCoord.z),
+                    String(format: "%.6f", originalCoord.x),
+                    String(format: "%.6f", originalCoord.y),
+                    String(format: "%.6f", originalCoord.z),
+                ].joined(separator: ",")
+
+                csvContent += row + "\n"
+            }
+        }
 
         // ファイルに書き込み
-        return try self.writeCSVToDocumentsDirectory(content: csvContent, fileName: fileName)
+        let fileURL = directoryURL.appendingPathComponent(fileName)
+        return try self.writeCSV(content: csvContent, to: fileURL)
     }
 
     // MARK: - Helper Methods
 
-    /// CSV内容をDocumentsディレクトリに書き込む
+    /// CSV内容をファイルに書き込む
     ///
     /// - Parameters:
     ///   - content: CSVファイルの内容
-    ///   - fileName: 保存するファイル名
+    ///   - fileURL: 保存先ファイルのURL
     /// - Returns: 保存されたファイルのURL
-    /// - Throws: ファイル作成または書き込みに失敗した場合
-    private static func writeCSVToDocumentsDirectory(content: String, fileName: String) throws
-        -> URL
-    {
-        guard let documentsDirectory = FileManager.default.urls(
-            for: .documentDirectory,
-            in: .userDomainMask
-        ).first else {
-            throw ExportError.fileCreationFailed("Documentsディレクトリが見つかりません")
-        }
-
-        let fileURL = documentsDirectory.appendingPathComponent(fileName)
-
+    /// - Throws: ファイル書き込みに失敗した場合
+    private static func writeCSV(content: String, to fileURL: URL) throws -> URL {
         do {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
             print("✅ CSVファイルを保存しました: \(fileURL.path)")
@@ -186,32 +303,60 @@ struct SensingDataCSVExporter {
         #endif
     #endif
 
-    // MARK: - 両方のCSVを一度にエクスポート
+    // MARK: - 全データエクスポート
 
-    /// 生データとグローバル座標データの両方をエクスポート
+    /// 生データ、グローバル座標データ、フィルタリング後データの全てをエクスポート
     ///
     /// - Parameters:
     ///   - realtimeDataList: エクスポートするリアルタイムデータのリスト
     ///   - globalCoordinates: デバイス名をキーとしたグローバル座標の辞書
-    ///   - sessionName: センシングセッション名
-    /// - Returns: 生成された2つのCSVファイルのURL (rawDataURL, globalCoordinateURL)
+    ///   - startTime: センシング開始時刻
+    ///   - processor: データ処理を行うSensorDataProcessor（オプション）
+    /// - Returns: (セッションディレクトリURL, 生データURL, グローバル座標URL, フィルタリング後データURL)
     /// - Throws: データが空、またはファイル作成/書き込みに失敗した場合
-    static func exportBothCSVs(
+    static func exportAllData(
         realtimeDataList: [RealtimeData],
         globalCoordinates: [String: Point3D],
-        sessionName: String
-    ) throws -> (rawDataURL: URL, globalCoordinateURL: URL) {
+        startTime: Date,
+        processor: SensorDataProcessor = SensorDataProcessor()
+    ) throws -> (
+        sessionDirectory: URL,
+        rawDataURL: URL,
+        globalCoordinateURL: URL,
+        filteredDataURL: URL
+    ) {
+        // セッションディレクトリを作成
+        let sessionDirectory = try createSessionDirectory(startTime: startTime)
+
+        // 生データをエクスポート
         let rawDataURL = try exportRawDataToCSV(
             realtimeDataList: realtimeDataList,
-            sessionName: sessionName
+            directoryURL: sessionDirectory
         )
 
+        // グローバル座標データをエクスポート
         let globalCoordinateURL = try exportGlobalCoordinateDataToCSV(
             realtimeDataList: realtimeDataList,
             globalCoordinates: globalCoordinates,
-            sessionName: sessionName
+            directoryURL: sessionDirectory
         )
 
-        return (rawDataURL: rawDataURL, globalCoordinateURL: globalCoordinateURL)
+        // フィルタリング後データをエクスポート
+        let filteredDataURL = try exportFilteredDataToCSV(
+            realtimeDataList: realtimeDataList,
+            globalCoordinates: globalCoordinates,
+            processor: processor,
+            directoryURL: sessionDirectory
+        )
+
+        print("✅ 全センシングデータのエクスポート完了")
+        print("   セッションディレクトリ: \(sessionDirectory.path)")
+
+        return (
+            sessionDirectory: sessionDirectory,
+            rawDataURL: rawDataURL,
+            globalCoordinateURL: globalCoordinateURL,
+            filteredDataURL: filteredDataURL
+        )
     }
 }

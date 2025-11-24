@@ -62,7 +62,7 @@ struct SensingDataCSVExporter {
         let timeString = dateFormatter.string(from: startTime)
 
         // ディレクトリ名を決定（カスタム名がある場合は「customName_hhmmss」形式）
-        let directoryName = if let customName = customName, !customName.isEmpty {
+        let directoryName = if let customName, !customName.isEmpty {
             "\(customName)_\(timeString)"
         } else {
             timeString

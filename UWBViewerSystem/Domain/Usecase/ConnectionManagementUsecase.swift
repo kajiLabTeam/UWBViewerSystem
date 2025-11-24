@@ -147,14 +147,14 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
 
     public func sendMessage(_ content: String) {
         // 全ての接続されたエンドポイントにメッセージを送信
-        for endpointId in connectedEndpoints {
+        for endpointId in self.connectedEndpoints {
             self.nearbyRepository.sendDataToDevice(text: content, toEndpointId: endpointId)
             #if DEBUG
                 print("📤 メッセージを送信: \(content) → エンドポイント: \(endpointId)")
             #endif
         }
 
-        if connectedEndpoints.isEmpty {
+        if self.connectedEndpoints.isEmpty {
             #if DEBUG
                 print("⚠️ 送信先のエンドポイントがありません")
             #endif

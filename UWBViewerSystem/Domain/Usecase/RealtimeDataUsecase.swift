@@ -192,7 +192,7 @@ public class RealtimeDataUsecase: ObservableObject {
         if !data.antennaId.isEmpty {
             self.activeAntennaIds.insert(data.antennaId)
             #if DEBUG
-                print("📡 アクティブアンテナ追加: \(data.antennaId) (総数: \(activeAntennaIds.count))")
+                print("📡 アクティブアンテナ追加: \(data.antennaId) (総数: \(self.activeAntennaIds.count))")
             #endif
         }
 
@@ -240,22 +240,22 @@ public class RealtimeDataUsecase: ObservableObject {
 
         // アンテナ別データマップを更新
         if !data.antennaId.isEmpty {
-            if antennaDataMap[data.antennaId] == nil {
-                antennaDataMap[data.antennaId] = []
+            if self.antennaDataMap[data.antennaId] == nil {
+                self.antennaDataMap[data.antennaId] = []
             }
 
             // 該当アンテナのデバイスリストを更新
             if let deviceData = deviceRealtimeDataList.first(where: { $0.deviceName == data.deviceName }) {
                 if let existingIndex = antennaDataMap[data.antennaId]?.firstIndex(where: { $0.deviceName == data.deviceName }) {
-                    antennaDataMap[data.antennaId]?[existingIndex] = deviceData
+                    self.antennaDataMap[data.antennaId]?[existingIndex] = deviceData
                 } else {
-                    antennaDataMap[data.antennaId]?.append(deviceData)
+                    self.antennaDataMap[data.antennaId]?.append(deviceData)
                 }
             }
         }
 
         // 総データポイント数を更新
-        self.totalDataPointCount = deviceRealtimeDataList.reduce(0) { $0 + $1.dataHistory.count }
+        self.totalDataPointCount = self.deviceRealtimeDataList.reduce(0) { $0 + $1.dataHistory.count }
 
         self.isReceivingRealtimeData = true
         objectWillChange.send()

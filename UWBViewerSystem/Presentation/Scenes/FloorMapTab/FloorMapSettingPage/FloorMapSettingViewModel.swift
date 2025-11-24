@@ -183,7 +183,10 @@ class FloorMapSettingViewModel: ObservableObject {
     }
 
     private func saveFloorMapInfo(_ info: FloorMapInfo) throws {
-        // PreferenceRepositoryに基本情報を保存
+        // PreferenceRepositoryにフロアマップ情報を保存（SensingFlowNavigatorの検証に必要）
+        self.preferenceRepository.saveCurrentFloorMapInfo(info)
+
+        // PreferenceRepositoryに基本情報を保存（前回の設定を記憶）
         self.preferenceRepository.saveLastFloorSettings(
             name: info.name,
             buildingName: info.buildingName,

@@ -10,6 +10,8 @@ struct DataDisplayView: View {
     @State private var selectedDisplayMode: DisplayMode = .history
     @State private var shareURL: URL?
     @State private var showShareSheet = false
+    @State private var sessionToDelete: SensingSession?
+    @State private var showDeleteAlert = false
 
     enum DisplayMode: String, CaseIterable {
         case history = "履歴データ"
@@ -52,6 +54,24 @@ struct DataDisplayView: View {
                         print("⚠️ shareURLがnilです")
                     }
             }
+        }
+        .alert("セッション削除", isPresented: self.$showDeleteAlert, presenting: self.sessionToDelete) { session in
+            Button("キャンセル", role: .cancel) {
+                self.sessionToDelete = nil
+            }
+            Button("削除", role: .destructive) {
+                Task {
+                    let success = await self.viewModel.deleteSessionData(session)
+                    if success {
+                        print("✅ セッション削除成功: \(session.name)")
+                    } else {
+                        print("❌ セッション削除失敗: \(session.name)")
+                    }
+                    self.sessionToDelete = nil
+                }
+            }
+        } message: { session in
+            Text("「\(session.name)」を削除しますか？\nSwiftDataとCSVファイルの両方が削除されます。")
         }
         .onAppear {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
@@ -131,20 +151,27 @@ struct DataDisplayView: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ForEach(self.viewModel.historyData, id: \.id) { session in
-                            HistorySessionCard(session: session) {
-                                Task {
-                                    print("🔄 共有ボタンがタップされました: \(session.name)")
-                                    if let url = await self.viewModel.shareSessionData(session) {
-                                        print("✅ ZIPファイルURL取得成功: \(url.path)")
-                                        await MainActor.run {
-                                            self.shareURL = url
-                                            self.showShareSheet = true
+                            HistorySessionCard(
+                                session: session,
+                                onShare: {
+                                    Task {
+                                        print("🔄 共有ボタンがタップされました: \(session.name)")
+                                        if let url = await self.viewModel.shareSessionData(session) {
+                                            print("✅ ZIPファイルURL取得成功: \(url.path)")
+                                            await MainActor.run {
+                                                self.shareURL = url
+                                                self.showShareSheet = true
+                                            }
+                                        } else {
+                                            print("❌ ZIPファイルの生成に失敗しました")
                                         }
-                                    } else {
-                                        print("❌ ZIPファイルの生成に失敗しました")
                                     }
+                                },
+                                onDelete: {
+                                    self.sessionToDelete = session
+                                    self.showDeleteAlert = true
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -248,7 +275,8 @@ struct DataRow: View {
 
 struct HistorySessionCard: View {
     let session: SensingSession
-    let onTap: () -> Void
+    let onShare: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         HStack {
@@ -277,10 +305,16 @@ struct HistorySessionCard: View {
                     .foregroundColor(.secondary)
             }
 
-            Button(action: self.onTap) {
+            Button(action: self.onShare) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.body)
                     .foregroundColor(.blue)
+            }
+
+            Button(action: self.onDelete) {
+                Image(systemName: "trash")
+                    .font(.body)
+                    .foregroundColor(.red)
             }
         }
         .padding()

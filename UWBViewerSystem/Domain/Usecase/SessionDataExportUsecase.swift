@@ -138,4 +138,75 @@ class SessionDataExportUsecase {
             return nil
         }
     }
+
+    /// セッションデータを削除する（SwiftDataとCSVファイルの両方）
+    /// - Parameters:
+    ///   - session: 削除するセッション
+    ///   - swiftDataRepository: SwiftDataリポジトリ
+    /// - Returns: 削除が成功した場合はtrue、失敗した場合はfalse
+    func deleteSessionData(
+        _ session: SensingSession,
+        swiftDataRepository: SwiftDataRepositoryProtocol
+    ) async -> Bool {
+        do {
+            print("🗑️ セッションデータを削除中: \(session.name)")
+
+            // 1. センシングデータディレクトリを特定
+            guard let documentsDirectory = FileManager.default.urls(
+                for: .documentDirectory,
+                in: .userDomainMask
+            ).first else {
+                print("❌ Documentsディレクトリが見つかりません")
+                return false
+            }
+
+            // 日付フォーマッターの設定
+            let dateFormatter = DateFormatter()
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dateFormatter.timeZone = TimeZone.current
+            dateFormatter.dateFormat = "yyyyMMdd"
+            let dateString = dateFormatter.string(from: session.startTime)
+
+            dateFormatter.dateFormat = "HHmmss"
+            let timeString = dateFormatter.string(from: session.startTime)
+
+            // セッションディレクトリ名を構築
+            let directoryName = if !session.name.isEmpty {
+                "\(timeString)-\(session.name)"
+            } else {
+                timeString
+            }
+
+            // センシングデータディレクトリのパス
+            let sensingDirectory = documentsDirectory
+                .appendingPathComponent("sensing")
+                .appendingPathComponent(dateString)
+                .appendingPathComponent(directoryName)
+
+            print("📁 削除対象ディレクトリ: \(sensingDirectory.path)")
+
+            // 2. CSVファイルの削除
+            var csvDeleted = false
+            if FileManager.default.fileExists(atPath: sensingDirectory.path) {
+                try FileManager.default.removeItem(at: sensingDirectory)
+                print("✅ CSVファイル削除完了")
+                csvDeleted = true
+            } else {
+                print("⚠️ CSVディレクトリが存在しません（既に削除済みの可能性）")
+                csvDeleted = true  // 存在しない場合は削除済みとみなす
+            }
+
+            // 3. SwiftDataからセッションを削除
+            try await swiftDataRepository.deleteSensingSession(by: session.id)
+            print("✅ SwiftDataからセッション削除完了")
+
+            print("✅ セッションデータ削除完了: \(session.name)")
+            return csvDeleted
+
+        } catch {
+            print("❌ セッションデータの削除エラー: \(error)")
+            print("❌ エラー詳細: \(error.localizedDescription)")
+            return false
+        }
+    }
 }

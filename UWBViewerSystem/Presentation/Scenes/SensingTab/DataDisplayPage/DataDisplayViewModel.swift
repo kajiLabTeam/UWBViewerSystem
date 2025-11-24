@@ -151,6 +151,23 @@ class DataDisplayViewModel: ObservableObject {
         await self.sessionDataExportUsecase.exportSessionToZip(session)
     }
 
+    /// セッションデータを削除（SwiftDataとCSVファイルの両方）
+    /// - Parameter session: 削除するセッション
+    /// - Returns: 削除が成功した場合はtrue
+    func deleteSessionData(_ session: SensingSession) async -> Bool {
+        let success = await self.sessionDataExportUsecase.deleteSessionData(
+            session,
+            swiftDataRepository: self.swiftDataRepository
+        )
+
+        if success {
+            // 削除成功後、履歴データを再読み込み
+            await self.loadHistoryData()
+        }
+
+        return success
+    }
+
     private func loadHistoryData() async {
         do {
             // SwiftDataからセンシングセッション履歴を読み込み

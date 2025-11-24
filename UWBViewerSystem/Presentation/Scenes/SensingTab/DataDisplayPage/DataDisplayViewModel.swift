@@ -45,6 +45,7 @@ class DataDisplayViewModel: ObservableObject {
     private let realtimeDataUsecase: RealtimeDataUsecase
     private let fileManagementUsecase: FileManagementUsecase
     private let connectionUsecase: ConnectionManagementUsecase
+    private let sessionDataExportUsecase: SessionDataExportUsecase
     private var swiftDataRepository: SwiftDataRepositoryProtocol
     private var cancellables = Set<AnyCancellable>()
 
@@ -52,13 +53,15 @@ class DataDisplayViewModel: ObservableObject {
         swiftDataRepository: SwiftDataRepositoryProtocol,
         realtimeDataUsecase: RealtimeDataUsecase? = nil,
         fileManagementUsecase: FileManagementUsecase? = nil,
-        connectionUsecase: ConnectionManagementUsecase? = nil
+        connectionUsecase: ConnectionManagementUsecase? = nil,
+        sessionDataExportUsecase: SessionDataExportUsecase? = nil
     ) {
         self.swiftDataRepository = swiftDataRepository
         self.realtimeDataUsecase = realtimeDataUsecase ?? RealtimeDataUsecase()
         self.fileManagementUsecase = fileManagementUsecase ?? FileManagementUsecase()
         self.connectionUsecase =
             connectionUsecase ?? ConnectionManagementUsecase.shared
+        self.sessionDataExportUsecase = sessionDataExportUsecase ?? SessionDataExportUsecase()
 
         self.setupObservers()
         Task {
@@ -138,6 +141,14 @@ class DataDisplayViewModel: ObservableObject {
     func loadSessionData(_ session: SensingSession) {
         // セッションの詳細データを読み込み
         // 実装に応じてファイルから読み込みなど
+        print("📊 セッション詳細を読み込み: \(session.name)")
+    }
+
+    /// セッションデータをZIP圧縮してAirDropで共有
+    /// UseCaseに処理を委譲し、ViewModelはUI状態管理のみを担当
+    func shareSessionData(_ session: SensingSession) async -> URL? {
+        // UseCaseにエクスポート処理を委譲
+        await self.sessionDataExportUsecase.exportSessionToZip(session)
     }
 
     private func loadHistoryData() async {

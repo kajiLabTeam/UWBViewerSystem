@@ -6,9 +6,10 @@ import SwiftUI
 struct DataDisplayView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = DataDisplayViewModel()
-    @StateObject private var flowNavigator = SensingFlowNavigator()
     @EnvironmentObject var router: NavigationRouterModel
     @State private var selectedDisplayMode: DisplayMode = .history
+    @State private var shareURL: URL?
+    @State private var showShareSheet = false
 
     enum DisplayMode: String, CaseIterable {
         case history = "履歴データ"
@@ -17,9 +18,6 @@ struct DataDisplayView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // フロープログレス表示
-            SensingFlowProgressView(navigator: self.flowNavigator)
-
             ScrollView {
                 VStack(spacing: 20) {
                     self.headerSection
@@ -28,21 +26,37 @@ struct DataDisplayView: View {
 
                     self.contentArea
 
-                    Spacer(minLength: 80)
+                    Spacer(minLength: 20)
                 }
                 .padding()
             }
-
-            // ナビゲーションボタン
-            navigationButtons
         }
-        .navigationTitle("データ表示")
+        .navigationTitle("取得データ")
+        .sheet(isPresented: self.$showShareSheet, onDismiss: {
+            print("🎬 ShareSheetが閉じられました")
+            self.shareURL = nil
+        }) {
+            if let url = self.shareURL {
+                #if os(iOS)
+                    ShareSheet(items: [url])
+                        .onAppear {
+                            print("🎬 ShareSheetを表示: \(url.path)")
+                        }
+                #else
+                    Text("macOSでは共有機能は利用できません")
+                #endif
+            } else {
+                Text("共有するファイルが見つかりません")
+                    .foregroundColor(.red)
+                    .onAppear {
+                        print("⚠️ shareURLがnilです")
+                    }
+            }
+        }
         .onAppear {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
             let repository = SwiftDataRepository(modelContext: modelContext)
             self.viewModel.setSwiftDataRepository(repository)
-            self.flowNavigator.currentStep = .dataViewer
-            self.flowNavigator.setRouter(self.router)
         }
     }
 
@@ -118,7 +132,18 @@ struct DataDisplayView: View {
                     LazyVStack(spacing: 8) {
                         ForEach(self.viewModel.historyData, id: \.id) { session in
                             HistorySessionCard(session: session) {
-                                self.viewModel.loadSessionData(session)
+                                Task {
+                                    print("🔄 共有ボタンがタップされました: \(session.name)")
+                                    if let url = await self.viewModel.shareSessionData(session) {
+                                        print("✅ ZIPファイルURL取得成功: \(url.path)")
+                                        await MainActor.run {
+                                            self.shareURL = url
+                                            self.showShareSheet = true
+                                        }
+                                    } else {
+                                        print("❌ ZIPファイルの生成に失敗しました")
+                                    }
+                                }
                             }
                         }
                     }
@@ -253,7 +278,8 @@ struct HistorySessionCard: View {
             }
 
             Button(action: self.onTap) {
-                Image(systemName: "chevron.right")
+                Image(systemName: "square.and.arrow.up")
+                    .font(.body)
                     .foregroundColor(.blue)
             }
         }
@@ -326,46 +352,6 @@ struct FileTransferProgressView: View {
     }
 }
 
-// MARK: - Navigation Buttons
-
-extension DataDisplayView {
-    private var navigationButtons: some View {
-        VStack(spacing: 12) {
-            Divider()
-
-            HStack(spacing: 16) {
-                Button("戻る") {
-                    self.flowNavigator.goToPreviousStep()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.secondary)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(8)
-
-                Button("フローを完了") {
-                    self.flowNavigator.completeFlow()
-                    self.router.reset()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.white)
-                .background(Color.green)
-                .cornerRadius(8)
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-        }
-        .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
-            Button("OK") {
-                self.flowNavigator.lastError = nil
-            }
-        } message: {
-            Text(self.flowNavigator.lastError ?? "")
-        }
-    }
-}
-
 // MARK: - Empty Data View
 
 struct EmptyDataView: View {
@@ -402,6 +388,30 @@ extension DateFormatter {
         return formatter
     }()
 }
+
+// MARK: - ShareSheet for iOS
+
+#if os(iOS)
+    struct ShareSheet: UIViewControllerRepresentable {
+        let items: [Any]
+
+        func makeUIViewController(context: Context) -> UIActivityViewController {
+            print("🎬 ShareSheet: UIActivityViewControllerを作成中")
+            print("🎬 共有アイテム数: \(self.items.count)")
+            for (index, item) in self.items.enumerated() {
+                print("🎬 アイテム[\(index)]: \(type(of: item)) = \(item)")
+            }
+
+            let controller = UIActivityViewController(activityItems: self.items, applicationActivities: nil)
+
+            return controller
+        }
+
+        func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
+            // No update needed
+        }
+    }
+#endif
 
 #Preview {
     DataDisplayView()

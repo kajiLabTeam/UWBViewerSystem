@@ -271,12 +271,16 @@ class DataCollectionViewModel: ObservableObject {
         // 直接SensingControlUsecaseを使用してセンシング停止
         self.sensingControlUsecase.stopRemoteSensing()
 
+        // ファイル名を保存（非同期処理前にリセットされるのを防ぐ）
+        let savedFileName = self.currentFileName
+
         // センシングデータをCSVとしてエクスポート
         Task {
             // SwiftDataの永続化完了を待つため少し待機
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒待機
 
-            await self.exportSensingDataToCSV()
+            // 保存したファイル名を使用してエクスポート
+            await self.exportSensingDataToCSV(fileName: savedFileName)
 
             // CSV出力完了後にSensingControlUsecaseのセッションIDをクリア
             await MainActor.run {
@@ -364,11 +368,12 @@ class DataCollectionViewModel: ObservableObject {
     /// センシングデータをCSVとしてエクスポート
     ///
     /// アンテナごとに分けて生データとグローバル座標変換後のデータをエクスポートします
-    private func exportSensingDataToCSV() async {
+    private func exportSensingDataToCSV(fileName: String = "") async {
         print("📊 CSVエクスポート開始")
         print("   デバイス数: \(self.deviceRealtimeDataList.count)")
         print("   アンテナ数: \(self.activeAntennaIds.count)")
-        print("   ファイル名: \(self.currentFileName)")
+        print("   ファイル名(引数): '\(fileName)'")
+        print("   ファイル名(currentFileName): '\(self.currentFileName)'")
 
         // SensingControlUsecaseの実際のセッションIDを使用
         guard let sessionId = sensingControlUsecase.activeSessionId else {
@@ -408,10 +413,13 @@ class DataCollectionViewModel: ObservableObject {
             }
 
             // センシングファイル名を使用してセッションディレクトリを作成
+            let fileNameToUse = fileName.isEmpty ? self.currentFileName : fileName
+            print("📁 センシングファイル名: '\(fileNameToUse)' (空？: \(fileNameToUse.isEmpty))")
             let sessionDirectory = try SensingDataCSVExporter.createSessionDirectory(
                 startTime: sessionStartTime,
-                customName: self.currentFileName.isEmpty ? nil : self.currentFileName
+                customName: fileNameToUse
             )
+            print("📁 作成されたセッションディレクトリ: \(sessionDirectory.path)")
 
             // 各アンテナごとにCSVファイルを出力
             var exportedFileCount = 0
@@ -425,7 +433,7 @@ class DataCollectionViewModel: ObservableObject {
                         for (deviceName, deviceData) in deviceGroups {
                             print("📱 デバイス \(deviceName) のデータをエクスポート中...")
                             let sortedData = deviceData.sorted { $0.timestamp < $1.timestamp }
-                            let baseFileName = self.currentFileName.isEmpty ? "sensing" : self.currentFileName
+                            let baseFileName = fileNameToUse.isEmpty ? "sensing" : fileNameToUse
 
                             // デバイス名を使用したファイル名
                             let rawFileName = "\(baseFileName)_\(deviceName)_raw.csv"
@@ -477,9 +485,9 @@ class DataCollectionViewModel: ObservableObject {
                 let sortedData = antennaData.sorted { $0.timestamp < $1.timestamp }
 
                 // アンテナ名を含むファイル名を生成
-                let rawFileName = "\(self.currentFileName)_\(antennaName)_raw.csv"
-                let globalFileName = "\(self.currentFileName)_\(antennaName)_global.csv"
-                let filteredFileName = "\(self.currentFileName)_\(antennaName)_filtered.csv"
+                let rawFileName = "\(fileNameToUse)_\(antennaName)_raw.csv"
+                let globalFileName = "\(fileNameToUse)_\(antennaName)_global.csv"
+                let filteredFileName = "\(fileNameToUse)_\(antennaName)_filtered.csv"
 
                 // デバイス名をアンテナ名に置換したデータを作成
                 let modifiedData = sortedData.map { data in

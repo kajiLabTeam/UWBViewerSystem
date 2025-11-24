@@ -39,7 +39,7 @@ struct SensingDataCSVExporter {
     ///   - customName: カスタムディレクトリ名（省略時はhhmmssのみ）
     /// - Returns: 作成されたディレクトリのURL
     /// - Throws: ディレクトリ作成に失敗した場合
-    static func createSessionDirectory(startTime: Date, customName: String? = nil) throws -> URL {
+    static func createSessionDirectory(startTime: Date, customName: String) throws -> URL {
         // Documentsディレクトリを取得（ファイルアプリから見えるようにするため）
         guard let documentsDirectory = FileManager.default.urls(
             for: .documentDirectory,
@@ -61,12 +61,14 @@ struct SensingDataCSVExporter {
         dateFormatter.dateFormat = "HHmmss"
         let timeString = dateFormatter.string(from: startTime)
 
-        // ディレクトリ名を決定（カスタム名がある場合は「customName_hhmmss」形式）
-        let directoryName = if let customName, !customName.isEmpty {
-            "\(customName)_\(timeString)"
+        // ディレクトリ名を決定（カスタム名がある場合は「hhmmss-customName」形式）
+        print("🔍 createSessionDirectory - customName: '\(customName)' (空？: \(customName.isEmpty))")
+        let directoryName = if !customName.isEmpty {
+            "\(timeString)-\(customName)"
         } else {
             timeString
         }
+        print("🔍 決定されたディレクトリ名: '\(directoryName)'")
 
         // ディレクトリパスを構築
         let sessionDirectory = documentsDirectory
@@ -83,7 +85,7 @@ struct SensingDataCSVExporter {
 
         print("✅ セッションディレクトリを作成: \(sessionDirectory.path)")
         print("📁 Documentsディレクトリ: \(documentsDirectory.path)")
-        print("📁 相対パス: sensing/\(dateString)/\(timeString)")
+        print("📁 相対パス: sensing/\(dateString)/\(directoryName)")
 
         return sessionDirectory
     }
@@ -320,6 +322,7 @@ struct SensingDataCSVExporter {
     ///   - realtimeDataList: エクスポートするリアルタイムデータのリスト
     ///   - globalCoordinates: デバイス名をキーとしたグローバル座標の辞書
     ///   - startTime: センシング開始時刻
+    ///   - customName: カスタムディレクトリ名（空文字列の場合はデフォルト）
     ///   - processor: データ処理を行うSensorDataProcessor（オプション）
     /// - Returns: (セッションディレクトリURL, 生データURL, グローバル座標URL, フィルタリング後データURL)
     /// - Throws: データが空、またはファイル作成/書き込みに失敗した場合
@@ -327,6 +330,7 @@ struct SensingDataCSVExporter {
         realtimeDataList: [RealtimeData],
         globalCoordinates: [String: Point3D],
         startTime: Date,
+        customName: String = "",
         processor: SensorDataProcessor = SensorDataProcessor()
     ) throws -> (
         sessionDirectory: URL,
@@ -335,7 +339,7 @@ struct SensingDataCSVExporter {
         filteredDataURL: URL
     ) {
         // セッションディレクトリを作成
-        let sessionDirectory = try createSessionDirectory(startTime: startTime)
+        let sessionDirectory = try createSessionDirectory(startTime: startTime, customName: customName)
 
         // 生データをエクスポート
         let rawDataURL = try exportRawDataToCSV(

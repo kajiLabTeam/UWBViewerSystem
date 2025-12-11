@@ -50,7 +50,7 @@ struct AntennaMarker: View {
         ZStack {
             // センサー範囲を示す扇形（選択時のみ表示）
             if self.isSelected, let range = sensorRange {
-                SensorRangeView(rotation: self.antenna.rotation, sensorRange: range)
+                SensorRangeView(rotation: self.antenna.displayRotation, sensorRange: range)
                     .frame(width: range, height: range)
                     .allowsHitTesting(false)
             }
@@ -67,15 +67,15 @@ struct AntennaMarker: View {
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .font(.system(size: self.displaySize * 0.5))
                         .foregroundColor(.white)
-                        .rotationEffect(.degrees(self.antenna.rotation))
+                        .rotationEffect(.degrees(self.antenna.displayRotation))
 
                     // 向きを示す矢印
-                    if (self.showRotationControls || self.showRotationControlsState) && self.antenna.rotation != 0 {
+                    if (self.showRotationControls || self.showRotationControlsState) && self.antenna.displayRotation != 0 {
                         Image(systemName: "arrow.up")
                             .font(.system(size: self.displaySize * 0.3))
                             .foregroundColor(.yellow)
                             .offset(y: -self.displaySize * 0.6)
-                            .rotationEffect(.degrees(self.antenna.rotation))
+                            .rotationEffect(.degrees(self.antenna.displayRotation))
                     }
                 }
                 .onTapGesture(count: self.isDraggable ? 2 : 1) {
@@ -155,6 +155,14 @@ struct AntennaDisplayData {
     let name: String
     let rotation: Double
     let color: Color?
+
+    /// 表示用の回転角度
+    /// 座標変換では反時計回り（数学的座標系、北が0°）を使用するが、
+    /// SwiftUIのrotationEffectは時計回りで右（東）が0°のため、
+    /// 符号反転と-90°補正が必要
+    var displayRotation: Double {
+        -self.rotation + 90.0
+    }
 
     init(id: String, name: String, rotation: Double = 0.0, color: Color? = nil) {
         self.id = id

@@ -245,6 +245,16 @@ struct AntennaRotationControl: View {
     let rotation: Double
     let onRotationChanged: (Double) -> Void
 
+    /// 表示用の角度（displayRotationと同じ変換）
+    private var displayAngle: Double {
+        -self.rotation + 90.0
+    }
+
+    /// 表示角度から内部角度に変換
+    private func displayToInternal(_ displayAngle: Double) -> Double {
+        -displayAngle + 90.0
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             Text("向き調整")
@@ -252,18 +262,20 @@ struct AntennaRotationControl: View {
                 .fontWeight(.medium)
 
             HStack(spacing: 12) {
-                Button(action: { self.onRotationChanged(self.rotation - 15) }) {
+                // 表示座標系で反時計回り = 内部座標系で時計回り
+                Button(action: { self.onRotationChanged(self.rotation + 15) }) {
                     Image(systemName: "arrow.counterclockwise")
                         .font(.caption)
                 }
                 .buttonStyle(.borderless)
 
-                Text("\(Int(self.rotation))°")
+                Text("\(Int(self.displayAngle))°")
                     .font(.caption)
                     .fontDesign(.monospaced)
-                    .frame(width: 40)
+                    .frame(width: 50)
 
-                Button(action: { self.onRotationChanged(self.rotation + 15) }) {
+                // 表示座標系で時計回り = 内部座標系で反時計回り
+                Button(action: { self.onRotationChanged(self.rotation - 15) }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.caption)
                 }
@@ -273,7 +285,7 @@ struct AntennaRotationControl: View {
             HStack(spacing: 8) {
                 ForEach([0, 90, 180, 270], id: \.self) { angle in
                     Button("\(angle)°") {
-                        self.onRotationChanged(Double(angle))
+                        self.onRotationChanged(self.displayToInternal(Double(angle)))
                     }
                     .font(.caption2)
                     .buttonStyle(.borderless)

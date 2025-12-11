@@ -459,8 +459,9 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             if let flowNavigator = self.flowNavigator {
                 print("🚀 次のステップ（センシング実行）へ自動遷移します")
                 // アラート表示後に自動で次へ進むため、少し待機
+                let floorMapId = self.currentFloorMapInfo?.id
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    flowNavigator.proceedToNextStep()
+                    flowNavigator.proceedToNextStep(floorMapId: floorMapId)
                 }
             } else {
                 print("⚠️ FlowNavigatorが設定されていないため、手動で次へ進んでください")

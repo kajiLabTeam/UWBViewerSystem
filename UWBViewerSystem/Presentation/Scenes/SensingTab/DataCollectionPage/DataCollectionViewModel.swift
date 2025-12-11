@@ -26,6 +26,11 @@ class DataCollectionViewModel: ObservableObject {
     @Published var activeAntennaIds = Set<String>() // アクティブなアンテナIDのセット
     @Published var totalDataPointCount = 0 // 全アンテナの総データポイント数
 
+    // タグ表示モード
+    @Published var tagDisplayMode: TagDisplayMode = .integrated // 統合表示をデフォルトに
+    @Published var centroidCoordinate: Point3D?
+    @Published var integratedTagCoordinates: [String: IntegratedTagPosition] = [:]
+
     #if canImport(UIKit)
         #if os(iOS)
             @Published var floorMapImage: UIImage?
@@ -136,6 +141,20 @@ class DataCollectionViewModel: ObservableObject {
         self.realtimeDataUsecase.$totalDataPointCount
             .sink { [weak self] value in
                 self?.totalDataPointCount = value
+            }
+            .store(in: &self.cancellables)
+
+        // 重心座標の購読
+        self.realtimeDataUsecase.$centroidCoordinate
+            .sink { [weak self] value in
+                self?.centroidCoordinate = value
+            }
+            .store(in: &self.cancellables)
+
+        // 統合タグ座標の購読
+        self.realtimeDataUsecase.$integratedTagCoordinates
+            .sink { [weak self] value in
+                self?.integratedTagCoordinates = value
             }
             .store(in: &self.cancellables)
     }

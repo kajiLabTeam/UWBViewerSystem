@@ -320,6 +320,10 @@ public class RealtimeDataUsecase: ObservableObject {
                 #if DEBUG
                     print("📍 グローバル座標変換成功: \(data.deviceName) → (\(globalCoord.x), \(globalCoord.y), \(globalCoord.z))")
                 #endif
+
+                // 重心座標と統合位置を更新
+                self.calculateCentroid()
+                self.updateIntegratedTagPositions()
             }
         }
     }
@@ -337,5 +341,174 @@ public class RealtimeDataUsecase: ObservableObject {
             }
             print("=== 全デバイス状況終了 ===")
         #endif
+    }
+
+    // MARK: - Centroid Calculation
+
+    /// 全デバイスの重心座標（NLOSを考慮した加重平均）
+    @Published var centroidCoordinate: Point3D?
+
+    /// タグごとの統合座標（複数アンテナからの観測を統合）
+    @Published var integratedTagCoordinates: [String: IntegratedTagPosition] = [:]
+
+    /// 重心座標を計算（NLOSの位置は優先度を下げる）
+    private func calculateCentroid() {
+        guard !self.globalCoordinates.isEmpty else {
+            self.centroidCoordinate = nil
+            return
+        }
+
+        var totalX = 0.0
+        var totalY = 0.0
+        var totalZ = 0.0
+        var totalWeight = 0.0
+
+        for (deviceName, coordinate) in self.globalCoordinates {
+            let deviceData = self.deviceRealtimeDataList.first { $0.deviceName == deviceName }
+            let isNLOS = (deviceData?.latestData?.nlos ?? 0) == 1
+
+            // NLOSの場合は重みを下げる（0.3）、LOSの場合は通常重み（1.0）
+            let weight = isNLOS ? 0.3 : 1.0
+
+            totalX += coordinate.x * weight
+            totalY += coordinate.y * weight
+            totalZ += coordinate.z * weight
+            totalWeight += weight
+        }
+
+        guard totalWeight > 0 else {
+            self.centroidCoordinate = nil
+            return
+        }
+
+        self.centroidCoordinate = Point3D(
+            x: totalX / totalWeight,
+            y: totalY / totalWeight,
+            z: totalZ / totalWeight
+        )
+
+        #if DEBUG
+            if let centroid = self.centroidCoordinate {
+                print("📍 重心座標計算: (\(centroid.x), \(centroid.y), \(centroid.z)) [総重み: \(totalWeight)]")
+            }
+        #endif
+    }
+
+    /// 統合タグ位置を更新
+    /// 全てのアンテナからの観測を1つのタグとして統合し、重心座標を計算する
+    /// NLOSの観測は除外し、NLOSしかない場合のみNLOSを使用する
+    private func updateIntegratedTagPositions() {
+        // 全ての観測を1つのタグとしてまとめる
+        var allObservations: [TagObservation] = []
+        let integratedTagId = "integrated_tag"
+
+        for (deviceName, coordinate) in self.globalCoordinates {
+            let deviceData = self.deviceRealtimeDataList.first { $0.deviceName == deviceName }
+            let isNLOS = (deviceData?.latestData?.nlos ?? 0) == 1
+            let antennaId = deviceData?.latestData?.antennaId ?? ""
+
+            let observation = TagObservation(
+                antennaId: antennaId,
+                deviceName: deviceName,
+                coordinate: coordinate,
+                isNLOS: isNLOS,
+                timestamp: deviceData?.lastUpdateTime ?? Date()
+            )
+
+            allObservations.append(observation)
+        }
+
+        guard !allObservations.isEmpty else {
+            self.integratedTagCoordinates = [:]
+            return
+        }
+
+        // 統合位置を計算（NLOSを除外、NLOSのみの場合はNLOSを使用）
+        let integrated = self.calculateIntegratedPosition(for: allObservations)
+
+        let integratedPosition = IntegratedTagPosition(
+            tagId: integratedTagId,
+            integratedCoordinate: integrated.coordinate,
+            confidence: integrated.confidence,
+            observations: allObservations,
+            hasNLOSOnly: allObservations.allSatisfy { $0.isNLOS }
+        )
+
+        self.integratedTagCoordinates = [integratedTagId: integratedPosition]
+
+        #if DEBUG
+            let losCount = allObservations.filter { !$0.isNLOS }.count
+            let nlosCount = allObservations.filter { $0.isNLOS }.count
+            print("📍 統合タグ位置更新: LOS=\(losCount), NLOS=\(nlosCount), 座標=(\(integrated.coordinate.x), \(integrated.coordinate.y), \(integrated.coordinate.z))")
+        #endif
+    }
+
+    /// デバイス名からタグIDを抽出
+    private func extractTagId(from deviceName: String) -> String {
+        deviceName
+    }
+
+    /// 座標が有効かどうかをチェック（0, 0, 0の場合は無効）
+    private func isValidCoordinate(_ coordinate: Point3D) -> Bool {
+        !(coordinate.x == 0 && coordinate.y == 0 && coordinate.z == 0)
+    }
+
+    /// 複数観測から統合位置を計算
+    /// NLOSの観測は使用しない。NLOSしかない場合のみNLOSを使用する。
+    /// 座標が(0, 0, 0)の観測は除外する。
+    private func calculateIntegratedPosition(
+        for observations: [TagObservation]
+    ) -> (coordinate: Point3D, confidence: Double) {
+        guard !observations.isEmpty else {
+            return (Point3D.zero, 0.0)
+        }
+
+        // 座標が(0, 0, 0)の観測を除外
+        let validObservations = observations.filter { self.isValidCoordinate($0.coordinate) }
+
+        guard !validObservations.isEmpty else {
+            #if DEBUG
+                print("⚠️ 有効な座標を持つ観測がありません（全て0,0,0）")
+            #endif
+            return (Point3D.zero, 0.0)
+        }
+
+        // LOSの観測のみをフィルタリング
+        let losObservations = validObservations.filter { !$0.isNLOS }
+
+        // NLOSしかない場合はNLOSを使用、それ以外はLOSのみを使用
+        let targetObservations = losObservations.isEmpty ? validObservations : losObservations
+        let usingNLOSOnly = losObservations.isEmpty
+
+        var totalX = 0.0
+        var totalY = 0.0
+        var totalZ = 0.0
+        let count = Double(targetObservations.count)
+
+        // 全ての観測に同じ重み（1.0）を使用して単純な重心を計算
+        for obs in targetObservations {
+            totalX += obs.coordinate.x
+            totalY += obs.coordinate.y
+            totalZ += obs.coordinate.z
+        }
+
+        let coordinate = Point3D(
+            x: totalX / count,
+            y: totalY / count,
+            z: totalZ / count
+        )
+
+        // 信頼度の計算
+        // LOSのみを使用している場合は高い信頼度、NLOSのみの場合は低い信頼度
+        let baseConfidence = usingNLOSOnly ? 0.3 : 0.8
+        let observationBonus = Double(min(targetObservations.count, 4)) / 4.0 * 0.2
+        let confidence = baseConfidence + observationBonus
+
+        #if DEBUG
+            let skippedCount = observations.count - validObservations.count
+            print("📊 統合位置計算: 使用観測数=\(targetObservations.count), スキップ(0,0,0)=\(skippedCount), NLOSのみ=\(usingNLOSOnly), 信頼度=\(confidence)")
+        #endif
+
+        return (coordinate, min(confidence, 1.0))
     }
 }

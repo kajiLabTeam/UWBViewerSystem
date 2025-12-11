@@ -151,56 +151,14 @@ struct DataCollectionView: View {
                         .position(screenPos)
                     }
 
-                    // タグのリアルタイム位置を表示
-                    ForEach(Array(self.viewModel.globalCoordinates.keys.sorted()), id: \.self) {
-                        deviceName in
-                        if let tagPos = self.viewModel.globalCoordinates[deviceName] {
-                            let normalizedPoint = canvasGeometry.realWorldToNormalized(
-                                CGPoint(x: tagPos.x, y: tagPos.y)
-                            )
-                            let screenPos = canvasGeometry.normalizedToImageCoordinate(normalizedPoint)
-
-                            // デバイスの最新データからNLOS値を取得
-                            let deviceData = self.viewModel.deviceRealtimeDataList.first { $0.deviceName == deviceName }
-                            let nlosValue = deviceData?.latestData?.nlos ?? 0
-                            let isNLOS = nlosValue == 1
-                            let dotColor = isNLOS ? Color.red : Color.blue
-
-                            ZStack {
-                                // パルスエフェクト（NLOS時は赤いパルス）
-                                Circle()
-                                    .stroke(dotColor.opacity(0.5), lineWidth: isNLOS ? 6 : 4)
-                                    .scaleEffect(isNLOS ? 2.5 : 2.0)
-                                    .opacity(isNLOS ? 0.5 : 0.3)
-
-                                // メインの円（NLOS時は赤）
-                                Circle()
-                                    .fill(dotColor)
-                                    .frame(width: isNLOS ? 20 : 16, height: isNLOS ? 20 : 16)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.white, lineWidth: 2)
-                                    )
-
-                                // NLOS警告アイコン
-                                if isNLOS {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.caption2)
-                                        .foregroundColor(.white)
-                                }
-
-                                // デバイス名ラベル（NLOS時は赤背景）
-                                Text(deviceName)
-                                    .font(.caption)
-                                    .foregroundColor(.white)
-                                    .padding(6)
-                                    .background(dotColor.opacity(0.9))
-                                    .cornerRadius(6)
-                                    .offset(x: 0, y: -25)
-                            }
-                            .position(screenPos)
-                            .animation(.easeInOut(duration: 0.3), value: screenPos)
-                        }
+                    // タグのリアルタイム位置を表示（表示モードに応じて切り替え）
+                    switch self.viewModel.tagDisplayMode {
+                    case .individual:
+                        // 個別表示モード: 各アンテナからの観測位置を全て表示
+                        self.individualTagPositions(canvasGeometry: canvasGeometry)
+                    case .integrated:
+                        // 統合表示モード: 重心位置のみを表示
+                        self.integratedTagPositions(canvasGeometry: canvasGeometry)
                     }
                 }
                 .ignoresSafeArea()
@@ -272,6 +230,35 @@ struct DataCollectionView: View {
 
     private var compactRealtimeDataDisplay: some View {
         VStack(spacing: 8) {
+            // 表示モード切り替えスイッチ
+            HStack {
+                Text("タグ表示:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Picker("", selection: self.$viewModel.tagDisplayMode) {
+                    ForEach(TagDisplayMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 160)
+
+                Spacer()
+
+                // 表示モードのヘルプアイコン
+                Menu {
+                    Text("個別表示: 各アンテナからの観測位置を全て表示")
+                    Text("統合表示: NLOSを考慮した重心位置を表示")
+                } label: {
+                    Image(systemName: "questionmark.circle")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Divider()
+
             HStack {
                 Circle()
                     .fill(Color.green)
@@ -841,6 +828,128 @@ struct DataCollectionView: View {
             }
 
             Spacer()
+        }
+    }
+
+    // MARK: - Tag Position Views
+
+    /// 個別表示モード: 各アンテナからの観測位置を全て表示
+    @ViewBuilder
+    private func individualTagPositions(canvasGeometry: FloorMapCanvasGeometry) -> some View {
+        ForEach(Array(self.viewModel.globalCoordinates.keys.sorted()), id: \.self) { deviceName in
+            if let tagPos = self.viewModel.globalCoordinates[deviceName] {
+                let normalizedPoint = canvasGeometry.realWorldToNormalized(
+                    CGPoint(x: tagPos.x, y: tagPos.y)
+                )
+                let screenPos = canvasGeometry.normalizedToImageCoordinate(normalizedPoint)
+
+                let deviceData = self.viewModel.deviceRealtimeDataList.first { $0.deviceName == deviceName }
+                let nlosValue = deviceData?.latestData?.nlos ?? 0
+                let isNLOS = nlosValue == 1
+                let dotColor = isNLOS ? Color.red : Color.blue
+
+                ZStack {
+                    Circle()
+                        .stroke(dotColor.opacity(0.5), lineWidth: isNLOS ? 6 : 4)
+                        .scaleEffect(isNLOS ? 2.5 : 2.0)
+                        .opacity(isNLOS ? 0.5 : 0.3)
+
+                    Circle()
+                        .fill(dotColor)
+                        .frame(width: isNLOS ? 20 : 16, height: isNLOS ? 20 : 16)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                        )
+
+                    if isNLOS {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.white)
+                    }
+
+                    Text(deviceName)
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(6)
+                        .background(dotColor.opacity(0.9))
+                        .cornerRadius(6)
+                        .offset(x: 0, y: -25)
+                }
+                .position(screenPos)
+                .animation(.easeInOut(duration: 0.3), value: screenPos)
+            }
+        }
+    }
+
+    /// 統合表示モード: NLOSを考慮した重心位置を表示
+    @ViewBuilder
+    private func integratedTagPositions(canvasGeometry: FloorMapCanvasGeometry) -> some View {
+        ForEach(Array(self.viewModel.integratedTagCoordinates.values), id: \.id) { integrated in
+            let normalizedPoint = canvasGeometry.realWorldToNormalized(
+                CGPoint(x: integrated.integratedCoordinate.x, y: integrated.integratedCoordinate.y)
+            )
+            let screenPos = canvasGeometry.normalizedToImageCoordinate(normalizedPoint)
+
+            // NLOSのみの場合は信頼度が低いことを示す
+            let dotColor: Color = integrated.hasNLOSOnly ? Color.orange : Color.green
+            let confidenceLevel = integrated.confidence
+
+            ZStack {
+                // 信頼度に応じたパルスエフェクト
+                Circle()
+                    .stroke(dotColor.opacity(0.4), lineWidth: 4)
+                    .scaleEffect(2.0 + (1.0 - confidenceLevel) * 0.5)
+                    .opacity(0.3 + confidenceLevel * 0.2)
+
+                // メインの円
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: 20, height: 20)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white, lineWidth: 2)
+                    )
+
+                // 信頼度インジケータ
+                if integrated.hasNLOSOnly {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.white)
+                } else if integrated.observations.count > 1 {
+                    Text("\(integrated.observations.count)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                }
+
+                // タグIDラベル
+                VStack(spacing: 2) {
+                    Text(integrated.tagId)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+
+                    // 観測情報
+                    HStack(spacing: 2) {
+                        if integrated.losCount > 0 {
+                            Text("L:\(integrated.losCount)")
+                                .font(.system(size: 8))
+                                .foregroundColor(.green)
+                        }
+                        if integrated.nlosCount > 0 {
+                            Text("N:\(integrated.nlosCount)")
+                                .font(.system(size: 8))
+                                .foregroundColor(.orange)
+                        }
+                    }
+                }
+                .foregroundColor(.white)
+                .padding(6)
+                .background(dotColor.opacity(0.9))
+                .cornerRadius(6)
+                .offset(x: 0, y: -35)
+            }
+            .position(screenPos)
+            .animation(.easeInOut(duration: 0.3), value: screenPos)
         }
     }
 }

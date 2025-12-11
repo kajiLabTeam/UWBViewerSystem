@@ -70,7 +70,8 @@ struct AntennaPositioningView: View {
                         FloatingControlPanel(
                             viewModel: self.viewModel,
                             flowNavigator: self.flowNavigator,
-                            isExpanded: self.$isControlPanelExpanded
+                            isExpanded: self.$isControlPanelExpanded,
+                            floorMapId: self.floorMapId
                         )
                         .frame(maxWidth: 450)
                     }
@@ -672,6 +673,9 @@ struct FloatingControlPanel: View {
     /// パネルの展開状態
     @Binding var isExpanded: Bool
 
+    /// フロアマップID
+    let floorMapId: String
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             self.headerView
@@ -767,7 +771,7 @@ struct FloatingControlPanel: View {
                 Button("次へ") {
                     let saveSuccess = self.viewModel.saveAntennaPositionsForFlow()
                     if saveSuccess {
-                        self.flowNavigator.proceedToNextStep()
+                        self.flowNavigator.proceedToNextStep(floorMapId: self.floorMapId)
                     }
                 }
                 .frame(maxWidth: .infinity)

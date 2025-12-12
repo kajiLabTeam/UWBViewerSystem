@@ -308,6 +308,8 @@ public class RealtimeDataUsecase: ObservableObject {
             return
         }
 
+        // 距離が0の場合でも座標変換は実行（個別表示用）
+        // ただし、重心と統合位置の計算からは除外される
         Task {
             if let globalCoord = await transformUsecase.transformToGlobalCoordinate(
                 distance: data.distance,
@@ -316,12 +318,14 @@ public class RealtimeDataUsecase: ObservableObject {
                 antennaId: data.antennaId,
                 floorMapId: floorMapId
             ) {
+                // 個別表示用: NLOS/LOS、有効/無効に関係なく全て保存
                 self.globalCoordinates[data.deviceName] = globalCoord
                 #if DEBUG
-                    print("📍 グローバル座標変換成功: \(data.deviceName) → (\(globalCoord.x), \(globalCoord.y), \(globalCoord.z))")
+                    let isValid = self.isValidCoordinate(globalCoord) && self.isValidDistance(data.distance)
+                    print("📍 グローバル座標変換成功: \(data.deviceName) → (\(globalCoord.x), \(globalCoord.y), \(globalCoord.z)) [有効=\(isValid)]")
                 #endif
 
-                // 重心座標と統合位置を更新
+                // 重心座標と統合位置を更新（ここで無効データは除外される）
                 self.calculateCentroid()
                 self.updateIntegratedTagPositions()
             }
@@ -345,67 +349,146 @@ public class RealtimeDataUsecase: ObservableObject {
 
     // MARK: - Centroid Calculation
 
-    /// 全デバイスの重心座標（NLOSを考慮した加重平均）
+    /// 全デバイスの重心座標（LOSを優先、フィルター適用後）
     @Published var centroidCoordinate: Point3D?
 
     /// タグごとの統合座標（複数アンテナからの観測を統合）
     @Published var integratedTagCoordinates: [String: IntegratedTagPosition] = [:]
 
-    /// 重心座標を計算（NLOSの位置は優先度を下げる）
+    /// ローパスフィルター用の前回値（重心用）
+    private var previousFilteredCentroid: Point3D?
+
+    /// ローパスフィルター用の前回値（統合タグ用）
+    private var previousFilteredIntegratedPosition: Point3D?
+
+    /// ローパスフィルターの平滑化係数（0.0〜1.0、小さいほど滑らか）
+    private let smoothingFactor: Double = 0.3
+
+    /// 重心座標を計算（LOSを優先、NLOSはLOSがない場合のみ使用）
     private func calculateCentroid() {
         guard !self.globalCoordinates.isEmpty else {
             self.centroidCoordinate = nil
+            self.previousFilteredCentroid = nil
             return
         }
 
+        // 有効な座標を持つデバイスをLOSとNLOSに分類
+        var losCoordinates: [(deviceName: String, coordinate: Point3D)] = []
+        var nlosCoordinates: [(deviceName: String, coordinate: Point3D)] = []
+
+        for (deviceName, coordinate) in self.globalCoordinates {
+            // 座標が(0, 0, 0)の場合はスキップ
+            guard self.isValidCoordinate(coordinate) else {
+                #if DEBUG
+                    print("⚠️ 重心計算: (0,0,0)座標をスキップ: \(deviceName)")
+                #endif
+                continue
+            }
+
+            // 距離が0mの場合はスキップ
+            let deviceData = self.deviceRealtimeDataList.first { $0.deviceName == deviceName }
+            guard let latestData = deviceData?.latestData, self.isValidDistance(latestData.distance) else {
+                #if DEBUG
+                    print("⚠️ 重心計算: 距離0mをスキップ: \(deviceName)")
+                #endif
+                continue
+            }
+
+            let isNLOS = latestData.nlos == 1
+
+            if isNLOS {
+                nlosCoordinates.append((deviceName, coordinate))
+            } else {
+                losCoordinates.append((deviceName, coordinate))
+            }
+        }
+
+        // LOSが1つでもあればLOSのみを使用、なければNLOSを使用
+        let targetCoordinates = losCoordinates.isEmpty ? nlosCoordinates : losCoordinates
+        let usingNLOS = losCoordinates.isEmpty
+
+        guard !targetCoordinates.isEmpty else {
+            self.centroidCoordinate = nil
+            self.previousFilteredCentroid = nil
+            return
+        }
+
+        // 単純な重心を計算（選択された座標群のみ）
         var totalX = 0.0
         var totalY = 0.0
         var totalZ = 0.0
-        var totalWeight = 0.0
 
-        for (deviceName, coordinate) in self.globalCoordinates {
-            let deviceData = self.deviceRealtimeDataList.first { $0.deviceName == deviceName }
-            let isNLOS = (deviceData?.latestData?.nlos ?? 0) == 1
-
-            // NLOSの場合は重みを下げる（0.3）、LOSの場合は通常重み（1.0）
-            let weight = isNLOS ? 0.3 : 1.0
-
-            totalX += coordinate.x * weight
-            totalY += coordinate.y * weight
-            totalZ += coordinate.z * weight
-            totalWeight += weight
+        for (_, coordinate) in targetCoordinates {
+            totalX += coordinate.x
+            totalY += coordinate.y
+            totalZ += coordinate.z
         }
 
-        guard totalWeight > 0 else {
-            self.centroidCoordinate = nil
-            return
-        }
-
-        self.centroidCoordinate = Point3D(
-            x: totalX / totalWeight,
-            y: totalY / totalWeight,
-            z: totalZ / totalWeight
+        let count = Double(targetCoordinates.count)
+        let rawCentroid = Point3D(
+            x: totalX / count,
+            y: totalY / count,
+            z: totalZ / count
         )
 
+        // ローパスフィルターを適用
+        let filteredCentroid = self.applyLowPassFilter(newValue: rawCentroid)
+        self.centroidCoordinate = filteredCentroid
+
         #if DEBUG
-            if let centroid = self.centroidCoordinate {
-                print("📍 重心座標計算: (\(centroid.x), \(centroid.y), \(centroid.z)) [総重み: \(totalWeight)]")
-            }
+            print("📍 重心座標計算: (\(filteredCentroid.x), \(filteredCentroid.y), \(filteredCentroid.z)) [LOS=\(losCoordinates.count), NLOS=\(nlosCoordinates.count), 使用=\(usingNLOS ? "NLOS" : "LOS")]")
         #endif
+    }
+
+    /// ローパスフィルター（指数移動平均）を適用
+    private func applyLowPassFilter(newValue: Point3D) -> Point3D {
+        guard let previous = previousFilteredCentroid else {
+            // 初回は新しい値をそのまま使用
+            self.previousFilteredCentroid = newValue
+            return newValue
+        }
+
+        // 指数移動平均: filtered = α * new + (1 - α) * previous
+        let filtered = Point3D(
+            x: self.smoothingFactor * newValue.x + (1 - self.smoothingFactor) * previous.x,
+            y: self.smoothingFactor * newValue.y + (1 - self.smoothingFactor) * previous.y,
+            z: self.smoothingFactor * newValue.z + (1 - self.smoothingFactor) * previous.z
+        )
+
+        self.previousFilteredCentroid = filtered
+        return filtered
     }
 
     /// 統合タグ位置を更新
     /// 全てのアンテナからの観測を1つのタグとして統合し、重心座標を計算する
     /// NLOSの観測は除外し、NLOSしかない場合のみNLOSを使用する
+    /// 距離が0mまたは座標が(0,0,0)の観測は除外する
     private func updateIntegratedTagPositions() {
-        // 全ての観測を1つのタグとしてまとめる
+        // 全ての観測を1つのタグとしてまとめる（有効なデータのみ）
         var allObservations: [TagObservation] = []
         let integratedTagId = "integrated_tag"
 
         for (deviceName, coordinate) in self.globalCoordinates {
             let deviceData = self.deviceRealtimeDataList.first { $0.deviceName == deviceName }
-            let isNLOS = (deviceData?.latestData?.nlos ?? 0) == 1
-            let antennaId = deviceData?.latestData?.antennaId ?? ""
+
+            // 距離が0mの場合はスキップ
+            guard let latestData = deviceData?.latestData, self.isValidDistance(latestData.distance) else {
+                #if DEBUG
+                    print("⚠️ 統合位置計算: 距離0mをスキップ: \(deviceName)")
+                #endif
+                continue
+            }
+
+            // 座標が(0,0,0)の場合はスキップ
+            guard self.isValidCoordinate(coordinate) else {
+                #if DEBUG
+                    print("⚠️ 統合位置計算: (0,0,0)座標をスキップ: \(deviceName)")
+                #endif
+                continue
+            }
+
+            let isNLOS = latestData.nlos == 1
+            let antennaId = latestData.antennaId
 
             let observation = TagObservation(
                 antennaId: antennaId,
@@ -420,15 +503,19 @@ public class RealtimeDataUsecase: ObservableObject {
 
         guard !allObservations.isEmpty else {
             self.integratedTagCoordinates = [:]
+            self.previousFilteredIntegratedPosition = nil
             return
         }
 
         // 統合位置を計算（NLOSを除外、NLOSのみの場合はNLOSを使用）
         let integrated = self.calculateIntegratedPosition(for: allObservations)
 
+        // ローパスフィルターを適用
+        let filteredCoordinate = self.applyIntegratedPositionFilter(newValue: integrated.coordinate)
+
         let integratedPosition = IntegratedTagPosition(
             tagId: integratedTagId,
-            integratedCoordinate: integrated.coordinate,
+            integratedCoordinate: filteredCoordinate,
             confidence: integrated.confidence,
             observations: allObservations,
             hasNLOSOnly: allObservations.allSatisfy { $0.isNLOS }
@@ -439,8 +526,33 @@ public class RealtimeDataUsecase: ObservableObject {
         #if DEBUG
             let losCount = allObservations.filter { !$0.isNLOS }.count
             let nlosCount = allObservations.filter { $0.isNLOS }.count
-            print("📍 統合タグ位置更新: LOS=\(losCount), NLOS=\(nlosCount), 座標=(\(integrated.coordinate.x), \(integrated.coordinate.y), \(integrated.coordinate.z))")
+            print("📍 統合タグ位置更新: LOS=\(losCount), NLOS=\(nlosCount), 座標=(\(filteredCoordinate.x), \(filteredCoordinate.y), \(filteredCoordinate.z))")
         #endif
+    }
+
+    /// 統合タグ位置用のローパスフィルターを適用
+    private func applyIntegratedPositionFilter(newValue: Point3D) -> Point3D {
+        // 無効な座標の場合はフィルターをリセット
+        guard self.isValidCoordinate(newValue) else {
+            self.previousFilteredIntegratedPosition = nil
+            return newValue
+        }
+
+        guard let previous = previousFilteredIntegratedPosition else {
+            // 初回は新しい値をそのまま使用
+            self.previousFilteredIntegratedPosition = newValue
+            return newValue
+        }
+
+        // 指数移動平均: filtered = α * new + (1 - α) * previous
+        let filtered = Point3D(
+            x: self.smoothingFactor * newValue.x + (1 - self.smoothingFactor) * previous.x,
+            y: self.smoothingFactor * newValue.y + (1 - self.smoothingFactor) * previous.y,
+            z: self.smoothingFactor * newValue.z + (1 - self.smoothingFactor) * previous.z
+        )
+
+        self.previousFilteredIntegratedPosition = filtered
+        return filtered
     }
 
     /// デバイス名からタグIDを抽出
@@ -451,6 +563,11 @@ public class RealtimeDataUsecase: ObservableObject {
     /// 座標が有効かどうかをチェック（0, 0, 0の場合は無効）
     private func isValidCoordinate(_ coordinate: Point3D) -> Bool {
         !(coordinate.x == 0 && coordinate.y == 0 && coordinate.z == 0)
+    }
+
+    /// 距離が有効かどうかをチェック（0mの場合は無効）
+    private func isValidDistance(_ distance: Double) -> Bool {
+        distance > 0
     }
 
     /// 複数観測から統合位置を計算
@@ -500,7 +617,7 @@ public class RealtimeDataUsecase: ObservableObject {
 
         // 信頼度の計算
         // LOSのみを使用している場合は高い信頼度、NLOSのみの場合は低い信頼度
-        let baseConfidence = usingNLOSOnly ? 0.3 : 0.8
+        let baseConfidence = usingNLOSOnly ? 0.2 : 0.8
         let observationBonus = Double(min(targetObservations.count, 4)) / 4.0 * 0.2
         let confidence = baseConfidence + observationBonus
 

@@ -22,24 +22,36 @@ public struct SensorDataProcessingConfig {
     /// nLoSフィルタを適用するか
     public let filterNLOS: Bool
 
+    /// IQR外れ値検出を適用するか
+    public let useIQROutlierDetection: Bool
+
+    /// IQR係数（デフォルト1.5）
+    public let iqrMultiplier: Double
+
     /// デフォルト設定
     public static let `default` = SensorDataProcessingConfig(
         firstTrim: 20,
         endTrim: 20,
         movingAverageWindowSize: 10,
-        filterNLOS: false
+        filterNLOS: false,
+        useIQROutlierDetection: true,
+        iqrMultiplier: 1.5
     )
 
     public init(
         firstTrim: Int = 20,
         endTrim: Int = 20,
         movingAverageWindowSize: Int = 10,
-        filterNLOS: Bool = false
+        filterNLOS: Bool = false,
+        useIQROutlierDetection: Bool = true,
+        iqrMultiplier: Double = 1.5
     ) {
         self.firstTrim = firstTrim
         self.endTrim = endTrim
         self.movingAverageWindowSize = movingAverageWindowSize
         self.filterNLOS = filterNLOS
+        self.useIQROutlierDetection = useIQROutlierDetection
+        self.iqrMultiplier = iqrMultiplier
     }
 }
 
@@ -61,10 +73,14 @@ public struct SensorDataProcessor {
         // 1. データのトリミング
         let trimmed = self.trimData(observations)
 
-        // 2. nLoSフィルタリング（設定で有効な場合）
-        let filtered = self.config.filterNLOS ? self.filterNLOS(trimmed) : trimmed
+        // 2. IQR外れ値検出（設定で有効な場合）
+        let outlierRemoved =
+            self.config.useIQROutlierDetection ? self.removeOutliersUsingIQR(trimmed) : trimmed
 
-        // 3. 移動平均フィルタを適用
+        // 3. nLoSフィルタリング（設定で有効な場合）
+        let filtered = self.config.filterNLOS ? self.filterNLOS(outlierRemoved) : outlierRemoved
+
+        // 4. 移動平均フィルタを適用
         let smoothed = self.applyMovingAverage(filtered)
 
         return smoothed
@@ -119,6 +135,53 @@ public struct SensorDataProcessor {
     /// - Returns: nLoSでない観測データポイントのリスト
     private func filterNLOS(_ observations: [ObservationPoint]) -> [ObservationPoint] {
         observations.filter { $0.quality.isLineOfSight }
+    }
+
+    /// IQR（四分位範囲）法を使用して外れ値を除去する
+    /// - Parameter observations: 観測データポイントのリスト
+    /// - Returns: 外れ値を除去した観測データポイントのリスト
+    private func removeOutliersUsingIQR(_ observations: [ObservationPoint]) -> [ObservationPoint] {
+        guard observations.count >= 4 else {
+            // IQR計算には最低4点必要
+            return observations
+        }
+
+        // X座標とY座標それぞれでIQRを計算
+        let xValues = observations.map { $0.position.x }.sorted()
+        let yValues = observations.map { $0.position.y }.sorted()
+
+        let xBounds = self.calculateIQRBounds(xValues)
+        let yBounds = self.calculateIQRBounds(yValues)
+
+        // XとY両方が範囲内のデータのみを保持
+        return observations.filter { obs in
+            let xInRange = obs.position.x >= xBounds.lower && obs.position.x <= xBounds.upper
+            let yInRange = obs.position.y >= yBounds.lower && obs.position.y <= yBounds.upper
+            return xInRange && yInRange
+        }
+    }
+
+    /// IQR法による上下限値を計算する
+    /// - Parameter sortedValues: ソート済みの値の配列
+    /// - Returns: 下限値と上限値のタプル
+    private func calculateIQRBounds(_ sortedValues: [Double]) -> (lower: Double, upper: Double) {
+        let count = sortedValues.count
+
+        // Q1（第1四分位数）とQ3（第3四分位数）を計算
+        let q1Index = count / 4
+        let q3Index = (count * 3) / 4
+
+        let q1 = sortedValues[q1Index]
+        let q3 = sortedValues[q3Index]
+
+        // IQR（四分位範囲）
+        let iqr = q3 - q1
+
+        // 上下限を計算（係数はconfig.iqrMultiplier）
+        let lowerBound = q1 - self.config.iqrMultiplier * iqr
+        let upperBound = q3 + self.config.iqrMultiplier * iqr
+
+        return (lowerBound, upperBound)
     }
 
     /// 移動平均フィルタを適用する

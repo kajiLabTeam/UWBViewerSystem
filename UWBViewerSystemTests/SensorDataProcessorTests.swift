@@ -265,6 +265,163 @@ struct SensorDataProcessorTests {
         #expect(smoothed[4].y == 3.0)
     }
 
+    // MARK: - IQR Outlier Detection Tests
+
+    @Test("IQR外れ値検出が正しく動作する")
+    func iqrOutlierDetection() {
+        let config = SensorDataProcessingConfig(
+            firstTrim: 0,
+            endTrim: 0,
+            movingAverageWindowSize: 1,  // 移動平均無効化
+            filterNLOS: false,
+            useIQROutlierDetection: true,
+            iqrMultiplier: 1.5
+        )
+        let processor = SensorDataProcessor(config: config)
+
+        // 正常データと外れ値を含むデータを作成
+        var observations: [ObservationPoint] = []
+
+        // 正常データ（0〜10の範囲）
+        for i in 0..<20 {
+            observations.append(ObservationPoint(
+                id: "obs_\(i)",
+                antennaId: "antenna1",
+                position: Point3D(x: Double(i % 10), y: Double(i % 10), z: 0),
+                timestamp: Date(),
+                quality: SignalQuality(
+                    strength: 0.8,
+                    isLineOfSight: true,
+                    confidenceLevel: 0.9,
+                    errorEstimate: 0.1
+                ),
+                distance: Double(i),
+                rssi: -50.0,
+                sessionId: "session1"
+            ))
+        }
+
+        // 外れ値を追加（大きく離れた位置）
+        observations.append(ObservationPoint(
+            id: "outlier_1",
+            antennaId: "antenna1",
+            position: Point3D(x: 100.0, y: 100.0, z: 0),  // 明らかな外れ値
+            timestamp: Date(),
+            quality: SignalQuality(
+                strength: 0.8,
+                isLineOfSight: true,
+                confidenceLevel: 0.9,
+                errorEstimate: 0.1
+            ),
+            distance: 10.0,
+            rssi: -50.0,
+            sessionId: "session1"
+        ))
+
+        let processed = processor.processObservations(observations)
+
+        // 外れ値が除去されているはず
+        #expect(processed.count < observations.count)
+
+        // 外れ値が含まれていないことを確認
+        for obs in processed {
+            #expect(obs.position.x < 50.0)
+            #expect(obs.position.y < 50.0)
+        }
+    }
+
+    @Test("IQR外れ値検出が無効の場合、外れ値も残る")
+    func iqrOutlierDetectionDisabled() {
+        let config = SensorDataProcessingConfig(
+            firstTrim: 0,
+            endTrim: 0,
+            movingAverageWindowSize: 1,
+            filterNLOS: false,
+            useIQROutlierDetection: false
+        )
+        let processor = SensorDataProcessor(config: config)
+
+        var observations: [ObservationPoint] = []
+
+        // 正常データ
+        for i in 0..<10 {
+            observations.append(ObservationPoint(
+                id: "obs_\(i)",
+                antennaId: "antenna1",
+                position: Point3D(x: Double(i), y: Double(i), z: 0),
+                timestamp: Date(),
+                quality: SignalQuality(
+                    strength: 0.8,
+                    isLineOfSight: true,
+                    confidenceLevel: 0.9,
+                    errorEstimate: 0.1
+                ),
+                distance: Double(i),
+                rssi: -50.0,
+                sessionId: "session1"
+            ))
+        }
+
+        // 外れ値
+        observations.append(ObservationPoint(
+            id: "outlier",
+            antennaId: "antenna1",
+            position: Point3D(x: 100.0, y: 100.0, z: 0),
+            timestamp: Date(),
+            quality: SignalQuality(
+                strength: 0.8,
+                isLineOfSight: true,
+                confidenceLevel: 0.9,
+                errorEstimate: 0.1
+            ),
+            distance: 10.0,
+            rssi: -50.0,
+            sessionId: "session1"
+        ))
+
+        let processed = processor.processObservations(observations)
+
+        // フィルタが無効なので全データが残る
+        #expect(processed.count == observations.count)
+    }
+
+    @Test("データ数が少ない場合、IQR外れ値検出はスキップされる")
+    func iqrOutlierDetectionInsufficientData() {
+        let config = SensorDataProcessingConfig(
+            firstTrim: 0,
+            endTrim: 0,
+            movingAverageWindowSize: 1,
+            filterNLOS: false,
+            useIQROutlierDetection: true
+        )
+        let processor = SensorDataProcessor(config: config)
+
+        // 3個のデータ（IQR計算に必要な4点未満）
+        var observations: [ObservationPoint] = []
+        for i in 0..<3 {
+            observations.append(ObservationPoint(
+                id: "obs_\(i)",
+                antennaId: "antenna1",
+                position: Point3D(x: Double(i), y: Double(i), z: 0),
+                timestamp: Date(),
+                quality: SignalQuality(
+                    strength: 0.8,
+                    isLineOfSight: true,
+                    confidenceLevel: 0.9,
+                    errorEstimate: 0.1
+                ),
+                distance: Double(i),
+                rssi: -50.0,
+                sessionId: "session1"
+            ))
+        }
+
+        let processed = processor.processObservations(observations)
+
+        // データが少ないのでそのまま返る
+        #expect(processed.count == observations.count)
+    }
+
     // MARK: - Integration Tests
 
     @Test("完全な処理パイプラインが正しく動作する")

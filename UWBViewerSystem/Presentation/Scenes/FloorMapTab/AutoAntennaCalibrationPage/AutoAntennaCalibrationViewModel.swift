@@ -8,6 +8,25 @@ import SwiftData
     import AppKit
 #endif
 
+/// アンテナ別信号品質表示用データ
+struct SignalQualityDisplay: Equatable {
+    let averageRSSI: Double
+    let losPercentage: Double
+    let averageStrength: Double
+    let dataPointCount: Int
+
+    /// 品質レベル（0: 悪い, 1: 普通, 2: 良い）
+    var qualityLevel: Int {
+        if self.averageStrength >= 0.7 && self.losPercentage >= 70 {
+            return 2  // 良い
+        } else if self.averageStrength >= 0.4 && self.losPercentage >= 40 {
+            return 1  // 普通
+        } else {
+            return 0  // 悪い
+        }
+    }
+}
+
 /// 自動アンテナキャリブレーション画面のViewModel
 @MainActor
 class AutoAntennaCalibrationViewModel: ObservableObject {
@@ -84,6 +103,23 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     /// キャリブレーション前の現在のアンテナ位置
     @Published var originalAntennaPosition: AntennaPositionData?
+
+    // MARK: - Real-time Feedback Properties
+
+    /// センシング経過時間（秒）
+    @Published var sensingElapsedTime: Double = 0.0
+
+    /// 現在のデータポイント数
+    @Published var currentDataPointCount: Int = 0
+
+    /// リアルタイムRMSE推定値（計算可能な場合）
+    @Published var currentRMSEEstimate: Double?
+
+    /// アンテナ別信号品質情報
+    @Published var signalQualityByAntenna: [String: SignalQualityDisplay] = [:]
+
+    /// センシング時間（秒）
+    let sensingDuration: Double = 10.0
 
     // MARK: - Dependencies
 
@@ -674,31 +710,70 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             // センシング中のデータポイントをクリア
             self.currentSensingDataPoints.removeAll()
 
+            // リアルタイムフィードバック用変数をリセット
+            self.sensingElapsedTime = 0.0
+            self.currentDataPointCount = 0
+            self.currentRMSEEstimate = nil
+            self.signalQualityByAntenna.removeAll()
+
             // センシング開始コマンドを送信
             sensingControl.startRemoteSensing(fileName: sessionName)
 
-            // 10秒間データ収集（リアルタイム更新）
+            // データ収集（リアルタイム更新）
             let startTime = Date()
-            while Date().timeIntervalSince(startTime) < 10.0 {
+            while Date().timeIntervalSince(startTime) < self.sensingDuration {
                 // 0.5秒ごとにデータを更新
                 try await Task.sleep(nanoseconds: 500_000_000)
 
-                // リアルタイムデータから座標を取得してマップに表示
+                // 経過時間を更新
+                self.sensingElapsedTime = Date().timeIntervalSince(startTime)
+
+                // リアルタイムデータから座標と品質情報を取得
                 if let realtimeUsecase = realtimeDataUsecase {
                     var tempDataPoints: [Point3D] = []
-                    for deviceData in realtimeUsecase.deviceRealtimeDataList {
-                        guard deviceData.isActive, let latestData = deviceData.latestData else { continue }
+                    var qualityByAntenna: [String: SignalQualityDisplay] = [:]
 
-                        let position = self.calculatePosition(
-                            distance: latestData.distance,
-                            elevation: latestData.elevation,
-                            azimuth: latestData.azimuth
-                        )
-                        tempDataPoints.append(position)
+                    for deviceData in realtimeUsecase.deviceRealtimeDataList {
+                        guard deviceData.isActive else { continue }
+
+                        // 最新データからマップ表示用座標を取得
+                        if let latestData = deviceData.latestData {
+                            let position = self.calculatePosition(
+                                distance: latestData.distance,
+                                elevation: latestData.elevation,
+                                azimuth: latestData.azimuth
+                            )
+                            tempDataPoints.append(position)
+                        }
+
+                        // データ履歴から信号品質を集計
+                        let history = deviceData.dataHistory
+                        if !history.isEmpty {
+                            let avgRSSI = history.map { $0.rssi }.reduce(0, +) / Double(history.count)
+                            // nlos == 0 が LoS (Line of Sight)
+                            let losCount = history.filter { $0.nlos == 0 }.count
+                            let losPercentage = Double(losCount) / Double(history.count) * 100
+                            // RSSIを信号強度の指標として使用（-100dBm〜0dBmを0〜1に正規化）
+                            let avgStrength = min(1.0, max(0.0, (avgRSSI + 100) / 100))
+
+                            qualityByAntenna[deviceData.deviceName] = SignalQualityDisplay(
+                                averageRSSI: avgRSSI,
+                                losPercentage: losPercentage,
+                                averageStrength: avgStrength,
+                                dataPointCount: history.count
+                            )
+                        }
                     }
+
                     self.currentSensingDataPoints = tempDataPoints
+                    self.signalQualityByAntenna = qualityByAntenna
+                    self.currentDataPointCount = qualityByAntenna.values.map { $0.dataPointCount }.reduce(
+                        0, +)
                 }
             }
+
+            // センシング完了時の経過時間を最終値に設定
+            self.sensingElapsedTime = self.sensingDuration
 
             // センシング停止
             sensingControl.stopRemoteSensing()

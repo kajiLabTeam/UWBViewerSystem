@@ -559,18 +559,9 @@ struct FloatingCalibrationControlPanel: View {
                     .background(currentTag.isCollected ? Color.green.opacity(0.1) : Color.blue.opacity(0.1))
                     .cornerRadius(6)
 
-                    // センシング中のインジケーター
+                    // センシング中の詳細フィードバック
                     if self.viewModel.isCollecting {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("センシング中...")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(8)
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(6)
+                        self.sensingDetailPanel
                     }
 
                     // センシング開始ボタン
@@ -668,6 +659,148 @@ struct FloatingCalibrationControlPanel: View {
                 .background(Color.secondary.opacity(0.05))
                 .cornerRadius(6)
             }
+        }
+    }
+
+    // MARK: - Sensing Detail Panel
+
+    /// センシング中の詳細フィードバックパネル
+    private var sensingDetailPanel: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // ヘッダー
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("センシング中...")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.green)
+            }
+
+            // 経過時間プログレスバー
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("経過時間")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(
+                        "\(String(format: "%.1f", self.viewModel.sensingElapsedTime))秒 / \(String(format: "%.0f", self.viewModel.sensingDuration))秒"
+                    )
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                }
+
+                ProgressView(
+                    value: self.viewModel.sensingElapsedTime,
+                    total: self.viewModel.sensingDuration
+                )
+                .progressViewStyle(LinearProgressViewStyle(tint: .green))
+            }
+
+            // データポイント数
+            HStack {
+                Image(systemName: "chart.dots.scatter")
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+                Text("データポイント数:")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("\(self.viewModel.currentDataPointCount)個")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+            }
+
+            // RMSE推定（表示可能な場合）
+            if let rmse = self.viewModel.currentRMSEEstimate {
+                HStack {
+                    Image(systemName: "ruler")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    Text("RMSE推定:")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(String(format: "%.3f", rmse))m")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                }
+            }
+
+            // 信号品質（アンテナ別）
+            if !self.viewModel.signalQualityByAntenna.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("信号品質")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+
+                    ForEach(
+                        Array(self.viewModel.signalQualityByAntenna.keys.sorted()), id: \.self
+                    ) { antennaId in
+                        if let quality = self.viewModel.signalQualityByAntenna[antennaId] {
+                            self.antennaSignalQualityRow(antennaId: antennaId, quality: quality)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(Color.green.opacity(0.1))
+        .cornerRadius(8)
+    }
+
+    /// アンテナ別信号品質行
+    @ViewBuilder
+    private func antennaSignalQualityRow(antennaId: String, quality: SignalQualityDisplay) -> some View
+    {
+        HStack(spacing: 6) {
+            // 品質インジケーター
+            Circle()
+                .fill(self.qualityColor(for: quality.qualityLevel))
+                .frame(width: 8, height: 8)
+
+            // アンテナ名
+            Text(antennaId)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .frame(width: 60, alignment: .leading)
+
+            Spacer()
+
+            // RSSI
+            HStack(spacing: 2) {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .font(.system(size: 8))
+                Text("\(String(format: "%.0f", quality.averageRSSI))dBm")
+                    .font(.system(size: 9))
+            }
+            .foregroundColor(.secondary)
+
+            // LoS率
+            HStack(spacing: 2) {
+                Image(systemName: quality.losPercentage >= 50 ? "eye.fill" : "eye.slash.fill")
+                    .font(.system(size: 8))
+                Text("\(String(format: "%.0f", quality.losPercentage))%")
+                    .font(.system(size: 9))
+            }
+            .foregroundColor(quality.losPercentage >= 50 ? .green : .orange)
+
+            // データ数
+            Text("\(quality.dataPointCount)")
+                .font(.system(size: 9))
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// 品質レベルに応じた色を返す
+    private func qualityColor(for level: Int) -> Color {
+        switch level {
+        case 2: return .green
+        case 1: return .orange
+        default: return .red
         }
     }
 

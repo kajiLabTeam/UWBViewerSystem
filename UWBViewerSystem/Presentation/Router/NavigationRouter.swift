@@ -58,6 +58,8 @@ struct NavigationRouter: View {
             AntennaPositioningView(floorMapId: floorMapId)
         case .systemCalibration(let floorMapId):
             AutoAntennaCalibrationView(floorMapId: floorMapId)
+        case .walkThroughCalibration(let floorMapId):
+            WalkThroughCalibrationView(floorMapId: floorMapId)
         case .trajectoryView:
             TrajectoryView()
         case .welcomePage:

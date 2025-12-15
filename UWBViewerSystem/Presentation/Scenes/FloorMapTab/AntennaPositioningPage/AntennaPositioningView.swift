@@ -663,6 +663,7 @@ struct FloatingDeviceListPanel: View {
 /// - リセットボタン
 /// - キャリブレーション結果表示ボタン
 /// - 前のステップ/次のステップへの遷移ボタン
+/// - Walk-throughキャリブレーションへの遷移ボタン
 struct FloatingControlPanel: View {
     /// アンテナ位置設定のViewModel
     @ObservedObject var viewModel: AntennaPositioningViewModel
@@ -675,6 +676,9 @@ struct FloatingControlPanel: View {
 
     /// フロアマップID
     let floorMapId: String
+
+    /// ナビゲーションルーター
+    @EnvironmentObject var router: NavigationRouterModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

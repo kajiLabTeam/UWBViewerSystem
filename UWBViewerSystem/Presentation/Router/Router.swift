@@ -16,6 +16,7 @@ enum Route: Hashable {
     case floorMapSetting  // フロアマップ設定
     case antennaConfiguration(floorMapId: String)  // アンテナ設定（向き設定機能付き）
     case systemCalibration(floorMapId: String)  // システムキャリブレーション（自動アンテナキャリブレーション）
+    case walkThroughCalibration(floorMapId: String)  // Walk-throughキャリブレーション（歩行軌跡ベース）
     case trajectoryView  // センシングデータの軌跡確認
 
     // メイン機能画面

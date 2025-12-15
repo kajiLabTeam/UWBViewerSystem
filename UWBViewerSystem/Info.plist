@@ -15,5 +15,7 @@
 	<true/>
 	<key>UISupportsDocumentBrowser</key>
 	<true/>
+	<key>NSMotionUsageDescription</key>
+	<string>Walk-throughキャリブレーションのために、iPadの動きを検出します。</string>
 </dict>
 </plist>

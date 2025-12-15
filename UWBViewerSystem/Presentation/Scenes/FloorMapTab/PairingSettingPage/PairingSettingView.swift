@@ -210,6 +210,39 @@ struct PairingSettingView: View {
         VStack(spacing: 12) {
             Divider()
 
+            // キャリブレーション方法選択の説明
+            if self.viewModel.canProceedToNext {
+                VStack(spacing: 4) {
+                    Text("キャリブレーション方法を選択")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+
+                    Text("タグ配置: タグを配置してキャリブレーション / Walk-through: 歩いてキャリブレーション")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+            }
+
+            // Walk-throughキャリブレーションボタン
+            Button(action: {
+                _ = self.viewModel.savePairingForFlow()
+                self.router.push(.walkThroughCalibration(floorMapId: self.floorMapId))
+            }) {
+                HStack {
+                    Image(systemName: "figure.walk")
+                    Text("Walk-throughキャリブレーション")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.white)
+                .background(self.viewModel.canProceedToNext ? Color.orange : Color.gray)
+                .cornerRadius(8)
+            }
+            .disabled(!self.viewModel.canProceedToNext)
+            .padding(.horizontal)
+
             HStack(spacing: 16) {
                 Button("戻る") {
                     self.flowNavigator.goToPreviousStep()
@@ -220,7 +253,7 @@ struct PairingSettingView: View {
                 .background(Color.secondary.opacity(0.1))
                 .cornerRadius(8)
 
-                Button("次へ") {
+                Button("タグ配置キャリブレーション") {
                     self.viewModel.saveAndProceedToNextStep(flowNavigator: self.flowNavigator)
                 }
                 .frame(maxWidth: .infinity)

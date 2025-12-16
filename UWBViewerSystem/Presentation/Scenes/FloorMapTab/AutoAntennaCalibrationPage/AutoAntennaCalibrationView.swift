@@ -673,7 +673,7 @@ struct FloatingCalibrationControlPanel: View {
                 Text("センシング中...")
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.green)
+                    .foregroundColor(self.viewModel.hasSuspiciousDataDuringSensing ? .red : .green)
             }
 
             // 経過時間プログレスバー
@@ -694,7 +694,27 @@ struct FloatingCalibrationControlPanel: View {
                     value: self.viewModel.sensingElapsedTime,
                     total: self.viewModel.sensingDuration
                 )
-                .progressViewStyle(LinearProgressViewStyle(tint: .green))
+                .progressViewStyle(
+                    LinearProgressViewStyle(
+                        tint: self.viewModel.hasSuspiciousDataDuringSensing ? .red : .green))
+            }
+
+            // (0,0)データ検出警告
+            if self.viewModel.hasSuspiciousDataDuringSensing {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                    Text(
+                        "(0,0)付近のデータ: \(self.viewModel.suspiciousZeroDataCount)件検出"
+                    )
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.red)
+                }
+                .padding(6)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(4)
             }
 
             // データポイント数
@@ -746,7 +766,8 @@ struct FloatingCalibrationControlPanel: View {
             }
         }
         .padding(10)
-        .background(Color.green.opacity(0.1))
+        .background(
+            (self.viewModel.hasSuspiciousDataDuringSensing ? Color.red : Color.green).opacity(0.1))
         .cornerRadius(8)
     }
 
@@ -858,6 +879,31 @@ struct FloatingCalibrationControlPanel: View {
                     .padding(8)
                     .background(Color.green.opacity(0.1))
                     .cornerRadius(6)
+
+                    // キャリブレーション結果の警告表示
+                    if self.viewModel.hasCalibrationWarning,
+                        let warningMessage = self.viewModel.calibrationWarningMessage
+                    {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+
+                                Text("警告")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.orange)
+                            }
+
+                            Text(warningMessage)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(6)
+                    }
 
                     // 次のアンテナへ進むボタン
                     if self.viewModel.hasMoreAntennas {

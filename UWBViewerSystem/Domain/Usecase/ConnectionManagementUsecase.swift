@@ -207,6 +207,11 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
         self.antennaPairings[antennaId]
     }
 
+    /// デバイス名からエンドポイントIDを取得
+    public func getEndpointId(for deviceName: String) -> String? {
+        self.endpointToDeviceNameMap.first { $0.value == deviceName }?.key
+    }
+
     /// ペアリングされているかつ接続中のアンテナIDリストを取得
     public func getConnectedAntennaIds() -> [String] {
         self.antennaPairings.compactMap { antennaId, deviceName in

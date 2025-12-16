@@ -118,8 +118,22 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     /// アンテナ別信号品質情報
     @Published var signalQualityByAntenna: [String: SignalQualityDisplay] = [:]
 
+    /// センシング中に(0,0)付近のデータが検出された数
+    @Published var suspiciousZeroDataCount: Int = 0
+
     /// センシング時間（秒）
     let sensingDuration: Double = 10.0
+
+    /// センシング中に(0,0)付近の疑わしいデータが検出されているかどうか
+    var hasSuspiciousDataDuringSensing: Bool {
+        suspiciousZeroDataCount > 0
+    }
+
+    /// センシング中のデータ品質警告メッセージ
+    var sensingDataWarningMessage: String? {
+        guard hasSuspiciousDataDuringSensing else { return nil }
+        return "(0,0)付近のデータが\(suspiciousZeroDataCount)件検出されました。センサーの接続状態を確認してください。"
+    }
 
     // MARK: - Dependencies
 
@@ -198,6 +212,45 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     var allTagPositionsCollected: Bool {
         self.trueTagPositions.allSatisfy { $0.isCollected }
+    }
+
+    /// キャリブレーション結果が問題のある状態かどうかを判定
+    /// (0, 0) 付近の位置は明らかに異常な結果
+    var hasCalibrationWarning: Bool {
+        guard let result = currentAntennaResult else { return false }
+        return isPositionSuspicious(result.position)
+    }
+
+    /// キャリブレーション結果の警告メッセージ
+    var calibrationWarningMessage: String? {
+        guard let result = currentAntennaResult else { return nil }
+
+        var warnings: [String] = []
+
+        // 位置が (0, 0) 付近の場合
+        if isPositionSuspicious(result.position) {
+            warnings.append("推定位置が原点(0,0)付近です。データ収集に問題がある可能性があります。")
+        }
+
+        // RMSEが異常に高い場合
+        if result.rmse > 1.0 {
+            warnings.append("RMSE値が高すぎます。測定データの品質を確認してください。")
+        }
+
+        // スケールファクターが異常な場合
+        if result.scaleFactors.sx < 0.1 || result.scaleFactors.sx > 10.0 ||
+            result.scaleFactors.sy < 0.1 || result.scaleFactors.sy > 10.0
+        {
+            warnings.append("スケールファクターが異常です。キャリブレーションデータに問題がある可能性があります。")
+        }
+
+        return warnings.isEmpty ? nil : warnings.joined(separator: "\n")
+    }
+
+    /// 位置が疑わしい（原点付近）かどうかを判定
+    private func isPositionSuspicious(_ position: Point3D) -> Bool {
+        let threshold: Double = 0.01  // 1cm以内は (0, 0) とみなす
+        return abs(position.x) < threshold && abs(position.y) < threshold
     }
 
     // MARK: - Types
@@ -715,9 +768,39 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             self.currentDataPointCount = 0
             self.currentRMSEEstimate = nil
             self.signalQualityByAntenna.removeAll()
+            self.suspiciousZeroDataCount = 0
 
-            // センシング開始コマンドを送信
-            sensingControl.startRemoteSensing(fileName: sessionName)
+            // 選択中のアンテナに紐づいたデバイス名を取得
+            guard let targetDeviceName = ConnectionManagementUsecase.shared.getDeviceName(for: antennaId)
+            else {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -2,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "アンテナ \(antennaId) に紐づいたデバイスが見つかりません。ペアリング設定を確認してください。"
+                    ]
+                )
+            }
+
+            // 選択中のアンテナに紐づいたデバイスのみにセンシング開始コマンドを送信
+            let sensingStarted = sensingControl.startRemoteSensingForDevice(
+                fileName: sessionName,
+                deviceName: targetDeviceName
+            )
+
+            guard sensingStarted else {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -3,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "デバイス \(targetDeviceName) へのセンシング開始コマンド送信に失敗しました。"
+                    ]
+                )
+            }
+
+            print("🎯 キャリブレーション用センシング開始: デバイス=\(targetDeviceName), アンテナ=\(antennaId)")
 
             // データ収集（リアルタイム更新）
             let startTime = Date()
@@ -732,6 +815,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                 if let realtimeUsecase = realtimeDataUsecase {
                     var tempDataPoints: [Point3D] = []
                     var qualityByAntenna: [String: SignalQualityDisplay] = [:]
+                    var zeroDataCount = 0
 
                     for deviceData in realtimeUsecase.deviceRealtimeDataList {
                         guard deviceData.isActive else { continue }
@@ -744,6 +828,11 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                                 azimuth: latestData.azimuth
                             )
                             tempDataPoints.append(position)
+
+                            // (0,0)付近のデータを検出
+                            if self.isPositionSuspicious(position) {
+                                zeroDataCount += 1
+                            }
                         }
 
                         // データ履歴から信号品質を集計
@@ -762,6 +851,18 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                                 averageStrength: avgStrength,
                                 dataPointCount: history.count
                             )
+
+                            // データ履歴からも(0,0)付近のデータをカウント
+                            for data in history {
+                                let historyPosition = self.calculatePosition(
+                                    distance: data.distance,
+                                    elevation: data.elevation,
+                                    azimuth: data.azimuth
+                                )
+                                if self.isPositionSuspicious(historyPosition) {
+                                    zeroDataCount += 1
+                                }
+                            }
                         }
                     }
 
@@ -769,16 +870,17 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                     self.signalQualityByAntenna = qualityByAntenna
                     self.currentDataPointCount = qualityByAntenna.values.map { $0.dataPointCount }.reduce(
                         0, +)
+                    self.suspiciousZeroDataCount = zeroDataCount
                 }
             }
 
             // センシング完了時の経過時間を最終値に設定
             self.sensingElapsedTime = self.sensingDuration
 
-            // センシング停止
-            sensingControl.stopRemoteSensing()
+            // センシング停止（特定デバイスのみ）
+            sensingControl.stopRemoteSensingForDevice(deviceName: targetDeviceName)
 
-            print("🛑 センシング停止")
+            print("🛑 センシング停止: デバイス=\(targetDeviceName)")
 
             // センシング停止後、リモートデバイスからのデータ送信を待つ
             // CSVファイルの受信とRealtimeDataの更新を待機
@@ -791,19 +893,6 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                     domain: "AutoAntennaCalibration",
                     code: -1,
                     userInfo: [NSLocalizedDescriptionKey: "RealtimeDataUsecaseが初期化されていません"]
-                )
-            }
-
-            // 選択中のアンテナに紐づいたデバイス名を取得
-            guard let targetDeviceName = ConnectionManagementUsecase.shared.getDeviceName(for: antennaId)
-            else {
-                throw NSError(
-                    domain: "AutoAntennaCalibration",
-                    code: -2,
-                    userInfo: [
-                        NSLocalizedDescriptionKey:
-                            "アンテナ \(antennaId) に紐づいたデバイスが見つかりません。ペアリング設定を確認してください。"
-                    ]
                 )
             }
 

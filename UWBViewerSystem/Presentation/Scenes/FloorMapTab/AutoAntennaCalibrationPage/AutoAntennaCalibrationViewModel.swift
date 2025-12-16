@@ -794,31 +794,60 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                 )
             }
 
-            // 各デバイスからデータを収集
-            for deviceData in realtimeUsecase.deviceRealtimeDataList {
-                guard deviceData.isActive else { continue }
+            // 選択中のアンテナに紐づいたデバイス名を取得
+            guard let targetDeviceName = ConnectionManagementUsecase.shared.getDeviceName(for: antennaId)
+            else {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -2,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "アンテナ \(antennaId) に紐づいたデバイスが見つかりません。ペアリング設定を確認してください。"
+                    ]
+                )
+            }
 
-                print("📊 デバイス \(deviceData.deviceName) のデータ収集: \(deviceData.dataHistory.count)件")
+            print("🎯 ターゲットデバイス: \(targetDeviceName) (アンテナ: \(antennaId))")
 
-                // データ履歴から座標を取得
-                for data in deviceData.dataHistory {
-                    // UWBデータから3D座標を計算
-                    let position = self.calculatePosition(
-                        distance: data.distance,
-                        elevation: data.elevation,
-                        azimuth: data.azimuth
-                    )
+            // 選択中のアンテナに紐づいたデバイスのデータだけを収集
+            guard
+                let targetDeviceData = realtimeUsecase.deviceRealtimeDataList.first(where: {
+                    $0.deviceName == targetDeviceName && $0.isActive
+                })
+            else {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -3,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "デバイス \(targetDeviceName) からのデータが取得できませんでした。接続状態を確認してください。"
+                    ]
+                )
+            }
 
-                    // AutoAntennaCalibrationUsecaseにデータを追加
-                    // 注: antennaIdとして現在選択中のアンテナIDを使用
-                    await usecase.addMeasuredData(
-                        antennaId: antennaId,
-                        tagId: tagPos.tagId,
-                        measuredPosition: position
-                    )
+            print(
+                "📊 デバイス \(targetDeviceData.deviceName) のデータ収集: \(targetDeviceData.dataHistory.count)件"
+            )
 
-                    print("  ➕ データ追加: antenna=\(antennaId), tag=\(tagPos.tagId), pos=(\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)))")
-                }
+            // データ履歴から座標を取得
+            for data in targetDeviceData.dataHistory {
+                // UWBデータから3D座標を計算
+                let position = self.calculatePosition(
+                    distance: data.distance,
+                    elevation: data.elevation,
+                    azimuth: data.azimuth
+                )
+
+                // AutoAntennaCalibrationUsecaseにデータを追加
+                await usecase.addMeasuredData(
+                    antennaId: antennaId,
+                    tagId: tagPos.tagId,
+                    measuredPosition: position
+                )
+
+                print(
+                    "  ➕ データ追加: antenna=\(antennaId), tag=\(tagPos.tagId), pos=(\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)))"
+                )
             }
 
             // リアルタイムデータをクリア

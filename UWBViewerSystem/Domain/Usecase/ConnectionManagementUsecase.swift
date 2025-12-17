@@ -19,6 +19,9 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     @Published var hasConnectionError = false
     @Published var lastDisconnectedDevice: String?
 
+    /// 自動再接続中かどうか（アラート抑制用）
+    @Published public var isAutoReconnecting = false
+
     // ペアリング情報管理（アンテナID → デバイス名）
     @Published public var antennaPairings: [String: String] = [:]
 

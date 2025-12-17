@@ -126,14 +126,45 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     /// センシング中に(0,0)付近の疑わしいデータが検出されているかどうか
     var hasSuspiciousDataDuringSensing: Bool {
-        suspiciousZeroDataCount > 0
+        self.suspiciousZeroDataCount > 0
     }
 
     /// センシング中のデータ品質警告メッセージ
     var sensingDataWarningMessage: String? {
-        guard hasSuspiciousDataDuringSensing else { return nil }
-        return "(0,0)付近のデータが\(suspiciousZeroDataCount)件検出されました。センサーの接続状態を確認してください。"
+        guard self.hasSuspiciousDataDuringSensing else { return nil }
+        return "(0,0)付近のデータが\(self.suspiciousZeroDataCount)件検出されました。センサーの接続状態を確認してください。"
     }
+
+    // MARK: - Connection Recovery State
+
+    /// 切断時に保存された操作状態
+    struct SavedOperationState {
+        let wasCollecting: Bool
+        let wasCalibrating: Bool
+        let stepAtDisconnect: Int
+        let antennaIdAtDisconnect: String?
+        let tagPositionIndexAtDisconnect: Int
+        let sensingElapsedTimeAtDisconnect: Double
+        let timestamp: Date
+    }
+
+    /// 切断前の状態を保存
+    private var savedOperationState: SavedOperationState?
+
+    /// 接続復旧後に再開を試みるかどうか
+    @Published var shouldAttemptResumeAfterReconnect: Bool = true
+
+    /// 再接続中かどうか（UIに表示用）
+    @Published var isAttemptingReconnect: Bool = false
+
+    /// 再接続試行回数
+    @Published var reconnectAttemptCount: Int = 0
+
+    /// 最大再接続試行回数
+    private let maxAutoReconnectAttempts: Int = 3
+
+    /// 接続監視が設定済みかどうか
+    private var isConnectionMonitoringSetup: Bool = false
 
     // MARK: - Dependencies
 
@@ -218,7 +249,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     /// (0, 0) 付近の位置は明らかに異常な結果
     var hasCalibrationWarning: Bool {
         guard let result = currentAntennaResult else { return false }
-        return isPositionSuspicious(result.position)
+        return self.isPositionSuspicious(result.position)
     }
 
     /// キャリブレーション結果の警告メッセージ
@@ -228,7 +259,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         var warnings: [String] = []
 
         // 位置が (0, 0) 付近の場合
-        if isPositionSuspicious(result.position) {
+        if self.isPositionSuspicious(result.position) {
             warnings.append("推定位置が原点(0,0)付近です。データ収集に問題がある可能性があります。")
         }
 
@@ -327,12 +358,31 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     /// 接続監視を設定
     private func setupConnectionMonitoring() {
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 初期状態をチェック：既に接続エラーがある場合や、接続デバイスがない場合
+        Task { @MainActor in
+            // 少し待機して画面遷移を完了させる
+            try? await Task.sleep(nanoseconds: 500_000_000)
+
+            // 接続エラーがあるか、接続デバイスがない場合は再接続を試みる
+            if connectionUsecase.hasConnectionError {
+                print("🔴 AutoCalibration: 初期化時に既存の接続エラーを検知")
+                self.handleConnectionError()
+            } else if !connectionUsecase.hasConnectedDevices() {
+                print("🔴 AutoCalibration: 初期化時に接続デバイスなしを検知")
+                connectionUsecase.hasConnectionError = true
+                self.handleConnectionError()
+            }
+        }
+
         // hasConnectionErrorの変更を監視
-        ConnectionManagementUsecase.shared.$hasConnectionError
+        connectionUsecase.$hasConnectionError
+            .dropFirst()  // 初期値をスキップ（上で処理済み）
             .sink { [weak self] hasError in
                 guard let self else { return }
                 if hasError {
-                    print("⚠️ 接続断検出: 接続復旧画面を表示します")
+                    print("⚠️ 接続断検出: 自動再接続を試みます")
                     self.handleConnectionError()
                 }
             }
@@ -340,11 +390,31 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
         // 接続デバイス数の変更を監視してアンテナリストを更新
         ConnectionManagementUsecase.shared.$connectedDeviceNames
-            .sink { [weak self] _ in
+            .sink { [weak self] deviceNames in
                 guard let self else { return }
                 Task {
                     print("🔌 接続デバイスの変更を検出: アンテナリストを再読み込みします")
                     await self.loadAvailableAntennas()
+
+                    // 再接続成功を検出
+                    if !deviceNames.isEmpty && self.isAttemptingReconnect {
+                        print("✅ 再接続成功を検出")
+                        await self.handleReconnectionSuccess()
+                    }
+                }
+            }
+            .store(in: &self.cancellables)
+
+        // 接続復旧画面の表示状態を監視
+        self.$showConnectionRecovery
+            .dropFirst()
+            .sink { [weak self] isShowing in
+                guard let self else { return }
+                // 復旧画面が閉じられた場合（ユーザーがキャンセルまたは接続復旧）
+                if !isShowing && self.savedOperationState != nil {
+                    Task {
+                        await self.checkAndResumeOperation()
+                    }
                 }
             }
             .store(in: &self.cancellables)
@@ -352,22 +422,168 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     /// 接続エラーハンドリング
     private func handleConnectionError() {
-        // データ収集中・キャリブレーション中の場合は停止
+        // 現在の操作状態を保存
         if self.isCollecting || self.isCalibrating {
-            print("⚠️ データ収集/キャリブレーションを中断します")
+            self.savedOperationState = SavedOperationState(
+                wasCollecting: self.isCollecting,
+                wasCalibrating: self.isCalibrating,
+                stepAtDisconnect: self.currentStep,
+                antennaIdAtDisconnect: self.currentAntennaId,
+                tagPositionIndexAtDisconnect: self.currentTagPositionIndex,
+                sensingElapsedTimeAtDisconnect: self.sensingElapsedTime,
+                timestamp: Date()
+            )
+            print("💾 操作状態を保存しました: collecting=\(self.isCollecting), calibrating=\(self.isCalibrating)")
+
+            // 操作を一時停止
+            print("⚠️ データ収集/キャリブレーションを一時停止します")
             self.isCollecting = false
             self.isCalibrating = false
         }
 
         // エラーメッセージを設定
         if let deviceName = ConnectionManagementUsecase.shared.lastDisconnectedDevice {
-            self.errorMessage = "デバイス「\(deviceName)」との接続が切断されました"
+            self.errorMessage = "デバイス「\(deviceName)」との接続が切断されました。再接続を試みています..."
         } else {
-            self.errorMessage = "接続が切断されました"
+            self.errorMessage = "接続が切断されました。再接続を試みています..."
         }
 
-        // 接続復旧画面を表示
+        // 自動再接続を開始
+        Task {
+            await self.attemptAutoReconnect()
+        }
+    }
+
+    /// 自動再接続を試行
+    private func attemptAutoReconnect() async {
+        self.isAttemptingReconnect = true
+        self.reconnectAttemptCount = 0
+
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 自動再接続中フラグを設定（アラート抑制用）
+        connectionUsecase.isAutoReconnecting = true
+
+        for attempt in 1...self.maxAutoReconnectAttempts {
+            self.reconnectAttemptCount = attempt
+            print("🔄 自動再接続試行 \(attempt)/\(self.maxAutoReconnectAttempts)")
+
+            // 既存の接続をリセット
+            connectionUsecase.resetAll()
+
+            // 少し待機
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+
+            // エラーフラグをクリア
+            connectionUsecase.hasConnectionError = false
+            connectionUsecase.lastDisconnectedDevice = nil
+
+            // 広告と検索を再開
+            connectionUsecase.startAdvertising()
+            connectionUsecase.startDiscovery()
+
+            // 接続確立を待機（最大8秒）
+            for waitCount in 0..<16 {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+
+                if connectionUsecase.hasConnectedDevices() {
+                    print("✅ 自動再接続成功 (試行\(attempt)回目, 待機\(waitCount * 500)ms)")
+                    self.isAttemptingReconnect = false
+                    self.reconnectAttemptCount = 0
+                    connectionUsecase.isAutoReconnecting = false
+
+                    // 復旧処理
+                    await self.handleReconnectionSuccess()
+                    return
+                }
+            }
+
+            // バックオフ：次の試行まで待機
+            let backoffSeconds = attempt * 2
+            print("⏳ 再接続失敗。\(backoffSeconds)秒後に再試行...")
+            try? await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
+        }
+
+        // すべての自動試行が失敗
+        print("❌ 自動再接続失敗: 最大試行回数(\(self.maxAutoReconnectAttempts))に達しました")
+        self.isAttemptingReconnect = false
+        connectionUsecase.isAutoReconnecting = false
+
+        // 手動復旧画面を表示
+        self.errorMessage = "自動再接続に失敗しました。手動で再接続してください。"
         self.showConnectionRecovery = true
+    }
+
+    /// 再接続成功時の処理
+    private func handleReconnectionSuccess() async {
+        print("🎉 接続復旧完了")
+
+        // エラー状態をクリア
+        self.errorMessage = ""
+        self.showConnectionRecovery = false
+
+        // 操作の再開を試みる
+        await self.checkAndResumeOperation()
+    }
+
+    /// 保存された状態があれば操作を再開
+    private func checkAndResumeOperation() async {
+        guard let savedState = self.savedOperationState else {
+            print("📝 保存された操作状態がありません")
+            return
+        }
+
+        // 古すぎる状態は無視（5分以上経過）
+        let elapsedSinceDisconnect = Date().timeIntervalSince(savedState.timestamp)
+        if elapsedSinceDisconnect > 300 {
+            print("⏰ 保存された状態が古すぎます（\(Int(elapsedSinceDisconnect))秒経過）。操作を再開しません。")
+            self.savedOperationState = nil
+            return
+        }
+
+        // 接続が復旧しているか確認
+        guard ConnectionManagementUsecase.shared.hasConnectedDevices() else {
+            print("⚠️ デバイスが接続されていないため、操作を再開できません")
+            return
+        }
+
+        print("🔄 操作を再開します: step=\(savedState.stepAtDisconnect), wasCollecting=\(savedState.wasCollecting)")
+
+        // 状態を復元
+        self.currentStep = savedState.stepAtDisconnect
+        if let antennaId = savedState.antennaIdAtDisconnect {
+            self.currentAntennaId = antennaId
+        }
+        self.currentTagPositionIndex = savedState.tagPositionIndexAtDisconnect
+
+        // データ収集を再開
+        if savedState.wasCollecting && self.shouldAttemptResumeAfterReconnect {
+            print("▶️ データ収集を再開します")
+            // 少し待機してから再開（接続の安定化のため）
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            self.startCurrentTagPositionCollection()
+        }
+
+        // 保存状態をクリア
+        self.savedOperationState = nil
+    }
+
+    /// 手動で操作を再開
+    func manuallyResumeOperation() {
+        Task {
+            await self.checkAndResumeOperation()
+        }
+    }
+
+    /// 保存された状態をクリア（ユーザーがキャンセルした場合）
+    func clearSavedOperationState() {
+        self.savedOperationState = nil
+        print("🗑️ 保存された操作状態をクリアしました")
+    }
+
+    /// 保存された操作状態があるかどうか
+    var hasSavedOperationState: Bool {
+        self.savedOperationState != nil
     }
 
     // MARK: - Public Methods
@@ -804,9 +1020,18 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
             // データ収集（リアルタイム更新）
             let startTime = Date()
+            var connectionLostDuringSensing = false
             while Date().timeIntervalSince(startTime) < self.sensingDuration {
                 // 0.5秒ごとにデータを更新
                 try await Task.sleep(nanoseconds: 500_000_000)
+
+                // 接続状態をチェック
+                let connectionUsecase = ConnectionManagementUsecase.shared
+                if connectionUsecase.hasConnectionError || !connectionUsecase.hasConnectedDevices() {
+                    print("⚠️ センシング中に接続が切断されました")
+                    connectionLostDuringSensing = true
+                    break
+                }
 
                 // 経過時間を更新
                 self.sensingElapsedTime = Date().timeIntervalSince(startTime)
@@ -874,6 +1099,18 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                 }
             }
 
+            // 接続が切断された場合はエラー
+            if connectionLostDuringSensing {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -5,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "センシング中に接続が切断されました。接続を復旧してから再度測定してください。"
+                    ]
+                )
+            }
+
             // センシング完了時の経過時間を最終値に設定
             self.sensingElapsedTime = self.sensingDuration
 
@@ -917,6 +1154,18 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             print(
                 "📊 デバイス \(targetDeviceData.deviceName) のデータ収集: \(targetDeviceData.dataHistory.count)件"
             )
+
+            // データが取得できなかった場合はエラー
+            if targetDeviceData.dataHistory.isEmpty {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -4,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "デバイス \(targetDeviceName) からのセンサーデータが0件でした。接続状態を確認し、再度測定してください。"
+                    ]
+                )
+            }
 
             // データ履歴から座標を取得
             for data in targetDeviceData.dataHistory {

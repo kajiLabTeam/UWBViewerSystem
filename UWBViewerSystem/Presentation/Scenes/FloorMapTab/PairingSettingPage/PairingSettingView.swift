@@ -75,13 +75,6 @@ struct PairingSettingView: View {
         }
         .navigationTitle("Android端末ペアリング")
         .navigationBarTitleDisplayModeIfAvailable(.large)
-        .alert(isPresented: self.$viewModel.showingConnectionAlert) {
-            Alert(
-                title: Text("ペアリング情報"),
-                message: Text(self.viewModel.alertMessage),
-                dismissButton: .default(Text("OK"))
-            )
-        }
         .onAppear {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
             let repository = SwiftDataRepository(modelContext: modelContext)

@@ -141,15 +141,38 @@ import Foundation
                 return
             }
 
+            // 既存の広告を停止してからリトライ付きで開始
+            advertiser.stopAdvertising()
+            self.startAdvertiseInternal(advertiser: advertiser, retryCount: 0)
+        }
+
+        /// Advertise開始の内部実装（リトライ対応）
+        private func startAdvertiseInternal(advertiser: Advertiser, retryCount: Int) {
+            let maxRetries = 3
             let context = Data(nickName.utf8)
+
             advertiser.startAdvertising(using: context) { [weak self] error in
                 Task { @MainActor [weak self] in
+                    guard let self else { return }
+
                     if let error {
-                        self?.notifyCallbacks {
-                            $0.onConnectionStateChanged(state: "広告開始エラー: \(error.localizedDescription)")
+                        print("📢 Advertise開始エラー (試行 \(retryCount + 1)/\(maxRetries + 1)): \(error.localizedDescription)")
+
+                        // リトライ可能な場合はリトライ
+                        if retryCount < maxRetries {
+                            advertiser.stopAdvertising()
+                            let delay = Double(retryCount + 1) * 0.5
+                            print("📢 \(delay)秒後にAdvertiseをリトライします...")
+
+                            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                            self.startAdvertiseInternal(advertiser: advertiser, retryCount: retryCount + 1)
+                        } else {
+                            self.notifyCallbacks {
+                                $0.onConnectionStateChanged(state: "広告開始エラー: \(error.localizedDescription)")
+                            }
                         }
                     } else {
-                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "広告開始成功") }
+                        self.notifyCallbacks { $0.onConnectionStateChanged(state: "広告開始成功") }
                     }
                 }
             }
@@ -161,23 +184,46 @@ import Foundation
                 return
             }
 
-            // 既にDiscovery中の場合は何もしない
+            // 既にDiscovery中の場合は一度停止してから再開
             if self.isDiscovering {
-                self.notifyCallbacks { $0.onConnectionStateChanged(state: "既に検索中です") }
-                return
+                print("📡 既にDiscovery中のため、一度停止します")
+                discoverer.stopDiscovery()
+                self.isDiscovering = false
             }
+
+            self.startDiscoveryInternal(discoverer: discoverer, retryCount: 0)
+        }
+
+        /// Discovery開始の内部実装（リトライ対応）
+        private func startDiscoveryInternal(discoverer: Discoverer, retryCount: Int) {
+            let maxRetries = 3
 
             discoverer.startDiscovery { [weak self] error in
                 Task { @MainActor [weak self] in
+                    guard let self else { return }
+
                     if let error {
-                        self?.isDiscovering = false
-                        self?.notifyCallbacks {
-                            $0.onConnectionStateChanged(state: "発見開始エラー: \(error.localizedDescription)")
+                        self.isDiscovering = false
+                        print("📡 Discovery開始エラー (試行 \(retryCount + 1)/\(maxRetries + 1)): \(error.localizedDescription)")
+
+                        // リトライ可能な場合はリトライ
+                        if retryCount < maxRetries {
+                            // 一度停止してから遅延後にリトライ
+                            discoverer.stopDiscovery()
+                            let delay = Double(retryCount + 1) * 0.5  // 0.5秒、1秒、1.5秒
+                            print("📡 \(delay)秒後にDiscoveryをリトライします...")
+
+                            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                            self.startDiscoveryInternal(discoverer: discoverer, retryCount: retryCount + 1)
+                        } else {
+                            self.notifyCallbacks {
+                                $0.onConnectionStateChanged(state: "発見開始エラー: \(error.localizedDescription)")
+                            }
                         }
                     } else {
-                        self?.isDiscovering = true
-                        self?.notifyCallbacks { $0.onConnectionStateChanged(state: "発見開始成功") }
-                        self?.notifyCallbacks { $0.onDiscoveryStateChanged(isDiscovering: true) }
+                        self.isDiscovering = true
+                        self.notifyCallbacks { $0.onConnectionStateChanged(state: "発見開始成功") }
+                        self.notifyCallbacks { $0.onDiscoveryStateChanged(isDiscovering: true) }
                     }
                 }
             }

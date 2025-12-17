@@ -31,6 +31,27 @@ class DataCollectionViewModel: ObservableObject {
     @Published var centroidCoordinate: Point3D?
     @Published var integratedTagCoordinates: [String: IntegratedTagPosition] = [:]
 
+    // MARK: - Connection Recovery State
+
+    /// 接続復旧画面を表示するかどうか
+    @Published var showConnectionRecovery: Bool = false
+
+    /// 再接続中かどうか（UIに表示用）
+    @Published var isAttemptingReconnect: Bool = false
+
+    /// 再接続試行回数
+    @Published var reconnectAttemptCount: Int = 0
+
+    /// 切断前の状態を保存
+    private var wasSensingBeforeDisconnect: Bool = false
+    private var sensingFileNameBeforeDisconnect: String = ""
+
+    /// 最大再接続試行回数
+    private let maxAutoReconnectAttempts: Int = 3
+
+    /// 接続監視が設定済みかどうか
+    private var isConnectionMonitoringSetup: Bool = false
+
     #if canImport(UIKit)
         #if os(iOS)
             @Published var floorMapImage: UIImage?
@@ -157,6 +178,151 @@ class DataCollectionViewModel: ObservableObject {
                 self?.integratedTagCoordinates = value
             }
             .store(in: &self.cancellables)
+
+        // 注意: setupConnectionMonitoring()はsetupSwiftDataRepository()から呼ばれる
+        // init()からは呼ばない（画面表示前に初期チェックが実行されるのを防ぐ）
+    }
+
+    // MARK: - Connection Recovery
+
+    private func setupConnectionMonitoring() {
+        // cancellables.removeAll()で購読がクリアされるため、ガードは不要
+        // 毎回再設定する
+        self.isConnectionMonitoringSetup = true
+
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 初期状態をチェック：既に接続エラーがある場合や、接続デバイスがない場合
+        Task { @MainActor in
+            // 少し待機して画面遷移を完了させる
+            try? await Task.sleep(nanoseconds: 500_000_000)
+
+            // 既に再接続中の場合はスキップ
+            guard !self.isAttemptingReconnect else {
+                print("ℹ️ DataCollection: 既に再接続試行中のためスキップ")
+                return
+            }
+
+            // 接続エラーがあるか、接続デバイスがない場合は再接続を試みる
+            if connectionUsecase.hasConnectionError {
+                print("🔴 DataCollection: 初期化時に既存の接続エラーを検知")
+                self.handleConnectionError()
+            } else if !connectionUsecase.hasConnectedDevices() {
+                print("🔴 DataCollection: 初期化時に接続デバイスなしを検知")
+                connectionUsecase.hasConnectionError = true
+                self.handleConnectionError()
+            }
+        }
+
+        // 継続的な接続エラー監視
+        connectionUsecase.$hasConnectionError
+            .dropFirst()  // 初期値をスキップ（上で処理済み）
+            .sink { [weak self] hasError in
+                guard let self else { return }
+                if hasError {
+                    print("🔴 DataCollection: 接続エラーを検知")
+                    self.handleConnectionError()
+                }
+            }
+            .store(in: &self.cancellables)
+    }
+
+    /// 接続エラー時の処理
+    private func handleConnectionError() {
+        // 既に再接続中の場合はスキップ
+        guard !self.isAttemptingReconnect else {
+            print("ℹ️ DataCollection: 既に再接続試行中のためスキップ")
+            return
+        }
+
+        // センシング中の場合は状態を保存
+        if self.isSensingActive {
+            print("⚠️ センシング中に接続が切断されました")
+            self.wasSensingBeforeDisconnect = true
+            self.sensingFileNameBeforeDisconnect = self.currentFileName
+        } else {
+            self.wasSensingBeforeDisconnect = false
+        }
+
+        // 自動再接続を開始
+        Task {
+            await self.attemptAutoReconnect()
+        }
+    }
+
+    /// 自動再接続を試行
+    private func attemptAutoReconnect() async {
+        self.isAttemptingReconnect = true
+        self.reconnectAttemptCount = 0
+
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 自動再接続中フラグを設定（アラート抑制用）
+        connectionUsecase.isAutoReconnecting = true
+
+        for attempt in 1...self.maxAutoReconnectAttempts {
+            self.reconnectAttemptCount = attempt
+            print("🔄 DataCollection: 再接続試行 \(attempt)/\(self.maxAutoReconnectAttempts)")
+
+            // 既存の接続をリセット
+            connectionUsecase.resetAll()
+
+            // 少し待機
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+
+            // エラーフラグをクリアして再接続開始
+            connectionUsecase.hasConnectionError = false
+            connectionUsecase.lastDisconnectedDevice = nil
+            connectionUsecase.startAdvertising()
+            connectionUsecase.startDiscovery()
+
+            // 接続確立を待機（最大8秒）
+            for _ in 0..<16 {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+
+                if connectionUsecase.hasConnectedDevices() {
+                    print("✅ DataCollection: 再接続成功")
+                    self.isAttemptingReconnect = false
+                    connectionUsecase.isAutoReconnecting = false
+
+                    // センシング再開
+                    await self.handleReconnectionSuccess()
+                    return
+                }
+            }
+
+            // バックオフ：次の試行まで待機時間を増やす
+            let backoffSeconds = attempt * 2
+            print("⏳ 次の再接続試行まで \(backoffSeconds) 秒待機...")
+            try? await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
+        }
+
+        // すべての試行が失敗
+        self.isAttemptingReconnect = false
+        connectionUsecase.isAutoReconnecting = false
+        self.showConnectionRecovery = true
+        print("❌ DataCollection: 自動再接続失敗")
+    }
+
+    /// 再接続成功時の処理
+    private func handleReconnectionSuccess() async {
+        print("🔄 DataCollection: センシング状態を復元中...")
+
+        // センシング中だった場合は再開
+        if self.wasSensingBeforeDisconnect {
+            // 少し待機してから再開
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+
+            // センシングを再開
+            if !self.sensingFileNameBeforeDisconnect.isEmpty {
+                self.startSensing(fileName: self.sensingFileNameBeforeDisconnect)
+                print("▶️ センシングを再開しました: \(self.sensingFileNameBeforeDisconnect)")
+            }
+        }
+
+        // 状態をクリア
+        self.wasSensingBeforeDisconnect = false
+        self.sensingFileNameBeforeDisconnect = ""
     }
 
     /// SwiftDataRepositoryを設定（ViewのonAppearから呼ばれる）
@@ -185,6 +351,9 @@ class DataCollectionViewModel: ObservableObject {
 
             // Observersを再設定（新しいSensingControlUsecaseのイベントを購読）
             self.setupObservers()
+
+            // 接続監視を設定（画面表示後に呼ばれるため、ここで設定）
+            self.setupConnectionMonitoring()
 
             self.loadInitialData()
         }

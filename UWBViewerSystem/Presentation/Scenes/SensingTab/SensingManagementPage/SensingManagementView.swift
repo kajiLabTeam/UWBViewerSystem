@@ -46,6 +46,57 @@ struct SensingManagementView: View {
                 self.flowNavigator.currentStep = .sensingExecution
                 self.flowNavigator.setRouter(self.router)
             }
+            .overlay {
+                // 自動再接続中のオーバーレイ
+                if self.viewModel.isAttemptingReconnect {
+                    self.reconnectingOverlay
+                }
+            }
+            .sheet(isPresented: self.$viewModel.showConnectionRecovery) {
+                ConnectionRecoveryView(
+                    connectionUsecase: ConnectionManagementUsecase.shared,
+                    isPresented: self.$viewModel.showConnectionRecovery
+                )
+            }
+    }
+
+    // MARK: - Reconnection Overlay
+
+    @ViewBuilder
+    private var reconnectingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                #if os(iOS)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                #endif
+
+                VStack(spacing: 8) {
+                    Text("再接続中...")
+                        .font(.headline)
+                        .foregroundColor(.white)
+
+                    Text("試行 \(self.viewModel.reconnectAttemptCount) / 3")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+
+                    if self.viewModel.isSensingActive {
+                        Text("センシングは一時停止中です")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            .padding(30)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.black.opacity(0.7))
+            )
+        }
     }
 
     // MARK: - Header Section

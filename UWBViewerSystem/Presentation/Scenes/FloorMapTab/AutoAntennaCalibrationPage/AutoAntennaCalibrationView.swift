@@ -72,6 +72,49 @@ struct AutoAntennaCalibrationView: View {
             .presentationDetents([.medium, .large])
             #endif
         }
+        .overlay {
+            // 自動再接続中のオーバーレイ
+            if self.viewModel.isAttemptingReconnect {
+                self.reconnectingOverlay
+            }
+        }
+    }
+
+    // MARK: - Reconnection Overlay
+
+    /// 自動再接続中に表示するオーバーレイ
+    private var reconnectingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+
+                VStack(spacing: 8) {
+                    Text("再接続中...")
+                        .font(.headline)
+                        .foregroundColor(.white)
+
+                    Text("試行 \(self.viewModel.reconnectAttemptCount) / 3")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+
+                    Text(self.viewModel.errorMessage)
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+            }
+            .padding(30)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.black.opacity(0.7))
+            )
+        }
     }
 
     // MARK: - Header
@@ -882,7 +925,7 @@ struct FloatingCalibrationControlPanel: View {
 
                     // キャリブレーション結果の警告表示
                     if self.viewModel.hasCalibrationWarning,
-                        let warningMessage = self.viewModel.calibrationWarningMessage
+                       let warningMessage = self.viewModel.calibrationWarningMessage
                     {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {

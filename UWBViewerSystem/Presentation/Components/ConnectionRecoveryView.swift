@@ -3,7 +3,7 @@ import SwiftUI
 /// 接続復旧画面
 ///
 /// ニアバイコネクションの接続が切れた際に表示される復旧用の画面です。
-/// 接続状態の可視化、手動/自動再接続機能を提供します。
+/// 接続状態の可視化と自動再接続機能を提供します。
 struct ConnectionRecoveryView: View {
     @ObservedObject var connectionUsecase: ConnectionManagementUsecase
     @Binding var isPresented: Bool
@@ -124,28 +124,12 @@ struct ConnectionRecoveryView: View {
                     } else {
                         Image(systemName: "arrow.clockwise")
                     }
-                    Text(self.isReconnecting ? "再接続中..." : "自動再接続")
+                    Text(self.isReconnecting ? "再接続中..." : "再接続")
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
                 .background(self.isReconnecting ? Color.gray : Color.blue)
                 .foregroundColor(.white)
-                .cornerRadius(12)
-            }
-            .disabled(self.isReconnecting)
-
-            // 手動で再度検索ボタン
-            Button(action: {
-                self.restartDiscovery()
-            }) {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                    Text("手動で再度検索")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.green.opacity(0.1))
-                .foregroundColor(.green)
                 .cornerRadius(12)
             }
             .disabled(self.isReconnecting)
@@ -229,23 +213,6 @@ struct ConnectionRecoveryView: View {
                 print("❌ 再接続失敗: 最大試行回数に達しました")
             }
         }
-    }
-
-    /// 検索を再開
-    private func restartDiscovery() {
-        print("🔍 手動で再度検索を開始")
-
-        // エラーフラグをクリア
-        self.connectionUsecase.hasConnectionError = false
-        self.connectionUsecase.lastDisconnectedDevice = nil
-
-        // 検索と広告を再開
-        self.connectionUsecase.stopDiscovery()
-        self.connectionUsecase.startDiscovery()
-        self.connectionUsecase.startAdvertising()
-
-        // 画面を閉じる
-        self.isPresented = false
     }
 }
 

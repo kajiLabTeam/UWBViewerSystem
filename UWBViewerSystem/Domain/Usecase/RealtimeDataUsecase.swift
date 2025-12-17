@@ -153,7 +153,22 @@ public class RealtimeDataUsecase: ObservableObject {
         for deviceData in self.deviceRealtimeDataList {
             deviceData.clearData()
         }
+        // 統合座標履歴もクリア
+        self.integratedCoordinateHistory.removeAll()
         objectWillChange.send()
+    }
+
+    /// 統合座標履歴をクリア
+    public func clearIntegratedCoordinateHistory() {
+        self.integratedCoordinateHistory.removeAll()
+        #if DEBUG
+            print("🗑️ 統合座標履歴をクリア")
+        #endif
+    }
+
+    /// 統合座標履歴を取得
+    public func getIntegratedCoordinateHistory() -> [IntegratedCoordinateRecord] {
+        self.integratedCoordinateHistory
     }
 
     public func loadRealtimeDataHistory(for sessionId: String) async -> [RealtimeData] {
@@ -355,6 +370,9 @@ public class RealtimeDataUsecase: ObservableObject {
     /// タグごとの統合座標（複数アンテナからの観測を統合）
     @Published var integratedTagCoordinates: [String: IntegratedTagPosition] = [:]
 
+    /// 統合座標の履歴（CSV出力用）
+    @Published private(set) var integratedCoordinateHistory: [IntegratedCoordinateRecord] = []
+
     /// ローパスフィルター用の前回値（重心用）
     private var previousFilteredCentroid: Point3D?
 
@@ -522,6 +540,11 @@ public class RealtimeDataUsecase: ObservableObject {
         )
 
         self.integratedTagCoordinates = [integratedTagId: integratedPosition]
+
+        // 履歴に追加（タイムスタンプは最新の観測データから取得）
+        let currentTimestamp = Date().timeIntervalSince1970 * 1000
+        let record = IntegratedCoordinateRecord(from: integratedPosition, timestamp: currentTimestamp)
+        self.integratedCoordinateHistory.append(record)
 
         #if DEBUG
             let losCount = allObservations.filter { !$0.isNLOS }.count

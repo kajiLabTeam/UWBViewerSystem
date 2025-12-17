@@ -730,6 +730,20 @@ class DataCollectionViewModel: ObservableObject {
                 print("   データポイント数: \(sortedData.count)")
             }
 
+            // 統合座標履歴をエクスポート
+            let integratedHistory = self.realtimeDataUsecase.getIntegratedCoordinateHistory()
+            if !integratedHistory.isEmpty {
+                let integratedFileName = "\(fileNameToUse)_integrated_coordinates.csv"
+                _ = try SensingDataCSVExporter.exportIntegratedCoordinateDataToCSV(
+                    integratedCoordinateHistory: integratedHistory,
+                    directoryURL: sessionDirectory,
+                    fileName: integratedFileName
+                )
+                print("✅ 統合座標データエクスポート完了: \(integratedHistory.count)件")
+            } else {
+                print("⚠️ 統合座標履歴データがありません")
+            }
+
             print("✅ 全センシングデータのCSVエクスポート成功")
             print("   セッションディレクトリ: \(sessionDirectory.path)")
             print("   アンテナ別ファイル数: \(groupedByAntenna.count * 3) ファイル")

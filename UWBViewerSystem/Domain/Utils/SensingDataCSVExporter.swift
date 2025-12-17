@@ -276,6 +276,59 @@ struct SensingDataCSVExporter {
         return try self.writeCSV(content: csvContent, to: fileURL)
     }
 
+    // MARK: - 統合座標データCSVエクスポート
+
+    /// 統合座標データをCSVとしてエクスポート
+    ///
+    /// CSVフォーマット:
+    /// ```
+    /// timestamp,tagId,integrated_x,integrated_y,integrated_z,confidence,los_count,nlos_count,has_nlos_only
+    /// 1699876543210,tag1,14.123,18.456,0.0,0.95,3,1,false
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - integratedCoordinateHistory: エクスポートする統合座標履歴のリスト
+    ///   - directoryURL: 保存先ディレクトリのURL
+    ///   - fileName: ファイル名（デフォルト: "integrated_coordinates.csv"）
+    /// - Returns: 生成されたCSVファイルのURL
+    /// - Throws: データが空、またはファイル作成/書き込みに失敗した場合
+    static func exportIntegratedCoordinateDataToCSV(
+        integratedCoordinateHistory: [IntegratedCoordinateRecord],
+        directoryURL: URL,
+        fileName: String = "integrated_coordinates.csv"
+    ) throws -> URL {
+        guard !integratedCoordinateHistory.isEmpty else {
+            throw ExportError.noDataToExport
+        }
+
+        // CSVヘッダー
+        var csvContent =
+            "timestamp,tagId,integrated_x,integrated_y,integrated_z,confidence,los_count,nlos_count,has_nlos_only\n"
+
+        // データ行（タイムスタンプでソート）
+        let sortedHistory = integratedCoordinateHistory.sorted { $0.timestamp < $1.timestamp }
+
+        for record in sortedHistory {
+            let row = [
+                String(record.timestamp),
+                record.tagId,
+                String(format: "%.6f", record.x),
+                String(format: "%.6f", record.y),
+                String(format: "%.6f", record.z),
+                String(format: "%.4f", record.confidence),
+                String(record.losCount),
+                String(record.nlosCount),
+                String(record.hasNLOSOnly),
+            ].joined(separator: ",")
+
+            csvContent += row + "\n"
+        }
+
+        // ファイルに書き込み
+        let fileURL = directoryURL.appendingPathComponent(fileName)
+        return try self.writeCSV(content: csvContent, to: fileURL)
+    }
+
     // MARK: - Helper Methods
 
     /// CSV内容をファイルに書き込む

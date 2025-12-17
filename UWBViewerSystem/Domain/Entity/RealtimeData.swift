@@ -184,6 +184,67 @@ public struct IntegratedTagPosition: Identifiable {
     }
 }
 
+// MARK: - 統合座標履歴レコード
+
+/// 統合座標の履歴を保存するための構造体（CSV出力用）
+public struct IntegratedCoordinateRecord: Identifiable, Codable {
+    public let id: UUID
+    public let timestamp: TimeInterval
+    public let tagId: String
+    public let x: Double
+    public let y: Double
+    public let z: Double
+    public let confidence: Double
+    public let losCount: Int
+    public let nlosCount: Int
+    public let hasNLOSOnly: Bool
+
+    public init(
+        id: UUID = UUID(),
+        timestamp: TimeInterval,
+        tagId: String,
+        x: Double,
+        y: Double,
+        z: Double,
+        confidence: Double,
+        losCount: Int,
+        nlosCount: Int,
+        hasNLOSOnly: Bool
+    ) {
+        self.id = id
+        self.timestamp = timestamp
+        self.tagId = tagId
+        self.x = x
+        self.y = y
+        self.z = z
+        self.confidence = confidence
+        self.losCount = losCount
+        self.nlosCount = nlosCount
+        self.hasNLOSOnly = hasNLOSOnly
+    }
+
+    /// IntegratedTagPositionから生成
+    public init(from position: IntegratedTagPosition, timestamp: TimeInterval) {
+        self.id = UUID()
+        self.timestamp = timestamp
+        self.tagId = position.tagId
+        self.x = position.integratedCoordinate.x
+        self.y = position.integratedCoordinate.y
+        self.z = position.integratedCoordinate.z
+        self.confidence = position.confidence
+        self.losCount = position.losCount
+        self.nlosCount = position.nlosCount
+        self.hasNLOSOnly = position.hasNLOSOnly
+    }
+
+    public var formattedTime: String {
+        let date = Date(timeIntervalSince1970: timestamp / 1000)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: date)
+    }
+}
+
 // MARK: - JSONパース用の構造体
 
 public struct RealtimeDataMessage: Codable {

@@ -522,8 +522,100 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         self.errorMessage = ""
         self.showConnectionRecovery = false
 
+        // 接続の安定化を待つ
+        try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒待機
+
+        // ペアリング情報の検証と復元
+        await self.verifyAndRestorePairingInfo()
+
         // 操作の再開を試みる
         await self.checkAndResumeOperation()
+    }
+
+    /// ペアリング情報を検証し、必要に応じて復元する
+    private func verifyAndRestorePairingInfo() async {
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 現在のアンテナIDを取得
+        guard let antennaId = currentAntennaId else {
+            print("📝 現在のアンテナIDがありません - ペアリング検証をスキップ")
+            return
+        }
+
+        // ペアリング情報を取得
+        guard let pairedDeviceName = connectionUsecase.getDeviceName(for: antennaId) else {
+            print("⚠️ アンテナ \(antennaId) のペアリング情報が見つかりません")
+            self.showError(
+                "アンテナのペアリング情報が失われました。キャリブレーションを最初からやり直してください。"
+            )
+            return
+        }
+
+        print("🔍 ペアリング検証: アンテナ \(antennaId) → デバイス \(pairedDeviceName)")
+
+        // 接続されているデバイスを確認
+        let connectedDevices = connectionUsecase.connectedDeviceNames
+
+        // ペアリングされたデバイスが接続されているか確認
+        if connectedDevices.contains(pairedDeviceName) {
+            // エンドポイントIDのマッピングを確認
+            if let endpointId = connectionUsecase.getEndpointId(for: pairedDeviceName) {
+                print("✅ ペアリング検証成功: \(pairedDeviceName) (endpoint: \(endpointId))")
+                return
+            } else {
+                // デバイスは接続されているが、エンドポイントマッピングがない
+                // 接続されているエンドポイントから該当デバイスを探して復元を試みる
+                print("⚠️ エンドポイントマッピングが見つかりません - 復元を試行")
+                await self.attemptEndpointMappingRecovery(
+                    deviceName: pairedDeviceName, antennaId: antennaId)
+            }
+        } else {
+            // ペアリングされたデバイスが接続されていない
+            // 接続されている別のデバイスがあればそれを使用するか確認
+            print("⚠️ ペアリングされたデバイス \(pairedDeviceName) が接続リストにありません")
+            print("   接続中のデバイス: \(connectedDevices)")
+
+            // 接続されているデバイスがある場合、そのデバイスでペアリングを更新
+            if let firstConnectedDevice = connectedDevices.first {
+                print("🔄 接続中のデバイス \(firstConnectedDevice) でペアリングを復元します")
+                connectionUsecase.pairAntennaWithDevice(
+                    antennaId: antennaId, deviceName: firstConnectedDevice)
+
+                // 再度エンドポイントマッピングを確認
+                if connectionUsecase.getEndpointId(for: firstConnectedDevice) != nil {
+                    print("✅ ペアリング復元成功: アンテナ \(antennaId) → \(firstConnectedDevice)")
+                } else {
+                    self.showError("接続されたデバイスのエンドポイント情報が取得できません。再接続してください。")
+                }
+            } else {
+                self.showError("接続されているデバイスがありません。デバイスを再接続してください。")
+            }
+        }
+    }
+
+    /// エンドポイントマッピングの復元を試みる
+    private func attemptEndpointMappingRecovery(deviceName: String, antennaId: String) async {
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 接続されているエンドポイントを確認
+        let connectedEndpoints = connectionUsecase.connectedEndpoints
+
+        print("🔧 エンドポイントマッピング復元を試行: \(connectedEndpoints.count)個のエンドポイント")
+
+        // 少し待機して再確認（接続処理完了待ち）
+        try? await Task.sleep(nanoseconds: 500_000_000)
+
+        // 再確認
+        if let endpointId = connectionUsecase.getEndpointId(for: deviceName) {
+            print("✅ エンドポイントマッピング復元成功: \(deviceName) → \(endpointId)")
+            return
+        }
+
+        // それでも見つからない場合はエラー
+        print("❌ エンドポイントマッピングを復元できませんでした")
+        self.showError(
+            "デバイス \(deviceName) との接続情報を復元できませんでした。ペアリング設定を確認してください。"
+        )
     }
 
     /// 保存された状態があれば操作を再開

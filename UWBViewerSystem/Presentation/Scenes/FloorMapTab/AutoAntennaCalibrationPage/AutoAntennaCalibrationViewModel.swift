@@ -8,6 +8,25 @@ import SwiftData
     import AppKit
 #endif
 
+/// アンテナ別信号品質表示用データ
+struct SignalQualityDisplay: Equatable {
+    let averageRSSI: Double
+    let losPercentage: Double
+    let averageStrength: Double
+    let dataPointCount: Int
+
+    /// 品質レベル（0: 悪い, 1: 普通, 2: 良い）
+    var qualityLevel: Int {
+        if self.averageStrength >= 0.7 && self.losPercentage >= 70 {
+            return 2  // 良い
+        } else if self.averageStrength >= 0.4 && self.losPercentage >= 40 {
+            return 1  // 普通
+        } else {
+            return 0  // 悪い
+        }
+    }
+}
+
 /// 自動アンテナキャリブレーション画面のViewModel
 @MainActor
 class AutoAntennaCalibrationViewModel: ObservableObject {
@@ -47,6 +66,9 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     /// 全アンテナのキャリブレーション結果（履歴）
     @Published var calibrationResults: [String: CalibrationResult] = [:]
 
+    /// 接続エラー表示フラグ
+    @Published var showConnectionRecovery: Bool = false
+
     /// エラーメッセージ
     @Published var errorMessage: String = ""
 
@@ -82,6 +104,68 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     /// キャリブレーション前の現在のアンテナ位置
     @Published var originalAntennaPosition: AntennaPositionData?
 
+    // MARK: - Real-time Feedback Properties
+
+    /// センシング経過時間（秒）
+    @Published var sensingElapsedTime: Double = 0.0
+
+    /// 現在のデータポイント数
+    @Published var currentDataPointCount: Int = 0
+
+    /// リアルタイムRMSE推定値（計算可能な場合）
+    @Published var currentRMSEEstimate: Double?
+
+    /// アンテナ別信号品質情報
+    @Published var signalQualityByAntenna: [String: SignalQualityDisplay] = [:]
+
+    /// センシング中に(0,0)付近のデータが検出された数
+    @Published var suspiciousZeroDataCount: Int = 0
+
+    /// センシング時間（秒）
+    let sensingDuration: Double = 10.0
+
+    /// センシング中に(0,0)付近の疑わしいデータが検出されているかどうか
+    var hasSuspiciousDataDuringSensing: Bool {
+        self.suspiciousZeroDataCount > 0
+    }
+
+    /// センシング中のデータ品質警告メッセージ
+    var sensingDataWarningMessage: String? {
+        guard self.hasSuspiciousDataDuringSensing else { return nil }
+        return "(0,0)付近のデータが\(self.suspiciousZeroDataCount)件検出されました。センサーの接続状態を確認してください。"
+    }
+
+    // MARK: - Connection Recovery State
+
+    /// 切断時に保存された操作状態
+    struct SavedOperationState {
+        let wasCollecting: Bool
+        let wasCalibrating: Bool
+        let stepAtDisconnect: Int
+        let antennaIdAtDisconnect: String?
+        let tagPositionIndexAtDisconnect: Int
+        let sensingElapsedTimeAtDisconnect: Double
+        let timestamp: Date
+    }
+
+    /// 切断前の状態を保存
+    private var savedOperationState: SavedOperationState?
+
+    /// 接続復旧後に再開を試みるかどうか
+    @Published var shouldAttemptResumeAfterReconnect: Bool = true
+
+    /// 再接続中かどうか（UIに表示用）
+    @Published var isAttemptingReconnect: Bool = false
+
+    /// 再接続試行回数
+    @Published var reconnectAttemptCount: Int = 0
+
+    /// 最大再接続試行回数
+    private let maxAutoReconnectAttempts: Int = 3
+
+    /// 接続監視が設定済みかどうか
+    private var isConnectionMonitoringSetup: Bool = false
+
     // MARK: - Dependencies
 
     private var autoCalibrationUsecase: AutoAntennaCalibrationUsecase?
@@ -90,6 +174,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     private var swiftDataRepository: SwiftDataRepository?
     private var sensingControlUsecase: SensingControlUsecase?
     private var modelContext: ModelContext?
+    private weak var flowNavigator: SensingFlowNavigator?
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -129,6 +214,14 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         !self.isCollecting && self.allTagPositionsCollected
     }
 
+    var canGoToPreviousTag: Bool {
+        // データ収集ステップで、完了済みのタグが1つ以上ある場合に戻れる
+        self.currentStep == 2 &&
+            !self.isCollecting &&
+            !self.isCalibrating &&
+            self.trueTagPositions.contains(where: { $0.isCollected })
+    }
+
     var hasMoreAntennas: Bool {
         let uncalibratedAntennas = self.availableAntennas.filter { !self.completedAntennaIds.contains($0.id) }
         return !uncalibratedAntennas.isEmpty
@@ -150,6 +243,45 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
 
     var allTagPositionsCollected: Bool {
         self.trueTagPositions.allSatisfy { $0.isCollected }
+    }
+
+    /// キャリブレーション結果が問題のある状態かどうかを判定
+    /// (0, 0) 付近の位置は明らかに異常な結果
+    var hasCalibrationWarning: Bool {
+        guard let result = currentAntennaResult else { return false }
+        return self.isPositionSuspicious(result.position)
+    }
+
+    /// キャリブレーション結果の警告メッセージ
+    var calibrationWarningMessage: String? {
+        guard let result = currentAntennaResult else { return nil }
+
+        var warnings: [String] = []
+
+        // 位置が (0, 0) 付近の場合
+        if self.isPositionSuspicious(result.position) {
+            warnings.append("推定位置が原点(0,0)付近です。データ収集に問題がある可能性があります。")
+        }
+
+        // RMSEが異常に高い場合
+        if result.rmse > 1.0 {
+            warnings.append("RMSE値が高すぎます。測定データの品質を確認してください。")
+        }
+
+        // スケールファクターが異常な場合
+        if result.scaleFactors.sx < 0.1 || result.scaleFactors.sx > 10.0 ||
+            result.scaleFactors.sy < 0.1 || result.scaleFactors.sy > 10.0
+        {
+            warnings.append("スケールファクターが異常です。キャリブレーションデータに問題がある可能性があります。")
+        }
+
+        return warnings.isEmpty ? nil : warnings.joined(separator: "\n")
+    }
+
+    /// 位置が疑わしい（原点付近）かどうかを判定
+    private func isPositionSuspicious(_ position: Point3D) -> Bool {
+        let threshold: Double = 0.01  // 1cm以内は (0, 0) とみなす
+        return abs(position.x) < threshold && abs(position.y) < threshold
     }
 
     // MARK: - Types
@@ -213,7 +345,337 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         self.realtimeDataUsecase = realtimeUsecase
         connectionUsecase.setRealtimeDataUsecase(realtimeUsecase)
 
+        // 接続監視を設定
+        self.setupConnectionMonitoring()
+
         self.loadInitialData()
+    }
+
+    /// SensingFlowNavigatorを設定
+    func setFlowNavigator(_ navigator: SensingFlowNavigator) {
+        self.flowNavigator = navigator
+    }
+
+    /// 接続監視を設定
+    private func setupConnectionMonitoring() {
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 初期状態をチェック：既に接続エラーがある場合や、接続デバイスがない場合
+        Task { @MainActor in
+            // 少し待機して画面遷移を完了させる
+            try? await Task.sleep(nanoseconds: 500_000_000)
+
+            // 接続エラーがあるか、接続デバイスがない場合は再接続を試みる
+            if connectionUsecase.hasConnectionError {
+                print("🔴 AutoCalibration: 初期化時に既存の接続エラーを検知")
+                self.handleConnectionError()
+            } else if !connectionUsecase.hasConnectedDevices() {
+                print("🔴 AutoCalibration: 初期化時に接続デバイスなしを検知")
+                connectionUsecase.hasConnectionError = true
+                self.handleConnectionError()
+            }
+        }
+
+        // hasConnectionErrorの変更を監視
+        connectionUsecase.$hasConnectionError
+            .dropFirst()  // 初期値をスキップ（上で処理済み）
+            .sink { [weak self] hasError in
+                guard let self else { return }
+                if hasError {
+                    print("⚠️ 接続断検出: 自動再接続を試みます")
+                    self.handleConnectionError()
+                }
+            }
+            .store(in: &self.cancellables)
+
+        // 接続デバイス数の変更を監視してアンテナリストを更新
+        ConnectionManagementUsecase.shared.$connectedDeviceNames
+            .sink { [weak self] deviceNames in
+                guard let self else { return }
+                Task {
+                    print("🔌 接続デバイスの変更を検出: アンテナリストを再読み込みします")
+                    await self.loadAvailableAntennas()
+
+                    // 再接続成功を検出
+                    if !deviceNames.isEmpty && self.isAttemptingReconnect {
+                        print("✅ 再接続成功を検出")
+                        await self.handleReconnectionSuccess()
+                    }
+                }
+            }
+            .store(in: &self.cancellables)
+
+        // 接続復旧画面の表示状態を監視
+        self.$showConnectionRecovery
+            .dropFirst()
+            .sink { [weak self] isShowing in
+                guard let self else { return }
+                // 復旧画面が閉じられた場合（ユーザーがキャンセルまたは接続復旧）
+                if !isShowing && self.savedOperationState != nil {
+                    Task {
+                        await self.checkAndResumeOperation()
+                    }
+                }
+            }
+            .store(in: &self.cancellables)
+    }
+
+    /// 接続エラーハンドリング
+    private func handleConnectionError() {
+        // 現在の操作状態を保存
+        if self.isCollecting || self.isCalibrating {
+            self.savedOperationState = SavedOperationState(
+                wasCollecting: self.isCollecting,
+                wasCalibrating: self.isCalibrating,
+                stepAtDisconnect: self.currentStep,
+                antennaIdAtDisconnect: self.currentAntennaId,
+                tagPositionIndexAtDisconnect: self.currentTagPositionIndex,
+                sensingElapsedTimeAtDisconnect: self.sensingElapsedTime,
+                timestamp: Date()
+            )
+            print("💾 操作状態を保存しました: collecting=\(self.isCollecting), calibrating=\(self.isCalibrating)")
+
+            // 操作を一時停止
+            print("⚠️ データ収集/キャリブレーションを一時停止します")
+            self.isCollecting = false
+            self.isCalibrating = false
+        }
+
+        // エラーメッセージを設定
+        if let deviceName = ConnectionManagementUsecase.shared.lastDisconnectedDevice {
+            self.errorMessage = "デバイス「\(deviceName)」との接続が切断されました。再接続を試みています..."
+        } else {
+            self.errorMessage = "接続が切断されました。再接続を試みています..."
+        }
+
+        // 自動再接続を開始
+        Task {
+            await self.attemptAutoReconnect()
+        }
+    }
+
+    /// 自動再接続を試行
+    private func attemptAutoReconnect() async {
+        self.isAttemptingReconnect = true
+        self.reconnectAttemptCount = 0
+
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 自動再接続中フラグを設定（アラート抑制用）
+        connectionUsecase.isAutoReconnecting = true
+
+        for attempt in 1...self.maxAutoReconnectAttempts {
+            self.reconnectAttemptCount = attempt
+            print("🔄 自動再接続試行 \(attempt)/\(self.maxAutoReconnectAttempts)")
+
+            // 既存の接続をリセット
+            connectionUsecase.resetAll()
+
+            // 少し待機
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+
+            // エラーフラグをクリア
+            connectionUsecase.hasConnectionError = false
+            connectionUsecase.lastDisconnectedDevice = nil
+
+            // 広告と検索を再開
+            connectionUsecase.startAdvertising()
+            connectionUsecase.startDiscovery()
+
+            // 接続確立を待機（最大8秒）
+            for waitCount in 0..<16 {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+
+                if connectionUsecase.hasConnectedDevices() {
+                    print("✅ 自動再接続成功 (試行\(attempt)回目, 待機\(waitCount * 500)ms)")
+                    self.isAttemptingReconnect = false
+                    self.reconnectAttemptCount = 0
+                    connectionUsecase.isAutoReconnecting = false
+
+                    // 復旧処理
+                    await self.handleReconnectionSuccess()
+                    return
+                }
+            }
+
+            // バックオフ：次の試行まで待機
+            let backoffSeconds = attempt * 2
+            print("⏳ 再接続失敗。\(backoffSeconds)秒後に再試行...")
+            try? await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
+        }
+
+        // すべての自動試行が失敗
+        print("❌ 自動再接続失敗: 最大試行回数(\(self.maxAutoReconnectAttempts))に達しました")
+        self.isAttemptingReconnect = false
+        connectionUsecase.isAutoReconnecting = false
+
+        // 手動復旧画面を表示
+        self.errorMessage = "自動再接続に失敗しました。手動で再接続してください。"
+        self.showConnectionRecovery = true
+    }
+
+    /// 再接続成功時の処理
+    private func handleReconnectionSuccess() async {
+        print("🎉 接続復旧完了")
+
+        // エラー状態をクリア
+        self.errorMessage = ""
+        self.showConnectionRecovery = false
+
+        // 接続の安定化を待つ
+        try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒待機
+
+        // ペアリング情報の検証と復元
+        await self.verifyAndRestorePairingInfo()
+
+        // 操作の再開を試みる
+        await self.checkAndResumeOperation()
+    }
+
+    /// ペアリング情報を検証し、必要に応じて復元する
+    private func verifyAndRestorePairingInfo() async {
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 現在のアンテナIDを取得
+        guard let antennaId = currentAntennaId else {
+            print("📝 現在のアンテナIDがありません - ペアリング検証をスキップ")
+            return
+        }
+
+        // ペアリング情報を取得
+        guard let pairedDeviceName = connectionUsecase.getDeviceName(for: antennaId) else {
+            print("⚠️ アンテナ \(antennaId) のペアリング情報が見つかりません")
+            self.showError(
+                "アンテナのペアリング情報が失われました。キャリブレーションを最初からやり直してください。"
+            )
+            return
+        }
+
+        print("🔍 ペアリング検証: アンテナ \(antennaId) → デバイス \(pairedDeviceName)")
+
+        // 接続されているデバイスを確認
+        let connectedDevices = connectionUsecase.connectedDeviceNames
+
+        // ペアリングされたデバイスが接続されているか確認
+        if connectedDevices.contains(pairedDeviceName) {
+            // エンドポイントIDのマッピングを確認
+            if let endpointId = connectionUsecase.getEndpointId(for: pairedDeviceName) {
+                print("✅ ペアリング検証成功: \(pairedDeviceName) (endpoint: \(endpointId))")
+                return
+            } else {
+                // デバイスは接続されているが、エンドポイントマッピングがない
+                // 接続されているエンドポイントから該当デバイスを探して復元を試みる
+                print("⚠️ エンドポイントマッピングが見つかりません - 復元を試行")
+                await self.attemptEndpointMappingRecovery(
+                    deviceName: pairedDeviceName, antennaId: antennaId)
+            }
+        } else {
+            // ペアリングされたデバイスが接続されていない
+            // 接続されている別のデバイスがあればそれを使用するか確認
+            print("⚠️ ペアリングされたデバイス \(pairedDeviceName) が接続リストにありません")
+            print("   接続中のデバイス: \(connectedDevices)")
+
+            // 接続されているデバイスがある場合、そのデバイスでペアリングを更新
+            if let firstConnectedDevice = connectedDevices.first {
+                print("🔄 接続中のデバイス \(firstConnectedDevice) でペアリングを復元します")
+                connectionUsecase.pairAntennaWithDevice(
+                    antennaId: antennaId, deviceName: firstConnectedDevice)
+
+                // 再度エンドポイントマッピングを確認
+                if connectionUsecase.getEndpointId(for: firstConnectedDevice) != nil {
+                    print("✅ ペアリング復元成功: アンテナ \(antennaId) → \(firstConnectedDevice)")
+                } else {
+                    self.showError("接続されたデバイスのエンドポイント情報が取得できません。再接続してください。")
+                }
+            } else {
+                self.showError("接続されているデバイスがありません。デバイスを再接続してください。")
+            }
+        }
+    }
+
+    /// エンドポイントマッピングの復元を試みる
+    private func attemptEndpointMappingRecovery(deviceName: String, antennaId: String) async {
+        let connectionUsecase = ConnectionManagementUsecase.shared
+
+        // 接続されているエンドポイントを確認
+        let connectedEndpoints = connectionUsecase.connectedEndpoints
+
+        print("🔧 エンドポイントマッピング復元を試行: \(connectedEndpoints.count)個のエンドポイント")
+
+        // 少し待機して再確認（接続処理完了待ち）
+        try? await Task.sleep(nanoseconds: 500_000_000)
+
+        // 再確認
+        if let endpointId = connectionUsecase.getEndpointId(for: deviceName) {
+            print("✅ エンドポイントマッピング復元成功: \(deviceName) → \(endpointId)")
+            return
+        }
+
+        // それでも見つからない場合はエラー
+        print("❌ エンドポイントマッピングを復元できませんでした")
+        self.showError(
+            "デバイス \(deviceName) との接続情報を復元できませんでした。ペアリング設定を確認してください。"
+        )
+    }
+
+    /// 保存された状態があれば操作を再開
+    private func checkAndResumeOperation() async {
+        guard let savedState = self.savedOperationState else {
+            print("📝 保存された操作状態がありません")
+            return
+        }
+
+        // 古すぎる状態は無視（5分以上経過）
+        let elapsedSinceDisconnect = Date().timeIntervalSince(savedState.timestamp)
+        if elapsedSinceDisconnect > 300 {
+            print("⏰ 保存された状態が古すぎます（\(Int(elapsedSinceDisconnect))秒経過）。操作を再開しません。")
+            self.savedOperationState = nil
+            return
+        }
+
+        // 接続が復旧しているか確認
+        guard ConnectionManagementUsecase.shared.hasConnectedDevices() else {
+            print("⚠️ デバイスが接続されていないため、操作を再開できません")
+            return
+        }
+
+        print("🔄 操作を再開します: step=\(savedState.stepAtDisconnect), wasCollecting=\(savedState.wasCollecting)")
+
+        // 状態を復元
+        self.currentStep = savedState.stepAtDisconnect
+        if let antennaId = savedState.antennaIdAtDisconnect {
+            self.currentAntennaId = antennaId
+        }
+        self.currentTagPositionIndex = savedState.tagPositionIndexAtDisconnect
+
+        // データ収集を再開
+        if savedState.wasCollecting && self.shouldAttemptResumeAfterReconnect {
+            print("▶️ データ収集を再開します")
+            // 少し待機してから再開（接続の安定化のため）
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            self.startCurrentTagPositionCollection()
+        }
+
+        // 保存状態をクリア
+        self.savedOperationState = nil
+    }
+
+    /// 手動で操作を再開
+    func manuallyResumeOperation() {
+        Task {
+            await self.checkAndResumeOperation()
+        }
+    }
+
+    /// 保存された状態をクリア（ユーザーがキャンセルした場合）
+    func clearSavedOperationState() {
+        self.savedOperationState = nil
+        print("🗑️ 保存された操作状態をクリアしました")
+    }
+
+    /// 保存された操作状態があるかどうか
+    var hasSavedOperationState: Bool {
+        self.savedOperationState != nil
     }
 
     // MARK: - Public Methods
@@ -221,6 +683,14 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     func loadInitialData() {
         Task {
             await self.loadFloorMapInfo()
+            await self.loadAvailableAntennas()
+        }
+    }
+
+    /// 指定されたフロアマップ情報を読み込み
+    func loadFloorMapInfo(floorMapId: String) {
+        Task {
+            await self.loadFloorMapInfoById(floorMapId: floorMapId)
             await self.loadAvailableAntennas()
         }
     }
@@ -303,6 +773,45 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
         print("➡️  次のタグ位置へ: \(self.trueTagPositions[self.currentTagPositionIndex].tagId)")
     }
 
+    /// 前のタグ位置に戻る（最後に完了したタグのデータを取り消してそのタグからやり直す）
+    func goToPreviousTagPosition() {
+        guard self.canGoToPreviousTag else { return }
+
+        // 最後に完了したタグを見つける（後ろから探す）
+        guard let lastCompletedIndex = self.trueTagPositions.indices.reversed().first(where: { index in
+            self.trueTagPositions[index].isCollected
+        }) else {
+            print("⚠️  完了済みのタグが見つかりません")
+            return
+        }
+
+        let tagToUndo = self.trueTagPositions[lastCompletedIndex]
+
+        Task {
+            guard let usecase = autoCalibrationUsecase,
+                  let antennaId = currentAntennaId
+            else { return }
+
+            // 最後に完了したタグのデータをクリア
+            await usecase.clearData(for: antennaId, tagId: tagToUndo.tagId)
+
+            // そのタグの収集状態をリセット
+            self.trueTagPositions[lastCompletedIndex].isCollected = false
+
+            // インデックスをそのタグに戻す
+            self.currentTagPositionIndex = lastCompletedIndex
+
+            // 進行状況を更新
+            let completedCount = self.trueTagPositions.filter { $0.isCollected }.count
+            self.collectionProgress = Double(completedCount) / Double(self.trueTagPositions.count)
+
+            print("⬅️  タグ(\(tagToUndo.tagId))を取り消してそのタグ位置に戻る（index: \(lastCompletedIndex)）")
+
+            // データ統計を更新
+            await self.updateDataStatistics()
+        }
+    }
+
     func startCalibration() {
         guard self.canStartCalibration else { return }
 
@@ -336,6 +845,45 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             print("➡️  次のアンテナへ: \(self.currentAntennaName) (ID: \(nextId))")
         } else {
             print("✅ 全アンテナのキャリブレーション完了")
+
+            // キャリブレーション結果をUserDefaultsに保存
+            self.saveCalibrationResultToUserDefaults()
+
+            // 成功アラートを表示
+            self.showSuccessAlert = true
+
+            // フローナビゲーターで次のステップへ進む
+            if let flowNavigator = self.flowNavigator {
+                print("🚀 次のステップ（センシング実行）へ自動遷移します")
+                // アラート表示後に自動で次へ進むため、少し待機
+                let floorMapId = self.currentFloorMapInfo?.id
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    flowNavigator.proceedToNextStep(floorMapId: floorMapId)
+                }
+            } else {
+                print("⚠️ FlowNavigatorが設定されていないため、手動で次へ進んでください")
+            }
+        }
+    }
+
+    /// キャリブレーション結果をUserDefaultsに保存
+    private func saveCalibrationResultToUserDefaults() {
+        // キャリブレーションデータを作成（アンテナ数の情報を含める）
+        let calibrationData: [String: Double] = [
+            "completedAntennaCount": Double(self.completedAntennaIds.count),
+            "totalAntennaCount": Double(self.availableAntennas.count)
+        ]
+
+        let calibrationResult = SystemCalibrationResult(
+            timestamp: Date(),
+            wasSuccessful: true,
+            calibrationData: calibrationData,
+            errorMessage: nil
+        )
+
+        if let encoded = try? JSONEncoder().encode(calibrationResult) {
+            UserDefaults.standard.set(encoded, forKey: "lastCalibrationResult")
+            print("💾 キャリブレーション結果をUserDefaultsに保存しました")
         }
     }
 
@@ -357,6 +905,37 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
     }
 
     // MARK: - Private Methods
+
+    /// 指定されたIDのフロアマップ情報を読み込み
+    private func loadFloorMapInfoById(floorMapId: String) async {
+        guard let repository = swiftDataRepository else {
+            print("⚠️ SwiftDataRepositoryが利用できません")
+            return
+        }
+
+        do {
+            if let floorMap = try await repository.loadFloorMap(by: floorMapId) {
+                self.currentFloorMapInfo = floorMap
+
+                // フロアマップ画像を読み込み
+                #if canImport(UIKit)
+                    #if os(iOS)
+                        self.floorMapImage = floorMap.image
+                    #elseif os(macOS)
+                        self.floorMapImage = floorMap.image
+                    #endif
+                #elseif canImport(AppKit)
+                    self.floorMapImage = floorMap.image
+                #endif
+
+                print("🗺️ フロアマップ読み込み完了: \(floorMap.name), 画像: \(self.floorMapImage != nil ? "あり" : "なし")")
+            } else {
+                print("⚠️ フロアマップが見つかりません (ID: \(floorMapId))")
+            }
+        } catch {
+            self.showError("フロアマップの読み込みに失敗しました: \(error.localizedDescription)")
+        }
+    }
 
     private func loadFloorMapInfo() async {
         guard let repository = swiftDataRepository else { return }
@@ -403,8 +982,35 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             // すべてのアンテナ位置を保存（マップ常時表示用）
             self.allAntennaPositions = antennaPositions
 
-            // アンテナ位置データからアンテナリストを構築
-            self.availableAntennas = antennaPositions.map { position in
+            // ConnectionManagementUsecaseからペアリング情報を取得
+            let antennaPairings = ConnectionManagementUsecase.shared.antennaPairings
+            print("🔗 [DEBUG] ペアリング情報: \(antennaPairings.count)件")
+
+            for (antennaId, deviceName) in antennaPairings {
+                print("🔗 [DEBUG] ペアリング: \(antennaId) → \(deviceName)")
+            }
+
+            // 接続中のデバイス名を取得
+            let connectedDeviceNames = ConnectionManagementUsecase.shared.connectedDeviceNames
+            print("🔌 [DEBUG] 接続中のデバイス: \(connectedDeviceNames)")
+
+            // ペアリングされている かつ 接続中のアンテナのみをフィルタリング
+            let connectedAntennaPositions = antennaPositions.filter { position in
+                // アンテナIDに紐づくデバイス名を取得
+                if let deviceName = antennaPairings[position.antennaId] {
+                    let isConnected = connectedDeviceNames.contains(deviceName)
+                    print("🔍 [DEBUG] \(position.antennaName) (\(position.antennaId)) → デバイス: \(deviceName), 接続: \(isConnected)")
+                    return isConnected
+                } else {
+                    print("⚠️ [DEBUG] \(position.antennaName) (\(position.antennaId)) はペアリングされていません")
+                    return false
+                }
+            }
+
+            print("📡 [DEBUG] 接続中のアンテナ: \(connectedAntennaPositions.count)個")
+
+            // アンテナ位置データからアンテナリストを構築（接続中のアンテナのみ）
+            self.availableAntennas = connectedAntennaPositions.map { position in
                 AntennaInfo(
                     id: position.antennaId,
                     name: position.antennaName,
@@ -412,7 +1018,7 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                 )
             }
 
-            print("📡 利用可能なアンテナ: \(self.availableAntennas.count)個")
+            print("📡 キャリブレーション対象アンテナ: \(self.availableAntennas.count)個")
         } catch {
             self.showError("アンテナリストの読み込みに失敗しました: \(error.localizedDescription)")
         }
@@ -465,36 +1071,145 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
             // センシング中のデータポイントをクリア
             self.currentSensingDataPoints.removeAll()
 
-            // センシング開始コマンドを送信
-            sensingControl.startRemoteSensing(fileName: sessionName)
+            // リアルタイムフィードバック用変数をリセット
+            self.sensingElapsedTime = 0.0
+            self.currentDataPointCount = 0
+            self.currentRMSEEstimate = nil
+            self.signalQualityByAntenna.removeAll()
+            self.suspiciousZeroDataCount = 0
 
-            // 10秒間データ収集（リアルタイム更新）
+            // 選択中のアンテナに紐づいたデバイス名を取得
+            guard let targetDeviceName = ConnectionManagementUsecase.shared.getDeviceName(for: antennaId)
+            else {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -2,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "アンテナ \(antennaId) に紐づいたデバイスが見つかりません。ペアリング設定を確認してください。"
+                    ]
+                )
+            }
+
+            // 選択中のアンテナに紐づいたデバイスのみにセンシング開始コマンドを送信
+            let sensingStarted = sensingControl.startRemoteSensingForDevice(
+                fileName: sessionName,
+                deviceName: targetDeviceName
+            )
+
+            guard sensingStarted else {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -3,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "デバイス \(targetDeviceName) へのセンシング開始コマンド送信に失敗しました。"
+                    ]
+                )
+            }
+
+            print("🎯 キャリブレーション用センシング開始: デバイス=\(targetDeviceName), アンテナ=\(antennaId)")
+
+            // データ収集（リアルタイム更新）
             let startTime = Date()
-            while Date().timeIntervalSince(startTime) < 10.0 {
+            var connectionLostDuringSensing = false
+            while Date().timeIntervalSince(startTime) < self.sensingDuration {
                 // 0.5秒ごとにデータを更新
                 try await Task.sleep(nanoseconds: 500_000_000)
 
-                // リアルタイムデータから座標を取得してマップに表示
+                // 接続状態をチェック
+                let connectionUsecase = ConnectionManagementUsecase.shared
+                if connectionUsecase.hasConnectionError || !connectionUsecase.hasConnectedDevices() {
+                    print("⚠️ センシング中に接続が切断されました")
+                    connectionLostDuringSensing = true
+                    break
+                }
+
+                // 経過時間を更新
+                self.sensingElapsedTime = Date().timeIntervalSince(startTime)
+
+                // リアルタイムデータから座標と品質情報を取得
                 if let realtimeUsecase = realtimeDataUsecase {
                     var tempDataPoints: [Point3D] = []
-                    for deviceData in realtimeUsecase.deviceRealtimeDataList {
-                        guard deviceData.isActive, let latestData = deviceData.latestData else { continue }
+                    var qualityByAntenna: [String: SignalQualityDisplay] = [:]
+                    var zeroDataCount = 0
 
-                        let position = self.calculatePosition(
-                            distance: latestData.distance,
-                            elevation: latestData.elevation,
-                            azimuth: latestData.azimuth
-                        )
-                        tempDataPoints.append(position)
+                    for deviceData in realtimeUsecase.deviceRealtimeDataList {
+                        guard deviceData.isActive else { continue }
+
+                        // 最新データからマップ表示用座標を取得
+                        if let latestData = deviceData.latestData {
+                            let position = self.calculatePosition(
+                                distance: latestData.distance,
+                                elevation: latestData.elevation,
+                                azimuth: latestData.azimuth
+                            )
+                            tempDataPoints.append(position)
+
+                            // (0,0)付近のデータを検出
+                            if self.isPositionSuspicious(position) {
+                                zeroDataCount += 1
+                            }
+                        }
+
+                        // データ履歴から信号品質を集計
+                        let history = deviceData.dataHistory
+                        if !history.isEmpty {
+                            let avgRSSI = history.map { $0.rssi }.reduce(0, +) / Double(history.count)
+                            // nlos == 0 が LoS (Line of Sight)
+                            let losCount = history.filter { $0.nlos == 0 }.count
+                            let losPercentage = Double(losCount) / Double(history.count) * 100
+                            // RSSIを信号強度の指標として使用（-100dBm〜0dBmを0〜1に正規化）
+                            let avgStrength = min(1.0, max(0.0, (avgRSSI + 100) / 100))
+
+                            qualityByAntenna[deviceData.deviceName] = SignalQualityDisplay(
+                                averageRSSI: avgRSSI,
+                                losPercentage: losPercentage,
+                                averageStrength: avgStrength,
+                                dataPointCount: history.count
+                            )
+
+                            // データ履歴からも(0,0)付近のデータをカウント
+                            for data in history {
+                                let historyPosition = self.calculatePosition(
+                                    distance: data.distance,
+                                    elevation: data.elevation,
+                                    azimuth: data.azimuth
+                                )
+                                if self.isPositionSuspicious(historyPosition) {
+                                    zeroDataCount += 1
+                                }
+                            }
+                        }
                     }
+
                     self.currentSensingDataPoints = tempDataPoints
+                    self.signalQualityByAntenna = qualityByAntenna
+                    self.currentDataPointCount = qualityByAntenna.values.map { $0.dataPointCount }.reduce(
+                        0, +)
+                    self.suspiciousZeroDataCount = zeroDataCount
                 }
             }
 
-            // センシング停止
-            sensingControl.stopRemoteSensing()
+            // 接続が切断された場合はエラー
+            if connectionLostDuringSensing {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -5,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "センシング中に接続が切断されました。接続を復旧してから再度測定してください。"
+                    ]
+                )
+            }
 
-            print("🛑 センシング停止")
+            // センシング完了時の経過時間を最終値に設定
+            self.sensingElapsedTime = self.sensingDuration
+
+            // センシング停止（特定デバイスのみ）
+            sensingControl.stopRemoteSensingForDevice(deviceName: targetDeviceName)
+
+            print("🛑 センシング停止: デバイス=\(targetDeviceName)")
 
             // センシング停止後、リモートデバイスからのデータ送信を待つ
             // CSVファイルの受信とRealtimeDataの更新を待機
@@ -510,31 +1225,59 @@ class AutoAntennaCalibrationViewModel: ObservableObject {
                 )
             }
 
-            // 各デバイスからデータを収集
-            for deviceData in realtimeUsecase.deviceRealtimeDataList {
-                guard deviceData.isActive else { continue }
+            print("🎯 ターゲットデバイス: \(targetDeviceName) (アンテナ: \(antennaId))")
 
-                print("📊 デバイス \(deviceData.deviceName) のデータ収集: \(deviceData.dataHistory.count)件")
+            // 選択中のアンテナに紐づいたデバイスのデータだけを収集
+            guard
+                let targetDeviceData = realtimeUsecase.deviceRealtimeDataList.first(where: {
+                    $0.deviceName == targetDeviceName && $0.isActive
+                })
+            else {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -3,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "デバイス \(targetDeviceName) からのデータが取得できませんでした。接続状態を確認してください。"
+                    ]
+                )
+            }
 
-                // データ履歴から座標を取得
-                for data in deviceData.dataHistory {
-                    // UWBデータから3D座標を計算
-                    let position = self.calculatePosition(
-                        distance: data.distance,
-                        elevation: data.elevation,
-                        azimuth: data.azimuth
-                    )
+            print(
+                "📊 デバイス \(targetDeviceData.deviceName) のデータ収集: \(targetDeviceData.dataHistory.count)件"
+            )
 
-                    // AutoAntennaCalibrationUsecaseにデータを追加
-                    // 注: antennaIdとして現在選択中のアンテナIDを使用
-                    await usecase.addMeasuredData(
-                        antennaId: antennaId,
-                        tagId: tagPos.tagId,
-                        measuredPosition: position
-                    )
+            // データが取得できなかった場合はエラー
+            if targetDeviceData.dataHistory.isEmpty {
+                throw NSError(
+                    domain: "AutoAntennaCalibration",
+                    code: -4,
+                    userInfo: [
+                        NSLocalizedDescriptionKey:
+                            "デバイス \(targetDeviceName) からのセンサーデータが0件でした。接続状態を確認し、再度測定してください。"
+                    ]
+                )
+            }
 
-                    print("  ➕ データ追加: antenna=\(antennaId), tag=\(tagPos.tagId), pos=(\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)))")
-                }
+            // データ履歴から座標を取得
+            for data in targetDeviceData.dataHistory {
+                // UWBデータから3D座標を計算
+                let position = self.calculatePosition(
+                    distance: data.distance,
+                    elevation: data.elevation,
+                    azimuth: data.azimuth
+                )
+
+                // AutoAntennaCalibrationUsecaseにデータを追加
+                await usecase.addMeasuredData(
+                    antennaId: antennaId,
+                    tagId: tagPos.tagId,
+                    measuredPosition: position
+                )
+
+                print(
+                    "  ➕ データ追加: antenna=\(antennaId), tag=\(tagPos.tagId), pos=(\(String(format: "%.2f", position.x)), \(String(format: "%.2f", position.y)))"
+                )
             }
 
             // リアルタイムデータをクリア

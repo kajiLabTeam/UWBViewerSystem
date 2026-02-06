@@ -15,6 +15,7 @@ class SensingFlowNavigator: ObservableObject {
     @Published var isFlowCompleted: Bool = false
     @Published var completedSteps: Set<SensingFlowStep> = []
     @Published var lastError: String?
+    @Published var currentFloorMapId: String?
 
     private var router: NavigationRouterModel
     private let preferenceRepository: PreferenceRepositoryProtocol
@@ -41,8 +42,18 @@ class SensingFlowNavigator: ObservableObject {
     }
 
     /// 次のステップに進む
-    func proceedToNextStep() {
+    func proceedToNextStep(floorMapId: String? = nil) {
         print("🚀 proceedToNextStep: Current step = \(self.currentStep.rawValue)")
+        print("🔍 DEBUG: Received floorMapId parameter = '\(floorMapId ?? "nil")'")
+        print("🔍 DEBUG: Current self.currentFloorMapId = '\(self.currentFloorMapId)'")
+
+        // floorMapIdが指定されている場合は保存
+        if let floorMapId {
+            self.currentFloorMapId = floorMapId
+            #if DEBUG
+                print("📍 proceedToNextStep: FloorMapId set to \(floorMapId)")
+            #endif
+        }
 
         // 現在のステップの完了条件をチェック
         guard self.canProceedFromCurrentStep() else {
@@ -67,13 +78,30 @@ class SensingFlowNavigator: ObservableObject {
         let nextStep = SensingFlowStep.allCases[currentIndex + 1]
         print("➡️ proceedToNextStep: Moving to next step = \(nextStep.rawValue)")
 
+        // キャリブレーションステップをスキップする場合
+        if nextStep == .systemCalibration && UserDefaults.standard.bool(forKey: "skipCalibration") {
+            print("🔧 キャリブレーションスキップ設定が有効: キャリブレーションステップをスキップします")
+            print("🔍 DEBUG: currentFloorMapId = '\(self.currentFloorMapId)'")
+            self.currentStep = nextStep
+            self.markStepAsCompleted(nextStep)
+            self.updateProgress()
+            self.saveFlowState()
+
+            // 再帰的に次のステップ（センシング実行）に進む
+            // currentFloorMapIdを明示的に渡す
+            print("🔍 DEBUG: Calling proceedToNextStep with floorMapId = '\(self.currentFloorMapId)'")
+            self.proceedToNextStep(floorMapId: self.currentFloorMapId)
+            return
+        }
+
         self.currentStep = nextStep
         self.updateProgress()
         self.saveFlowState()
 
         // ルーターを使用して実際の画面遷移を実行
-        print("🔄 proceedToNextStep: Navigating to route = \(nextStep.route)")
-        self.router.navigateTo(nextStep.route)
+        let route = nextStep.route(floorMapId: self.currentFloorMapId)
+        print("🔄 proceedToNextStep: Pushing route = \(route)")
+        self.router.push(route)
         print("✅ proceedToNextStep: Navigation completed")
     }
 
@@ -89,14 +117,16 @@ class SensingFlowNavigator: ObservableObject {
         self.currentStep = previousStep
         self.updateProgress()
 
-        self.router.navigateTo(previousStep.route)
+        print("🔙 goToPreviousStep: Popping to previous step")
+        self.router.pop()
     }
 
     /// 指定したステップに直接ジャンプ
     func jumpToStep(_ step: SensingFlowStep) {
         self.currentStep = step
         self.updateProgress()
-        self.router.navigateTo(step.route)
+        let route = step.route(floorMapId: self.currentFloorMapId)
+        self.router.navigateTo(route, resetStack: true)
     }
 
     /// フローを最初から開始
@@ -104,7 +134,8 @@ class SensingFlowNavigator: ObservableObject {
         self.currentStep = .floorMapSetting
         self.isFlowCompleted = false
         self.updateProgress()
-        self.router.navigateTo(self.currentStep.route)
+        let route = self.currentStep.route(floorMapId: self.currentFloorMapId)
+        self.router.navigateTo(route, resetStack: true)
     }
 
     /// フローを完了
@@ -228,19 +259,22 @@ enum SensingFlowStep: String, CaseIterable {
     case sensingExecution = "センシング実行"
     case dataViewer = "データ閲覧"
 
-    /// 各ステップに対応するRoute
-    var route: Route {
+    /// 各ステップに対応するRouteを取得
+    func route(floorMapId: String?) -> Route {
+        // floorMapIdが必要なRouteの場合、デフォルト値を使用
+        let mapId = floorMapId ?? ""
+
         switch self {
         case .floorMapSetting:
             return .floorMapSetting
         case .antennaConfiguration:
-            return .antennaConfiguration
+            return .antennaConfiguration(floorMapId: mapId)
         case .devicePairing:
-            return .pairingSettingPage
+            return .pairingSettingPage(floorMapId: mapId)
         case .systemCalibration:
-            return .systemCalibration
+            return .systemCalibration(floorMapId: mapId)
         case .sensingExecution:
-            return .dataCollectionPage
+            return .dataCollectionPage(floorMapId: mapId)
         case .dataViewer:
             return .dataDisplayPage
         }
@@ -393,6 +427,12 @@ enum SensingFlowStep: String, CaseIterable {
     }
 
     private func checkSystemCalibrationCompletion() -> Bool {
+        // デバッグ設定でキャリブレーションをスキップする場合
+        if UserDefaults.standard.bool(forKey: "skipCalibration") {
+            print("🔧 キャリブレーションスキップ設定が有効: 自動的に完了とみなします")
+            return true
+        }
+
         // キャリブレーション結果を確認
         guard let data = UserDefaults.standard.data(forKey: "lastCalibrationResult"),
               let result = try? JSONDecoder().decode(SystemCalibrationResult.self, from: data)

@@ -7,8 +7,17 @@ import SwiftUI
 /// 複数のタグ位置（既知）でセンシングを行い、各アンテナが観測した座標から
 /// アフィン変換を推定してアンテナのANTENNA_CONFIGを自動生成します。
 struct AutoAntennaCalibrationView: View {
+    /// 選択されたフロアマップID
+    let floorMapId: String
+
     @StateObject private var viewModel = AutoAntennaCalibrationViewModel()
+    @StateObject private var flowNavigator = SensingFlowNavigator()
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject var router: NavigationRouterModel
+
+    init(floorMapId: String) {
+        self.floorMapId = floorMapId
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,6 +44,11 @@ struct AutoAntennaCalibrationView: View {
         }
         .onAppear {
             self.viewModel.setup(modelContext: self.modelContext)
+            // 指定されたフロアマップIDでフロアマップ情報を読み込み
+            self.viewModel.loadFloorMapInfo(floorMapId: self.floorMapId)
+            self.flowNavigator.currentStep = .systemCalibration
+            self.flowNavigator.setRouter(self.router)
+            self.viewModel.setFlowNavigator(self.flowNavigator)
         }
         .alert("エラー", isPresented: self.$viewModel.showErrorAlert) {
             Button("OK", role: .cancel) {}
@@ -48,6 +62,58 @@ struct AutoAntennaCalibrationView: View {
             Button("完了", role: .cancel) {}
         } message: {
             Text("全てのアンテナのキャリブレーションが正常に完了しました")
+        }
+        .sheet(isPresented: self.$viewModel.showConnectionRecovery) {
+            ConnectionRecoveryView(
+                connectionUsecase: ConnectionManagementUsecase.shared,
+                isPresented: self.$viewModel.showConnectionRecovery
+            )
+            #if os(iOS)
+            .presentationDetents([.medium, .large])
+            #endif
+        }
+        .overlay {
+            // 自動再接続中のオーバーレイ
+            if self.viewModel.isAttemptingReconnect {
+                self.reconnectingOverlay
+            }
+        }
+    }
+
+    // MARK: - Reconnection Overlay
+
+    /// 自動再接続中に表示するオーバーレイ
+    private var reconnectingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+
+                VStack(spacing: 8) {
+                    Text("再接続中...")
+                        .font(.headline)
+                        .foregroundColor(.white)
+
+                    Text("試行 \(self.viewModel.reconnectAttemptCount) / 3")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+
+                    Text(self.viewModel.errorMessage)
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+            }
+            .padding(30)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.black.opacity(0.7))
+            )
         }
     }
 
@@ -536,18 +602,9 @@ struct FloatingCalibrationControlPanel: View {
                     .background(currentTag.isCollected ? Color.green.opacity(0.1) : Color.blue.opacity(0.1))
                     .cornerRadius(6)
 
-                    // センシング中のインジケーター
+                    // センシング中の詳細フィードバック
                     if self.viewModel.isCollecting {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("センシング中...")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(8)
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(6)
+                        self.sensingDetailPanel
                     }
 
                     // センシング開始ボタン
@@ -567,20 +624,58 @@ struct FloatingCalibrationControlPanel: View {
                             .cornerRadius(8)
                         }
                     }
-                    // 次の位置へ
+                    // 次の位置へ & 前のタグに戻る
                     else if self.viewModel.hasMoreTagPositions {
+                        HStack(spacing: 8) {
+                            // 前のタグに戻るボタン
+                            if self.viewModel.canGoToPreviousTag {
+                                Button(action: {
+                                    self.viewModel.goToPreviousTagPosition()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "arrow.left.circle.fill")
+                                        Text("前のタグへ")
+                                    }
+                                    .font(.caption)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(8)
+                                    .foregroundColor(.white)
+                                    .background(Color.orange)
+                                    .cornerRadius(8)
+                                }
+                            }
+
+                            // 次のタグ位置へボタン
+                            Button(action: {
+                                self.viewModel.proceedToNextTagPosition()
+                            }) {
+                                HStack {
+                                    Image(systemName: "arrow.right.circle.fill")
+                                    Text("次のタグ位置へ")
+                                }
+                                .font(.caption)
+                                .frame(maxWidth: .infinity)
+                                .padding(8)
+                                .foregroundColor(.white)
+                                .background(Color.blue)
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    // 最後のタグで「前のタグに戻る」のみ表示
+                    else if self.viewModel.canGoToPreviousTag {
                         Button(action: {
-                            self.viewModel.proceedToNextTagPosition()
+                            self.viewModel.goToPreviousTagPosition()
                         }) {
                             HStack {
-                                Image(systemName: "arrow.right.circle.fill")
-                                Text("次のタグ位置へ")
+                                Image(systemName: "arrow.left.circle.fill")
+                                Text("前のタグへ")
                             }
                             .font(.caption)
                             .frame(maxWidth: .infinity)
                             .padding(8)
                             .foregroundColor(.white)
-                            .background(Color.blue)
+                            .background(Color.orange)
                             .cornerRadius(8)
                         }
                     }
@@ -607,6 +702,169 @@ struct FloatingCalibrationControlPanel: View {
                 .background(Color.secondary.opacity(0.05))
                 .cornerRadius(6)
             }
+        }
+    }
+
+    // MARK: - Sensing Detail Panel
+
+    /// センシング中の詳細フィードバックパネル
+    private var sensingDetailPanel: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // ヘッダー
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("センシング中...")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(self.viewModel.hasSuspiciousDataDuringSensing ? .red : .green)
+            }
+
+            // 経過時間プログレスバー
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("経過時間")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text(
+                        "\(String(format: "%.1f", self.viewModel.sensingElapsedTime))秒 / \(String(format: "%.0f", self.viewModel.sensingDuration))秒"
+                    )
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                }
+
+                ProgressView(
+                    value: self.viewModel.sensingElapsedTime,
+                    total: self.viewModel.sensingDuration
+                )
+                .progressViewStyle(
+                    LinearProgressViewStyle(
+                        tint: self.viewModel.hasSuspiciousDataDuringSensing ? .red : .green))
+            }
+
+            // (0,0)データ検出警告
+            if self.viewModel.hasSuspiciousDataDuringSensing {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                    Text(
+                        "(0,0)付近のデータ: \(self.viewModel.suspiciousZeroDataCount)件検出"
+                    )
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.red)
+                }
+                .padding(6)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(4)
+            }
+
+            // データポイント数
+            HStack {
+                Image(systemName: "chart.dots.scatter")
+                    .font(.caption2)
+                    .foregroundColor(.blue)
+                Text("データポイント数:")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("\(self.viewModel.currentDataPointCount)個")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+            }
+
+            // RMSE推定（表示可能な場合）
+            if let rmse = self.viewModel.currentRMSEEstimate {
+                HStack {
+                    Image(systemName: "ruler")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    Text("RMSE推定:")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(String(format: "%.3f", rmse))m")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                }
+            }
+
+            // 信号品質（アンテナ別）
+            if !self.viewModel.signalQualityByAntenna.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("信号品質")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+
+                    ForEach(
+                        Array(self.viewModel.signalQualityByAntenna.keys.sorted()), id: \.self
+                    ) { antennaId in
+                        if let quality = self.viewModel.signalQualityByAntenna[antennaId] {
+                            self.antennaSignalQualityRow(antennaId: antennaId, quality: quality)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(
+            (self.viewModel.hasSuspiciousDataDuringSensing ? Color.red : Color.green).opacity(0.1))
+        .cornerRadius(8)
+    }
+
+    /// アンテナ別信号品質行
+    @ViewBuilder
+    private func antennaSignalQualityRow(antennaId: String, quality: SignalQualityDisplay) -> some View
+    {
+        HStack(spacing: 6) {
+            // 品質インジケーター
+            Circle()
+                .fill(self.qualityColor(for: quality.qualityLevel))
+                .frame(width: 8, height: 8)
+
+            // アンテナ名
+            Text(antennaId)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .frame(width: 60, alignment: .leading)
+
+            Spacer()
+
+            // RSSI
+            HStack(spacing: 2) {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .font(.system(size: 8))
+                Text("\(String(format: "%.0f", quality.averageRSSI))dBm")
+                    .font(.system(size: 9))
+            }
+            .foregroundColor(.secondary)
+
+            // LoS率
+            HStack(spacing: 2) {
+                Image(systemName: quality.losPercentage >= 50 ? "eye.fill" : "eye.slash.fill")
+                    .font(.system(size: 8))
+                Text("\(String(format: "%.0f", quality.losPercentage))%")
+                    .font(.system(size: 9))
+            }
+            .foregroundColor(quality.losPercentage >= 50 ? .green : .orange)
+
+            // データ数
+            Text("\(quality.dataPointCount)")
+                .font(.system(size: 9))
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// 品質レベルに応じた色を返す
+    private func qualityColor(for level: Int) -> Color {
+        switch level {
+        case 2: return .green
+        case 1: return .orange
+        default: return .red
         }
     }
 
@@ -664,6 +922,31 @@ struct FloatingCalibrationControlPanel: View {
                     .padding(8)
                     .background(Color.green.opacity(0.1))
                     .cornerRadius(6)
+
+                    // キャリブレーション結果の警告表示
+                    if self.viewModel.hasCalibrationWarning,
+                       let warningMessage = self.viewModel.calibrationWarningMessage
+                    {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+
+                                Text("警告")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.orange)
+                            }
+
+                            Text(warningMessage)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(8)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(6)
+                    }
 
                     // 次のアンテナへ進むボタン
                     if self.viewModel.hasMoreAntennas {
@@ -775,6 +1058,7 @@ struct FloatingCalibrationControlPanel: View {
 
 struct AutoAntennaCalibrationView_Previews: PreviewProvider {
     static var previews: some View {
-        AutoAntennaCalibrationView()
+        AutoAntennaCalibrationView(floorMapId: "test-floor-map-id")
+            .environmentObject(NavigationRouterModel())
     }
 }

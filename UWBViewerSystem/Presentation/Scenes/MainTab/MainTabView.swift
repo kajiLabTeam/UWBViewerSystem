@@ -1,14 +1,16 @@
+import SwiftData
 import SwiftUI
 
 struct MainTabView: View {
+    @Environment(\.modelContext) private var modelContext
     @EnvironmentObject var router: NavigationRouterModel
     @State private var selectedTab = 0
 
     var body: some View {
         TabView(selection: self.$selectedTab) {
-            SensingView()
+            DataDisplayView()
                 .tabItem {
-                    Label("センシング", systemImage: "waveform.path.ecg")
+                    Label("取得データ", systemImage: "chart.line.uptrend.xyaxis")
                 }
                 .tag(0)
 

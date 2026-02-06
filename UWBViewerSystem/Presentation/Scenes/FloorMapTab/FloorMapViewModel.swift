@@ -9,23 +9,13 @@ struct FloorMap: Identifiable {
     let width: Double
     let height: Double
     var isActive: Bool
-    var projectProgress: ProjectProgress?
 
     var formattedSize: String {
         String(format: "%.1f × %.1f m", self.width, self.height)
     }
 
-    var progressPercentage: Double {
-        self.projectProgress?.completionPercentage ?? 0.0
-    }
-
-    var currentStepDisplayName: String {
-        self.projectProgress?.currentStep.displayName ?? "未開始"
-    }
-
     init(
-        from floorMapInfo: FloorMapInfo, antennaCount: Int = 0, isActive: Bool = false,
-        projectProgress: ProjectProgress? = nil
+        from floorMapInfo: FloorMapInfo, antennaCount: Int = 0, isActive: Bool = false
     ) {
         self.id = floorMapInfo.id
         self.name = floorMapInfo.name
@@ -33,12 +23,10 @@ struct FloorMap: Identifiable {
         self.width = floorMapInfo.width
         self.height = floorMapInfo.depth
         self.isActive = isActive
-        self.projectProgress = projectProgress
     }
 
     init(
-        id: String, name: String, antennaCount: Int, width: Double, height: Double, isActive: Bool,
-        projectProgress: ProjectProgress? = nil
+        id: String, name: String, antennaCount: Int, width: Double, height: Double, isActive: Bool
     ) {
         self.id = id
         self.name = name
@@ -46,7 +34,6 @@ struct FloorMap: Identifiable {
         self.width = width
         self.height = height
         self.isActive = isActive
-        self.projectProgress = projectProgress
     }
 
     func toFloorMapInfo() -> FloorMapInfo {
@@ -118,19 +105,10 @@ class FloorMapViewModel: ObservableObject {
                     // アンテナ数をカウント（TODO: 実際のアンテナ数を取得）
                     let antennaCount = self.getAntennaCount(for: floorMapInfo.id)
 
-                    // プロジェクト進行状況を取得
-                    var projectProgress: ProjectProgress?
-                    do {
-                        projectProgress = try await repository.loadProjectProgress(for: floorMapInfo.id)
-                    } catch {
-                        print("⚠️ プロジェクト進行状況の読み込みエラー: \(error)")
-                    }
-
                     let floorMap = FloorMap(
                         from: floorMapInfo,
                         antennaCount: antennaCount,
-                        isActive: false,  // 後で設定
-                        projectProgress: projectProgress
+                        isActive: false  // 後で設定
                     )
                     floorMaps.append(floorMap)
                 }
@@ -138,15 +116,12 @@ class FloorMapViewModel: ObservableObject {
                 await MainActor.run {
                     self.floorMaps = floorMaps
                     print("✅ FloorMapViewModel: フロアマップ一覧をUIに反映: \(floorMaps.count)件")
+                    for (index, map) in floorMaps.enumerated() {
+                        print("   [\(index + 1)] ID: \(map.id), Name: \(map.name)")
+                    }
 
-                    // アクティブなフロアマップを設定
-                    if let activeId = getCurrentActiveFloorMapId(),
-                       let index = self.floorMaps.firstIndex(where: { $0.id == activeId })
-                    {
-                        self.floorMaps[index].isActive = true
-                        self.selectedFloorMap = self.floorMaps[index]
-                        print("🔄 アクティブなフロアマップを復元: \(self.selectedFloorMap?.name ?? "Unknown")")
-                    } else if !self.floorMaps.isEmpty {
+                    // デフォルトで最初のフロアマップを選択（グローバルな選択状態は保存しない）
+                    if !self.floorMaps.isEmpty {
                         self.floorMaps[0].isActive = true
                         self.selectedFloorMap = self.floorMaps[0]
                         print("🔄 デフォルトで最初のフロアマップを選択: \(self.selectedFloorMap?.name ?? "Unknown")")
@@ -196,10 +171,6 @@ class FloorMapViewModel: ObservableObject {
         0
     }
 
-    private func getCurrentActiveFloorMapId() -> String? {
-        self.preferenceRepository.loadCurrentFloorMapInfo()?.id
-    }
-
     private func updatePreferences() {
         self.preferenceRepository.setHasFloorMapConfigured(!self.floorMaps.isEmpty)
     }
@@ -209,17 +180,6 @@ class FloorMapViewModel: ObservableObject {
             self.floorMaps[i].isActive = (self.floorMaps[i].id == map.id)
         }
         self.selectedFloorMap = map
-
-        // UserDefaultsのcurrentFloorMapInfoを更新
-        self.updateCurrentFloorMapInfo(map.toFloorMapInfo())
-    }
-
-    private func updateCurrentFloorMapInfo(_ floorMapInfo: FloorMapInfo) {
-        self.preferenceRepository.saveCurrentFloorMapInfo(floorMapInfo)
-        print("📍 FloorMapViewModel: currentFloorMapInfo updated to: \(floorMapInfo.name)")
-
-        // フロアマップ変更を通知
-        NotificationCenter.default.post(name: .init("FloorMapChanged"), object: floorMapInfo)
     }
 
     func toggleActiveFloorMap(_ map: FloorMap) {
@@ -228,8 +188,6 @@ class FloorMapViewModel: ObservableObject {
                 self.floorMaps[i].isActive.toggle()
                 if self.floorMaps[i].isActive {
                     self.selectedFloorMap = self.floorMaps[i]
-                    // UserDefaultsのcurrentFloorMapInfoを更新
-                    self.updateCurrentFloorMapInfo(self.floorMaps[i].toFloorMapInfo())
                     for j in 0..<self.floorMaps.count {
                         if j != i && self.floorMaps[j].isActive {
                             self.floorMaps[j].isActive = false
@@ -237,10 +195,6 @@ class FloorMapViewModel: ObservableObject {
                     }
                 } else if self.selectedFloorMap?.id == map.id {
                     self.selectedFloorMap = self.floorMaps.first { $0.isActive }
-                    // 新しく選択されたフロアマップのcurrentFloorMapInfoを更新
-                    if let newSelectedMap = selectedFloorMap {
-                        self.updateCurrentFloorMapInfo(newSelectedMap.toFloorMapInfo())
-                    }
                 }
                 break
             }
@@ -291,20 +245,6 @@ class FloorMapViewModel: ObservableObject {
     }
 
     private func deleteCascadingData(for mapId: String, repository: SwiftDataRepository) async {
-        // 関連するプロジェクト進行状況の削除
-        do {
-            if let progress = try await repository.loadProjectProgress(for: mapId) {
-                try await repository.deleteProjectProgress(by: progress.id)
-                #if DEBUG
-                    print("✅ 関連するプロジェクト進行状況も削除: \(progress.id)")
-                #endif
-            }
-        } catch {
-            #if DEBUG
-                print("⚠️ プロジェクト進行状況の削除中にエラー（続行）: \(error)")
-            #endif
-        }
-
         // 関連するアンテナ位置データの削除
         do {
             try await repository.deleteAllAntennaPositions(for: mapId)
@@ -344,7 +284,6 @@ class FloorMapViewModel: ObservableObject {
         } else if deletedMap.isActive {
             self.floorMaps[0].isActive = true
             self.selectedFloorMap = self.floorMaps[0]
-            self.updateCurrentFloorMapInfo(self.floorMaps[0].toFloorMapInfo())
             #if DEBUG
                 print("🔄 新しいアクティブフロアマップ: \(self.floorMaps[0].name)")
             #endif

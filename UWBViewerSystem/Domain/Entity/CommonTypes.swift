@@ -158,45 +158,6 @@ public enum SetupStep: String, Codable, CaseIterable {
     }
 }
 
-/// プロジェクトの進行状況を表すデータ構造
-public struct ProjectProgress: Codable {
-    public let id: String
-    public let floorMapId: String
-    public var currentStep: SetupStep
-    public var completedSteps: Set<SetupStep>
-    public var stepData: [String: Data]  // 各ステップの詳細データ
-    public let createdAt: Date
-    public var updatedAt: Date
-
-    public init(
-        id: String = UUID().uuidString,
-        floorMapId: String,
-        currentStep: SetupStep = .floorMapSetting,
-        completedSteps: Set<SetupStep> = [],
-        stepData: [String: Data] = [:],
-        createdAt: Date = Date(),
-        updatedAt: Date = Date()
-    ) {
-        self.id = id
-        self.floorMapId = floorMapId
-        self.currentStep = currentStep
-        self.completedSteps = completedSteps
-        self.stepData = stepData
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-    }
-
-    public var completionPercentage: Double {
-        let totalSteps = SetupStep.allCases.count - 1  // completedを除く
-        let completed = self.completedSteps.filter { $0 != .completed }.count
-        return Double(completed) / Double(totalSteps)
-    }
-
-    public var isCompleted: Bool {
-        self.currentStep == .completed
-    }
-}
-
 // FloorMapInfo用のプラットフォーム固有拡張
 #if os(macOS)
     extension FloorMapInfo {
@@ -220,11 +181,25 @@ public struct ProjectProgress: Codable {
             get {
                 let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
                 let imageURL = documentsDirectory.appendingPathComponent("\(self.id).jpg")
+
+                #if DEBUG
+                    print("🖼️ FloorMapInfo.image: フロアマップ '\(self.name)' (ID: \(self.id)) の画像を読み込み中")
+                    print("   画像パス: \(imageURL.path)")
+                    print("   ファイル存在: \(FileManager.default.fileExists(atPath: imageURL.path))")
+                #endif
+
                 if FileManager.default.fileExists(atPath: imageURL.path),
                    let data = try? Data(contentsOf: imageURL)
                 {
+                    #if DEBUG
+                        print("   ✅ 画像読み込み成功")
+                    #endif
                     return UIImage(data: data)
                 }
+
+                #if DEBUG
+                    print("   ❌ 画像が見つからないか読み込みに失敗")
+                #endif
                 return nil
             }
             set {

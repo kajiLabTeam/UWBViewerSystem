@@ -90,10 +90,10 @@ class FloorMapSettingViewModel: ObservableObject {
         self.isImagePickerPresented = true
     }
 
-    func saveFloorMapSettings() async -> Bool {
+    func saveFloorMapSettings() async -> String? {
         guard self.canProceedToNext else {
             self.showError("必要な情報がすべて入力されていません")
-            return false
+            return nil
         }
 
         self.isLoading = true
@@ -118,38 +118,22 @@ class FloorMapSettingViewModel: ObservableObject {
                     #if DEBUG
                         print("✅ フロアマップをSwiftDataに保存成功: \(floorMapInfo.name)")
                     #endif
-
-                    // プロジェクト進行状況を初期化して保存
-                    let projectProgress = ProjectProgress(
-                        floorMapId: floorMapInfo.id,
-                        currentStep: .floorMapSetting,
-                        completedSteps: [.floorMapSetting]  // フロアマップ設定完了
-                    )
-
-                    try await repository.saveProjectProgress(projectProgress)
-                    #if DEBUG
-                        print("✅ プロジェクト進行状況を保存成功: \(projectProgress.currentStep.displayName)")
-                    #endif
-
-                    // 保存直後に確認
-                    await self.verifyDataSaved(
-                        repository: repository, floorMapInfo: floorMapInfo, projectProgress: projectProgress)
                 } catch {
                     #if DEBUG
                         print("❌ SwiftDataへの保存エラー: \(error)")
                     #endif
                     self.showError("データベースへの保存に失敗しました: \(error.localizedDescription)")
                     self.isLoading = false
-                    return false
+                    return nil
                 }
             }
 
             self.isLoading = false
-            return true
+            return floorMapInfo.id
         } catch {
             self.showError("フロアマップ情報の保存に失敗しました: \(error.localizedDescription)")
             self.isLoading = false
-            return false
+            return nil
         }
     }
 
@@ -199,7 +183,10 @@ class FloorMapSettingViewModel: ObservableObject {
     }
 
     private func saveFloorMapInfo(_ info: FloorMapInfo) throws {
-        // PreferenceRepositoryに基本情報を保存
+        // PreferenceRepositoryにフロアマップ情報を保存（SensingFlowNavigatorの検証に必要）
+        self.preferenceRepository.saveCurrentFloorMapInfo(info)
+
+        // PreferenceRepositoryに基本情報を保存（前回の設定を記憶）
         self.preferenceRepository.saveLastFloorSettings(
             name: info.name,
             buildingName: info.buildingName,
@@ -211,9 +198,6 @@ class FloorMapSettingViewModel: ObservableObject {
         if let image = selectedFloorMapImage {
             try self.saveImageToDocuments(image, with: info.id)
         }
-
-        // フロアマップ情報を保存
-        self.preferenceRepository.saveCurrentFloorMapInfo(info)
     }
 
     #if os(iOS)
@@ -250,53 +234,6 @@ class FloorMapSettingViewModel: ObservableObject {
     private func showError(_ message: String) {
         self.errorMessage = message
         self.showErrorAlert = true
-    }
-
-    /// 保存直後にデータが正常に保存されているかを確認
-    private func verifyDataSaved(
-        repository: SwiftDataRepository, floorMapInfo: FloorMapInfo, projectProgress: ProjectProgress
-    ) async {
-        #if DEBUG
-            print("🔍 === 保存検証開始 ===")
-
-            do {
-                // フロアマップの確認
-                if let savedFloorMap = try await repository.loadFloorMap(by: floorMapInfo.id) {
-                    print("✅ フロアマップ保存確認成功:")
-                    print("   ID: \(savedFloorMap.id)")
-                    print("   Name: \(savedFloorMap.name)")
-                    print("   Building: \(savedFloorMap.buildingName)")
-                    print("   Size: \(savedFloorMap.width) × \(savedFloorMap.depth)")
-                } else {
-                    print("❌ フロアマップが見つかりません: ID=\(floorMapInfo.id)")
-                }
-
-                // プロジェクト進行状況の確認
-                if let savedProgress = try await repository.loadProjectProgress(by: projectProgress.id) {
-                    print("✅ プロジェクト進行状況保存確認成功:")
-                    print("   ID: \(savedProgress.id)")
-                    print("   FloorMapID: \(savedProgress.floorMapId)")
-                    print("   CurrentStep: \(savedProgress.currentStep.displayName)")
-                    print(
-                        "   CompletedSteps: \(savedProgress.completedSteps.map { $0.displayName }.joined(separator: ", "))"
-                    )
-                } else {
-                    print("❌ プロジェクト進行状況が見つかりません: ID=\(projectProgress.id)")
-                }
-
-                // 全フロアマップの確認
-                let allFloorMaps = try await repository.loadAllFloorMaps()
-                print("📊 データベース内の全フロアマップ: \(allFloorMaps.count)件")
-                for (index, floorMap) in allFloorMaps.enumerated() {
-                    print("   [\(index + 1)] \(floorMap.name) (ID: \(floorMap.id))")
-                }
-
-            } catch {
-                print("❌ 保存検証中にエラーが発生: \(error)")
-            }
-
-            print("🔍 === 保存検証終了 ===")
-        #endif
     }
 }
 

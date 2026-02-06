@@ -9,6 +9,9 @@ import SwiftUI
 /// - ダブルタップでアンテナの回転
 /// - キャリブレーション結果の可視化
 struct AntennaPositioningView: View {
+    /// 選択されたフロアマップID
+    let floorMapId: String
+
     /// ナビゲーションルーター
     @EnvironmentObject var router: NavigationRouterModel
 
@@ -67,7 +70,8 @@ struct AntennaPositioningView: View {
                         FloatingControlPanel(
                             viewModel: self.viewModel,
                             flowNavigator: self.flowNavigator,
-                            isExpanded: self.$isControlPanelExpanded
+                            isExpanded: self.$isControlPanelExpanded,
+                            floorMapId: self.floorMapId
                         )
                         .frame(maxWidth: 450)
                     }
@@ -84,17 +88,11 @@ struct AntennaPositioningView: View {
         #endif
             .onAppear {
                 self.viewModel.setModelContext(self.modelContext)
-                self.viewModel.loadMapAndDevices()
+                self.viewModel.setFloorMapId(self.floorMapId)
+                self.viewModel.loadMapAndDevices(floorMapId: self.floorMapId)
                 self.flowNavigator.currentStep = .antennaConfiguration
+                self.flowNavigator.currentFloorMapId = self.floorMapId
                 self.flowNavigator.setRouter(self.router)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .init("FloorMapChanged"))) { notification in
-                // フロアマップが変更された時にデータを再読み込み
-                print("📢 AntennaPositioningView: FloorMapChanged通知を受信")
-                if let floorMapInfo = notification.object as? FloorMapInfo {
-                    print("📢 新しいフロアマップ: \(floorMapInfo.name) (ID: \(floorMapInfo.id))")
-                }
-                self.viewModel.loadMapAndDevices()
             }
             .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
                 Button("OK") {
@@ -161,42 +159,57 @@ struct MapCanvasSection: View {
     @ObservedObject var viewModel: AntennaPositioningViewModel
 
     var body: some View {
-        FloorMapCanvas(
-            floorMapImage: self.viewModel.mapImage,
-            floorMapInfo: self.viewModel.currentFloorMapInfo,
-            calibrationPoints: self.viewModel.calibrationData.first?.calibrationPoints,
-            onMapTap: nil,
-            enableZoom: true,
-            fixedHeight: nil,
-            showGrid: true
-        ) { geometry in
-            // アンテナ位置
-            ForEach(self.viewModel.antennaPositions) { antenna in
-                let antennaDisplayData = AntennaDisplayData(
-                    id: antenna.id,
-                    name: antenna.deviceName,
-                    rotation: antenna.rotation,
-                    color: antenna.color
-                )
+        if let floorMapImage = self.viewModel.mapImage,
+           let floorMapInfo = self.viewModel.currentFloorMapInfo
+        {
+            FloorMapCanvas(
+                floorMapImage: floorMapImage,
+                floorMapInfo: floorMapInfo,
+                calibrationPoints: self.viewModel.calibrationData.first?.calibrationPoints,
+                onMapTap: nil,
+                enableZoom: true,
+                fixedHeight: nil,
+                showGrid: true
+            ) { geometry in
+                // アンテナ位置
+                ForEach(self.viewModel.antennaPositions) { antenna in
+                    let antennaDisplayData = AntennaDisplayData(
+                        id: antenna.id,
+                        name: antenna.deviceName,
+                        rotation: antenna.rotation,
+                        color: antenna.color
+                    )
 
-                let displayPosition = geometry.normalizedToImageCoordinate(antenna.normalizedPosition)
+                    let displayPosition = geometry.normalizedToImageCoordinate(antenna.normalizedPosition)
 
-                AntennaMarker(
-                    antenna: antennaDisplayData,
-                    position: displayPosition,
-                    size: geometry.antennaSizeInPixels(),
-                    sensorRange: geometry.sensorRangeInPixels(),
-                    isSelected: true,  // 常にセンサー範囲を表示
-                    isDraggable: true,
-                    showRotationControls: false,
-                    onPositionChanged: { newPosition in
-                        let normalizedPosition = geometry.imageCoordinateToNormalized(newPosition)
-                        self.viewModel.updateAntennaPosition(antenna.id, normalizedPosition: normalizedPosition)
-                    },
-                    onRotationChanged: { newRotation in
-                        self.viewModel.updateAntennaRotation(antenna.id, rotation: newRotation)
-                    }
-                )
+                    AntennaMarker(
+                        antenna: antennaDisplayData,
+                        position: displayPosition,
+                        size: geometry.antennaSizeInPixels(),
+                        sensorRange: geometry.sensorRangeInPixels(),
+                        isSelected: true,  // 常にセンサー範囲を表示
+                        isDraggable: true,
+                        showRotationControls: false,
+                        onPositionChanged: { newPosition in
+                            let normalizedPosition = geometry.imageCoordinateToNormalized(newPosition)
+                            self.viewModel.updateAntennaPosition(antenna.id, normalizedPosition: normalizedPosition)
+                        },
+                        onRotationChanged: { newRotation in
+                            self.viewModel.updateAntennaRotation(antenna.id, rotation: newRotation)
+                        }
+                    )
+                }
+            }
+        } else {
+            ZStack {
+                Color.secondary.opacity(0.1)
+
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("フロアマップを読み込んでいます...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }
@@ -660,6 +673,9 @@ struct FloatingControlPanel: View {
     /// パネルの展開状態
     @Binding var isExpanded: Bool
 
+    /// フロアマップID
+    let floorMapId: String
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             self.headerView
@@ -755,7 +771,7 @@ struct FloatingControlPanel: View {
                 Button("次へ") {
                     let saveSuccess = self.viewModel.saveAntennaPositionsForFlow()
                     if saveSuccess {
-                        self.flowNavigator.proceedToNextStep()
+                        self.flowNavigator.proceedToNextStep(floorMapId: self.floorMapId)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -785,7 +801,7 @@ struct FloatingControlPanel: View {
 
 #Preview {
     NavigationStack {
-        AntennaPositioningView()
+        AntennaPositioningView(floorMapId: "test-floor-map-id")
             .environmentObject(NavigationRouterModel.shared)
     }
 }

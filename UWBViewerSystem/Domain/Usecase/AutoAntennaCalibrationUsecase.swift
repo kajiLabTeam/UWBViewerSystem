@@ -318,7 +318,21 @@ actor AutoAntennaCalibrationUsecase {
     func clearData(for antennaId: String) {
         self.measuredDataByAntenna.removeValue(forKey: antennaId)
         self.calibrationResults.removeValue(forKey: antennaId)
+        self.rawObservationsByAntenna.removeValue(forKey: antennaId)
+        self.processingStatistics.removeValue(forKey: antennaId)
         print("🧹 \(antennaId) のデータをクリアしました")
+    }
+
+    /// 特定のアンテナの特定のタグのデータをクリア
+    ///
+    /// - Parameters:
+    ///   - antennaId: アンテナID
+    ///   - tagId: タグID
+    func clearData(for antennaId: String, tagId: String) {
+        self.measuredDataByAntenna[antennaId]?.removeValue(forKey: tagId)
+        self.rawObservationsByAntenna[antennaId]?.removeValue(forKey: tagId)
+        self.processingStatistics[antennaId]?.removeValue(forKey: tagId)
+        print("🧹 \(antennaId) のタグ \(tagId) のデータをクリアしました")
     }
 
     /// 現在の測定データの統計情報を取得

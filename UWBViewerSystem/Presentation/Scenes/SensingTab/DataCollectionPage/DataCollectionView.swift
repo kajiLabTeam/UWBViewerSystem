@@ -1,43 +1,363 @@
+import SwiftData
 import SwiftUI
 
 /// データ取得専用画面
 /// センシング制御に特化し、参考デザイン「Stitch Design-4.png」に対応
 struct DataCollectionView: View {
-    @StateObject private var viewModel = DataCollectionViewModel()
+    /// 選択されたフロアマップID
+    let floorMapId: String
+
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var viewModel: DataCollectionViewModel
     @EnvironmentObject var router: NavigationRouterModel
     @State private var sensingFileName = ""
     @State private var showFileNameAlert = false
+    @State private var isRealtimeDataExpanded = true
+
+    init(floorMapId: String) {
+        self.floorMapId = floorMapId
+        // StateObjectの初期化はinitで行う必要がある
+        // ただし、modelContextはinitの段階ではアクセスできないため、
+        // ViewModelにmodelContextを設定する別の方法を取る
+        _viewModel = StateObject(wrappedValue: DataCollectionViewModel())
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                self.headerSection
-
-                Divider()
-
-                self.sensingControlCard
-
-                // リアルタイムセンサーデータ表示（常時表示）
-                VStack {
-                    Text("🔍 デバッグ: リアルタイムセクション表示中")
-                        .font(.caption2)
-                        .foregroundColor(.red)
-                        .padding(.bottom, 4)
-                    self.realtimeDataDisplaySection
-                }
-
-                self.recentSessionsCard
-
-                // 下部のスペースを確保
-                Spacer(minLength: 50)
+        ZStack {
+            // 背景: フロアマップを全画面表示
+            if self.viewModel.currentFloorMapInfo != nil {
+                self.fullScreenFloorMap
+            } else {
+                Color.gray.opacity(0.1)
+                    .ignoresSafeArea()
             }
-            .padding()
+
+            // 前面: コントロールパネル（半透明背景）
+            VStack {
+                Spacer()
+
+                VStack(spacing: 16) {
+                    // センシング制御（コンパクト版）
+                    self.compactSensingControl
+
+                    // リアルタイムデータ表示（コンパクト版）
+                    if !self.viewModel.deviceRealtimeDataList.isEmpty {
+                        self.compactRealtimeDataDisplay
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                    #if os(iOS)
+                        .fill(Color(UIColor.systemBackground).opacity(0.95))
+                    #else
+                        .fill(Color(NSColor.windowBackgroundColor).opacity(0.95))
+                    #endif
+                        .shadow(radius: 10)
+                )
+                .padding()
+            }
         }
         .navigationTitle("データ取得")
-        .alert("ファイル名が必要です", isPresented: self.$showFileNameAlert) {
-            Button("OK") {}
-        } message: {
-            Text("センシングを開始するには、ファイル名を入力してください。")
+        #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+        #endif
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: {
+                    #if os(iOS)
+                        return .navigationBarLeading
+                    #else
+                        return .automatic
+                    #endif
+                }()) {
+                    Button(action: {
+                        self.router.pop()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("戻る")
+                        }
+                    }
+                }
+
+                ToolbarItem(placement: {
+                    #if os(iOS)
+                        return .navigationBarTrailing
+                    #else
+                        return .automatic
+                    #endif
+                }()) {
+                    Button(action: {
+                        self.router.push(.dataDisplayPage)
+                    }) {
+                        Image(systemName: "list.bullet")
+                    }
+                }
+            }
+            .onAppear {
+                // ModelContextを使ってSwiftDataRepositoryを初期化
+                self.viewModel.setupSwiftDataRepository(modelContext: self.modelContext)
+                // 指定されたフロアマップIDでフロアマップ情報を読み込み
+                self.viewModel.loadFloorMapInfo(floorMapId: self.floorMapId)
+            }
+            .alert("ファイル名が必要です", isPresented: self.$showFileNameAlert) {
+                Button("OK") {}
+            } message: {
+                Text("センシングを開始するには、ファイル名を入力してください。")
+            }
+            .overlay {
+                // 自動再接続中のオーバーレイ
+                if self.viewModel.isAttemptingReconnect {
+                    self.reconnectingOverlay
+                }
+            }
+            .sheet(isPresented: self.$viewModel.showConnectionRecovery) {
+                ConnectionRecoveryView(
+                    connectionUsecase: ConnectionManagementUsecase.shared,
+                    isPresented: self.$viewModel.showConnectionRecovery
+                )
+            }
+    }
+
+    // MARK: - Reconnection Overlay
+
+    @ViewBuilder
+    private var reconnectingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                #if os(iOS)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                #endif
+
+                VStack(spacing: 8) {
+                    Text("再接続中...")
+                        .font(.headline)
+                        .foregroundColor(.white)
+
+                    Text("試行 \(self.viewModel.reconnectAttemptCount) / 3")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+
+                    if self.viewModel.isSensingActive {
+                        Text("センシングは一時停止中です")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            .padding(30)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.black.opacity(0.7))
+            )
+        }
+    }
+
+    // MARK: - Full Screen Floor Map
+
+    private var fullScreenFloorMap: some View {
+        GeometryReader { geometry in
+            if let floorMapImage = self.viewModel.floorMapImage,
+               let floorMapInfo = self.viewModel.currentFloorMapInfo {
+                FloorMapCanvas(
+                    floorMapImage: floorMapImage,
+                    floorMapInfo: floorMapInfo,
+                    calibrationPoints: nil,
+                    onMapTap: nil,
+                    enableZoom: true,
+                    fixedHeight: nil,
+                    showGrid: true
+                ) { canvasGeometry in
+                    // アンテナ位置を表示
+                    ForEach(self.viewModel.allAntennaPositions, id: \.id) { antenna in
+                        let normalizedPoint = canvasGeometry.realWorldToNormalized(
+                            CGPoint(x: antenna.position.x, y: antenna.position.y)
+                        )
+                        let screenPos = canvasGeometry.normalizedToImageCoordinate(normalizedPoint)
+
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 20, height: 20)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white, lineWidth: 2)
+                                )
+
+                            Text(antenna.antennaId)
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(6)
+                                .background(Color.red.opacity(0.9))
+                                .cornerRadius(6)
+                                .offset(x: 0, y: -25)
+                        }
+                        .position(screenPos)
+                    }
+
+                    // タグのリアルタイム位置を表示（表示モードに応じて切り替え）
+                    switch self.viewModel.tagDisplayMode {
+                    case .individual:
+                        // 個別表示モード: 各アンテナからの観測位置を全て表示
+                        self.individualTagPositions(canvasGeometry: canvasGeometry)
+                    case .integrated:
+                        // 統合表示モード: 重心位置のみを表示
+                        self.integratedTagPositions(canvasGeometry: canvasGeometry)
+                    }
+                }
+                .ignoresSafeArea()
+            } else {
+                // フロアマップ画像が読み込まれていない場合はローディング表示
+                ZStack {
+                    Color.secondary.opacity(0.1)
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("フロアマップを読み込んでいます...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .ignoresSafeArea()
+            }
+        }
+    }
+
+    // MARK: - Compact Sensing Control
+
+    private var compactSensingControl: some View {
+        VStack(spacing: 12) {
+            HStack {
+                // ファイル名入力
+                TextField("ファイル名", text: self.$sensingFileName)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(self.viewModel.isSensingActive)
+
+                // センシングトグルボタン
+                Button(action: {
+                    if self.viewModel.isSensingActive {
+                        self.stopSensing()
+                    } else {
+                        self.startSensing()
+                    }
+                }) {
+                    Image(systemName: self.viewModel.isSensingActive ? "stop.circle.fill" : "play.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .background(self.viewModel.isSensingActive ? Color.red : Color.green)
+                        .clipShape(Circle())
+                }
+            }
+
+            // ステータス表示
+            HStack {
+                Circle()
+                    .fill(self.viewModel.isSensingActive ? Color.green : Color.gray)
+                    .frame(width: 8, height: 8)
+
+                Text(self.viewModel.sensingStatus)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                if self.viewModel.isSensingActive {
+                    Text(self.viewModel.elapsedTime)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    // MARK: - Compact Realtime Data Display
+
+    private var compactRealtimeDataDisplay: some View {
+        VStack(spacing: 8) {
+            // 表示モード切り替えスイッチ
+            HStack {
+                Text("タグ表示:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Picker("", selection: self.$viewModel.tagDisplayMode) {
+                    ForEach(TagDisplayMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 160)
+
+                Spacer()
+
+                // 表示モードのヘルプアイコン
+                Menu {
+                    Text("個別表示: 各アンテナからの観測位置を全て表示")
+                    Text("統合表示: NLOSを考慮した重心位置を表示")
+                } label: {
+                    Image(systemName: "questionmark.circle")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Divider()
+
+            HStack {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 8, height: 8)
+
+                Text("\(self.viewModel.activeAntennaIds.count)個のアンテナ / \(self.viewModel.deviceRealtimeDataList.count)台のデバイス")
+                    .font(.caption)
+                    .fontWeight(.medium)
+
+                Spacer()
+
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        self.isRealtimeDataExpanded.toggle()
+                    }
+                }) {
+                    Image(systemName: self.isRealtimeDataExpanded ? "chevron.down" : "chevron.up")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+            }
+
+            // アンテナごとのデータ表示
+            if self.isRealtimeDataExpanded {
+                if !self.viewModel.activeAntennaIds.isEmpty {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 8) {
+                            ForEach(Array(self.viewModel.activeAntennaIds.sorted()), id: \.self) { antennaId in
+                                if let antennaDevices = self.viewModel.antennaDataMap[antennaId], !antennaDevices.isEmpty {
+                                    CompactAntennaGroupView(antennaId: antennaId, devices: antennaDevices)
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 200)
+                } else {
+                    // 従来の表示（アンテナIDがない場合のフォールバック）
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(self.viewModel.deviceRealtimeDataList) { deviceData in
+                                if let latestData = deviceData.latestData {
+                                    CompactDeviceDataView(deviceData: deviceData, latestData: latestData)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -394,6 +714,419 @@ struct DataCollectionView: View {
                 .fontWeight(.semibold)
         }
     }
+
+    // MARK: - Floor Map Display Section
+
+    private var floorMapDisplaySection: some View {
+        VStack(spacing: 16) {
+            self.floorMapHeader
+
+            if let floorMapInfo = viewModel.currentFloorMapInfo {
+                VStack(spacing: 12) {
+                    self.floorMapInfo
+
+                    self.floorMapCanvas(floorMapInfo: floorMapInfo)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                        )
+
+                    self.floorMapLegend
+                }
+            } else {
+                Text("フロアマップが読み込まれていません")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding()
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(16)
+    }
+
+    private var floorMapHeader: some View {
+        HStack {
+            Image(systemName: "map")
+                .font(.title2)
+                .foregroundColor(.blue)
+            Text("フロアマップ - リアルタイム位置")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+        }
+    }
+
+    private var floorMapInfo: some View {
+        HStack {
+            Text(self.viewModel.currentFloorMapInfo?.name ?? "")
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            Spacer()
+
+            Text("タグ: \(self.viewModel.globalCoordinates.count)台")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Text("アンテナ: \(self.viewModel.allAntennaPositions.count)台")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private func floorMapCanvas(floorMapInfo: FloorMapInfo) -> some View {
+        Group {
+            if let floorMapImage = self.viewModel.floorMapImage {
+                FloorMapCanvas(
+                    floorMapImage: floorMapImage,
+                    floorMapInfo: floorMapInfo,
+                    calibrationPoints: nil,
+                    onMapTap: nil,
+                    enableZoom: true,
+                    fixedHeight: 400,
+                    showGrid: true
+                ) { geometry in
+                    // アンテナ位置を表示
+                    ForEach(self.viewModel.allAntennaPositions, id: \.id) { antenna in
+                        let normalizedPoint = geometry.realWorldToNormalized(
+                            CGPoint(x: antenna.position.x, y: antenna.position.y)
+                        )
+                        let screenPos = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 16, height: 16)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.white, lineWidth: 2)
+                                )
+
+                            Text(antenna.antennaId)
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(4)
+                                .background(Color.red.opacity(0.8))
+                                .cornerRadius(4)
+                                .offset(x: 0, y: -20)
+                        }
+                        .position(screenPos)
+                    }
+
+                    // タグのリアルタイム位置を表示
+                    ForEach(Array(self.viewModel.globalCoordinates.keys.sorted()), id: \.self) { deviceName in
+                        if let tagPos = self.viewModel.globalCoordinates[deviceName] {
+                            let normalizedPoint = geometry.realWorldToNormalized(
+                                CGPoint(x: tagPos.x, y: tagPos.y)
+                            )
+                            let screenPos = geometry.normalizedToImageCoordinate(normalizedPoint)
+
+                            ZStack {
+                                Circle()
+                                    .fill(Color.blue)
+                                    .frame(width: 12, height: 12)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.white, lineWidth: 2)
+                                    )
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.blue.opacity(0.5), lineWidth: 8)
+                                            .scaleEffect(1.5)
+                                            .opacity(0.5)
+                                    )
+
+                                Text(deviceName)
+                                    .font(.caption2)
+                                    .foregroundColor(.white)
+                                    .padding(4)
+                                    .background(Color.blue.opacity(0.8))
+                                    .cornerRadius(4)
+                                    .offset(x: 0, y: -20)
+                            }
+                            .position(screenPos)
+                            .animation(.easeInOut(duration: 0.3), value: screenPos)
+                        }
+                    }
+                }
+            } else {
+                Text("フロアマップ画像がありません")
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private var floorMapLegend: some View {
+        HStack(spacing: 20) {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 12, height: 12)
+                Text("アンテナ")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 12, height: 12)
+                Text("タグ")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Tag Position Views
+
+    /// 個別表示モード: 各アンテナからの観測位置を全て表示
+    @ViewBuilder
+    private func individualTagPositions(canvasGeometry: FloorMapCanvasGeometry) -> some View {
+        ForEach(Array(self.viewModel.globalCoordinates.keys.sorted()), id: \.self) { deviceName in
+            if let tagPos = self.viewModel.globalCoordinates[deviceName] {
+                let normalizedPoint = canvasGeometry.realWorldToNormalized(
+                    CGPoint(x: tagPos.x, y: tagPos.y)
+                )
+                let screenPos = canvasGeometry.normalizedToImageCoordinate(normalizedPoint)
+
+                let deviceData = self.viewModel.deviceRealtimeDataList.first { $0.deviceName == deviceName }
+                let nlosValue = deviceData?.latestData?.nlos ?? 0
+                let isNLOS = nlosValue == 1
+                let dotColor = isNLOS ? Color.red : Color.blue
+
+                ZStack {
+                    Circle()
+                        .stroke(dotColor.opacity(0.5), lineWidth: isNLOS ? 6 : 4)
+                        .scaleEffect(isNLOS ? 2.5 : 2.0)
+                        .opacity(isNLOS ? 0.5 : 0.3)
+
+                    Circle()
+                        .fill(dotColor)
+                        .frame(width: isNLOS ? 20 : 16, height: isNLOS ? 20 : 16)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                        )
+
+                    if isNLOS {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.white)
+                    }
+
+                    Text(deviceName)
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(6)
+                        .background(dotColor.opacity(0.9))
+                        .cornerRadius(6)
+                        .offset(x: 0, y: -25)
+                }
+                .position(screenPos)
+                .animation(.easeInOut(duration: 0.3), value: screenPos)
+            }
+        }
+    }
+
+    /// 統合表示モード: NLOSを考慮した重心位置を表示
+    @ViewBuilder
+    private func integratedTagPositions(canvasGeometry: FloorMapCanvasGeometry) -> some View {
+        ForEach(Array(self.viewModel.integratedTagCoordinates.values), id: \.id) { integrated in
+            let normalizedPoint = canvasGeometry.realWorldToNormalized(
+                CGPoint(x: integrated.integratedCoordinate.x, y: integrated.integratedCoordinate.y)
+            )
+            let screenPos = canvasGeometry.normalizedToImageCoordinate(normalizedPoint)
+
+            // NLOSのみの場合は信頼度が低いことを示す
+            let dotColor: Color = integrated.hasNLOSOnly ? Color.orange : Color.green
+            let confidenceLevel = integrated.confidence
+
+            ZStack {
+                // 信頼度に応じたパルスエフェクト
+                Circle()
+                    .stroke(dotColor.opacity(0.4), lineWidth: 4)
+                    .scaleEffect(2.0 + (1.0 - confidenceLevel) * 0.5)
+                    .opacity(0.3 + confidenceLevel * 0.2)
+
+                // メインの円
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: 20, height: 20)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white, lineWidth: 2)
+                    )
+
+                // 信頼度インジケータ
+                if integrated.hasNLOSOnly {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.white)
+                } else if integrated.observations.count > 1 {
+                    Text("\(integrated.observations.count)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                }
+
+                // タグIDラベル
+                VStack(spacing: 2) {
+                    Text(integrated.tagId)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+
+                    // 観測情報
+                    HStack(spacing: 2) {
+                        if integrated.losCount > 0 {
+                            Text("L:\(integrated.losCount)")
+                                .font(.system(size: 8))
+                                .foregroundColor(.green)
+                        }
+                        if integrated.nlosCount > 0 {
+                            Text("N:\(integrated.nlosCount)")
+                                .font(.system(size: 8))
+                                .foregroundColor(.orange)
+                        }
+                    }
+                }
+                .foregroundColor(.white)
+                .padding(6)
+                .background(dotColor.opacity(0.9))
+                .cornerRadius(6)
+                .offset(x: 0, y: -35)
+            }
+            .position(screenPos)
+            .animation(.easeInOut(duration: 0.3), value: screenPos)
+        }
+    }
+}
+
+// MARK: - Compact Antenna Group View
+
+struct CompactAntennaGroupView: View {
+    let antennaId: String
+    let devices: [DeviceRealtimeData]
+    @State private var isExpanded = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // アンテナヘッダー
+            HStack {
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .font(.caption)
+                    .foregroundColor(.red)
+
+                Text("アンテナ: \(self.antennaId)")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                Text("\(self.devices.count)台")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        self.isExpanded.toggle()
+                    }
+                }) {
+                    Image(systemName: self.isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.borderless)
+            }
+            .contentShape(Rectangle())
+
+            // デバイスリスト(展開時)
+            if self.isExpanded {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(self.devices) { deviceData in
+                            if let latestData = deviceData.latestData {
+                                CompactDeviceDataView(deviceData: deviceData, latestData: latestData)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(8)
+        .background(Color.red.opacity(0.05))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.red.opacity(0.2), lineWidth: 1)
+        )
+        .cornerRadius(8)
+    }
+}
+
+// MARK: - Compact Device Data View
+
+struct CompactDeviceDataView: View {
+    let deviceData: DeviceRealtimeData
+    let latestData: RealtimeData
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(self.deviceData.deviceName)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                // NLOS インジケータ
+                if self.latestData.nlos == 1 {
+                    HStack(spacing: 2) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                        Text("NLOS")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("距離")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text("\(String(format: "%.1f", self.latestData.distance))m")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+
+                Divider()
+                    .frame(height: 20)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("RSSI")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text("\(String(format: "%.0f", self.latestData.rssi))dBm")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+            }
+        }
+        .padding(8)
+        .background(self.latestData.nlos == 1 ? Color.red.opacity(0.15) : Color.blue.opacity(0.1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(self.latestData.nlos == 1 ? Color.red.opacity(0.3) : Color.clear, lineWidth: 1)
+        )
+        .cornerRadius(8)
+    }
 }
 
 // MARK: - Realtime Device Card View
@@ -451,8 +1184,12 @@ struct RealtimeDeviceCardView: View {
         .background(
             LinearGradient(
                 gradient: Gradient(colors: [
-                    self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.05) : Color.gray.opacity(0.05),
-                    self.deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.gray.opacity(0.02),
+                    self.latestData.nlos == 1
+                        ? Color.red.opacity(0.1)
+                        : (self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.05) : Color.gray.opacity(0.05)),
+                    self.latestData.nlos == 1
+                        ? Color.red.opacity(0.05)
+                        : (self.deviceData.isRecentlyUpdated ? Color.green.opacity(0.05) : Color.gray.opacity(0.02)),
                 ]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -462,8 +1199,10 @@ struct RealtimeDeviceCardView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2),
-                    lineWidth: 1
+                    self.latestData.nlos == 1
+                        ? Color.red.opacity(0.5)
+                        : (self.deviceData.isRecentlyUpdated ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2)),
+                    lineWidth: self.latestData.nlos == 1 ? 2 : 1
                 )
         )
     }
@@ -500,6 +1239,22 @@ struct RealtimeDeviceCardView: View {
 
     private var mainMeasurements: some View {
         VStack(spacing: 16) {
+            // NLOS警告表示
+            if self.latestData.nlos == 1 {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    Text("Non-Line-of-Sight (NLOS) 検出")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+                    Spacer()
+                }
+                .padding(8)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(8)
+            }
+
             // 距離表示（進歩バー式）
             VStack(spacing: 8) {
                 HStack {
@@ -510,7 +1265,7 @@ struct RealtimeDeviceCardView: View {
                     Text("\(String(format: "%.0f", self.latestData.distance)) cm")
                         .font(.headline)
                         .fontWeight(.bold)
-                        .foregroundColor(.blue)
+                        .foregroundColor(self.latestData.nlos == 1 ? .red : .blue)
                 }
 
                 DistanceProgressView(distance: self.latestData.distance, maxDistance: 1000.0)  // 10m = 1000cm
@@ -984,6 +1739,6 @@ struct AzimuthCompassView: View {
 }
 
 #Preview {
-    DataCollectionView()
+    DataCollectionView(floorMapId: "test-floor-map-id")
         .environmentObject(NavigationRouterModel())
 }

@@ -23,6 +23,11 @@ public class SensingControlUsecase: ObservableObject {
     private var currentSessionId: String?
     private let logger = Logger(subsystem: "com.uwbviewer.system", category: "sensing-control")
 
+    /// 現在のセッションIDを取得（CSV出力用）
+    public var activeSessionId: String? {
+        self.currentSessionId
+    }
+
     public init(
         connectionUsecase: ConnectionManagementUsecase,
         swiftDataRepository: SwiftDataRepositoryProtocol = DummySwiftDataRepository()
@@ -97,6 +102,95 @@ public class SensingControlUsecase: ObservableObject {
         self.logger.info("センシング開始処理完了")
     }
 
+    /// 特定のデバイスのみにセンシング開始コマンドを送信（キャリブレーション用）
+    ///
+    /// - Parameters:
+    ///   - fileName: センシングセッションのファイル名
+    ///   - deviceName: コマンドを送信する対象のデバイス名
+    /// - Returns: コマンド送信に成功した場合はtrue
+    @discardableResult
+    public func startRemoteSensingForDevice(fileName: String, deviceName: String) -> Bool {
+        self.logger.info("センシング開始処理開始（単一デバイス） - ファイル名: \(fileName), デバイス: \(deviceName)")
+
+        guard !fileName.isEmpty else {
+            self.sensingStatus = "ファイル名を入力してください"
+            self.logger.error("ファイル名が空です")
+            return false
+        }
+
+        guard let endpointId = self.connectionUsecase.getEndpointId(for: deviceName) else {
+            self.sensingStatus = "デバイス \(deviceName) が見つかりません"
+            self.logger.error("デバイス \(deviceName) のエンドポイントIDが見つかりません")
+            return false
+        }
+
+        Task {
+            do {
+                // 新しいセンシングセッションを作成してSwiftDataに保存
+                let session = SensingSession(name: fileName, startTime: Date(), isActive: true)
+                try await self.swiftDataRepository.saveSensingSession(session)
+                self.currentSessionId = session.id
+
+                // システム活動ログも記録
+                let activity = SystemActivity(
+                    activityType: "sensing",
+                    activityDescription: "センシングセッション開始（単一デバイス）: \(fileName) - デバイス: \(deviceName)"
+                )
+                try await self.swiftDataRepository.saveSystemActivity(activity)
+
+                self.logger.info("センシングセッション作成完了: \(session.id)")
+            } catch {
+                self.logger.error("センシングセッション作成エラー: \(error)")
+                self.sensingStatus = "セッション作成に失敗しました"
+            }
+        }
+
+        let command = "SENSING_START:\(fileName)"
+        self.logger.info("送信するコマンド: \(command), 送信対象デバイス: \(deviceName) (\(endpointId))")
+
+        // 特定のデバイスのみにコマンドを送信
+        self.connectionUsecase.sendMessageToDevice(command, to: endpointId)
+        self.sensingStatus = "センシング開始コマンド送信: \(fileName)"
+        self.isSensingControlActive = true
+        self.sensingFileName = fileName
+        self.currentSensingFileName = fileName
+        self.sensingStartTime = Date()
+
+        // 継続時間タイマーを開始
+        self.startDurationTimer()
+
+        self.logger.info("センシング開始処理完了（単一デバイス）")
+        return true
+    }
+
+    /// 特定のデバイスにセンシング停止コマンドを送信（キャリブレーション用）
+    ///
+    /// - Parameter deviceName: コマンドを送信する対象のデバイス名
+    public func stopRemoteSensingForDevice(deviceName: String) {
+        guard let endpointId = self.connectionUsecase.getEndpointId(for: deviceName) else {
+            self.logger.error("デバイス \(deviceName) のエンドポイントIDが見つかりません")
+            return
+        }
+
+        let command = "SENSING_STOP"
+        self.connectionUsecase.sendMessageToDevice(command, to: endpointId)
+        self.sensingStatus = "センシング終了コマンド送信（\(deviceName)）"
+        self.isSensingControlActive = false
+        self.sensingFileName = ""
+        self.isPaused = false
+
+        self.stopDurationTimer()
+
+        if self.autoSave {
+            Task {
+                await self.saveCurrentSession()
+            }
+        }
+
+        self.sensingStartTime = nil
+        self.currentSensingFileName = ""
+    }
+
     public func stopRemoteSensing() {
         guard self.connectionUsecase.hasConnectedDevices() else {
             self.sensingStatus = "接続された端末がありません"
@@ -120,7 +214,8 @@ public class SensingControlUsecase: ObservableObject {
 
         self.sensingStartTime = nil
         self.currentSensingFileName = ""
-        self.currentSessionId = nil
+        // NOTE: currentSessionIdはCSV出力で使用されるため、ここではクリアしない
+        // DataCollectionViewModelでのCSV出力完了後に明示的にクリアされる
     }
 
     public func pauseRemoteSensing() {
@@ -218,17 +313,21 @@ public class SensingControlUsecase: ObservableObject {
     // MARK: - Data Management
 
     public func saveRealtimeData(_ data: RealtimeData) async {
-        guard let sessionId = currentSessionId else { return }
+        guard let sessionId = currentSessionId else {
+            self.logger.warning("⚠️ saveRealtimeData: currentSessionIdがnil")
+            return
+        }
 
         do {
             try await self.swiftDataRepository.saveRealtimeData(data, sessionId: sessionId)
+            self.logger.debug("💾 リアルタイムデータ保存成功: \(data.deviceName) - SeqCount: \(data.seqCount) - SessionID: \(sessionId)")
 
             // データポイント数を更新
             Task { @MainActor in
                 self.dataPointCount += 1
             }
         } catch {
-            self.logger.error("リアルタイムデータ保存エラー: \(error)")
+            self.logger.error("❌ リアルタイムデータ保存エラー: \(error)")
         }
     }
 

@@ -153,6 +153,8 @@ public final class PersistentRealtimeData {
     public var nlos: Int
     public var rssi: Double
     public var seqCount: Int
+    public var antennaId: String? = ""  // アンテナIDを追加（オプショナル、デフォルト値付き）
+    public var sessionId: String  // セッションIDを追加
     // public var session: PersistentSensingSession?  // リレーションシップを一旦削除
 
     public init(
@@ -165,6 +167,8 @@ public final class PersistentRealtimeData {
         nlos: Int,
         rssi: Double,
         seqCount: Int,
+        antennaId: String? = "",  // アンテナIDを追加（オプショナル）
+        sessionId: String = "",  // デフォルト値を設定
         // session: PersistentSensingSession? = nil  // リレーションシップを一旦削除
     ) {
         self.id = id
@@ -176,6 +180,8 @@ public final class PersistentRealtimeData {
         self.nlos = nlos
         self.rssi = rssi
         self.seqCount = seqCount
+        self.antennaId = antennaId
+        self.sessionId = sessionId
         // self.session = session  // リレーションシップを一旦削除
     }
 
@@ -189,7 +195,8 @@ public final class PersistentRealtimeData {
             distance: self.distance,
             nlos: self.nlos,
             rssi: self.rssi,
-            seqCount: self.seqCount
+            seqCount: self.seqCount,
+            antennaId: self.antennaId ?? ""  // アンテナIDを含める（nil合体演算子）
         )
     }
 }
@@ -275,66 +282,6 @@ public final class PersistentSystemActivity {
             activityDescription: self.activityDescription,
             status: ActivityStatus(rawValue: self.status) ?? .completed,
             additionalData: additionalData
-        )
-    }
-}
-
-@available(macOS 14, iOS 17, *)
-@Model
-public final class PersistentProjectProgress {
-    public var id: String
-    public var floorMapId: String
-    public var currentStep: String
-    public var completedStepsData: Data  // Set<SetupStep>をJSONで保存
-    public var stepData: Data  // [String: Data]をJSONで保存
-    public var createdAt: Date
-    public var updatedAt: Date
-
-    public init(
-        id: String = UUID().uuidString,
-        floorMapId: String,
-        currentStep: String = "floor_map_setting",
-        completedStepsData: Data = Data(),
-        stepData: Data = Data(),
-        createdAt: Date = Date(),
-        updatedAt: Date = Date()
-    ) {
-        self.id = id
-        self.floorMapId = floorMapId
-        self.currentStep = currentStep
-        self.completedStepsData = completedStepsData
-        self.stepData = stepData
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-    }
-
-    public func toEntity() -> ProjectProgress {
-        let decoder = JSONDecoder()
-
-        // completedStepsの復元
-        var completedSteps: Set<SetupStep> = []
-        if !self.completedStepsData.isEmpty {
-            if let stepStrings = try? decoder.decode([String].self, from: completedStepsData) {
-                completedSteps = Set(stepStrings.compactMap { SetupStep(rawValue: $0) })
-            }
-        }
-
-        // stepDataの復元
-        var projectStepData: [String: Data] = [:]
-        if !self.stepData.isEmpty {
-            if let decodedStepData = try? decoder.decode([String: Data].self, from: stepData) {
-                projectStepData = decodedStepData
-            }
-        }
-
-        return ProjectProgress(
-            id: self.id,
-            floorMapId: self.floorMapId,
-            currentStep: SetupStep(rawValue: self.currentStep) ?? .floorMapSetting,
-            completedSteps: completedSteps,
-            stepData: projectStepData,
-            createdAt: self.createdAt,
-            updatedAt: self.updatedAt
         )
     }
 }
@@ -458,7 +405,7 @@ extension AntennaPairing {
 }
 
 extension RealtimeData {
-    public func toPersistent() -> PersistentRealtimeData {
+    public func toPersistent(sessionId: String = "") -> PersistentRealtimeData {
         PersistentRealtimeData(
             id: id,
             deviceName: deviceName,
@@ -468,7 +415,9 @@ extension RealtimeData {
             distance: distance,
             nlos: nlos,
             rssi: rssi,
-            seqCount: seqCount
+            seqCount: seqCount,
+            antennaId: antennaId,  // アンテナIDを含める
+            sessionId: sessionId
         )
     }
 }
@@ -483,29 +432,6 @@ extension SystemActivity {
             status: status.rawValue,
             timestamp: timestamp,
             metadata: metadataData
-        )
-    }
-}
-
-extension ProjectProgress {
-    public func toPersistent() -> PersistentProjectProgress {
-        let encoder = JSONEncoder()
-
-        // completedStepsをData型に変換
-        let stepStrings = completedSteps.map { $0.rawValue }
-        let completedStepsData = (try? encoder.encode(stepStrings)) ?? Data()
-
-        // stepDataをData型に変換
-        let stepDataEncoded = (try? encoder.encode(stepData)) ?? Data()
-
-        return PersistentProjectProgress(
-            id: id,
-            floorMapId: floorMapId,
-            currentStep: currentStep.rawValue,
-            completedStepsData: completedStepsData,
-            stepData: stepDataEncoded,
-            createdAt: createdAt,
-            updatedAt: updatedAt
         )
     }
 }

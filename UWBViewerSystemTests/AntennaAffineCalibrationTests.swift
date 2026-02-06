@@ -343,6 +343,156 @@ struct AntennaAffineCalibrationTests {
         #expect(abs(config.scaleFactors.sy - 1.0) < 0.2)
     }
 
+    // MARK: - Cauchy Loss IRLS Tests
+
+    @Test("IRLS設定のデフォルト値")
+    func irlsConfigDefaults() {
+        let config = AntennaAffineCalibration.IRLSConfig.default
+        #expect(config.maxIterations == 10)
+        #expect(config.tolerance == 1e-6)
+        #expect(config.useCauchyLoss == true)
+    }
+
+    @Test("重み付き測定データでのキャリブレーション")
+    func calibrationWithQualityWeighting() throws {
+        // Arrange
+        let calibration = AntennaAffineCalibration()
+
+        // 高品質データ
+        let highQuality = SignalQuality(
+            strength: 0.9,
+            isLineOfSight: true,
+            confidenceLevel: 0.95,
+            errorEstimate: 0.05
+        )
+
+        // 低品質データ
+        let lowQuality = SignalQuality(
+            strength: 0.3,
+            isLineOfSight: false,
+            confidenceLevel: 0.4,
+            errorEstimate: 0.5
+        )
+
+        // 高品質データの重みが高いことを確認
+        let highWeight = AntennaAffineCalibration.WeightedMeasurement(
+            position: Point3D(x: 1.0, y: 1.0, z: 0.0),
+            quality: highQuality
+        )
+        let lowWeight = AntennaAffineCalibration.WeightedMeasurement(
+            position: Point3D(x: 1.0, y: 1.0, z: 0.0),
+            quality: lowQuality
+        )
+
+        #expect(highWeight.weight > lowWeight.weight)
+
+        // 信号品質重み付けを使用したキャリブレーション
+        let weightedMeasurements: [String: [AntennaAffineCalibration.WeightedMeasurement]] = [
+            "tag1": [
+                AntennaAffineCalibration.WeightedMeasurement(
+                    position: Point3D(x: 2.0, y: 2.0, z: 0.0),
+                    quality: highQuality
+                ),
+            ],
+            "tag2": [
+                AntennaAffineCalibration.WeightedMeasurement(
+                    position: Point3D(x: 4.0, y: 2.0, z: 0.0),
+                    quality: highQuality
+                ),
+            ],
+            "tag3": [
+                AntennaAffineCalibration.WeightedMeasurement(
+                    position: Point3D(x: 3.0, y: 4.0, z: 0.0),
+                    quality: highQuality
+                ),
+            ],
+        ]
+
+        let truePositions: [String: Point3D] = [
+            "tag1": Point3D(x: 5.0, y: 5.0, z: 0.0),
+            "tag2": Point3D(x: 7.0, y: 5.0, z: 0.0),
+            "tag3": Point3D(x: 6.0, y: 7.0, z: 0.0),
+        ]
+
+        // Act
+        let config = try calibration.estimateAntennaConfigWithQuality(
+            weightedMeasurementsByTag: weightedMeasurements,
+            truePositions: truePositions
+        )
+
+        // Assert
+        #expect(config.x.isFinite)
+        #expect(config.y.isFinite)
+        #expect(config.rmse >= 0.0)
+        #expect(config.rmse < 1.0)  // 合理的なRMSE
+
+        print("品質重み付けキャリブレーション結果: 位置(\(config.x), \(config.y)), RMSE: \(config.rmse)")
+    }
+
+    @Test("外れ値存在下でのIRLS収束")
+    func irlsConvergenceWithOutliers() throws {
+        // Arrange
+        let calibration = AntennaAffineCalibration()
+        let highQuality = SignalQuality(
+            strength: 0.9,
+            isLineOfSight: true,
+            confidenceLevel: 0.95,
+            errorEstimate: 0.05
+        )
+        let outlierQuality = SignalQuality(
+            strength: 0.2,
+            isLineOfSight: false,
+            confidenceLevel: 0.2,
+            errorEstimate: 0.8
+        )
+
+        // 正常データと外れ値を含むデータ
+        let weightedMeasurements: [String: [AntennaAffineCalibration.WeightedMeasurement]] = [
+            "tag1": [
+                AntennaAffineCalibration.WeightedMeasurement(
+                    position: Point3D(x: 2.0, y: 2.0, z: 0.0),
+                    quality: highQuality
+                ),
+                // 外れ値
+                AntennaAffineCalibration.WeightedMeasurement(
+                    position: Point3D(x: 10.0, y: 10.0, z: 0.0),
+                    quality: outlierQuality
+                ),
+            ],
+            "tag2": [
+                AntennaAffineCalibration.WeightedMeasurement(
+                    position: Point3D(x: 4.0, y: 2.0, z: 0.0),
+                    quality: highQuality
+                ),
+            ],
+            "tag3": [
+                AntennaAffineCalibration.WeightedMeasurement(
+                    position: Point3D(x: 3.0, y: 4.0, z: 0.0),
+                    quality: highQuality
+                ),
+            ],
+        ]
+
+        let truePositions: [String: Point3D] = [
+            "tag1": Point3D(x: 5.0, y: 5.0, z: 0.0),
+            "tag2": Point3D(x: 7.0, y: 5.0, z: 0.0),
+            "tag3": Point3D(x: 6.0, y: 7.0, z: 0.0),
+        ]
+
+        // Act
+        let config = try calibration.estimateAntennaConfigWithQuality(
+            weightedMeasurementsByTag: weightedMeasurements,
+            truePositions: truePositions
+        )
+
+        // Assert - IRLSにより外れ値の影響が低減されているはず
+        #expect(config.x.isFinite)
+        #expect(config.y.isFinite)
+        #expect(config.rmse < 5.0)  // 外れ値があっても極端に悪くならない
+
+        print("外れ値存在下でのIRLS結果: 位置(\(config.x), \(config.y)), RMSE: \(config.rmse)")
+    }
+
     @Test("複数回の測定値の平均化")
     func multipleMeasurementsAveraging() throws {
         // Arrange

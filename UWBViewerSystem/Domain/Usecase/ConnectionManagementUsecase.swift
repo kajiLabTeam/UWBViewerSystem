@@ -15,8 +15,21 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     @Published var connectedEndpoints: Set<String> = []
     @Published var isAdvertising = false
 
+    // 接続断検出用
+    @Published var hasConnectionError = false
+    @Published var lastDisconnectedDevice: String?
+
+    /// 自動再接続中かどうか（アラート抑制用）
+    @Published public var isAutoReconnecting = false
+
+    // ペアリング情報管理（アンテナID → デバイス名）
+    @Published public var antennaPairings: [String: String] = [:]
+
     private let locationManager = CLLocationManager()
     private let nearbyRepository: NearbyRepository
+
+    // endpointId → deviceName のマッピング
+    private var endpointToDeviceNameMap: [String: String] = [:]
 
     // RealtimeDataUsecaseへの参照を追加
     public weak var realtimeDataUsecase: RealtimeDataUsecase?
@@ -136,8 +149,18 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
     // MARK: - Message Sending
 
     public func sendMessage(_ content: String) {
-        if let firstEndpoint = connectedEndpoints.first {
-            self.nearbyRepository.sendDataToDevice(text: content, toEndpointId: firstEndpoint)
+        // 全ての接続されたエンドポイントにメッセージを送信
+        for endpointId in self.connectedEndpoints {
+            self.nearbyRepository.sendDataToDevice(text: content, toEndpointId: endpointId)
+            #if DEBUG
+                print("📤 メッセージを送信: \(content) → エンドポイント: \(endpointId)")
+            #endif
+        }
+
+        if self.connectedEndpoints.isEmpty {
+            #if DEBUG
+                print("⚠️ 送信先のエンドポイントがありません")
+            #endif
         }
     }
 
@@ -161,6 +184,43 @@ public class ConnectionManagementUsecase: NSObject, ObservableObject {
         self.realtimeDataUsecase = usecase
         print("✅ RealtimeDataUsecaseを設定しました")
     }
+
+    // MARK: - Pairing Management
+
+    /// アンテナと端末のペアリングを登録
+    public func pairAntennaWithDevice(antennaId: String, deviceName: String) {
+        self.antennaPairings[antennaId] = deviceName
+        print("🔗 ペアリング登録: \(antennaId) → \(deviceName)")
+    }
+
+    /// ペアリングを削除
+    public func unpairAntenna(antennaId: String) {
+        self.antennaPairings.removeValue(forKey: antennaId)
+        print("✂️ ペアリング削除: \(antennaId)")
+    }
+
+    /// すべてのペアリングをクリア
+    public func clearAllPairings() {
+        self.antennaPairings.removeAll()
+        print("🧹 すべてのペアリングをクリアしました")
+    }
+
+    /// 特定のアンテナに紐づくデバイス名を取得
+    public func getDeviceName(for antennaId: String) -> String? {
+        self.antennaPairings[antennaId]
+    }
+
+    /// デバイス名からエンドポイントIDを取得
+    public func getEndpointId(for deviceName: String) -> String? {
+        self.endpointToDeviceNameMap.first { $0.value == deviceName }?.key
+    }
+
+    /// ペアリングされているかつ接続中のアンテナIDリストを取得
+    public func getConnectedAntennaIds() -> [String] {
+        self.antennaPairings.compactMap { antennaId, deviceName in
+            self.connectedDeviceNames.contains(deviceName) ? antennaId : nil
+        }
+    }
 }
 
 // MARK: - NearbyRepositoryCallback
@@ -181,7 +241,16 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
 
     nonisolated public func onDeviceFound(endpointId: String, name: String, isConnectable: Bool) {
         Task { @MainActor in
-            print("Device found: \(name) (\(endpointId))")
+            print("📱 Device found: \(name) (\(endpointId)), isConnectable: \(isConnectable)")
+
+            // 接続可能な場合は自動的に接続リクエストを送信
+            if isConnectable {
+                print("📞 [ConnectionManagement] 自動接続リクエストを送信開始: \(name) (\(endpointId))")
+                self.nearbyRepository.requestConnection(to: endpointId, deviceName: name)
+                print("✅ [ConnectionManagement] 自動接続リクエスト送信完了")
+            } else {
+                print("⚠️ 接続不可のデバイス: \(name)")
+            }
         }
     }
 
@@ -195,9 +264,10 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
         endpointId: String, deviceName: String, context: Data, accept: @escaping (Bool) -> Void
     ) {
         Task { @MainActor in
-            print("Connection request from: \(deviceName) (\(endpointId))")
+            print("📥 [ConnectionManagement] 接続リクエスト受信: \(deviceName) (\(endpointId))")
             // 自動的に接続を承認
             accept(true)
+            print("✅ [ConnectionManagement] 接続リクエストを承認しました")
         }
     }
 
@@ -217,6 +287,13 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
             self.connectedEndpoints.insert(endpointId)
             self.connectState = "端末接続: \(deviceName)"
 
+            // endpointId → deviceName のマッピングを保存
+            self.endpointToDeviceNameMap[endpointId] = deviceName
+
+            // 接続エラーフラグをクリア
+            self.hasConnectionError = false
+            self.lastDisconnectedDevice = nil
+
             // RealtimeDataUsecaseにデバイス接続を通知
             self.realtimeDataUsecase?.addConnectedDevice(deviceName)
             print("📱 RealtimeDataUsecaseに端末接続を通知: \(deviceName)")
@@ -226,15 +303,27 @@ extension ConnectionManagementUsecase: NearbyRepositoryCallback {
     nonisolated public func onDeviceDisconnected(endpointId: String) {
         Task { @MainActor in
             print("Device disconnected: \(endpointId)")
+
+            // endpointIdからdeviceNameを取得
+            let deviceName = self.endpointToDeviceNameMap[endpointId]
+
             self.connectedEndpoints.remove(endpointId)
-            self.connectState = "端末切断: \(endpointId)"
+            self.connectState = "端末切断: \(deviceName ?? endpointId)"
+
+            // 接続エラーフラグを設定
+            self.hasConnectionError = true
+            self.lastDisconnectedDevice = deviceName
 
             // RealtimeDataUsecaseに端末切断を通知
-            // endpointIdではなくdeviceNameが必要だが、ここではendpointIdしかないので
-            // 接続中のdeviceNamesから削除する
-            if let deviceName = self.connectedDeviceNames.first(where: { _ in true }) {
+            if let deviceName {
+                self.connectedDeviceNames.remove(deviceName)
                 self.realtimeDataUsecase?.removeDisconnectedDevice(deviceName)
                 print("📱 RealtimeDataUsecaseに端末切断を通知: \(deviceName)")
+
+                // マッピングから削除
+                self.endpointToDeviceNameMap.removeValue(forKey: endpointId)
+            } else {
+                print("⚠️ endpointId \(endpointId) に対応するdeviceNameが見つかりません")
             }
         }
     }

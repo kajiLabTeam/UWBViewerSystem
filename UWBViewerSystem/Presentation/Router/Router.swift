@@ -14,13 +14,13 @@ enum Route: Hashable {
 
     // センシングフロー
     case floorMapSetting  // フロアマップ設定
-    case antennaConfiguration  // アンテナ設定（向き設定機能付き）
-    case systemCalibration  // システムキャリブレーション（自動アンテナキャリブレーション）
+    case antennaConfiguration(floorMapId: String)  // アンテナ設定（向き設定機能付き）
+    case systemCalibration(floorMapId: String)  // システムキャリブレーション（自動アンテナキャリブレーション）
     case trajectoryView  // センシングデータの軌跡確認
 
     // メイン機能画面
-    case pairingSettingPage
-    case dataCollectionPage
+    case pairingSettingPage(floorMapId: String)
+    case dataCollectionPage(floorMapId: String)
     case dataDisplayPage
     case mainTabView
 }

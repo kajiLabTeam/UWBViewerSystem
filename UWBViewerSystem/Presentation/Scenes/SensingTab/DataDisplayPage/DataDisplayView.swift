@@ -6,43 +6,69 @@ import SwiftUI
 struct DataDisplayView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = DataDisplayViewModel()
-    @StateObject private var flowNavigator = SensingFlowNavigator()
     @EnvironmentObject var router: NavigationRouterModel
-    @State private var selectedDisplayMode: DisplayMode = .history
-
-    enum DisplayMode: String, CaseIterable {
-        case history = "履歴データ"
-        case files = "ファイル管理"
-    }
+    @State private var shareURL: URL?
+    @State private var showShareSheet = false
+    @State private var sessionToDelete: SensingSession?
+    @State private var showDeleteAlert = false
 
     var body: some View {
         VStack(spacing: 0) {
-            // フロープログレス表示
-            SensingFlowProgressView(navigator: self.flowNavigator)
-
             ScrollView {
                 VStack(spacing: 20) {
                     self.headerSection
 
-                    self.displayModeSelector
+                    self.historyDataView
 
-                    self.contentArea
-
-                    Spacer(minLength: 80)
+                    Spacer(minLength: 20)
                 }
                 .padding()
             }
-
-            // ナビゲーションボタン
-            navigationButtons
         }
-        .navigationTitle("データ表示")
+        .navigationTitle("取得データ")
+        .sheet(isPresented: self.$showShareSheet, onDismiss: {
+            print("🎬 ShareSheetが閉じられました")
+            self.shareURL = nil
+        }) {
+            if let url = self.shareURL {
+                #if os(iOS)
+                    ShareSheet(items: [url])
+                        .onAppear {
+                            print("🎬 ShareSheetを表示: \(url.path)")
+                        }
+                #else
+                    Text("macOSでは共有機能は利用できません")
+                #endif
+            } else {
+                Text("共有するファイルが見つかりません")
+                    .foregroundColor(.red)
+                    .onAppear {
+                        print("⚠️ shareURLがnilです")
+                    }
+            }
+        }
+        .alert("セッション削除", isPresented: self.$showDeleteAlert, presenting: self.sessionToDelete) { session in
+            Button("キャンセル", role: .cancel) {
+                self.sessionToDelete = nil
+            }
+            Button("削除", role: .destructive) {
+                Task {
+                    let success = await self.viewModel.deleteSessionData(session)
+                    if success {
+                        print("✅ セッション削除成功: \(session.name)")
+                    } else {
+                        print("❌ セッション削除失敗: \(session.name)")
+                    }
+                    self.sessionToDelete = nil
+                }
+            }
+        } message: { session in
+            Text("「\(session.name)」を削除しますか？\nSwiftDataとCSVファイルの両方が削除されます。")
+        }
         .onAppear {
             // ModelContextからSwiftDataRepositoryを作成してViewModelに設定
             let repository = SwiftDataRepository(modelContext: modelContext)
             self.viewModel.setSwiftDataRepository(repository)
-            self.flowNavigator.currentStep = .dataViewer
-            self.flowNavigator.setRouter(self.router)
         }
     }
 
@@ -63,30 +89,6 @@ struct DataDisplayView: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-        }
-    }
-
-    // MARK: - Display Mode Selector
-
-    private var displayModeSelector: some View {
-        Picker("表示モード", selection: self.$selectedDisplayMode) {
-            ForEach(DisplayMode.allCases, id: \.self) { mode in
-                Text(mode.rawValue).tag(mode)
-            }
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal)
-    }
-
-    // MARK: - Content Area
-
-    @ViewBuilder
-    private var contentArea: some View {
-        switch self.selectedDisplayMode {
-        case .history:
-            self.historyDataView
-        case .files:
-            self.fileManagementView
         }
     }
 
@@ -117,81 +119,30 @@ struct DataDisplayView: View {
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         ForEach(self.viewModel.historyData, id: \.id) { session in
-                            HistorySessionCard(session: session) {
-                                self.viewModel.loadSessionData(session)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(16)
-    }
-
-    // MARK: - File Management View
-
-    private var fileManagementView: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Text("ファイル管理")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-
-                Spacer()
-
-                Button(action: self.viewModel.openStorageFolder) {
-                    HStack {
-                        Image(systemName: "folder")
-                        Text("フォルダを開く")
-                    }
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .cornerRadius(6)
-                }
-            }
-
-            if self.viewModel.receivedFiles.isEmpty {
-                EmptyDataView(
-                    icon: "doc",
-                    title: "ファイルなし",
-                    subtitle: "まだ受信されたファイルがありません"
-                )
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(self.viewModel.receivedFiles, id: \.name) { file in
-                            FileItemCard(file: file) {
-                                self.viewModel.openFile(file)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ファイル転送進捗
-            if !self.viewModel.fileTransferProgress.isEmpty {
-                VStack(spacing: 8) {
-                    Text("ファイル転送中")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-
-                    ForEach(Array(self.viewModel.fileTransferProgress.keys), id: \.self) { endpointId in
-                        if let progress = viewModel.fileTransferProgress[endpointId] {
-                            FileTransferProgressView(
-                                endpointId: endpointId,
-                                progress: progress
+                            HistorySessionCard(
+                                session: session,
+                                onShare: {
+                                    Task {
+                                        print("🔄 共有ボタンがタップされました: \(session.name)")
+                                        if let url = await self.viewModel.shareSessionData(session) {
+                                            print("✅ ZIPファイルURL取得成功: \(url.path)")
+                                            await MainActor.run {
+                                                self.shareURL = url
+                                                self.showShareSheet = true
+                                            }
+                                        } else {
+                                            print("❌ ZIPファイルの生成に失敗しました")
+                                        }
+                                    }
+                                },
+                                onDelete: {
+                                    self.sessionToDelete = session
+                                    self.showDeleteAlert = true
+                                }
                             )
                         }
                     }
                 }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(8)
             }
         }
         .padding()
@@ -223,7 +174,8 @@ struct DataRow: View {
 
 struct HistorySessionCard: View {
     let session: SensingSession
-    let onTap: () -> Void
+    let onShare: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         HStack {
@@ -252,117 +204,22 @@ struct HistorySessionCard: View {
                     .foregroundColor(.secondary)
             }
 
-            Button(action: self.onTap) {
-                Image(systemName: "chevron.right")
+            Button(action: self.onShare) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.body)
                     .foregroundColor(.blue)
+            }
+
+            Button(action: self.onDelete) {
+                Image(systemName: "trash")
+                    .font(.body)
+                    .foregroundColor(.red)
             }
         }
         .padding()
         .background(Color.primary.opacity(0.05))
         .cornerRadius(8)
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-}
-
-// MARK: - File Item Card
-
-struct FileItemCard: View {
-    let file: DataDisplayFile
-    let onTap: () -> Void
-
-    var body: some View {
-        HStack {
-            Image(systemName: self.file.isCSV ? "doc.text" : "doc")
-                .foregroundColor(self.file.isCSV ? .green : .blue)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(self.file.name)
-                    .font(.body)
-                    .fontWeight(.medium)
-
-                Text(self.file.formattedDate)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            Text(self.file.formattedSize)
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Button(action: self.onTap) {
-                Image(systemName: "square.and.arrow.up")
-                    .foregroundColor(.blue)
-            }
-        }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(8)
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
-    }
-}
-
-// MARK: - File Transfer Progress View
-
-struct FileTransferProgressView: View {
-    let endpointId: String
-    let progress: Int
-
-    var body: some View {
-        VStack(spacing: 4) {
-            HStack {
-                Text("端末: \(self.endpointId)")
-                    .font(.caption)
-                Spacer()
-                Text("\(self.progress)%")
-                    .font(.caption)
-                    .fontWeight(.medium)
-            }
-
-            ProgressView(value: Double(self.progress), total: 100)
-                .progressViewStyle(LinearProgressViewStyle())
-        }
-    }
-}
-
-// MARK: - Navigation Buttons
-
-extension DataDisplayView {
-    private var navigationButtons: some View {
-        VStack(spacing: 12) {
-            Divider()
-
-            HStack(spacing: 16) {
-                Button("戻る") {
-                    self.flowNavigator.goToPreviousStep()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.secondary)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(8)
-
-                Button("フローを完了") {
-                    self.flowNavigator.completeFlow()
-                    self.router.reset()
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .foregroundColor(.white)
-                .background(Color.green)
-                .cornerRadius(8)
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-        }
-        .alert("エラー", isPresented: Binding.constant(self.flowNavigator.lastError != nil)) {
-            Button("OK") {
-                self.flowNavigator.lastError = nil
-            }
-        } message: {
-            Text(self.flowNavigator.lastError ?? "")
-        }
     }
 }
 
@@ -402,6 +259,30 @@ extension DateFormatter {
         return formatter
     }()
 }
+
+// MARK: - ShareSheet for iOS
+
+#if os(iOS)
+    struct ShareSheet: UIViewControllerRepresentable {
+        let items: [Any]
+
+        func makeUIViewController(context: Context) -> UIActivityViewController {
+            print("🎬 ShareSheet: UIActivityViewControllerを作成中")
+            print("🎬 共有アイテム数: \(self.items.count)")
+            for (index, item) in self.items.enumerated() {
+                print("🎬 アイテム[\(index)]: \(type(of: item)) = \(item)")
+            }
+
+            let controller = UIActivityViewController(activityItems: self.items, applicationActivities: nil)
+
+            return controller
+        }
+
+        func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
+            // No update needed
+        }
+    }
+#endif
 
 #Preview {
     DataDisplayView()
